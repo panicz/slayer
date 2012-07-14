@@ -58,5 +58,7 @@ void widgets_init(Uint16 w, Uint16 h) {
   eval("(define-method (draw (i <image>))"
        "  (draw-image (slot-ref i 'image) (slot-ref i 'x) (slot-ref i 'y)))");
 
+  eval("(define *active-widget* *stage*)");
+
   stage = eval("*stage*");
 }
