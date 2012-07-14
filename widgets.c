@@ -9,13 +9,14 @@ void widgets_init(Uint16 w, Uint16 h) {
        "  (ice-9 match))");
   eval("(define-generic update!)");
   eval("(define-generic draw)");
-  eval("(define-generic area!)");
-  eval("(define-generic add-child)");
+  eval("(define-generic area)");
+  eval("(define-generic add-child!)");
   eval("(define-class <widget> ()"
        "  (parent #:init-value #f #:init-keyword #:parent)"
        "  (children #:init-value '() #:init-keyword #:children)"
        "  (click #:init-value noop #:init-keyword #:click)"
        "  (drag #:init-value noop #:init-keyword #:drag)"
+       "  (update!  #:init-value noop #:init-keyword #:update)"
        "  (x #:init-value 0 #:init-keyword #:x)"
        "  (y #:init-value 0 #:init-keyword #:y)"
        "  (w #:init-value 0 #:init-keyword #:w)"
@@ -48,7 +49,7 @@ void widgets_init(Uint16 w, Uint16 h) {
        "      (let ((w (find condition (slot-ref widget 'children))))"
        "	(if (not w)"
        "	    widget"
-       "	    (let ((c (widget-nested-find condition (slot-ref w 'children))))"
+       "	    (let ((c (widget-nested-find condition w)))"
        "	      (if (not c) w c))))))");
 
   eval("(define-class <image> (<widget>)"
