@@ -19,19 +19,24 @@ static SCM clear_screen() {
   return SCM_UNSPECIFIED;
 }
 
+static SCM wipe_screen() {
+  SDL_FillRect(screen, NULL, 0);
+  return SCM_UNSPECIFIED;
+}
+
 static void export_functions() {
   scm_c_define_gsubr("set-caption", 1, 0, 0, set_caption); 
   scm_c_define_gsubr("clear-screen", 0, 0, 0, clear_screen);
+  scm_c_define_gsubr("wipe-screen", 0, 0, 0, wipe_screen);
 }
 
-
-
 void video_refresh_screen() {
+  wipe_screen();
   eval("(draw *stage*)");
 }
 
 void video_init(Uint16 w, Uint16 h) {
   SDL_Init(SDL_INIT_VIDEO);
-  screen = SDL_SetVideoMode(w, h, 0, SDL_HWSURFACE);
+  screen = SDL_SetVideoMode(w, h, 0, SDL_HWSURFACE | SDL_DOUBLEBUF);
   export_functions();
 }

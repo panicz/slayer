@@ -48,9 +48,27 @@ SCM draw_image(SCM image_smob, SCM x, SCM y) {
   return SCM_UNSPECIFIED;
 }
 
+SCM image_width(SCM image_smob) {
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+  return scm_from_int(image->w);
+}
+
+SCM image_height(SCM image_smob) {
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+  return scm_from_int(image->h);
+}
+
+SCM image_size(SCM image_smob) {
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+  return scm_list_2(scm_from_int(image->w), scm_from_int(image->h));
+}
+
 static void export_functions() {
   scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
   scm_c_define_gsubr("draw-image", 3, 0, 0, draw_image);
+  scm_c_define_gsubr("image-width", 1, 0, 0, image_width);
+  scm_c_define_gsubr("image-height", 1, 0, 0, image_height);
+  scm_c_define_gsubr("image-size", 1, 0, 0, image_size);
 }
 
 

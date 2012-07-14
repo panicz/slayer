@@ -115,7 +115,8 @@ SCM scm_from_sdl_event(SDL_Event *event) {
     }
     //button = scm_from_int(mouseb    }
     return scm_list_n(s_mousebutton,
-		      scm_c_vector_ref(key_names, SDLK_LAST + event->button.button),
+		      scm_c_vector_ref(key_names, 
+				       SDLK_LAST + event->button.button),
 		      state,
 		      scm_from_uint16(event->button.x),
 		      scm_from_uint16(event->button.y),
@@ -330,22 +331,24 @@ SCM input_handle_events() {
     (*event_handler[event.type])(&event);
   */
   
-  while(SDL_WaitEvent(&event)) {
-    if(input_mode == DIRECT_MODE) {
-      return (*event_handler[event.type])(&event);
-    } else if(input_mode == TYPING_MODE) {
-      switch(event.type) {
-      case SDL_KEYDOWN:
-	putchar(event.key.keysym.unicode);
-	break;
-      case SDL_QUIT:
-	return quit_handler(&event);
-      default:
+  if(SDL_WaitEvent(&event)) {
+    do {
+      if(input_mode == DIRECT_MODE) {
 	return (*event_handler[event.type])(&event);
+      } else if(input_mode == TYPING_MODE) {
+	switch(event.type) {
+	case SDL_KEYDOWN:
+	  putchar(event.key.keysym.unicode);
+	  break;
+	case SDL_QUIT:
+	  return quit_handler(&event);
+	default:
+	  return (*event_handler[event.type])(&event);
+	}
+      } else {
+	assert(!"NAH, THAT'S IMPOSSIBLE...");
       }
-    } else {
-      assert(!"NAH, THAT'S IMPOSSIBLE...");
-    }
+    } while(SDL_PollEvent(&event));
   }
   
   return SCM_UNSPECIFIED;
