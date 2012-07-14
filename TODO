@@ -1,0 +1,7 @@
+List of things to do:
+input.c:
+- support for the remaining event types in scm_from_sdl_event
+- write a set of appropriate functions to generate events
+
+image.c
+- conversion functions image->array and array->image
