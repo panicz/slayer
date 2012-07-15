@@ -1,7 +1,21 @@
 List of things to do:
 input.c:
 - support for the remaining event types in scm_from_sdl_event
+(or maybe just give it up? simplify?)
 - write a set of appropriate functions to generate events
 
 image.c
 - conversion functions image->array and array->image
+
+slayer.c
+- save the structure of the stage to the .spec file
+
+widgets.c
+- extract the scheme code to some external file that should
+be somehow incorporated into the binary, or distributed as
+a module (it would be nice if the guile itself could be
+made a self-contained executable as well, with no need
+for any external files)
+
+sound.c, font.c, timer.c
+- create/add d(^_^)b
