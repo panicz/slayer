@@ -99,8 +99,8 @@ SCM scm_from_sdl_event(SDL_Event *event) {
 		      scm_from_uint8(event->motion.state),
 		      scm_from_uint16(event->motion.x),
 		      scm_from_uint16(event->motion.y),
-		      scm_from_uint16(event->motion.xrel),
-		      scm_from_uint16(event->motion.yrel),
+		      scm_from_int16(event->motion.xrel),
+		      scm_from_int16(event->motion.yrel),
 		      SCM_UNDEFINED);
 
   case SDL_MOUSEBUTTONDOWN: // SDL_MouseButtonEvent
