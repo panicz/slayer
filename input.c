@@ -331,10 +331,12 @@ SCM input_handle_events() {
     (*event_handler[event.type])(&event);
   */
   
-  if(SDL_WaitEvent(&event)) {
-    do {
+  if(SDL_WaitEvent(NULL)) {
+    int i = 0;
+    while(SDL_PollEvent(&event)) {
+      ++i;
       if(input_mode == DIRECT_MODE) {
-	return (*event_handler[event.type])(&event);
+        (*event_handler[event.type])(&event);
       } else if(input_mode == TYPING_MODE) {
 	switch(event.type) {
 	case SDL_KEYDOWN:
@@ -348,7 +350,7 @@ SCM input_handle_events() {
       } else {
 	assert(!"NAH, THAT'S IMPOSSIBLE...");
       }
-    } while(SDL_PollEvent(&event));
+    }
   }
   
   return SCM_UNSPECIFIED;

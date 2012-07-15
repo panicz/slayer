@@ -2,15 +2,13 @@
   (lambda (type state code name mod unicode)
     (quit)))
 
-(define (make-image source)
+(define (make-image source x y)
   (let* ((image (load-image source))
-	 (image-object (make <image> #:image image)))
-    (slot-set! image-object 'w (image-width image))
-    (slot-set! image-object 'h (image-height image))
-    (slot-set! image-object 'click (lambda e (display source) (newline)))
+	 (image-object (make <image> #:image image #:x x #:y y #:w (image-width image) #:h (image-height image))))
+    ; (slot-set! image-object 'click (lambda e (display source) (newline)))
     (slot-set! image-object 'drag 
 	       (lambda (type state x y xrel yrel)
-		 (display `(moving ,image-object from (,(slot-ref image-object 'x) ,(slot-ref image-object 'y)) by (,xrel ,yrel))) (newline)
+		 ;(display `(moving ,image-object from (,(slot-ref image-object 'x) ,(slot-ref image-object 'y)) by (,xrel ,yrel))) (newline)
 		 (slot-set! image-object 'x
 			    (+ (slot-ref image-object 'x)
 			       xrel))
@@ -19,18 +17,18 @@
 			       yrel))))
     image-object))
 
-(add-child! *stage* (make-image "./ku.png"))
-(display *stage*)
+(add-child! *stage* (make-image "./ku.png" 50 50))
 
 (keydn 'mouse1 
   (lambda (type name state x y)
     (and-let* ((w (widget-nested-find (lambda(w)
 					(in-area? (list x y) (area w)))
 				      *stage*)))
+	      ;(display `(grabbing ,w with children at ,(map area (slot-ref w 'children))))(newline)
 	      (set! *active-widget* w)
 	      ((slot-ref w 'click) type name state x y))))
 
-;(keyup 'mouse1 (lambda (type name state x y) (set! *active-widget* *stage*)))
+(keyup 'mouse1 (lambda (type name state x y) (set! *active-widget* *stage*)))
 
 (mousemove (lambda (type state x y xrel yrel) 
 	     ((slot-ref *active-widget* 'drag) type state x y xrel yrel)))

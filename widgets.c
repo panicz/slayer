@@ -41,7 +41,7 @@ void widgets_init(Uint16 w, Uint16 h) {
        "  (match-let"
        "    (((x y w h) area)"
        "     ((px py) point))"
-       "       (and (<= x px w) (<= y py h))))");
+       "       (and (<= x px (+ x w)) (<= y py (+ y h)))))");
 
   eval("(define (widget-nested-find condition widget)"
        "  (if (not (condition widget))"
