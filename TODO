@@ -1,7 +1,7 @@
 List of things to do:
 input.c:
 - support for the remaining event types in scm_from_sdl_event
-(or maybe just give it up? simplify?)
+(or emaybe just give it up? simplify?)
 - write a set of appropriate functions to generate events
 
 image.c
@@ -15,7 +15,9 @@ widgets.c
 be somehow incorporated into the binary, or distributed as
 a module (it would be nice if the guile itself could be
 made a self-contained executable as well, with no need
-for any external files)
+for any external files. It would also be nice if one could
+dump the memory state to file, and load it back from there)
+- create textarea widget (and attach it to guile interpreter)
 
 sound.c, font.c, timer.c
 - create/add d(^_^)b

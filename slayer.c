@@ -7,6 +7,7 @@
 #include "widgets.h"
 #include "timer.h"
 #include "utils.h"
+#include "font.h"
 
 /*
   There is a set of widgets/modules, written either in C or
@@ -86,6 +87,7 @@ static void init(char *specs, Uint16 w, Uint16 h) {
   input_init();
   widgets_init(w, h);
   timer_init();
+  font_init();
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions

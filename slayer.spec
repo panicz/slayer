@@ -2,22 +2,23 @@
   (lambda (type state code name mod unicode)
     (quit)))
 
-(define (make-image source x y)
-  (let* ((image (load-image source))
-	 (image-object (make <image> #:image image #:x x #:y y #:w (image-width image) #:h (image-height image))))
-    ; (slot-set! image-object 'click (lambda e (display source) (newline)))
-    (slot-set! image-object 'drag 
-	       (lambda (type state x y xrel yrel)
-		 ;(display `(moving ,image-object from (,(slot-ref image-object 'x) ,(slot-ref image-object 'y)) by (,xrel ,yrel))) (newline)
-		 (slot-set! image-object 'x
-			    (+ (slot-ref image-object 'x)
-			       xrel))
-		 (slot-set! image-object 'y
-			    (+ (slot-ref image-object 'y)
-			       yrel))))
-    image-object))
+(define (make-image image x y)
+  (let ((image (make <image> #:image image #:x x #:y y 
+		     #:w (image-width image) 
+		     #:h (image-height image))))
+    (slot-set! image 'drag 
+	       (lambda (type state x y xrel yrel)		 
+		 (slot-set! image 'x (+ (slot-ref image 'x) xrel))
+		 (slot-set! image 'y (+ (slot-ref image 'y) yrel))))
+    image))
 
-(add-child! *stage* (make-image "./ku.png" 50 50))
+
+(define *default-font* (load-font "./VeraMono.ttf" 12))
+(set-font-style! *default-font* 1)
+
+(add-child! *stage* (make-image (load-image "./ku.png") 50 50))
+(add-child! *stage* (make-image (render-text "TOTALNA KUTASA" *default-font*) 150 150))
+(add-child! *stage* (make-image (load-image "./ku.png") 50 150))
 
 (keydn 'mouse1 
   (lambda (type name state x y)
@@ -43,4 +44,5 @@
       (ku (load-image "./ku.png")))
   (keydn 't (lambda e (draw-image tk4d 20 20)))
   (keydn 'k (lambda e (draw-image ku 50 90)))
+  ;(keydn 'y (lambda e (draw-image  20 100)))
   (keydn 'c (lambda e (clear-screen))))

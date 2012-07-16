@@ -24,15 +24,22 @@ static SCM wipe_screen() {
   return SCM_UNSPECIFIED;
 }
 
+static SCM flip_screen() {
+  SDL_Flip(screen);
+  return SCM_UNSPECIFIED;
+}
+
 static void export_functions() {
   scm_c_define_gsubr("set-caption", 1, 0, 0, set_caption); 
   scm_c_define_gsubr("clear-screen", 0, 0, 0, clear_screen);
   scm_c_define_gsubr("wipe-screen", 0, 0, 0, wipe_screen);
+  scm_c_define_gsubr("flip-screen", 0, 0, 0, flip_screen);
 }
 
 void video_refresh_screen() {
   wipe_screen();
   eval("(draw *stage*)");
+  flip_screen();  
 }
 
 void video_init(Uint16 w, Uint16 h) {
