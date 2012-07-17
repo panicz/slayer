@@ -16,8 +16,8 @@
 (define *default-font* (load-font "./VeraMono.ttf" 12))
 (set-font-style! *default-font* 1)
 
-(add-child! *stage* (make-image (load-image "./ku.png") 50 50))
-(add-child! *stage* (make-image (render-text "TOTALNA KUTASA" *default-font*) 150 150))
+(add-child! *stage* (make-image (load-image "./tk4d.png") 50 50))
+(add-child! *stage* (make-image (render-text "the game" *default-font*) 150 150))
 (add-child! *stage* (make-image (load-image "./ku.png") 50 150))
 
 (keydn 'mouse1 

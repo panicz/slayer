@@ -18,6 +18,8 @@ made a self-contained executable as well, with no need
 for any external files. It would also be nice if one could
 dump the memory state to file, and load it back from there)
 - create textarea widget (and attach it to guile interpreter)
+- create a menu widget (and associate it with creating
+new buttons)
 
 sound.c, font.c, timer.c
 - create/add d(^_^)b

@@ -68,10 +68,11 @@ static void finish(int status, char *filename) {
   if(keytab[i] != SCM_UNSPECIFIED) { \
     source = as_c_string(scm_procedure_source(keytab[i])); \
     keyname = scm_to_locale_string(scm_c_vector_ref(key_names, i)); \
-    LOG("(" # keytab " '%s %s)", keyname, source); \
+    WARN("(" # keytab " '%s %s)", keyname, source);	    \
     free(keyname); \
     free(source); \
   }
+
 
   for(i = 0; i < NELEMS(keydown); ++i) {
     DUMP_SOURCE(keydown, i);
