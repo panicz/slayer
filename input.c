@@ -5,7 +5,8 @@ SCM keydown[SDLK_LAST + SDL_NBUTTONS];
 SCM keyup[SDLK_LAST + SDL_NBUTTONS];
 SCM mousemove;
 
-enum input_modes input_mode;SCM scancodes;
+enum input_modes input_mode;
+SCM scancodes;
 SCM key_names;
 
 static void input_mode_direct() {
@@ -20,6 +21,8 @@ static void input_mode_typing() {
   input_mode = TYPING_MODE;
 }
 
+static SCM s_typing;
+static SCM s_direct;
 static SCM s_unknown;
 static SCM s_mouse;
 static SCM s_input;
@@ -35,11 +38,14 @@ static SCM s_left;
 static SCM s_right;
 static SCM s_middle;
 
+
 void init_static_symbols() {
 #define INIT_SYMBOL(var, val) \
   var = symbol(val);\
   hold_scm(var);
 
+  INIT_SYMBOL(s_typing, "typing");
+  INIT_SYMBOL(s_direct, "direct");
   INIT_SYMBOL(s_unknown, "unknown");
   INIT_SYMBOL(s_mouse, "mouse");
   INIT_SYMBOL(s_input, "input");
@@ -57,6 +63,17 @@ void init_static_symbols() {
 
 #undef INIT_SYMBOL
 }
+
+static SCM input_mode_x(SCM mode) {
+  if (equal(mode, s_typing)) {
+    input_mode_typing();
+  }
+  else if (equal(mode, s_direct)) {
+    input_mode_direct();
+  }
+  return input_mode == TYPING_MODE ? s_typing : s_direct;
+}
+
 
 SCM scm_from_sdl_event(SDL_Event *event) {
   SCM state = s_unknown;
@@ -287,6 +304,7 @@ static void export_functions() {
   scm_c_define_gsubr("keydn", 2, 0, 0, bind_keydown);
   scm_c_define_gsubr("keyup", 2, 0, 0, bind_keyup);
   scm_c_define_gsubr("mousemove", 1, 0, 0, bind_mousemove);  
+  scm_c_define_gsubr("input-mode", 0, 1, 0, input_mode_x);  
 }
 
 
@@ -341,11 +359,12 @@ SCM input_handle_events() {
 	switch(event.type) {
 	case SDL_KEYDOWN:
 	  putchar(event.key.keysym.unicode);
+	  fflush(stdout);
 	  break;
 	case SDL_QUIT:
-	  return quit_handler(&event);
+	  quit_handler(&event);
 	default:
-	  return (*event_handler[event.type])(&event);
+	  (*event_handler[event.type])(&event);
 	}
       } else {
 	assert(!"NAH, THAT'S IMPOSSIBLE...");
