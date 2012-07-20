@@ -19,6 +19,7 @@ static int print_image(SCM image, SCM port, scm_print_state *pstate) {
     return 0;
   scm_puts(string, port);
   free(string);
+  scm_remember_upto_here_1(image);
   return 1;
 }
 
@@ -37,22 +38,29 @@ SCM draw_image(SCM image_smob, SCM x, SCM y) {
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SDL_Rect area = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
   SDL_BlitSurface(image, NULL, screen, &area);
+  scm_remember_upto_here_1(image_smob);
   return SCM_UNSPECIFIED;
 }
 
 SCM image_width(SCM image_smob) {
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  return scm_from_int(image->w);
+  SCM w = scm_from_int(image->w);
+  scm_remember_upto_here_1(image_smob);
+  return w;
 }
 
 SCM image_height(SCM image_smob) {
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  return scm_from_int(image->h);
+  SCM h = scm_from_int(image->h);
+  scm_remember_upto_here_1(image_smob);
+  return h;
 }
 
 SCM image_size(SCM image_smob) {
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  return scm_list_2(scm_from_int(image->w), scm_from_int(image->h));
+  SCM l = scm_list_2(scm_from_int(image->w), scm_from_int(image->h));
+  scm_remember_upto_here_1(image_smob);
+  return l;
 }
 
 static void export_functions() {

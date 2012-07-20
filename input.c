@@ -343,7 +343,7 @@ void (*handle_events)(SDL_Event *e);
 // curses z naszą konsolą?
 SCM input_handle_events() {
   SDL_Event event;
-
+  SCM c;
   /*
   while(SDL_PollEvent(&event))
     (*event_handler[event.type])(&event);
@@ -358,8 +358,13 @@ SCM input_handle_events() {
       } else if(input_mode == TYPING_MODE) {
 	switch(event.type) {
 	case SDL_KEYDOWN:
-	  putchar(event.key.keysym.unicode);
-	  fflush(stdout);
+	  if(indeed(eval("*input-widget*"))) {
+	    c = scm_integer_to_char(scm_from_int16(event.key.keysym.unicode));
+	    scm_write_char(c, scm_current_output_port());
+	    scm_force_output(scm_current_output_port());
+	  }
+	  //putchar(event.key.keysym.unicode);
+	  //fflush(stdout);
 	  break;
 	case SDL_QUIT:
 	  quit_handler(&event);

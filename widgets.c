@@ -10,4 +10,5 @@ void widgets_init(Uint16 w, Uint16 h) {
   eval("(define *active-widget* *stage*)");
  
   stage = eval("*stage*");
+  
 }

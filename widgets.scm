@@ -52,3 +52,29 @@
 (define-method (draw (i <image>))
   (draw-image (slot-ref i 'image) (slot-ref i 'x) (slot-ref i 'y)))
 
+(define (make-image image x y)
+  (let ((image (make <image> #:image image #:x x #:y y 
+		     #:w (image-width image) 
+		     #:h (image-height image))))
+    (slot-set! image 'drag 
+	       (lambda (type state x y xrel yrel)		 
+		 (slot-set! image 'x (+ (slot-ref image 'x) xrel))
+		 (slot-set! image 'y (+ (slot-ref image 'y) yrel))))
+    image))
+
+(define-class <text-area> (<widget>)
+  (font #:init-keyword #:font)
+  (text #:init-keyword #:text)
+  (rows #:init-keyword #:rows)
+  (cols #:init-keyword #:cols)
+  (cursor-position #:init-value '(0 0))
+  (rendered-lines #:init-value #f))
+
+(define-generic input-text!)
+
+(define *stdout* (current-output-port))
+(define *stdin* (current-input-port))
+(define *stderr* (current-error-port))
+
+(define *input-widget* #t)
+  

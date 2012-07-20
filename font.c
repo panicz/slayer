@@ -17,6 +17,7 @@ static int print_font(SCM font, SCM port, scm_print_state *state) {
     return 0;
   scm_puts(string, port);
   free(string);
+  scm_remember_upto_here_1(font);
   return 1;
 }
 
@@ -52,7 +53,7 @@ SCM render_text(SCM text, SCM font, SCM color) {
     = TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)));
 
   SCM_NEWSMOB(smob, image_tag, image);
-
+  scm_remember_upto_here_1(font);
   return smob;
 }
 

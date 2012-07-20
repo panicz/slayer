@@ -23,3 +23,16 @@ new buttons)
 
 sound.c, font.c, timer.c
 - create/add d(^_^)b
+
+
+
+GUILE IDEAS (r8rs?)
+- procedure introspection: the meta-procedures
+procedure-source, procedure-arity 
+
+- environment introspection -- the environment's display procedue should
+display all the definitions that would be necessary to obtain the current
+state of the program
+
+- programmable reader, and especially the possibility of defining new
+syntaxes for various parentheses, like [], {} and <>
