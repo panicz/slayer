@@ -4,10 +4,11 @@
 #include "image.h"
 #include "input.h"
 #include "file.h"
+#include "font.h"
 #include "widgets.h"
 #include "timer.h"
 #include "utils.h"
-#include "font.h"
+
 
 /*
   There is a set of widgets/modules, written either in C or
@@ -86,9 +87,11 @@ static void init(char *specs, Uint16 w, Uint16 h) {
   video_init(w, h);
   image_init();
   input_init();
-  widgets_init(w, h);
-  timer_init();
   font_init();
+  timer_init();
+  widgets_init(w, h);
+
+
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
