@@ -37,6 +37,7 @@ SCM set_font_style(SCM font, SCM style) {
   return SCM_UNSPECIFIED;
 }
 
+
 SCM render_text(SCM text, SCM font, SCM color) {
   SCM smob;
 
@@ -46,22 +47,33 @@ SCM render_text(SCM text, SCM font, SCM color) {
   TTF_Font *ttf = (TTF_Font *) SCM_SMOB_DATA(font);
 
   if(color == SCM_UNDEFINED) {
-    color = scm_from_uint(0xaaaaaa);
+    color = scm_from_uint(0xffffff);
   }
 
   SDL_Surface *image 
     = TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)));
+
+  if(!image) {
+    image = sdl_surface(1, TTF_FontLineSkip(ttf));
+  }
 
   SCM_NEWSMOB(smob, image_tag, image);
   scm_remember_upto_here_1(font);
   return smob;
 }
 
+SCM font_line_skip(SCM font) {
+  TTF_Font *ttf = (TTF_Font *) SCM_SMOB_DATA(font);
+  int skip = TTF_FontLineSkip(ttf);
+  scm_remember_upto_here_1(font);
+  return scm_from_int(skip);
+}
+
 static void export_functions() {
   scm_c_define_gsubr("load-font", 2, 0, 0, load_font);
   scm_c_define_gsubr("render-text", 2, 1, 0, render_text);
   scm_c_define_gsubr("set-font-style!", 2, 0, 0, set_font_style);
-
+  scm_c_define_gsubr("font-line-skip", 1, 0, 0, font_line_skip);
 }
 
 void font_init() {
