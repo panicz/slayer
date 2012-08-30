@@ -10,7 +10,7 @@ extern SCM keydown[SDLK_LAST + SDL_NBUTTONS];
 extern SCM keyup[SDLK_LAST + SDL_NBUTTONS];
 extern SCM mousemove;
 
-SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
+extern SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
 
 extern SCM scancodes; // hash table containing keynames and their scancodes
 extern SCM key_names;
