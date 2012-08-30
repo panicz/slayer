@@ -35,6 +35,8 @@ SCM load_image(SCM path) {
 }
 
 SCM draw_image(SCM image_smob, SCM x, SCM y) {
+  scm_assert_smob_type(image_tag, image_smob);
+  
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SDL_Rect area = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
   SDL_BlitSurface(image, NULL, screen, &area);
@@ -43,6 +45,7 @@ SCM draw_image(SCM image_smob, SCM x, SCM y) {
 }
 
 SCM image_width(SCM image_smob) {
+  scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM w = scm_from_int(image->w);
   scm_remember_upto_here_1(image_smob);
@@ -50,6 +53,7 @@ SCM image_width(SCM image_smob) {
 }
 
 SCM image_height(SCM image_smob) {
+  scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM h = scm_from_int(image->h);
   scm_remember_upto_here_1(image_smob);
@@ -57,6 +61,8 @@ SCM image_height(SCM image_smob) {
 }
 
 SCM image_size(SCM image_smob) {
+  scm_assert_smob_type(image_tag, image_smob);
+
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM l = scm_list_2(scm_from_int(image->w), scm_from_int(image->h));
   scm_remember_upto_here_1(image_smob);
@@ -70,8 +76,6 @@ static void export_functions() {
   scm_c_define_gsubr("image-height", 1, 0, 0, image_height);
   scm_c_define_gsubr("image-size", 1, 0, 0, image_size);
 }
-
-
 
 void image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
