@@ -1,6 +1,29 @@
 (use-modules (oop goops)
 	     (srfi srfi-1) (srfi srfi-2)
 	     (ice-9 match))
+
+
+(define *stdout* (current-output-port))
+(define *stdin* (current-input-port))
+(define *stderr* (current-error-port))
+
+
+(define *stdio* 
+  (make-soft-port 
+   (vector 
+    (lambda (c) (write (char-upcase c) *stdout*)) ; procedure accepting one character for output
+    (lambda (s) (display (string-upcase s) *stdout*)) ; procedure accepting a string for output
+    (lambda () (display "." *stdout*)) ; thunk for flushing output
+    (lambda () (char-upcase (read-char))) ; thunk for getting one character
+    (lambda () (display "@" *stdout*)) ; thunk for closing port (not by garbage collector)
+    #f) ; (if present and not `#f') thunk for computing the number
+					; of characters that can be read from the port without blocking
+   "rw"))
+
+(set-current-input-port *stdio*)
+(set-current-output-port *stdio*)
+
+
 (define-generic update!)
 (define-generic draw)
 (define-generic area)
@@ -62,19 +85,56 @@
 		 (slot-set! image 'y (+ (slot-ref image 'y) yrel))))
     image))
 
+
+(define *default-font* (load-font "./VeraMono.ttf" 12))
+(set-font-style! *default-font* 1)
+
 (define-class <text-area> (<widget>)
-  (font #:init-keyword #:font)
-  (text #:init-keyword #:text)
-  (rows #:init-keyword #:rows)
-  (cols #:init-keyword #:cols)
-  (cursor-position #:init-value '(0 0))
+  (lines #:init-value '#(""))
+  ;(cursor-position #:init-value '(0 0))
+  (font #:init-value *default-font* #:init-keyword #:font)
+  (port #:init-value *stdio*)
+  (visible-cols #:init-keyword #:visible-cols)
+  (visible-lines #:init-keyword #:visible-lines)
   (rendered-lines #:init-value #f))
+
+(define-method (draw (t <text-area>))
+  (let* ((font (slot-ref t 'font))
+	 (line-skip (font-line-skip font))
+	 (lines (slot-ref t 'lines)))
+    (let ((x (slot-ref t 'x))
+	  (y (slot-ref t 'y)))
+      (for-each (lambda(line top)
+		  (let ((image (render-text line font)))
+		    (slot-set! t 'w (max (slot-ref t 'w) (image-width image)))
+		    (draw-image image x (+ y top))))
+		(vector->list lines)
+		(iota (vector-length lines) 0 line-skip)))
+    (slot-set! t 'h (* (vector-length lines) line-skip))))
+
+(define-method (move-cursor! (w <text-area>)
+			     (right <integer>)
+			     (down <integer>))
+  (let ((p (slot-ref w 'port))
+	(L (slot-ref w 'lines)))
+    (set-port-line! p (max 0 (min (+ (port-line p) down) 
+				  (vector-length L))))
+    (set-port-column! p (max 0 (min (+ (port-column p) right)
+				    (string-length (vector-ref L (port-line p))))))))
+
+(define-method (delete-char! (w <text-area>))
+  (let ((p (slot-ref w 'port)))
+    (delete-char! w (port-column p) (port-line p))))
+
+(define-method (delete-char! (w <text-area>) (col <integer>) (line <integer>))
+  (let* ((s (vector-ref (slot-ref w 'lines) line))
+	 (sl (string-length s))
+	 (l (substring s 0 (max 0 (min sl (- col 1)))))
+	 (r (substring s (min sl col))))
+    (vector-set! (slot-ref w 'lines) line (string-append l r))))
 
 (define-generic input-text!)
 
-(define *stdout* (current-output-port))
-(define *stdin* (current-input-port))
-(define *stderr* (current-error-port))
 
-(define *input-widget* #t)
+(define *input-widget* #f)
   
