@@ -1,5 +1,10 @@
 #include "input.h"
 #include "utils.h"
+#include "userevent.h"
+#include "timer.h"
+
+SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
+SCM (*userevent[MAX_USEREVENTS])(SDL_Event *);
 
 SCM keydown[SDLK_LAST + SDL_NBUTTONS];
 SCM keyup[SDLK_LAST + SDL_NBUTTONS];
@@ -37,7 +42,6 @@ static SCM s_mousebutton;
 static SCM s_left;
 static SCM s_right;
 static SCM s_middle;
-
 
 void init_static_symbols() {
 #define INIT_SYMBOL(var, val) \
@@ -193,6 +197,10 @@ static inline SCM mousereleased_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
+static inline SCM userevent_handler(SDL_Event *e) {
+  return (userevent[e->user.code])(e);
+}
+
 static inline SCM quit_handler(SDL_Event *e) {
   SDL_Quit();
   exit(0);
@@ -214,8 +222,7 @@ static void build_keymap() {
   scm_gc_protect_object(scancodes);
 
   scm_c_define("*scancodes*", scancodes);
-  
-  
+    
   for(i = 0; i < NELEMS(keymap); ++i) { //*(keymap[i].keyname)
     scm_hash_set_x(scancodes, 
 		   scm_from_locale_string(keymap[i].keyname), 
@@ -324,6 +331,10 @@ void input_init() {
   event_handler[SDL_MOUSEBUTTONUP] = mousereleased_handler;
   event_handler[SDL_MOUSEMOTION] = mousemotion_handler;
   event_handler[SDL_QUIT] = quit_handler;
+  event_handler[SDL_USEREVENT] = userevent_handler;
+
+  for(i = 0; i < MAX_USEREVENTS; ++i)
+    userevent[i] = unsupported_event;
 
   build_keymap();
   export_functions();
@@ -357,17 +368,58 @@ SCM input_handle_events() {
         (*event_handler[event.type])(&event);
       } else if(input_mode == TYPING_MODE) {
 	switch(event.type) {
+	case SDL_KEYUP:
+	  break;
+
 	case SDL_KEYDOWN:
-	  if(indeed(eval("*input-widget*"))) {
+
+	  if(isgraph(event.key.keysym.unicode) || event.key.keysym.unicode  == ' ') {
 	    c = scm_integer_to_char(scm_from_int16(event.key.keysym.unicode));
 	    scm_write_char(c, scm_current_output_port());
 	    scm_force_output(scm_current_output_port());
+	  } else {
+	    switch(event.key.keysym.sym) {
+	    case SDLK_ESCAPE:
+	      eval("(set-current-output-port *stdout*)");
+	      input_mode_direct();
+	      break;
+
+	    case SDLK_F1:
+	      eval("(display (list (port-line (current-output-port)) (port-column (current-output-port))) *stdout*)(newline *stdout*)");
+	      break;
+	    case SDLK_BACKSPACE:
+
+	      eval("(let* ((w *input-widget*)(p (slot-ref w 'port))) (delete-char! w) (move-cursor! w -1 0))");
+	      break;
+	    case SDLK_DELETE:
+	      eval("(let* ((w *input-widget*)(p (slot-ref w 'port))) (delete-char! w (+ (port-column p) 1) (port-line p)) (move-cursor! w 0 0))");
+	      break;
+	      
+	    case SDLK_INSERT:
+	    case SDLK_HOME:
+	    case SDLK_END:
+	    case SDLK_PAGEUP:
+	    case SDLK_PAGEDOWN:
+	    case SDLK_KP_ENTER:
+	    case SDLK_RETURN:
+	    case SDLK_TAB:
+	    case SDLK_CLEAR:
+	    case SDLK_PAUSE:
+	    case SDLK_LSHIFT:
+	    case SDLK_CAPSLOCK:
+	    case SDLK_RALT:
+	      
+	      break;
+	    default:
+	      break;
+	    }
 	  }
 	  //putchar(event.key.keysym.unicode);
 	  //fflush(stdout);
 	  break;
 	case SDL_QUIT:
 	  quit_handler(&event);
+	  break;
 	default:
 	  (*event_handler[event.type])(&event);
 	}
