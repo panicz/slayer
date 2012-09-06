@@ -354,7 +354,8 @@ void (*handle_events)(SDL_Event *e);
 // curses z naszą konsolą?
 SCM input_handle_events() {
   SDL_Event event;
-  SCM c;
+  SCM c, input_widget;
+
   /*
   while(SDL_PollEvent(&event))
     (*event_handler[event.type])(&event);
@@ -378,40 +379,10 @@ SCM input_handle_events() {
 	    scm_write_char(c, scm_current_output_port());
 	    scm_force_output(scm_current_output_port());
 	  } else {
-	    switch(event.key.keysym.sym) {
-	    case SDLK_ESCAPE:
-	      eval("(set-current-output-port *stdout*)");
-	      input_mode_direct();
-	      break;
-
-	    case SDLK_F1:
-	      eval("(display (list (port-line (current-output-port)) (port-column (current-output-port))) *stdout*)(newline *stdout*)");
-	      break;
-	    case SDLK_BACKSPACE:
-
-	      eval("(let* ((w *input-widget*)(p (slot-ref w 'port))) (delete-char! w) (move-cursor! w -1 0))");
-	      break;
-	    case SDLK_DELETE:
-	      eval("(let* ((w *input-widget*)(p (slot-ref w 'port))) (delete-char! w (+ (port-column p) 1) (port-line p)) (move-cursor! w 0 0))");
-	      break;
-	      
-	    case SDLK_INSERT:
-	    case SDLK_HOME:
-	    case SDLK_END:
-	    case SDLK_PAGEUP:
-	    case SDLK_PAGEDOWN:
-	    case SDLK_KP_ENTER:
-	    case SDLK_RETURN:
-	    case SDLK_TAB:
-	    case SDLK_CLEAR:
-	    case SDLK_PAUSE:
-	    case SDLK_LSHIFT:
-	    case SDLK_CAPSLOCK:
-	    case SDLK_RALT:
-	      
-	      break;
-	    default:
-	      break;
+	    input_widget = eval("*input-widget*");
+	    if(indeed(input_widget)) {
+	      SCM special_keys = eval("(slot-ref *input-widget* 'special-keys)");
+	      scm_apply_0(scm_c_vector_ref(special_keys, event.key.keysym.sym), SCM_EOL);
 	    }
 	  }
 	  //putchar(event.key.keysym.unicode);
