@@ -1,7 +1,16 @@
+General clues:
+In order to keep the things clean, one should avoid
+evaluating scheme code in C, because that's nasty.
+For the work-in-progress stage it is ok to sometimes
+do it, especially if the workaround would take too
+much time, but in the final version it's better
+to export more C functions to scheme and call them,
+than to do otherwise. Eval is evil ;]
+
 List of things to do:
 input.c:
 - support for the remaining event types in scm_from_sdl_event
-(or emaybe just give it up? simplify?)
+(or maybe just give it up? simplify?)
 - write a set of appropriate functions to generate events
 
 image.c
