@@ -1,12 +1,11 @@
 (use-modules (oop goops)
-	     (srfi srfi-1) (srfi srfi-2)
+	     (srfi srfi-1) 
+	     (srfi srfi-2)
 	     (ice-9 match))
-
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
-
 
 (define *stdio* 
   (make-soft-port 
@@ -22,7 +21,6 @@
 
 (set-current-input-port *stdio*)
 (set-current-output-port *stdio*)
-
 
 (define-generic update!)
 (define-generic draw)
@@ -85,18 +83,18 @@
 		 (slot-set! image 'y (+ (slot-ref image 'y) yrel))))
     image))
 
-
 (define *default-font* (load-font "./VeraMono.ttf" 12))
-(set-font-style! *default-font* 1)
+;(set-font-style! *default-font* 1)
 
 (define-class <text-area> (<widget>)
   (lines #:init-value '#(""))
+  (special-keys #:init-thunk (lambda()(make-vector (vector-length *key-names*) noop)))
   ;(cursor-position #:init-value '(0 0))
   (font #:init-value *default-font* #:init-keyword #:font)
   (port #:init-value *stdio*)
   (visible-cols #:init-keyword #:visible-cols)
   (visible-lines #:init-keyword #:visible-lines)
-  (rendered-lines #:init-value #f))
+  (rendered-lines #:init-thunk make-hash-table))
 
 (define-method (draw (t <text-area>))
   (let* ((font (slot-ref t 'font))
@@ -135,6 +133,4 @@
 
 (define-generic input-text!)
 
-
 (define *input-widget* #f)
-  
