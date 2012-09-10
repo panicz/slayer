@@ -38,7 +38,7 @@ SCM set_font_style(SCM font, SCM style) {
 }
 
 
-SCM render_text(SCM text, SCM font, SCM color) {
+SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
   SCM smob;
 
   char *string = as_c_string(text);
@@ -50,8 +50,9 @@ SCM render_text(SCM text, SCM font, SCM color) {
     color = scm_from_uint(0xffffff);
   }
 
-  SDL_Surface *image 
-    = TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)));
+  SDL_Surface *image = (bgcolor == SCM_UNDEFINED)
+    ? TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)))
+    : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), sdl_color(scm_to_uint(bgcolor)));
 
   if(!image) {
     image = sdl_surface(1, TTF_FontLineSkip(ttf));
@@ -71,7 +72,7 @@ SCM font_line_skip(SCM font) {
 
 static void export_functions() {
   scm_c_define_gsubr("load-font", 2, 0, 0, load_font);
-  scm_c_define_gsubr("render-text", 2, 1, 0, render_text);
+  scm_c_define_gsubr("render-text", 2, 2, 0, render_text);
   scm_c_define_gsubr("set-font-style!", 2, 0, 0, set_font_style);
   scm_c_define_gsubr("font-line-skip", 1, 0, 0, font_line_skip);
 }
