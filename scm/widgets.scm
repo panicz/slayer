@@ -1,6 +1,7 @@
 (use-modules (oop goops)
 	     (srfi srfi-1) 
 	     (srfi srfi-2)
+	     (srfi srfi-11)
 	     (ice-9 match))
 
 (define *stdout* (current-output-port))
