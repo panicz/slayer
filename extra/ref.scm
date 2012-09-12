@@ -1,7 +1,10 @@
 (define-module (extra ref)
   #:use-module (oop goops)
+  #:use-module (ice-9 match)
   #:export (ref))
  
+(use-modules (oop goops)(ice-9 match))
+
 (define (getter obj key)
   (cond ((vector? obj)
 	 (vector-ref obj key))
@@ -23,8 +26,14 @@
 (define-generic ref)
 
 (define vref (make-procedure-with-setter vector-ref vector-set!))
+
 (define href (make-procedure-with-setter hash-ref hash-set!))
+
 (define sref (make-procedure-with-setter slot-ref slot-set!))
+
+(define aref (make-procedure-with-setter 
+	      (lambda(array indices)(apply array-ref array indices))
+	      (lambda(array indices value)(apply array-set! array value indices))))
 
 (define-method (ref (vector <vector>) (key <integer>))
   (vref vector key))
@@ -35,12 +44,22 @@
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
 
-;(with-input-from-string "#[2 3\n]" read) (lambda()(catch #t read (lambda args args))))
 
 (read-hash-extend #\[
-		  (lambda (char port)
-		    (let* ((exp `(ref ,(read port) ,(read port))))
-		      ;(read-char port)
-		      (catch 'read-error (lambda()(read port)) (lambda(key . args) key))
-		      exp)))
-
+		  (let ((process (match-lambda 
+				  ((object key)
+				   `(ref ,object ,key))
+				  ((array . indices)
+				   `(aref ,array (list ,@indices)))
+				  (default
+				    default))))
+		    (lambda (char port)
+		      (let loop ((exp '()))
+			(let ((char (read-char port)))
+			  (cond ((char-whitespace? char)
+				 (loop exp))
+				((eq? char #\])
+				 (process (reverse exp)))
+				(#t
+				 (unread-char char port)
+				 (loop (cons (read port) exp)))))))))
