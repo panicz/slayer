@@ -3,15 +3,15 @@
   #:use-module (ice-9 match)
   #:export (ref))
  
-(use-modules (oop goops)(ice-9 match))
-
 (define (getter obj key)
   (cond ((vector? obj)
 	 (vector-ref obj key))
 	((hash-table? obj)
 	 (hash-ref obj key))
 	((instance? obj)
-	 (slot-ref obj key))))
+	 (slot-ref obj key))
+	((array? obj)
+	 (array-ref obj key))))
 
 (define (setter obj key value)
   (cond ((vector? obj)
@@ -19,7 +19,9 @@
 	((hash-table? obj)
 	 (hash-set! obj key value))
 	((instance? obj)
-	 (slot-set! obj key value))))
+	 (slot-set! obj key value))
+	((array? obj)
+	 (array-set! obj value key))))
 
 (define ref (make-procedure-with-setter getter setter))
 
