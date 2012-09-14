@@ -1,6 +1,3 @@
-(set! %load-path (cons "./" %load-path))
-(use-modules (extra ref))
-
 (keydn 'esc
   (lambda (type state code name mod unicode)
     (quit)))
@@ -49,8 +46,8 @@
 		(let ((p #[t 'port])
 		      (lines #[t 'lines]))
 		  (if (>= (+ (port-line p) 1)
-			  (vector-length lines))
-		      (set! #[t 'lines] (list->vector (append (vector->list lines) (list "")))))
+			  (vector-length lin es))
+		      (set! #[t 'lines] (vector-append #[t 'lines] #(""))))
 		  (move-cursor! t (- (port-column p)) 1))))
 
     (set-key! "f1" (lambda()

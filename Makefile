@@ -19,4 +19,4 @@ slayer:	$(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
 
 clean:
-	rm slayer *.o *~ scm/*.o scm/*~
+	rm slayer *.o *~ scm/*.o scm/*~ extra/*~
