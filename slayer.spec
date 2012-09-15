@@ -7,9 +7,11 @@
 	 (display (version)) (newline)))
 
 (add-child! *stage* (make-image (load-image "./tk4d.png") 50 50))
-(add-child! *stage* (make-image (render-text "the game" *default-font* #x000000 #x22aacc) 150 150))
+(add-child! *stage* (make-image (render-text "the game" *default-font* #x000000 #xccaa22) 150 150))
 
-(let ((ku (make-image (load-image "./ku.png") 50 150)))
+(add-child! *stage* (make-image (rectangle 50 50 #x20eeaa22) 50 50))
+
+(let ((ku (make-image (load-image "./ku.png")  50 150)))
   (make-timer 100 (lambda()
 		    (set! #[ku 'x] (+ #[ku 'x] 1))
 		    (set! #[ku 'y] (+ #[ku 'y] 1)))
@@ -46,9 +48,13 @@
 		(let ((p #[t 'port])
 		      (lines #[t 'lines]))
 		  (if (>= (+ (port-line p) 1)
-			  (vector-length lin es))
+			  (vector-length lines))
 		      (set! #[t 'lines] (vector-append #[t 'lines] #(""))))
 		  (move-cursor! t (- (port-column p)) 1))))
+    (set-key! "left" (lambda()(move-cursor! t -1 0)))
+    (set-key! "right" (lambda()(move-cursor! t 1 0)))
+    (set-key! "up" (lambda()(move-cursor! t 0 -1)))
+    (set-key! "down" (lambda()(move-cursor! t 0 1)))
 
     (set-key! "f1" (lambda()
 		     (display 
@@ -66,19 +72,35 @@
 					(let ((this (last pre))
 					      (pre (drop-right pre 1)))
 					  (match post ((next . rest)
-						       (set! #[t 'lines] (list->vector 
-									  (append pre 
-										  (list 
-										   (string-append this next)) 
-										  rest)))
-						       (move-cursor! t (string-length #[lines (- (port-line p) 1)]) -1))))))
+						       (set! #[t 'lines] 
+							     (list->vector 
+							      (append pre 
+								      `(,(string-append this next)) 
+								      rest)))
+						       (move-cursor! t 
+								     (string-length #[lines(-(port-line p)1)])
+								     -1))))))
 				  (begin 
 				    (delete-char! t)
 				    (move-cursor! t -1 0))))))
+
     (set-key! "delete" (lambda()
-			 (let* ((p #[t 'port]))
-			   (delete-char! t (+ (port-column p) 1) (port-line p)) 
-			   (move-cursor! t 0 0)))))
+			 (let* ((p #[t 'port])
+				(lines #[t 'lines]))
+			   (if (= (port-column p) (string-length #[lines (port-line p)]))
+			       (let*-values (((pre post) (split-at (vector->list lines) (+ (port-line p) 1))))
+				 (if (> (length pre) 0)
+				     (let ((this (last pre))
+					   (pre (drop-right pre 1)))
+				       (match post ((next . rest)
+						    (set! #[t 'lines]
+							  (list->vector
+							   (append pre
+								   `(,(string-append this next))
+								   rest))))))))
+			       (begin
+				 (delete-char! t (+ (port-column p) 1) (port-line p)) 
+				 (move-cursor! t 0 0)))))))
     
   (slot-set! t 'click 
 	     (lambda e
@@ -113,5 +135,4 @@
 (keydn 't (lambda e (input-mode 'typing)))
 
 ;(make-timer 1000 (lambda()(display "hello")) ) 
-
 
