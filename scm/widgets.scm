@@ -1,8 +1,14 @@
+(set! %load-path (cons "./" %load-path))
+
 (use-modules (oop goops)
 	     (srfi srfi-1) 
 	     (srfi srfi-2)
 	     (srfi srfi-11)
-	     (ice-9 match))
+	     (ice-9 match)
+	     (extra ref)
+	     (extra vector-lib)
+	     ;(extra overload)
+	     )
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
@@ -11,8 +17,8 @@
 (define *stdio* 
   (make-soft-port 
    (vector 
-    (lambda (c) (write (char-upcase c) *stdout*)) ; procedure accepting one character for output
-    (lambda (s) (display (string-upcase s) *stdout*)) ; procedure accepting a string for output
+    (lambda (c) (write c *stdout*)) ; procedure accepting one character for output
+    (lambda (s) (display s *stdout*)) ; procedure accepting a string for output
     (lambda () (display "." *stdout*)) ; thunk for flushing output
     (lambda () (char-upcase (read-char))) ; thunk for getting one character
     (lambda () (display "@" *stdout*)) ; thunk for closing port (not by garbage collector)
@@ -97,40 +103,43 @@
   (visible-lines #:init-keyword #:visible-lines)
   (rendered-lines #:init-thunk make-hash-table))
 
+
 (define-method (draw (t <text-area>))
-  (let* ((font (slot-ref t 'font))
+  (let* ((font #[t 'font])
 	 (line-skip (font-line-skip font))
-	 (lines (slot-ref t 'lines)))
-    (let ((x (slot-ref t 'x))
-	  (y (slot-ref t 'y)))
+	 (lines #[t 'lines])
+	 (space (render-text "_" font))
+	 (cursor (rectangle 2 line-skip #x20eeaa22)))
       (for-each (lambda(line top)
 		  (let ((image (render-text line font)))
-		    (slot-set! t 'w (max (slot-ref t 'w) (image-width image)))
-		    (draw-image image x (+ y top))))
+		    (set! #[t 'w] (max #[t 'w] (image-width image)))
+		    (draw-image image #[t 'x] (+ #[t 'y] top))))
 		(vector->list lines)
-		(iota (vector-length lines) 0 line-skip)))
-    (slot-set! t 'h (* (vector-length lines) line-skip))))
+		(iota (vector-length lines) 0 line-skip))
+      (if (equal? (current-output-port) #[t 'port])
+	  (draw-image cursor 
+		      (* (image-width space) (port-column #[t 'port])) 
+		      (* line-skip (port-line #[t 'port]))))
+    (set! #[t 'h] (* (vector-length lines) line-skip))))
 
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
-  (let ((p (slot-ref w 'port))
-	(L (slot-ref w 'lines)))
-    (set-port-line! p (max 0 (min (+ (port-line p) down) 
-				  (vector-length L))))
-    (set-port-column! p (max 0 (min (+ (port-column p) right)
-				    (string-length (vector-ref L (port-line p))))))))
+  (set-port-line! #[w 'port] (max 0 (min (+ (port-line #[w 'port]) down) 
+				(- (vector-length #[w 'lines]) 1))))
+  (set-port-column! #[w 'port] (max 0 (min (+ (port-column #[w 'port]) right)
+				  (string-length #[#[w 'lines] (port-line #[w 'port])])))))
 
 (define-method (delete-char! (w <text-area>))
   (let ((p (slot-ref w 'port)))
     (delete-char! w (port-column p) (port-line p))))
 
 (define-method (delete-char! (w <text-area>) (col <integer>) (line <integer>))
-  (let* ((s (vector-ref (slot-ref w 'lines) line))
+  (let* ((s #[#[w 'lines] line])
 	 (sl (string-length s))
 	 (l (substring s 0 (max 0 (min sl (- col 1)))))
 	 (r (substring s (min sl col))))
-    (vector-set! (slot-ref w 'lines) line (string-append l r))))
+    (set! #[#[w 'lines] line] (string-append l r))))
 
 (define-generic input-text!)
 
