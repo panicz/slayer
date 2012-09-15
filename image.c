@@ -1,5 +1,6 @@
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
+#include "utils.h"
 #include "slayer.h"
 #include "extend.h"
 #include "video.h"
@@ -69,7 +70,19 @@ SCM image_size(SCM image_smob) {
   return l;
 }
 
+SCM rectangle(SCM w, SCM h, SCM color) {
+  SCM smob;
+  SDL_Surface *image = sdl_surface(scm_to_int(w), scm_to_int(h));
+  if(color != SCM_UNDEFINED) {
+    SDL_Color c = sdl_color(scm_to_uint(color));
+    SDL_FillRect(image, NULL, SDL_MapRGBA(image->format, c.r, c.g, c.b, 0xff-c.unused));
+  }
+  SCM_NEWSMOB(smob, image_tag, image);
+  return smob;
+}
+
 static void export_functions() {
+  scm_c_define_gsubr("rectangle", 2, 1, 0, rectangle);
   scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
   scm_c_define_gsubr("draw-image", 3, 0, 0, draw_image);
   scm_c_define_gsubr("image-width", 1, 0, 0, image_width);
