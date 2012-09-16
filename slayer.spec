@@ -17,6 +17,7 @@
 		    (set! #[ku 'y] (+ #[ku 'y] 1)))
   (add-child! *stage* ku)))
 
+
 (let* ((t (make <text-area>))
        (put-string (lambda(s)
 	    (let ((p #[t 'port]))
@@ -45,14 +46,34 @@
 		      (input-mode 'direct)))
     (set-key! "return"
 	      (lambda ()
-		(let ((p #[t 'port])
-		      (lines #[t 'lines]))
-		  (if (>= (+ (port-line p) 1)
-			  (vector-length lines))
-		      (set! #[t 'lines] (vector-append #[t 'lines] #(""))))
-		  (move-cursor! t (- (port-column p)) 1))))
-    (set-key! "left" (lambda()(move-cursor! t -1 0)))
-    (set-key! "right" (lambda()(move-cursor! t 1 0)))
+		(let ((line #[#[t 'lines] (port-line #[t 'port])])
+		      (line-number (port-line #[t 'port]))
+		      (lines (vector->list #[t 'lines]))
+		      (column (port-column #[t 'port])))
+		  (let ((left (substring line 0 column))
+			(right (substring line column)))
+		    (set! #[t 'lines]
+			  (list->vector
+			   (append (take lines #;upto line-number)
+				   (list left right)
+				   (drop lines (+ line-number 1)))))
+		    (move-cursor! t (- (port-column #[t 'port])) 1)))))
+    (set-key! "left" (lambda()
+		       (let ((line (port-line #[t 'port]))
+			     (column (port-column #[t 'port])))
+			 (if (and (= column 0)
+				  (> line 0))
+			     (move-cursor! t (string-length #[#[t 'lines] (- line 1)]) -1)
+			     #;else
+			     (move-cursor! t -1 0)))))
+    (set-key! "right" (lambda()
+			(let ((line (port-line #[t 'port]))
+			      (column (port-column #[t 'port])))
+			  (if (and (= column (string-length #[#[t 'lines] line]))
+				   (< (+ line 1) (vector-length #[t 'lines])))
+			      (move-cursor! t (- (string-length #[#[t 'lines] line])) 1)
+			      #;else
+			      (move-cursor! t 1 0)))))
     (set-key! "up" (lambda()(move-cursor! t 0 -1)))
     (set-key! "down" (lambda()(move-cursor! t 0 1)))
 
