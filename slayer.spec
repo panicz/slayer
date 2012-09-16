@@ -11,12 +11,11 @@
 
 (add-child! *stage* (make-image (rectangle 50 50 #x20eeaa22) 50 50))
 
-(let ((ku (make-image (load-image "./ku.png")  50 150)))
+#;(let ((ku (make-image (load-image "./ku.png")  50 150)))
   (make-timer 100 (lambda()
 		    (set! #[ku 'x] (+ #[ku 'x] 1))
 		    (set! #[ku 'y] (+ #[ku 'y] 1)))
   (add-child! *stage* ku)))
-
 
 (let* ((t (make <text-area>))
        (put-string (lambda(s)
@@ -78,11 +77,31 @@
     (set-key! "down" (lambda()(move-cursor! t 0 1)))
 
     (set-key! "f1" (lambda()
-		     (display 
-		      (list (port-line (current-output-port))
-			    (port-column (current-output-port))) 
-		      *stdout*)
-		     (newline *stdout*)))
+		     (let* ((lines (vector->list #[t 'lines]))
+			    (line (port-line #[t 'port]))
+			    (column (port-column #[t 'port]))
+			    (swap-braces (lambda(c)
+					   (case c
+					     ((#\() #\))
+					     ((#\)) #\()
+					     ((#\[) #\])
+					     ((#\]) #\[)
+					     (else c))))
+			    (text 
+			     (string-map swap-braces
+					 (string-join (append (take lines #;upto line)
+							      (list (substring #[#[t 'lines] line] 0 column)))
+						      "\n"))))
+		       (eval-string (cdr
+			(with-input-from-string (string-reverse text)
+			  (lambda()
+			    (let* ((pxes (read))
+				   (nread (port-column (current-output-port))))
+			      (cons nread 
+				    (string-map swap-braces 
+						(string-reverse (with-output-to-string
+								  (lambda ()
+								    (display pxes))))))))) #;*stdout*)))))
 
     (set-key! "backspace" (lambda()
 			    (let ((p #[t 'port])
@@ -104,7 +123,7 @@
 				  (begin 
 				    (delete-char! t)
 				    (move-cursor! t -1 0))))))
-
+`
     (set-key! "delete" (lambda()
 			 (let* ((p #[t 'port])
 				(lines #[t 'lines]))
