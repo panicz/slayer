@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -Wall `sdl-config --cflags` `guile-config compile` # -DUSE_EVENT_HANDLER
-LIBS = `guile-config link` `sdl-config --libs` -lSDL_image -lSDL_ttf -lSDL_net -lSDL_mixer -lc
+CFLAGS = -Wall -pg `sdl-config --cflags` `guile-config compile` # -DUSE_EVENT_HANDLER
+LIBS = `guile-config link` `sdl-config --libs` -lSDL_image -lSDL_ttf -lSDL_net -lSDL_mixer -lc -pg
 OBJCOPY = objcopy
 OBJ_BINARCH = i386:x86-64
 OBJ_TARGET = elf64-x86-64
