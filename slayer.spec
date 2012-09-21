@@ -11,14 +11,14 @@
 
 (add-child! *stage* (make-image (rectangle 50 50 #x20eeaa22) 50 50))
 
-#;(let ((ku (make-image (load-image "./ku.png")  50 150)))
-  (make-timer 100 (lambda()
-		    (set! #[ ku 'x ] (+ #[ ku 'x ] 1))
-		    (set! #[ ku 'y ] (+ #[ ku 'y ] 1)))
-  (add-child! *stage* ku)))
+;; (let ((ku (make-image (load-image "./ku.png")  50 150)))
+;;   (make-timer 100 (lambda()
+;; 		    (set! #[ ku 'x ] (+ #[ ku 'x ] 1))
+;; 		    (set! #[ ku 'y ] (+ #[ ku 'y ] 1)))
+;;   (add-child! *stage* ku)))
 
 
-
+;; (with-input-from-string "read" read)
 
 ;; (define (daer port)
 ;;   (define (skip-spaces port)
@@ -29,7 +29,14 @@
 ;;       (while (let ((c (peek-char port)))
 ;; 	       (not (or (char-whitespace? c)
 ;; 			(in? c '(#\( #\) #\[ #\])))))
-;; 	(set! string (string-append string (list->string (list (read-char port))))))))
+;; 	(set! string (string-append string (list->string (list (read-char port))))))
+;;       string))
+;;   (let loop ((c (peek-char port)))
+;;     (cond ((char-whitespace? c)
+;; 	   (skip-spaces c)
+;; 	   (loop (peek-char port)))
+;; 	  (not (or (char-whitespace? c)
+		   
   
       
 		 
@@ -70,7 +77,7 @@
 			(right (substring line column)))
 		    (set! #[ t 'lines ]
 			  (list->vector
-			   (append (take lines #;upto line-number)
+			   (append (take lines line-number)
 				   (list left right)
 				   (drop lines (+ line-number 1)))))
 		    (move-cursor! t (- (port-column #[ t 'port ])) 1)))))
@@ -80,7 +87,7 @@
 			 (if (and (= column 0)
 				  (> line 0))
 			     (move-cursor! t (string-length #[ #[ t 'lines ] (- line 1) ]) -1)
-			     #;else
+			     ;;else
 			     (move-cursor! t -1 0)))))
     (set-key! "right" (lambda()
 			(let ((line (port-line #[ t 'port ]))
@@ -88,7 +95,7 @@
 			  (if (and (= column (string-length #[ #[ t 'lines ] line ]))
 				   (< (+ line 1) (vector-length #[ t 'lines ])))
 			      (move-cursor! t (- (string-length #[ #[ t 'lines ] line ])) 1)
-			      #;else
+			      ;;else
 			      (move-cursor! t 1 0)))))
     (set-key! "up" (lambda()(move-cursor! t 0 -1)))
     (set-key! "down" (lambda()(move-cursor! t 0 1)))
@@ -106,7 +113,7 @@
 					     (else c))))
 			    (text 
 			     (string-map swap-braces
-					 (string-join (append (take lines #;upto line)
+					 (string-join (append (take lines line)
 							      (list (substring #[ #[ t 'lines ] line ] 0 column)))
 						      "\n"))))
 		       (eval-string (cdr
@@ -118,7 +125,7 @@
 				    (string-map swap-braces 
 						(string-reverse (with-output-to-string
 								  (lambda ()
-								    (display pxes))))))))) #;*stdout*)))))
+								    (display pxes))))))))))))))
 
     (set-key! "backspace" (lambda()
 			    (let ((p #[ t 'port ])
@@ -166,7 +173,6 @@
 	       (input-mode 'typing)))
   (add-child! *stage* t))
 
-;(set! hash{z} 20)
 
 (keydn 'mouse1 
   (lambda (type name state x y)
