@@ -145,3 +145,4 @@
 (define-generic input-text!)
 
 (define *input-widget* #f)
+
