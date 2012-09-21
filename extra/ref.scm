@@ -46,7 +46,6 @@
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
 
-
 (read-hash-extend #\[
 		  (let ((process (match-lambda 
 				  ((object key)
@@ -65,3 +64,10 @@
 				(#t
 				 (unread-char char port)
 				 (loop (cons (read port) exp)))))))))
+
+(if (string<? (version) "2.0.0")
+    (read-hash-extend #\;
+     (lambda (char port)
+       (let ((comment (read port)))
+	 (if #f #t)))))
+
