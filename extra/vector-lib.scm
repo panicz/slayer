@@ -13,6 +13,7 @@
 
 
 (define-module (extra vector-lib)
+  #:use-module (ice-9 syncase)
   #:export
   (
    ;; Constructors
