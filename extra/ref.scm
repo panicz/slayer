@@ -1,6 +1,7 @@
 (define-module (extra ref)
   #:use-module (oop goops)
   #:use-module (ice-9 match)
+  #:use-module (extra common)
   #:export (ref))
  
 (define (getter obj key)
@@ -8,6 +9,8 @@
 	 (vector-ref obj key))
 	((hash-table? obj)
 	 (hash-ref obj key))
+	((string? obj)
+	 (string-ref obj key))
 	((instance? obj)
 	 (slot-ref obj key))
 	((array? obj)
@@ -18,6 +21,8 @@
  	 (vector-set! obj key value))
 	((hash-table? obj)
 	 (hash-set! obj key value))
+	((string? obj)
+	 (string-set! obj key value))
 	((instance? obj)
 	 (slot-set! obj key value))
 	((array? obj)
@@ -33,6 +38,8 @@
 
 (define sref (make-procedure-with-setter slot-ref slot-set!))
 
+(define stref (make-procedure-with-setter string-ref string-set!))
+
 (define aref (make-procedure-with-setter 
 	      (lambda(array indices)(apply array-ref array indices))
 	      (lambda(array indices value)(apply array-set! array value indices))))
@@ -43,6 +50,9 @@
 (define-method (ref (hash <hashtable>) key)
   (href hash key))
 
+(define-method (ref (string <string>) key)
+  (stref string key))
+
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
 
@@ -50,11 +60,15 @@
 		  (let ((process (match-lambda 
 				  ((object key)
 				   `(ref ,object ,key))
+				  ((seq start '.. end)
+				   `(substring ,seq ,start ,end))
+				  ((seq start ': count)
+				   `(substring ,seq ,start ,(min (string-length seq) (+ start count))))
 				  ((array . indices)
 				   `(aref ,array (list ,@indices)))
 				  (default
 				    default))))
-		    (lambda (char port)
+		    (lambda (char port) 
 		      (let loop ((exp '()))
 			(let ((char (read-char port)))
 			  (cond ((char-whitespace? char)
@@ -64,6 +78,8 @@
 				(#t
 				 (unread-char char port)
 				 (loop (cons (read port) exp)))))))))
+
+
 
 (if (string<? (version) "2.0.0")
     (read-hash-extend #\;
