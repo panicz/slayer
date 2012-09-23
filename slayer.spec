@@ -14,32 +14,61 @@
 ;; (let ((ku (make-image (load-image "./ku.png")  50 150)))
 ;;   (make-timer 100 (lambda()
 ;; 		    (set! #[ ku 'x ] (+ #[ ku 'x ] 1))
-;; 		    (set! #[ ku 'y ] (+ #[ ku 'y ] 1)))
-;;   (add-child! *stage* ku)))
+;; 		    (set! #[ ku 'y ] (+ #[ ku 'y ] 1));;   (add-child! *stage* ku)))
 
 
 ;; (with-input-from-string "read" read)
+    
+(define (last-sexp-starting-position str)
+  (define opening-braces '(#\( #\[))
+  (define closing-braces '(#\) #\]))
+  (define braces (append opening-braces closing-braces))
+  (define* (rewind #:key string while starting-from)
+    (let loop ((pos starting-from))
+      (if (and (>= pos 0) (while #[ string pos ]))
+	  (loop (1- pos))
+	  pos)))
+  (define (last-symbol-starting-position str init-pos)
+    (rewind #:string str #:starting-from init-pos 
+	    #:while (lambda(c)(and (not (char-whitespace? c)) (not (in? c braces))))))
+  (define (last-whitespaces-starting-position str init-pos)
+    (rewind #:string str #:starting-from init-pos #:while char-whitespace?))
+  (define (last-string-starting-position str init-pos)
+    (let loop ((pos init-pos))
+      (if (and (eq? #[ str pos ] #\")
+	       (or (= pos 0) (not (eq? #[ str (- pos 1) ] #\\))))
+	  pos
+	  (loop (1- pos)))))
+  (let eat ((pos (- (string-length str) 1))
+	    (level 0))
+    (cond ((char-whitespace? #[ str pos ])
+	   (eat (last-whitespaces-starting-position str pos) level))
+	  ((eq? #[ str pos ] #\")
+	   (if (= level 0)
+	       (+ (last-string-starting-position str (- pos 1)) 1)
+	       (eat (- (last-string-starting-position str (- pos 1)) 1) level)))
+	  ((not (in? #[ str pos ] braces))
+	   (if (= level 0)
+	       (+ (last-symbol-starting-position str pos) 1)
+	       (eat (last-symbol-starting-position str pos) level)))
+	  ((in? #[ str pos ] closing-braces)
+	   (eat (- pos 1) (+ level 1)))
+	  ((in? #[ str pos ] opening-braces)
+	   (cond ((= level 1)
+		  (if (and (> pos 0)
+			   (not (char-whitespace? #[ str (- pos 1) ]))
+			   (not (in? #[ str (- pos 1) ] braces)))
+		      (let ((pos* (+ (last-symbol-starting-position str (- pos 1)) 1)))
+			(if (and (in? #[ str pos* ] '(#\# #\'))
+				 (not (eq? #[ str (+ pos* 1)] #\:)))
+			    pos*
+			    pos))
+		      pos))
+		 ((> level 1)
+		  (eat (- pos 1) (- level 1)))
+		 (#t
+		  (error "mismatch braces")))))))
 
-;; (define (daer port)
-;;   (define (skip-spaces port)
-;;     (while (char-whitespace? (peek-char port))
-;;       (read-char port)))
-;;   (define (read-symbol port)
-;;     (let ((string ""))
-;;       (while (let ((c (peek-char port)))
-;; 	       (not (or (char-whitespace? c)
-;; 			(in? c '(#\( #\) #\[ #\])))))
-;; 	(set! string (string-append string (list->string (list (read-char port))))))
-;;       string))
-;;   (let loop ((c (peek-char port)))
-;;     (cond ((char-whitespace? c)
-;; 	   (skip-spaces c)
-;; 	   (loop (peek-char port)))
-;; 	  (not (or (char-whitespace? c)
-		   
-  
-      
-		 
 
 (let* ((t (make <text-area>))
        (put-string (lambda(s)
@@ -104,28 +133,11 @@
 		     (let* ((lines (vector->list #[ t 'lines ]))
 			    (line (port-line #[ t 'port ]))
 			    (column (port-column #[ t 'port ]))
-			    (swap-braces (lambda(c)
-					   (case c
-					     ((#\() #\))
-					     ((#\)) #\()
-					     ((#\[) #\])
-					     ((#\]) #\[)
-					     (else c))))
-			    (text 
-			     (string-map swap-braces
-					 (string-join (append (take lines line)
-							      (list (substring #[ #[ t 'lines ] line ] 0 column)))
-						      "\n"))))
-		       (eval-string (cdr
-			(with-input-from-string (string-reverse text)
-			  (lambda()
-			    (let* ((pxes (read))
-				   (nread (port-column (current-output-port))))
-			      (cons nread 
-				    (string-map swap-braces 
-						(string-reverse (with-output-to-string
-								  (lambda ()
-								    (display pxes))))))))))))))
+			    (text (string-join (append (take lines line)
+						       (list (substring #[ #[ t 'lines ] line ] 0 column)))
+					       "\n"))
+			    (last-sexp (substring text (last-sexp-starting-position text))))
+		       (display (eval-string last-sexp) *stdout*))))
 
     (set-key! "backspace" (lambda()
 			    (let ((p #[ t 'port ])
@@ -172,7 +184,6 @@
 	       (set! *input-widget* t)
 	       (input-mode 'typing)))
   (add-child! *stage* t))
-
 
 (keydn 'mouse1 
   (lambda (type name state x y)
