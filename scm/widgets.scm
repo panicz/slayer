@@ -5,6 +5,7 @@
 	     (srfi srfi-2)
 	     (srfi srfi-11)
 	     (ice-9 match)
+	     (ice-9 optargs)
 	     (extra ref)
 	     (extra vector-lib)
 	     (extra common)
