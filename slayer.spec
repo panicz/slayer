@@ -59,7 +59,7 @@
 			   (not (char-whitespace? #[ str (- pos 1) ]))
 			   (not (in? #[ str (- pos 1) ] braces)))
 		      (let ((pos* (+ (last-symbol-starting-position str (- pos 1)) 1)))
-			(if (and (in? #[ str pos* ] '(#\# #\'))
+			(if (and (in? #[ str pos* ] '(#\# #\' #\`))
 				 (not (eq? #[ str (+ pos* 1)] #\:)))
 			    pos*
 			    pos))
