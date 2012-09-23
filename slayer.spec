@@ -18,57 +18,6 @@
 
 
 ;; (with-input-from-string "read" read)
-    
-(define (last-sexp-starting-position str)
-  (define opening-braces '(#\( #\[))
-  (define closing-braces '(#\) #\]))
-  (define braces (append opening-braces closing-braces))
-  (define* (rewind #:key string while starting-from)
-    (let loop ((pos starting-from))
-      (if (and (>= pos 0) (while #[ string pos ]))
-	  (loop (1- pos))
-	  pos)))
-  (define (last-symbol-starting-position str init-pos)
-    (rewind #:string str #:starting-from init-pos 
-	    #:while (lambda(c)(and (not (char-whitespace? c)) (not (in? c braces))))))
-  (define (last-whitespaces-starting-position str init-pos)
-    (rewind #:string str #:starting-from init-pos #:while char-whitespace?))
-  (define (last-string-starting-position str init-pos)
-    (let loop ((pos init-pos))
-      (if (and (eq? #[ str pos ] #\")
-	       (or (= pos 0) (not (eq? #[ str (- pos 1) ] #\\))))
-	  pos
-	  (loop (1- pos)))))
-  (let eat ((pos (- (string-length str) 1))
-	    (level 0))
-    (cond ((char-whitespace? #[ str pos ])
-	   (eat (last-whitespaces-starting-position str pos) level))
-	  ((eq? #[ str pos ] #\")
-	   (if (= level 0)
-	       (+ (last-string-starting-position str (- pos 1)) 1)
-	       (eat (- (last-string-starting-position str (- pos 1)) 1) level)))
-	  ((not (in? #[ str pos ] braces))
-	   (if (= level 0)
-	       (+ (last-symbol-starting-position str pos) 1)
-	       (eat (last-symbol-starting-position str pos) level)))
-	  ((in? #[ str pos ] closing-braces)
-	   (eat (- pos 1) (+ level 1)))
-	  ((in? #[ str pos ] opening-braces)
-	   (cond ((= level 1)
-		  (if (and (> pos 0)
-			   (not (char-whitespace? #[ str (- pos 1) ]))
-			   (not (in? #[ str (- pos 1) ] braces)))
-		      (let ((pos* (+ (last-symbol-starting-position str (- pos 1)) 1)))
-			(if (and (in? #[ str pos* ] '(#\# #\' #\`))
-				 (not (eq? #[ str (+ pos* 1)] #\:)))
-			    pos*
-			    pos))
-		      pos))
-		 ((> level 1)
-		  (eat (- pos 1) (- level 1)))
-		 (#t
-		  (error "mismatch braces")))))))
-
 
 (let* ((t (make <text-area>))
        (put-string (lambda(s)
@@ -204,7 +153,6 @@
 	  (newline)))
 
 (set-caption! "*SLAYER*")
-
 
 (keydn 't (lambda e (input-mode 'typing)))
 
