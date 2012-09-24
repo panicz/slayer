@@ -1,0 +1,26 @@
+The aim of slayer project is to separate user interface
+from program's logics as much as possible, i.e. to allow
+user completely redefine user interface, by reassembling
+tiny blocks that are provided by application developer.
+
+From the developer's point of view, the idea is to
+take away the need of designing user interface from
+the developer -- so that the user interfaces could be
+generated automatically according to the program 
+specification, and then they could be polished by the
+user interface designer easily (by adding new widgets,
+joining or retouching the existing ones, removing the
+redundant ones)
+
+The end-user could still be allowed to break the GUI
+apart and then reassemble it according to his or her
+needs.
+
+Slayer could also be thought of as a platform to develop
+automatic user interface generator that would adjust to
+the user's preferences.
+
+Currently, slayer is implemented by combining the SDL
+library ( http://www.libsdl.org ) with the GNU guile
+scripting language (a flavour of the Scheme programming
+language, http://www.gnu.org/software/guile/ ).

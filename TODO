@@ -17,7 +17,7 @@ image.c
 - conversion functions image->array and array->image
 
 slayer.c
-- save the structure of the stage to the .spec file
+- save the structure of the stage to the .spec file <------------------------ URGENT!
 
 widgets.c
 - extract the scheme code to some external file that should
