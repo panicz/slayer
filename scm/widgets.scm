@@ -1,4 +1,4 @@
-(set! %load-path (cons "./" %load-path))
+(set! %load-path (append '("./" "../")  %load-path))
 
 (use-modules (oop goops)
 	     (srfi srfi-1) 
@@ -6,15 +6,74 @@
 	     (srfi srfi-11)
 	     (ice-9 match)
 	     (ice-9 optargs)
+	     (ice-9 pretty-print)
 	     (extra ref)
 	     (extra vector-lib)
 	     (extra common)
 	     ;(extra overload)
 	     )
 
+(define *procedure-sources* (make-hash-table))
+(hash-set! *procedure-sources* 'keydn (make-hash-table))
+(hash-set! *procedure-sources* 'keyup (make-hash-table))
+
+(define-syntax keydn
+  (syntax-rules ()
+    ((_ key function)
+     (begin
+       (set! #[ #[ *procedure-sources* 'keydn ] key ] (quote function))
+       (%keydn key function)))))
+
+(define-syntax keyup 
+  (syntax-rules ()
+    ((_ key function)
+     (begin
+       (set! #[ #[ *procedure-sources* 'keyup ] key ] (quote function))
+       (%keyup key function)))))
+
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
+
+
+(define (object-source value)
+  (cond 
+   ((symbol? value)
+    `',value)
+   ((procedure? value)
+    (or (procedure-name value) (procedure-source value) 'noop))
+   ((list? value)
+    `',(map object-source value))
+   ((vector? value)
+    (list->vector (map object-source (vector->list value))))
+   ((hash-table? value)
+    `(let ((h (make-hash-table)))
+       noop
+       ,@(map (match-lambda ((key . value)
+			   `(hash-set! h ,(object-source key) ,(object-source value))))
+	     (hash-map->list cons value))))
+   (#t value)))
+
+(define (save file)
+  (with-output-to-port *stdout*
+    (lambda()
+      (display (string-append "saving to file "file":\n"))
+      (for-each (match-lambda ((key . function)
+			       (if (and function 
+					(not (equal? function noop))
+					(not (equal? function 'noop)))
+				   (pretty-print `(keydn ',key ,function)))))
+		(hash-map->list cons #[ *procedure-sources* 'keydn ]))
+      (for widget in #[ *stage* 'children ]
+	   (let ((w (gensym "widget-")))
+	     (pretty-print
+	      `(let ((,w (make ,(class-name (class-of widget)))))
+		 ,@(map (match-lambda((slot-name . info)
+				      `(slot-set! ,w ',slot-name ,
+						  (object-source (slot-ref widget slot-name)))))
+			(class-slots (class-of widget)))
+		 (add-child! *stage* ,w)
+		 )))))))
 
 (define *stdio* 
   (make-soft-port 
@@ -152,8 +211,8 @@
   ;(cursor-position #:init-value '(0 0))
   (font #:init-value *default-font* #:init-keyword #:font)
   (port #:init-value *stdio*)
-  (visible-cols #:init-keyword #:visible-cols)
-  (visible-lines #:init-keyword #:visible-lines)
+  #;(visible-cols #:init-keyword #:visible-cols)
+  #;(visible-lines #:init-keyword #:visible-lines)
   (rendered-lines #:init-thunk make-hash-table))
 
 
