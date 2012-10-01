@@ -113,7 +113,9 @@ SCM scm_from_sdl_event(SDL_Event *event) {
 		      scm_from_uint8(event->key.keysym.scancode),
 		      scm_c_vector_ref(key_names, event->key.keysym.sym),
 		      scm_from_uint32(event->key.keysym.mod),
-		      event->key.keysym.unicode ? scm_integer_to_char(scm_from_uint16(event->key.keysym.unicode)) : SCM_BOOL_F,
+		      (event->key.keysym.unicode)
+		      ? scm_integer_to_char(scm_from_uint16(event->key.keysym.unicode)) 
+		      : SCM_BOOL_F,
 		      SCM_UNDEFINED);
   case SDL_MOUSEMOTION: // SDL_MouseMotionEvent
     return scm_list_n(s_mousemotion,
@@ -211,13 +213,9 @@ static inline SCM quit_handler(SDL_Event *e) {
 
 static void build_keymap() {
 
-  char command[128];
   int i, max = 0;
   
-  sprintf(command, "(make-hash-table %i)", SDLK_LAST + SDL_NBUTTONS);
-  //  fprintf(stderr, "%lli\n", (int) NELEMS(keymap));
-  //fprintf(stderr, command);
-  scancodes = scm_c_eval_string(command);
+  scancodes = evalf("(make-hash-table %i)", SDLK_LAST + SDL_NBUTTONS); 
 
   scm_gc_protect_object(scancodes);
 
@@ -231,8 +229,7 @@ static void build_keymap() {
       max = keymap[i].value;
   }
 
-  key_names = scm_c_make_vector(max+1, 
-				scm_from_locale_string("unknown-key"));
+  key_names = scm_c_make_vector(max+1, SCM_BOOL_F);
   scm_gc_protect_object(key_names);
   scm_c_define("*key-names*", key_names);
   
@@ -308,8 +305,8 @@ SCM input_grab(SCM on) {
 static void export_functions() {
   scm_c_define_gsubr("handle-input", 0, 0, 0, input_handle_events);
   scm_c_define_gsubr("grab-input", 0, 1, 0, input_grab);
-  scm_c_define_gsubr("keydn", 2, 0, 0, bind_keydown);
-  scm_c_define_gsubr("keyup", 2, 0, 0, bind_keyup);
+  scm_c_define_gsubr("%keydn", 2, 0, 0, bind_keydown);
+  scm_c_define_gsubr("%keyup", 2, 0, 0, bind_keyup);
   scm_c_define_gsubr("mousemove", 1, 0, 0, bind_mousemove);  
   scm_c_define_gsubr("input-mode", 0, 1, 0, input_mode_x);  
 }
