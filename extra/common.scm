@@ -7,13 +7,26 @@
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
   #:export (in? compose expand unix-environment ?not ?and ?or map-n
-		contains-duplicates)
-  #:export-syntax (\ ))
+		contains-duplicates module->hash-map module->list)
+  #:export-syntax (\ for))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
+(define-syntax for
+  (syntax-rules (in)
+    ((_ x in list body ...)
+     (for-each (lambda(x) body ...) list))))
+
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
+
+(define (module->hash-map module)
+  (module-obarray module))
+
+(define (module->list module)
+  (hash-map->list (lambda(key variable)
+		    (cons key (variable-ref variable)))
+		  (module->hash-map module)))
 
 ;; (define (contains-duplicates? l)
 ;;   (call/cc (lambda(break)
@@ -106,3 +119,12 @@
      out
      (apply map-n n fn (drop lst n) (append out (list (apply fn (take lst n)))))))
 
+
+;; do dalszej rozkminki
+;; (define (collatz n)
+;;   (cond 
+;;    ((= n 1) 1)
+;;    ((= (modulo n 2) 0) (collatz (/ n 2)))
+;;    (else (collatz (+ (* 3 n) 1)))))
+
+;; (every (lambda(x)(= x 1))(map collatz (iota 1000 1)))
