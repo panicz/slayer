@@ -61,6 +61,10 @@ SCM scm_catch_handler(void *data, SCM key, SCM args) {
 }
 
 static void finish(int status, char *filename) {
+
+  evalf("(save \"%s\")", filename);
+
+  /*
   int i;
   char *source;
   char *keyname;
@@ -69,7 +73,7 @@ static void finish(int status, char *filename) {
   if(keytab[i] != SCM_UNSPECIFIED) { \
     source = as_c_string(scm_procedure_source(keytab[i])); \
     keyname = scm_to_locale_string(scm_c_vector_ref(key_names, i)); \
-    WARN("(" # keytab " '%s %s)", keyname, source);	    \
+    LOG("(" # keytab " '%s %s)", keyname, source);	    \
     free(keyname); \
     free(source); \
   }
@@ -80,7 +84,10 @@ static void finish(int status, char *filename) {
     DUMP_SOURCE(keyup, i);
   }
 #undef DUMP_SOURCE
+  */
 }
+
+
 
 static void init(char *specs, Uint16 w, Uint16 h) {
 
@@ -90,8 +97,6 @@ static void init(char *specs, Uint16 w, Uint16 h) {
   font_init();
   timer_init();
   widgets_init(w, h);
-
-
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
