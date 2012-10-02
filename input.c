@@ -43,7 +43,7 @@ static SCM s_left;
 static SCM s_right;
 static SCM s_middle;
 
-void init_static_symbols() {
+static void init_static_symbols() {
 #define INIT_SYMBOL(var, val) \
   var = symbol(val);\
   hold_scm(var);
