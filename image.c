@@ -81,6 +81,61 @@ SCM rectangle(SCM w, SCM h, SCM color) {
   return smob;
 }
 
+static SCM s_u8;
+static SCM s_u16;
+static SCM s_u32;
+static SCM s_u64;
+
+static void init_static_symbols() {
+#define INIT_SYMBOL(var, val) \
+  var = symbol(val);\
+  hold_scm(var);
+
+  INIT_SYMBOL(s_u8, "u8");
+  INIT_SYMBOL(s_u16, "u16");
+  INIT_SYMBOL(s_u32, "u32");
+  INIT_SYMBOL(s_u64, "u64");
+
+#undef INIT_SYMBOL
+}
+
+SCM image_to_array(SCM image_smob) {
+  scm_assert_smob_type(image_tag, image_smob);
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+  SCM type;
+
+  switch(image->format->BytesPerPixel) {
+  case 1:
+    type = s_u8;
+    break;
+  case 2:
+    type = s_u16;
+    break;
+  case 4:
+    type = s_u32;
+    break;
+  case 8:
+    type = s_u64;
+    break;
+  default:
+    WARN("Illegal BytesPerPixel count: %d", image->format->BytesPerPixel);
+    return SCM_UNSPECIFIED;
+  }
+
+  SCM array = scm_make_typed_array(type, SCM_UNSPECIFIED, 
+				   scm_list_2(scm_from_int(image->w),
+					      scm_from_int(image->h)));
+
+  scm_t_array_handle handle;
+  scm_array_get_handle(array, &handle);
+  void *data = scm_array_handle_uniform_writable_elements(&handle);
+  memcpy(data, image->pixels, image->w * image->h * image->format->BytesPerPixel);
+
+  scm_array_handle_release(&handle);
+  scm_remember_upto_here_1(image_smob);
+  return array;
+}
+
 static void export_functions() {
   scm_c_define_gsubr("rectangle", 2, 1, 0, rectangle);
   scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
@@ -88,11 +143,13 @@ static void export_functions() {
   scm_c_define_gsubr("image-width", 1, 0, 0, image_width);
   scm_c_define_gsubr("image-height", 1, 0, 0, image_height);
   scm_c_define_gsubr("image-size", 1, 0, 0, image_size);
+  scm_c_define_gsubr("image->array", 1, 0, 0, image_to_array);
 }
 
 void image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
+  init_static_symbols();
   export_functions();
 }
