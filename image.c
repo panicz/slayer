@@ -70,9 +70,13 @@ SCM image_size(SCM image_smob) {
   return l;
 }
 
-SCM rectangle(SCM w, SCM h, SCM color) {
+SCM rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   SCM smob;
-  SDL_Surface *image = sdl_surface(scm_to_int(w), scm_to_int(h));
+  if(BytesPerPixel == SCM_UNDEFINED) {
+    BytesPerPixel = scm_from_int(4);
+  }
+
+  SDL_Surface *image = sdl_surface(scm_to_int(w), scm_to_int(h), scm_to_int(BytesPerPixel));
   if(color != SCM_UNDEFINED) {
     SDL_Color c = sdl_color(scm_to_uint(color));
     SDL_FillRect(image, NULL, SDL_MapRGBA(image->format, c.r, c.g, c.b, 0xff-c.unused));
@@ -136,14 +140,38 @@ SCM image_to_array(SCM image_smob) {
   return array;
 }
 
+SCM array_to_image(SCM array) {
+  WARN("TODO: assuming 32-bit pixels (this should be taken from array type)");
+  scm_t_array_handle handle;
+  scm_array_get_handle(array, &handle);
+  if(scm_array_handle_rank(&handle) != 2) {
+    return SCM_UNSPECIFIED;
+  }
+  scm_t_array_dim *dims = scm_array_handle_dims(&handle);
+
+  int w = abs(dims[0].ubnd - dims[0].lbnd) + 1;
+  int h = abs(dims[1].ubnd - dims[1].lbnd) + 1;
+
+  SCM image_smob = rectangle(scm_from_int(w), scm_from_int(h), SCM_UNDEFINED, SCM_UNDEFINED);
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);  
+
+  void *data = scm_array_handle_uniform_writable_elements(&handle);
+  memcpy(image->pixels, data, w * h * image->format->BytesPerPixel);
+  
+  scm_array_handle_release(&handle);
+  return image_smob;
+}
+
+
 static void export_functions() {
-  scm_c_define_gsubr("rectangle", 2, 1, 0, rectangle);
+  scm_c_define_gsubr("rectangle", 2, 2, 0, rectangle);
   scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
   scm_c_define_gsubr("draw-image", 3, 0, 0, draw_image);
   scm_c_define_gsubr("image-width", 1, 0, 0, image_width);
   scm_c_define_gsubr("image-height", 1, 0, 0, image_height);
   scm_c_define_gsubr("image-size", 1, 0, 0, image_size);
   scm_c_define_gsubr("image->array", 1, 0, 0, image_to_array);
+  scm_c_define_gsubr("array->image", 1, 0, 0, array_to_image);
 }
 
 void image_init() {

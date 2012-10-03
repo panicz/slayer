@@ -55,7 +55,7 @@ SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
     : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), sdl_color(scm_to_uint(bgcolor)));
 
   if(!image) {
-    image = sdl_surface(1, TTF_FontLineSkip(ttf));
+    image = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
   }
 
   SCM_NEWSMOB(smob, image_tag, image);

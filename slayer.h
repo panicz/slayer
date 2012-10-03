@@ -2,7 +2,7 @@
 #define SLAYER_H
 #include <SDL/SDL.h>
 
-static inline SDL_Surface *sdl_surface(int w, int h) {
+static inline SDL_Surface *sdl_surface(int w, int h, int BytesPerPixel) {
   Uint32 r, g, b, a;
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
   r = 0xff000000;
@@ -15,7 +15,7 @@ static inline SDL_Surface *sdl_surface(int w, int h) {
   b = 0x00ff0000;
   a = 0xff000000;
 #endif
-  return SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 32, r, g, b, a);
+  return SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 8*BytesPerPixel, r, g, b, a);
 }
 
 
