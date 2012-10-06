@@ -137,9 +137,15 @@ static void *io(init_t *arg) {
  
 int main(int argc, char *argv[]) {
 
-  init_t arg;
+#ifdef NDEBUG
+  setenv("GUILE_WARN_DEPRECATED", "no", 1);
+#else
+  setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
+#endif
 
+  init_t arg;
   arg.filename = malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+
   sprintf(arg.filename, "%s" SLAYER_SUFFIX, argv[0]);
   arg.w = 640;
   arg.h = 480;
