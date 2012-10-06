@@ -7,11 +7,59 @@
 	     (ice-9 match)
 	     (ice-9 optargs)
 	     (ice-9 pretty-print)
+	     (ice-9 local-eval)
+	     (system base compile)
+	     (system syntax)
 	     (extra ref)
 	     (extra vector-lib)
 	     (extra common)
-	     ;(extra overload)
+	     ((rnrs) :version (6))
+	     ;(extra function)
 	     )
+;(setenv "GUILE_WARN_DEPRECATED" "no")
+;(putenv "GUILE_WARN_DEPRECATED=no")
+;(display (getenv "GUILE_WARN_DEPRECATED"))
+
+(define (local-lexicals id)
+  (filter (lambda (x)
+	    (eq? (syntax-local-binding x) 'lexical))
+	  (syntax-locally-bound-identifiers id)))
+
+(define-syntax lexical-names
+  (lambda (x)
+    (syntax-case x ()
+      ((lexical-names) #'(lexical-names lexical-names))
+      ((lexical-names scope)
+       (with-syntax (((id ...) (local-lexicals #'scope)))
+	 #'(list 'id ...))))))
+
+(define-syntax lexicals
+  (lambda (x)
+    (syntax-case x ()
+      ((lexicals) #'(lexicals lexicals))
+      ((lexicals scope)
+       (with-syntax (((id ...) (local-lexicals #'scope)))
+	 #'(list (cons 'id id) ...))))))
+
+(define-macro (function args . body)
+  `(let ((environment (the-environment))
+	 (lexical-names (lexical-names))
+	 (procedure (lambda ,args ,@body)))
+     (set-procedure-property! procedure 'source '(function ,args ,@body))
+     (set-procedure-property! procedure 'environment environment)
+     (set-procedure-property! procedure 'lexical-names lexical-names)
+     procedure))
+
+(define (procedure-environment proc) (procedure-property proc 'environment))
+(define (procedure-lexical-names proc) (procedure-property proc 'lexical-names))
+
+(define (procedure-lexicals proc)
+  (map (lambda(symbol)
+	 (cons symbol
+	       (local-eval symbol (procedure-environment proc))))
+   (procedure-lexical-names proc)))
+
+(procedure-lexicals (function(x)(+ x x)))
 
 (define *procedure-sources* (make-hash-table))
 (hash-set! *procedure-sources* 'keydn (make-hash-table))
@@ -35,7 +83,6 @@
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
 
-
 (define (object-source value)
   (cond 
    ((symbol? value)
@@ -44,7 +91,7 @@
     (or (procedure-name value) (procedure-source value) 'noop))
    ((list? value)
     `',(map object-source value))
-   ((vector? value)
+   ((vector? value) ; for some reason vector-map doesn't work
     (list->vector (map object-source (vector->list value))))
    ((hash-table? value)
     `(let ((h (make-hash-table)))
