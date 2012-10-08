@@ -57,6 +57,9 @@
 (define-macro (\ f . args)
   (let* ((prefix "\\")
 	 (placeholder '\.)
+	 (ellipsis '\...)
+	 (rest (if (equal? (last args) ellipsis) ellipsis '()))
+	 (args (if (symbol? rest) (drop-right args 1) args))
 	 (max-arg 0)
 	 (next-arg (lambda ()
 		     (set! max-arg (+ max-arg 1))
@@ -75,8 +78,15 @@
 				#t)
 			      arg)
 			     (else arg))) args)))
-      `(lambda ,(map (lambda (n) (string->symbol (string-append prefix (number->string n)))) (iota max-arg 1))
-	 (,f ,@args)))))
+      `(lambda ,(append
+		 (map (lambda (n) 
+			(string->symbol 
+			 (string-append prefix (number->string n)))) 
+		      (iota max-arg 1))
+		 rest)
+	 ,(if (symbol? rest)
+	      `(apply ,f ,@args ,rest)
+	      `(,f ,@args))))))
 
 (define (expand e)
   (let-values (((exp env) (decompile 
