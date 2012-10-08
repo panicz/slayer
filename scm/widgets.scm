@@ -14,24 +14,12 @@
 	     (extra vector-lib)
 	     (extra common)
 	     ((rnrs) :version (6))
-	     ;(extra function)
 	     )
-;(setenv "GUILE_WARN_DEPRECATED" "no")
-;(putenv "GUILE_WARN_DEPRECATED=no")
-;(display (getenv "GUILE_WARN_DEPRECATED"))
 
 (define (local-lexicals id)
   (filter (lambda (x)
 	    (eq? (syntax-local-binding x) 'lexical))
 	  (syntax-locally-bound-identifiers id)))
-
-(define-syntax lexical-names
-  (lambda (x)
-    (syntax-case x ()
-      ((lexical-names) #'(lexical-names lexical-names))
-      ((lexical-names scope)
-       (with-syntax (((id ...) (local-lexicals #'scope)))
-	 #'(list 'id ...))))))
 
 (define-syntax lexicals
   (lambda (x)
@@ -41,25 +29,18 @@
        (with-syntax (((id ...) (local-lexicals #'scope)))
 	 #'(list (cons 'id id) ...))))))
 
-(define-macro (function args . body)
-  `(let ((environment (the-environment))
-	 (lexical-names (lexical-names))
-	 (procedure (lambda ,args ,@body)))
-     (set-procedure-property! procedure 'source '(function ,args ,@body))
-     (set-procedure-property! procedure 'environment environment)
-     (set-procedure-property! procedure 'lexical-names lexical-names)
-     procedure))
-
-(define (procedure-environment proc) (procedure-property proc 'environment))
-(define (procedure-lexical-names proc) (procedure-property proc 'lexical-names))
+(define-syntax function
+  (lambda (x)
+    (syntax-case x ()
+      ((function args body ...)
+       #'(let ((procedure (lambda args body ...))
+	       (get-lexicals (lambda()(lexicals function))))
+	   (set-procedure-property! procedure 'source '(function args body ...))
+	   (set-procedure-property! procedure 'get-lexicals get-lexicals)
+	   procedure)))))
 
 (define (procedure-lexicals proc)
-  (map (lambda(symbol)
-	 (cons symbol
-	       (local-eval symbol (procedure-environment proc))))
-   (procedure-lexical-names proc)))
-
-(procedure-lexicals (function(x)(+ x x)))
+  ((procedure-property proc 'get-lexicals)))
 
 (define *procedure-sources* (make-hash-table))
 (hash-set! *procedure-sources* 'keydn (make-hash-table))
@@ -82,45 +63,97 @@
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
+ 
+(define (vector-source v)
+  (or (and-let* ((size (vector-length v))
+		 ((> size 7)) 
+		 (value-count (make-hash-table))
+		 ((vector-for-each (lambda(e)
+				     (set! #[ value-count e ]
+					   (+ (or #[ value-count e ] 0) 1)))
+				   v))
+		 (value-score (sort (hash-map->list cons value-count)
+				    (match-lambda* (((val1 . cnt1) (val2 . cnt2))
+						   (> cnt1 cnt2)))))
+		 (dominant-count (match value-score (((value . count) . rest) count)))
+		 ((> (/ dominant-count size) 1/2)))
+	(let ((dominant-value (match value-score (((value . count) . rest) value)))
+	      (w (gensym "vec-")))
+	  `(let ((,w (make-vector ,size ,dominant-value)))
+	     ,@(filter-map (lambda(i)
+			     (let ((i-th #[ v i ]))
+			       (and (not (eq? i-th dominant-value))
+				    `(vector-set! ,w ,i ,(object-source i-th)))))
+			   (iota size))
+	     ,w)))
+      (vector-map object-source v)))
+
+(define (hash-source value)
+  (let ((h (gensym "hash-")))
+    `(let ((,h (make-hash-table)))
+       ,@(map (match-lambda ((key . value)
+			     `(hash-set! ,h ,(object-source key) ,(object-source value))))
+	      (hash-map->list cons value))
+       ,h)))
+
+(define (procedure-source* proc)
+  (let ((lexicals (procedure-lexicals proc)))
+    (if (and (list? lexicals) (not (null? lexicals)))
+	`(let ,(map (match-lambda ((symbol . value)
+				   `(,symbol ,(object-source value))))
+		    lexicals)
+	   ,(procedure-source proc))
+	(procedure-source proc))))
 
 (define (object-source value)
   (cond 
    ((symbol? value)
     `',value)
    ((procedure? value)
-    (or (procedure-name value) (procedure-source value) 'noop))
+    (or (procedure-name value) (procedure-source* value) 'noop))
    ((list? value)
     `',(map object-source value))
-   ((vector? value) ; for some reason vector-map doesn't work
-    (list->vector (map object-source (vector->list value))))
+   ((vector? value) 
+    (vector-source value))
    ((hash-table? value)
-    `(let ((h (make-hash-table)))
-       noop
-       ,@(map (match-lambda ((key . value)
-			   `(hash-set! h ,(object-source key) ,(object-source value))))
-	     (hash-map->list cons value))))
+    (hash-source value))
    (#t value)))
 
 (define (save file)
+  (define (capture-widget-hierarchy widgets)
+    (letrec ((widgets=>symbols (make-hash-table))
+	     (capture-hierarchy 
+	      (lambda(widgets)
+		(for w in widgets
+		     (if (not #[ widgets=>symbols w ])
+			 (set! #[ widgets=>symbols w ] (gensym "widget-")))
+		     (if (and #[ w 'parent ]
+			      (not #[ widgets=>symbols #[ w 'parent ] ]))
+			 (set! #[ widgets=>symbols #[ w 'parent ] ] 
+			       (gensym "widget-")))
+		     (capture-hierarchy #[ w 'children ]))
+		widgets=>symbols)))
+      (capture-hierarchy widgets)))
   (with-output-to-port *stdout*
     (lambda()
-      (display (string-append "saving to file "file":\n"))
-      (for-each (match-lambda ((key . function)
-			       (if (and function 
-					(not (equal? function noop))
-					(not (equal? function 'noop)))
-				   (pretty-print `(keydn ',key ,function)))))
-		(hash-map->list cons #[ *procedure-sources* 'keydn ]))
-      (for widget in #[ *stage* 'children ]
-	   (let ((w (gensym "widget-")))
-	     (pretty-print
-	      `(let ((,w (make ,(class-name (class-of widget)))))
-		 ,@(map (match-lambda((slot-name . info)
-				      `(slot-set! ,w ',slot-name ,
-						  (object-source (slot-ref widget slot-name)))))
-			(class-slots (class-of widget)))
-		 (add-child! *stage* ,w)
-		 )))))))
+	(let ((widgets=>symbols (capture-widget-hierarchy #[ *stage* 'children ])))
+	(display (string-append "saving to file "file":\n"))
+	(for-each (match-lambda ((key . function)
+				 (if (not (in? function `(#f noop ,noop)))
+				     (pretty-print `(keydn ',key ,function)))))
+		  (hash-map->list cons #[ *procedure-sources* 'keydn ]))
+	(for widget in #[ *stage* 'children ]
+	     (let ((w #[ widgets=>symbols widget ]))
+	       (pretty-print
+		`(let ((,w (make ,(class-name (class-of widget)))))
+		   ,@(map (match-lambda((slot-name . info)
+					(let ((value (slot-ref widget slot-name)))
+					  `(slot-set! ,w ',slot-name 
+						      ,(if (is-a? value <widget>)
+							   #[ widgets=>symbols value ]
+							   (object-source value))))))
+			  (class-slots (class-of widget)))
+		   (add-child! *stage* ,w)) #:width 105)))))))
 
 (define *stdio* 
   (make-soft-port 
@@ -193,7 +226,7 @@
 		     #:w (image-width image) 
 		     #:h (image-height image))))
     (slot-set! image 'drag 
-	       (lambda (type state x y xrel yrel)		 
+	       (function (type state x y xrel yrel)		 
 		 (slot-set! image 'x (+ (slot-ref image 'x) xrel))
 		 (slot-set! image 'y (+ (slot-ref image 'y) yrel))))
     image))
@@ -260,7 +293,7 @@
   (port #:init-value *stdio*)
   #;(visible-cols #:init-keyword #:visible-cols)
   #;(visible-lines #:init-keyword #:visible-lines)
-  (rendered-lines #:init-thunk make-hash-table))
+  #;(rendered-lines #:init-thunk make-hash-table))
 
 
 (define-method (draw (t <text-area>))
