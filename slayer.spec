@@ -35,7 +35,7 @@
 				  s
 				  (substring line col)))))))))
   (slot-set! t 'lines '#("wielki test" "numer" "jeden"))
-  (slot-set! t 'port (make-soft-port
+  (slot-set! t 'port (make-soft-port*
 		      (vector
 		       (function(c) (put-string (list->string (list c))))
 		       put-string
