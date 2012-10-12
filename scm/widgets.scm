@@ -16,6 +16,7 @@
 	     ((rnrs) :version (6))
 	     )
 
+
 (define (local-lexicals id)
   (filter (lambda (x)
 	    (eq? (syntax-local-binding x) 'lexical))
@@ -39,31 +40,53 @@
 	   (set-procedure-property! procedure 'get-lexicals get-lexicals)
 	   procedure)))))
 
+;(procedure-lexicals (let* ((x 1)(y 2)) (function(z)(+ x y z))))
+
 (define (procedure-lexicals proc)
   ((procedure-property proc 'get-lexicals)))
-
-(define *procedure-sources* (make-hash-table))
-(hash-set! *procedure-sources* 'keydn (make-hash-table))
-(hash-set! *procedure-sources* 'keyup (make-hash-table))
-
-(define-syntax keydn
-  (syntax-rules ()
-    ((_ key function)
-     (begin
-       (set! #[ #[ *procedure-sources* 'keydn ] key ] (quote function))
-       (%keydn key function)))))
-
-(define-syntax keyup 
-  (syntax-rules ()
-    ((_ key function)
-     (begin
-       (set! #[ #[ *procedure-sources* 'keyup ] key ] (quote function))
-       (%keyup key function)))))
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
- 
+
+(define *soft-port-sources* (make-hash-table))
+
+(define (make-soft-port* pv modes)
+  (let ((port (make-soft-port pv modes)))
+    (set! #[ *soft-port-sources* port ] (cons pv modes))
+    port))
+
+(define *stdio* 
+  (make-soft-port
+   (vector 
+    (function (c) (write c *stdout*)) ; procedure accepting one character for output
+    (function (s) (display s *stdout*)) ; procedure accepting a string for output
+    (function () (display "." *stdout*)) ; thunk for flushing output
+    (function () (char-upcase (read-char))) ; thunk for getting one character
+    (function () (display "@" *stdout*)) ; thunk for closing port (not by garbage collector)
+    #f) ; (if present and not `#f') thunk for computing the number
+   ;; of characters that can be read from the port without blocking
+   "rw"))
+
+(set-current-input-port *stdio*)
+(set-current-output-port *stdio*)
+
+
+(define (port-source port)
+  (cond ((equal? port (current-input-port))
+	 '(current-input-port))
+	((equal? port (current-output-port))
+	 '(current-output-port))
+	((equal? port (current-error-port))
+	 '(current-error-port))
+	((and-let* ((source #[ *soft-port-sources* port ]))
+	   (match-let (((pv . mode) source))
+		      `(make-soft-port* 
+			,(vector-map (lambda(p)
+				       (and (procedure? p)(procedure-source* p))) 
+				     pv) ,mode))))
+	(#t '*stdio*)))
+
 (define (vector-source v)
   (or (and-let* ((size (vector-length v))
 		 ((> size 7)) 
@@ -79,7 +102,7 @@
 		 ((> (/ dominant-count size) 1/2)))
 	(let ((dominant-value (match value-score (((value . count) . rest) value)))
 	      (w (gensym "vec-")))
-	  `(let ((,w (make-vector ,size ,dominant-value)))
+	  `(let ((,w (make-vector ,size ,(object-source dominant-value))))
 	     ,@(filter-map (lambda(i)
 			     (let ((i-th #[ v i ]))
 			       (and (not (eq? i-th dominant-value))
@@ -97,13 +120,36 @@
        ,h)))
 
 (define (procedure-source* proc)
-  (let ((lexicals (procedure-lexicals proc)))
-    (if (and (list? lexicals) (not (null? lexicals)))
-	`(let ,(map (match-lambda ((symbol . value)
+  (let ((lexis (procedure-lexicals proc)))
+    (if (and (list? lexis) (not (null? lexis)))
+	`(let* ,(map (match-lambda ((symbol . value)
 				   `(,symbol ,(object-source value))))
-		    lexicals)
+		    lexis)
 	   ,(procedure-source proc))
 	(procedure-source proc))))
+
+(define objects=>symbols (make-fluid (make-hash-table)))
+
+(define (goops-symbol object)
+  (or (and-let* ((objects=>symbols (fluid-ref objects=>symbols))
+		 ((hash-table? objects=>symbols))
+		 (symbol #[ objects=>symbols object ]))
+	symbol)
+      (let ((o (gensym "object-")))
+	(set! #[ (fluid-ref objects=>symbols) object ] o)
+	o)))
+
+(define (goops-code-to-create-object object)
+  (let ((class (class-of object)))
+    `(make ,(class-name class))))
+ 
+(define (goops-code-generator-to-assign-values-to-slots object)
+  (lambda (name)
+    (let ((class (class-of object)))
+      (map (match-lambda((slot-name . info)
+			 (let ((value (slot-ref object slot-name)))
+			   `(slot-set! ,name ',slot-name ,(object-source value)))))
+	   (class-slots class)))))
 
 (define (object-source value)
   (cond 
@@ -112,63 +158,59 @@
    ((procedure? value)
     (or (procedure-name value) (procedure-source* value) 'noop))
    ((list? value)
-    `',(map object-source value))
+    `(list ,@(map object-source value)))
    ((vector? value) 
     (vector-source value))
    ((hash-table? value)
     (hash-source value))
+   ((port? value)
+    (port-source value))
+   ((is-a? value <image>)
+    `(array->image ,(image->array value)))
+   ((is-a? value <font>)
+    '*default-font*)
+   ((instance? value)
+    (goops-symbol value))
    (#t value)))
 
+(define (complete-source value)
+  (with-fluids ((objects=>symbols (make-hash-table)))
+    ;; we need to make entries for all the goops objects that appear in the
+    ;; slots of this object, so we call the goops-code-generator... (maybe
+    ;; this isn't too pretty, but it's ok for now)
+    ((goops-code-generator-to-assign-values-to-slots value) (goops-symbol value))
+    `(let ,(map (match-lambda ((object . symbol)
+			       `(,symbol ,(goops-code-to-create-object object))))
+		(hash-map->alist (fluid-ref objects=>symbols)))
+       ,@(append-map (match-lambda((object . symbol)
+				   ((goops-code-generator-to-assign-values-to-slots object) symbol)))
+		     (hash-map->alist (fluid-ref objects=>symbols)))
+       ,#[ objects=>symbols value ])))
+
 (define (save file)
-  (define (capture-widget-hierarchy widgets)
-    (letrec ((widgets=>symbols (make-hash-table))
-	     (capture-hierarchy 
-	      (lambda(widgets)
-		(for w in widgets
-		     (if (not #[ widgets=>symbols w ])
-			 (set! #[ widgets=>symbols w ] (gensym "widget-")))
-		     (if (and #[ w 'parent ]
-			      (not #[ widgets=>symbols #[ w 'parent ] ]))
-			 (set! #[ widgets=>symbols #[ w 'parent ] ] 
-			       (gensym "widget-")))
-		     (capture-hierarchy #[ w 'children ]))
-		widgets=>symbols)))
-      (capture-hierarchy widgets)))
   (with-output-to-port *stdout*
     (lambda()
-	(let ((widgets=>symbols (capture-widget-hierarchy #[ *stage* 'children ])))
-	(display (string-append "saving to file "file":\n"))
-	(for-each (match-lambda ((key . function)
-				 (if (not (in? function `(#f noop ,noop)))
-				     (pretty-print `(keydn ',key ,function)))))
-		  (hash-map->list cons #[ *procedure-sources* 'keydn ]))
-	(for widget in #[ *stage* 'children ]
-	     (let ((w #[ widgets=>symbols widget ]))
-	       (pretty-print
-		`(let ((,w (make ,(class-name (class-of widget)))))
-		   ,@(map (match-lambda((slot-name . info)
-					(let ((value (slot-ref widget slot-name)))
-					  `(slot-set! ,w ',slot-name 
-						      ,(if (is-a? value <widget>)
-							   #[ widgets=>symbols value ]
-							   (object-source value))))))
-			  (class-slots (class-of widget)))
-		   (add-child! *stage* ,w)) #:width 105)))))))
+      ;(display (string-append "saving to file "file":\n"))
+      
+      (let ((kdn (key-bindings 'pressed))
+	    (kup (key-bindings 'released))
+	    (dump-key 
+	     (lambda (table proc-name i)
+	       (or (and-let* ((f #[ table i ])
+			      ((not (in? f `(noop ,noop))))
+			      ((procedure? f)))
+		     `((,proc-name ,#[ *key-names* i ] 
+				   ,(or (procedure-source* f)
+					(procedure-name f) noop))))
+		   '()))))
+	(pretty-print
+	 (cons 'begin (append-map (lambda(i)
+				    (append (dump-key kdn 'keydn i)
+					    (dump-key kup 'keyup i)))
+				  (iota (vector-length kdn))))))
+      (pretty-print `(mousemove ,(procedure-source* (mousemove-binding))))
+      (pretty-print `(define *stage* ,(complete-source *stage*))))))
 
-(define *stdio* 
-  (make-soft-port 
-   (vector 
-    (lambda (c) (write c *stdout*)) ; procedure accepting one character for output
-    (lambda (s) (display s *stdout*)) ; procedure accepting a string for output
-    (lambda () (display "." *stdout*)) ; thunk for flushing output
-    (lambda () (char-upcase (read-char))) ; thunk for getting one character
-    (lambda () (display "@" *stdout*)) ; thunk for closing port (not by garbage collector)
-    #f) ; (if present and not `#f') thunk for computing the number
-					; of characters that can be read from the port without blocking
-   "rw"))
-
-(set-current-input-port *stdio*)
-(set-current-output-port *stdio*)
 
 (define-generic update!)
 (define-generic draw)
@@ -189,16 +231,16 @@
   (h #:init-value 0 #:init-keyword #:h))
 
 (define-method (area (w <widget>))
-  (list (slot-ref w 'x) (slot-ref w 'y) (slot-ref w 'w) (slot-ref w 'h)))
+  (list #[ w 'x ] #[ w 'y ] #[ w 'w ] #[ w 'h ]))
 
 (define-method (draw (w <widget>))
-  (for-each draw (reverse (slot-ref w 'children))))
+  (for-each draw (reverse #[ w 'children ])))
 
 (define-method (add-child! (parent <widget>) (child <widget>))
-  (slot-set! parent 'children (cons child (slot-ref parent 'children)))
-  (slot-set! parent 'w (max (slot-ref parent 'w) (+ (slot-ref child 'x) (slot-ref child 'w))))
-  (slot-set! parent 'h (max (slot-ref parent 'h) (+ (slot-ref child 'y) (slot-ref child 'h))))
-  (slot-set! child 'parent parent))
+  (set! #[ parent 'children ] (cons child #[ parent 'children ]))
+  (set! #[ parent 'w ] (max #[ parent 'w ] (+ #[ child 'x ] #[ child 'w ])))
+  (set! #[ parent 'h ] (max #[ parent 'h ] (+ #[ child 'y ] #[ child 'h ])))
+  (set! #[ child 'parent ] parent))
 
 (define (in-area? point area)
   (match-let
@@ -215,86 +257,34 @@
 	    (let ((c (widget-nested-find condition w)))
 	      (if (not c) w c))))))
 
-(define-class <image> (<widget>)
+(define-class <bitmap> (<widget>)
   (image #:init-keyword #:image))
 
-(define-method (draw (i <image>))
-  (draw-image (slot-ref i 'image) (slot-ref i 'x) (slot-ref i 'y)))
+(define-method (draw (i <bitmap>))
+  (draw-image #[ i 'image ] #[ i 'x ] #[ i 'y ]))
 
 (define (make-image image x y)
-  (let ((image (make <image> #:image image #:x x #:y y 
+  (let ((image (make <bitmap> #:image image #:x x #:y y 
 		     #:w (image-width image) 
 		     #:h (image-height image))))
-    (slot-set! image 'drag 
-	       (function (type state x y xrel yrel)		 
-		 (slot-set! image 'x (+ (slot-ref image 'x) xrel))
-		 (slot-set! image 'y (+ (slot-ref image 'y) yrel))))
+    (set! #[ image 'drag ]
+	  (function (type state x y xrel yrel)		 
+	    (set! #[ image 'x ] (+ #[ image 'x ] xrel))
+	    (set! #[ image 'y ] (+ #[ image 'y ] yrel))))
     image))
 
 (define *default-font* (load-font "./VeraMono.ttf" 12))
 ;(set-font-style! *default-font* 1)
 
-(define (last-sexp-starting-position str)
-  (define opening-braces '(#\( #\[))
-  (define closing-braces '(#\) #\]))
-  (define braces (append opening-braces closing-braces))
-  (define* (rewind #:key string while starting-from)
-    (let loop ((pos starting-from))
-      (if (and (>= pos 0) (while #[ string pos ]))
-	  (loop (1- pos))
-	  pos)))
-  (define (last-symbol-starting-position str init-pos)
-    (rewind #:string str #:starting-from init-pos 
-	    #:while (lambda(c)(and (not (char-whitespace? c)) (not (in? c braces))))))
-  (define (last-whitespaces-starting-position str init-pos)
-    (rewind #:string str #:starting-from init-pos #:while char-whitespace?))
-  (define (last-string-starting-position str init-pos)
-    (let loop ((pos init-pos))
-      (if (and (eq? #[ str pos ] #\")
-	       (or (= pos 0) (not (eq? #[ str (- pos 1) ] #\\))))
-	  pos
-	  (loop (1- pos)))))
-  (let eat ((pos (- (string-length str) 1))
-	    (level 0))
-    (cond ((char-whitespace? #[ str pos ])
-	   (eat (last-whitespaces-starting-position str pos) level))
-	  ((eq? #[ str pos ] #\")
-	   (if (= level 0)
-	       (+ (last-string-starting-position str (- pos 1)) 1)
-	       (eat (- (last-string-starting-position str (- pos 1)) 1) level)))
-	  ((not (in? #[ str pos ] braces))
-	   (if (= level 0)
-	       (+ (last-symbol-starting-position str pos) 1)
-	       (eat (last-symbol-starting-position str pos) level)))
-	  ((in? #[ str pos ] closing-braces)
-	   (eat (- pos 1) (+ level 1)))
-	  ((in? #[ str pos ] opening-braces)
-	   (cond ((= level 1)
-		  (if (and (> pos 0)
-			   (not (char-whitespace? #[ str (- pos 1) ]))
-			   (not (in? #[ str (- pos 1) ] braces)))
-		      (let ((pos* (+ (last-symbol-starting-position str (- pos 1)) 1)))
-			(if (and (in? #[ str pos* ] '(#\# #\' #\`))
-				 (not (eq? #[ str (+ pos* 1)] #\:)))
-			    pos*
-			    pos))
-		      pos))
-		 ((> level 1)
-		  (eat (- pos 1) (- level 1)))
-		 (#t
-		  (error "mismatch braces")))))))
-
-
 (define-class <text-area> (<widget>)
   (lines #:init-value '#(""))
-  (special-keys #:init-thunk (lambda()(make-vector (vector-length *key-names*) noop)))
+  (special-keys #:init-thunk (function()(make-vector (vector-length *key-names*) noop)))
   ;(cursor-position #:init-value '(0 0))
   (font #:init-value *default-font* #:init-keyword #:font)
   (port #:init-value *stdio*)
   #;(visible-cols #:init-keyword #:visible-cols)
   #;(visible-lines #:init-keyword #:visible-lines)
   #;(rendered-lines #:init-thunk make-hash-table))
-
 
 (define-method (draw (t <text-area>))
   (let* ((font #[ t 'font ])
