@@ -7,7 +7,6 @@
 
 scm_t_bits image_tag;
 
-
 static size_t free_image(SCM image_smob) {
   SDL_Surface *surface = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SDL_FreeSurface(surface);
@@ -141,19 +140,34 @@ SCM image_to_array(SCM image_smob) {
 }
 
 SCM array_to_image(SCM array) {
-  WARN("TODO: assuming 32-bit pixels (this should be taken from array type)");
+  //WARN("TODO: assuming 32-bit pixels (this should be taken from array type)");
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
   if(scm_array_handle_rank(&handle) != 2) {
     return SCM_UNSPECIFIED;
   }
+  SCM type = scm_array_handle_element_type(&handle);
+  int BytesPerPixel;
+  if(equal(type, s_u32)) {
+    BytesPerPixel = 4;
+  } else if(equal(type, s_u16)) {
+    BytesPerPixel = 2;
+  } else if(equal(type, s_u8)) {
+    BytesPerPixel = 1;
+  } else if(equal(type, s_u64)) {
+    BytesPerPixel = 8;
+  } else {
+    WARN("Unrecognized array type");
+    return SCM_UNSPECIFIED;
+  }
+
   scm_t_array_dim *dims = scm_array_handle_dims(&handle);
 
   int w = abs(dims[0].ubnd - dims[0].lbnd) + 1;
   int h = abs(dims[1].ubnd - dims[1].lbnd) + 1;
 
-  SCM image_smob = rectangle(scm_from_int(w), scm_from_int(h), SCM_UNDEFINED, SCM_UNDEFINED);
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);  
+  SCM image_smob = rectangle(scm_from_int(w), scm_from_int(h), SCM_UNDEFINED, scm_from_int(BytesPerPixel));
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
 
   void *data = scm_array_handle_uniform_writable_elements(&handle);
   memcpy(image->pixels, data, w * h * image->format->BytesPerPixel);
