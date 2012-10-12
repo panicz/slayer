@@ -108,7 +108,7 @@ static void init(char *specs, Uint16 w, Uint16 h) {
   }
 
   if(file_empty(specs)) {
-    if(!file_write(specs, "(keydn 'esc (lambda (type state code name mod unicode) (quit)))")) {
+    if(!file_write(specs, "(keydn 'esc (function (type state code name mod unicode) (quit)))")) {
       FATAL("Unable to write to spec file ``%s''", specs);
     }
   }
