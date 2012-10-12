@@ -40,9 +40,14 @@
 
 (define stref (make-procedure-with-setter string-ref string-set!))
 
+(define asref (make-procedure-with-setter assoc-ref assoc-set!))
+
 (define aref (make-procedure-with-setter 
 	      (lambda(array indices)(apply array-ref array indices))
 	      (lambda(array indices value)(apply array-set! array value indices))))
+
+(define-method (ref (fluid <fluid>) . rest)
+  (apply ref (fluid-ref fluid) rest))
 
 (define-method (ref (vector <vector>) (key <integer>))
   (vref vector key))
@@ -52,6 +57,9 @@
 
 (define-method (ref (string <string>) key)
   (stref string key))
+
+(define-method (ref (list <list>) key)
+  (asref list key))
 
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
@@ -78,8 +86,6 @@
 				(#t
 				 (unread-char char port)
 				 (loop (cons (read port) exp)))))))))
-
-
 
 (if (string<? (version) "2.0.0")
     (read-hash-extend #\;
