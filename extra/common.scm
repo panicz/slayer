@@ -7,7 +7,8 @@
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
   #:export (in? compose expand unix-environment ?not ?and ?or map-n
-		contains-duplicates module->hash-map module->list)
+		contains-duplicates module->hash-map module->list
+		hash-map->alist alist->hash-map last-sexp-starting-position)
   #:export-syntax (\ for))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
@@ -27,6 +28,15 @@
   (hash-map->list (lambda(key variable)
 		    (cons key (variable-ref variable)))
 		  (module->hash-map module)))
+
+(define (hash-map->alist hash)
+  (hash-map->list cons hash))
+
+(define (alist->hash-map alist)
+  (let ((h (make-hash-table)))
+    (for-each (lambda(kv)(hash-set! h (car kv) (cdr kv))) alist)
+    h))
+
 
 ;; (define (contains-duplicates? l)
 ;;   (call/cc (lambda(break)
@@ -75,8 +85,7 @@
 							arg-string))
 					 (number (string->number (match:substring match-struct 1))))
 				(if (> number max-arg) (set! max-arg number))
-				#t)
-			      arg)
+				#t)			      arg)
 			     (else arg))) args)))
       `(lambda ,(append
 		 (map (lambda (n) 
@@ -128,6 +137,56 @@
    (if (< (length lst) n)
      out
      (apply map-n n fn (drop lst n) (append out (list (apply fn (take lst n)))))))
+
+(define (last-sexp-starting-position str)
+  (define opening-braces '(#\( #\[))
+  (define closing-braces '(#\) #\]))
+  (define braces (append opening-braces closing-braces))
+  (define* (rewind #:key string while starting-from)
+    (let loop ((pos starting-from))
+      (if (and (>= pos 0) (while (string-ref string pos)))
+	  (loop (1- pos))
+	  pos)))
+  (define (last-symbol-starting-position str init-pos)
+    (rewind #:string str #:starting-from init-pos 
+	    #:while (lambda(c)(and (not (char-whitespace? c)) (not (in? c braces))))))
+  (define (last-whitespaces-starting-position str init-pos)
+    (rewind #:string str #:starting-from init-pos #:while char-whitespace?))
+  (define (last-string-starting-position str init-pos)
+    (let loop ((pos init-pos))
+      (if (and (eq? (string-ref str pos) #\")
+	       (or (= pos 0) (not (eq? (string-ref str (- pos 1)) #\\))))
+	  pos
+	  (loop (1- pos)))))
+  (let eat ((pos (- (string-length str) 1))
+	    (level 0))
+    (cond ((char-whitespace? (string-ref str pos))
+	   (eat (last-whitespaces-starting-position str pos) level))
+	  ((eq? (string-ref str pos) #\")
+	   (if (= level 0)
+	       (last-string-starting-position str (- pos 1))
+	       (eat (- (last-string-starting-position str (- pos 1)) 1) level)))
+	  ((not (in? (string-ref str pos) braces))
+	   (if (= level 0)
+	       (+ (last-symbol-starting-position str pos) 1)
+	       (eat (last-symbol-starting-position str pos) level)))
+	  ((in? (string-ref str pos) closing-braces)
+	   (eat (- pos 1) (+ level 1)))
+	  ((in? (string-ref str pos) opening-braces)
+	   (cond ((= level 1)
+		  (if (and (> pos 0)
+			   (not (char-whitespace? (string-ref str (- pos 1))))
+			   (not (in? (string-ref str (- pos 1)) braces)))
+		      (let ((pos* (+ (last-symbol-starting-position str (- pos 1)) 1)))
+			(if (and (in? (string-ref str pos*) '(#\# #\' #\`))
+				 (not (eq? (string-ref str (+ pos* 1)) #\:)))
+			    pos*
+			    pos))
+		      pos))
+		 ((> level 1)
+		  (eat (- pos 1) (- level 1)))
+		 (#t
+		  (error "mismatch braces")))))))
 
 
 ;; do dalszej rozkminki
