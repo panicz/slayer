@@ -302,13 +302,40 @@ SCM input_grab(SCM on) {
     : SCM_BOOL_F;
 }
 
+static SCM key_bindings(SCM type) {
+  SCM vector;
+  SCM *bindings;
+  if(equal(type, s_pressed)) {
+    bindings = keydown;
+  }
+  else if(equal(type, s_released)) {
+    bindings = keyup;
+  } else {
+    WARN("Invalid argument");
+    return SCM_UNSPECIFIED;
+  }
+  vector = scm_c_make_vector(NELEMS(keydown), SCM_UNDEFINED);
+  int i;
+  for(i = 0; i < NELEMS(keydown); ++i) {
+    scm_c_vector_set_x(vector, i, bindings[i]);
+  }
+  return vector;
+}
+
+static SCM mousemove_binding(SCM type) {
+  return mousemove;
+}
+
+
 static void export_functions() {
   scm_c_define_gsubr("handle-input", 0, 0, 0, input_handle_events);
   scm_c_define_gsubr("grab-input", 0, 1, 0, input_grab);
-  scm_c_define_gsubr("%keydn", 2, 0, 0, bind_keydown);
-  scm_c_define_gsubr("%keyup", 2, 0, 0, bind_keyup);
+  scm_c_define_gsubr("keydn", 2, 0, 0, bind_keydown);
+  scm_c_define_gsubr("keyup", 2, 0, 0, bind_keyup);
   scm_c_define_gsubr("mousemove", 1, 0, 0, bind_mousemove);  
-  scm_c_define_gsubr("input-mode", 0, 1, 0, input_mode_x);  
+  scm_c_define_gsubr("input-mode", 0, 1, 0, input_mode_x);
+  scm_c_define_gsubr("key-bindings", 1, 0, 0, key_bindings);
+  scm_c_define_gsubr("mousemove-binding", 0, 0, 0, mousemove_binding);
 }
 
 
