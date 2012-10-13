@@ -161,7 +161,11 @@ SCM scm_from_sdl_event(SDL_Event *event) {
 }
 
 static inline SCM unsupported_event(SDL_Event *e) {
-  WARN("Warning: unsupported event %i", e->type);
+  WARN("unsupported event %i", e->type);
+  return SCM_UNSPECIFIED;
+}
+
+static inline SCM activeevent_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
@@ -210,6 +214,11 @@ static inline SCM quit_handler(SDL_Event *e) {
 }
 
 #include "scancode.c" // contains the definition of scancode table
+//struct scancode {
+//  const char *keyname;
+//  SDLKey value;
+//};
+//static struct scancode keymap[];
 
 static void build_keymap() {
 
@@ -349,6 +358,7 @@ void input_init() {
 
   for(i = 0; i < SDL_NUMEVENTS; ++i) 
     event_handler[i] = unsupported_event;
+  event_handler[SDL_ACTIVEEVENT] = activeevent_handler;
   event_handler[SDL_KEYDOWN] = keydown_handler;
   event_handler[SDL_KEYUP] = keyup_handler;
   event_handler[SDL_MOUSEBUTTONDOWN] = mousepressed_handler;
