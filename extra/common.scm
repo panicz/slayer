@@ -8,7 +8,8 @@
   #:use-module (system base compile)
   #:export (in? compose expand unix-environment ?not ?and ?or map-n
 		contains-duplicates module->hash-map module->list
-		hash-map->alist alist->hash-map last-sexp-starting-position)
+		hash-map->alist alist->hash-map last-sexp-starting-position
+		properize)
   #:export-syntax (\ for))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
@@ -20,6 +21,14 @@
 
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
+
+(define (properize src . dst)
+  (cond ((pair? src)
+	 (apply properize (cdr src) (cons (car src) dst)))
+	((null? src)
+	 (reverse dst))
+	(else 
+	 (reverse (cons src dst)))))
 
 (define (module->hash-map module)
   (module-obarray module))
@@ -97,10 +106,10 @@
 	      `(apply ,f ,@args ,rest)
 	      `(,f ,@args))))))
 
-(define (expand e)
+(define* (expand e #:key (opts '()))
   (let-values (((exp env) (decompile 
 			   (compile e #:from 'scheme #:to 'tree-il #:env (current-module))
-			   #:from 'tree-il #:to 'scheme)))
+			   #:from 'tree-il #:to 'scheme #:opts opts)))
     exp))
 
 (define (unix-environment)
