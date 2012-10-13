@@ -13,6 +13,7 @@
 	     (extra ref)
 	     (extra vector-lib)
 	     (extra common)
+	     (extra function)
 	     ((rnrs) :version (6))
 	     )
 
@@ -40,14 +41,18 @@
 	   (set-procedure-property! procedure 'get-lexicals get-lexicals)
 	   procedure)))))
 
-;(procedure-lexicals (let* ((x 1)(y 2)) (function(z)(+ x y z))))
-
 (define (procedure-lexicals proc)
-  ((procedure-property proc 'get-lexicals)))
+  (match-let ((('function args body ...) (procedure-source proc)))
+	     (let ((vars (free-variables `(lambda ,args ,@body))))
+	       (filter (match-lambda ((name . value) (in? name vars)))
+		       ((procedure-property proc 'get-lexicals))))))
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
+
+(define (shout obj)
+  (display (string-append (with-output-to-string (lambda()(display obj))) "\n") (current-error-port)))
 
 (define *soft-port-sources* (make-hash-table))
 
@@ -71,7 +76,6 @@
 (set-current-input-port *stdio*)
 (set-current-output-port *stdio*)
 
-
 (define (port-source port)
   (cond ((equal? port (current-input-port))
 	 '(current-input-port))
@@ -82,9 +86,9 @@
 	((and-let* ((source #[ *soft-port-sources* port ]))
 	   (match-let (((pv . mode) source))
 		      `(make-soft-port* 
-			,(vector-map (lambda(p)
-				       (and (procedure? p)(procedure-source* p))) 
-				     pv) ,mode))))
+			(vector ,@(map (lambda(p)
+					(and (procedure? p)(procedure-source* p)))
+				      (vector->list pv))) ,mode))))
 	(#t '*stdio*)))
 
 (define (vector-source v)
@@ -152,6 +156,7 @@
 	   (class-slots class)))))
 
 (define (object-source value)
+  ;(shout `(object-source ,value))
   (cond 
    ((symbol? value)
     `',value)
@@ -188,7 +193,7 @@
        ,#[ objects=>symbols value ])))
 
 (define (save file)
-  (with-output-to-port *stdout*
+  (with-output-to-port (open-file file "w")
     (lambda()
       ;(display (string-append "saving to file "file":\n"))
       
@@ -325,4 +330,3 @@
 
 (define-generic input-text!)
 (define *input-widget* #f)
-
