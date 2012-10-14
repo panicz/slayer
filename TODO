@@ -1,47 +1,20 @@
-General clues:
-In order to keep the things clean, one should avoid
-evaluating scheme code in C, because that's nasty.
-For the work-in-progress stage it is ok to sometimes
-do it, especially if the workaround would take too
-much time, but in the final version it's better
-to export more C functions to scheme and call them,
-than to do otherwise. Eval is evil ;]
+Create the following demo application:
+- right-click on the stage causes a new list-window
+to appear at the point of click
+- the list-window is an input widget. typing
+causes narrowing of available options
+- among the options, there should be 'add button'
+option, that causes the creation of a new button
+on the stage
+- left-click on the button causes the invocation
+of the action (which is by default opening the
+button's editor window)
+- right-click on the button causes the option list
+to appear. among the option list there are the following:
+* edit action ...
+* appearance ...
+* delete
 
-List of things to do:
-input.c:
-- support for the remaining event types in scm_from_sdl_event
-(or maybe just give it up? simplify?)
-- write a set of appropriate functions to generate events
-
-image.c
-- conversion functions image->array and array->image
-
-slayer.c
-- save the structure of the stage to the .spec file <------------------------ URGENT!
-
-widgets.c
-- extract the scheme code to some external file that should
-be somehow incorporated into the binary, or distributed as
-a module (it would be nice if the guile itself could be
-made a self-contained executable as well, with no need
-for any external files. It would also be nice if one could
-dump the memory state to file, and load it back from there)
-- create textarea widget (and attach it to guile interpreter)
-- create a menu widget (and associate it with creating
-new buttons)
-
-sound.c, font.c, timer.c
-- create/add d(^_^)b
-
-
-
-GUILE IDEAS (r8rs?)
-- procedure introspection: the meta-procedures
-procedure-source, procedure-arity 
-
-- environment introspection -- the environment's display procedue should
-display all the definitions that would be necessary to obtain the current
-state of the program
-
-- programmable reader, and especially the possibility of defining new
-syntaxes for various parentheses, like [], {} and <>
+- ctrl+click on any object causes a highlight of that
+object. pressing delete when an object is highlited
+causes deletion of that object
