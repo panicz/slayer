@@ -7,7 +7,7 @@
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
   #:export (in? compose expand unix-environment ?not ?and ?or map-n
-		contains-duplicates module->hash-map module->list
+		contains-duplicates module->hash-map module->list module-symbols
 		hash-map->alist alist->hash-map last-sexp-starting-position
 		properize)
   #:export-syntax (\ for))
@@ -30,13 +30,16 @@
 	(else 
 	 (reverse (cons src dst)))))
 
-(define (module->hash-map module)
+(define* (module->hash-map #:optional (module (current-module)))
   (module-obarray module))
 
-(define (module->list module)
+(define* (module->list #:optional (module (current-module)))
   (hash-map->list (lambda(key variable)
 		    (cons key (variable-ref variable)))
 		  (module->hash-map module)))
+
+(define* (module-symbols #:optional (module (current-module)))
+  (map car (module->list module)))
 
 (define (hash-map->alist hash)
   (hash-map->list cons hash))
