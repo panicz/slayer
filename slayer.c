@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <SDL/SDL.h>
 #include "extend.h"
 #include "video.h"
@@ -61,72 +62,50 @@ SCM scm_catch_handler(void *data, SCM key, SCM args) {
 }
 
 static void finish(int status, char *filename) {
-
   evalf("(save \"%s\")", filename);
-
-  /*
-  int i;
-  char *source;
-  char *keyname;
-  assert(NELEMS(keydown) == NELEMS(keyup));
-#define DUMP_SOURCE(keytab, i) \
-  if(keytab[i] != SCM_UNSPECIFIED) { \
-    source = as_c_string(scm_procedure_source(keytab[i])); \
-    keyname = scm_to_locale_string(scm_c_vector_ref(key_names, i)); \
-    LOG("(" # keytab " '%s %s)", keyname, source);	    \
-    free(keyname); \
-    free(source); \
-  }
-
-
-  for(i = 0; i < NELEMS(keydown); ++i) {
-    DUMP_SOURCE(keydown, i);
-    DUMP_SOURCE(keyup, i);
-  }
-#undef DUMP_SOURCE
-  */
-}
-
-
-
-static void init(char *specs, Uint16 w, Uint16 h) {
-
-  video_init(w, h);
-  image_init();
-  input_init();
-  font_init();
-  timer_init();
-  widgets_init(w, h);
-
-  // if the file doesn't exist, create it, filling it with the
-  // basic definitions
-
-  if(!file_exists(specs)) {
-    if(!file_create(specs)) {
-      FATAL("Unable to create spec file ``%s''", specs);
-    }
-  }
-
-  if(file_empty(specs)) {
-    if(!file_write(specs, "(keydn 'esc (function (type state code name mod unicode) (quit)))")) {
-      FATAL("Unable to write to spec file ``%s''", specs);
-    }
-  }
-  
-  file_eval(specs);
-  on_exit((void (*)(int, void *)) finish, specs);  
 }
 
 typedef struct {
-  char *filename;
+  char *infile;
+  char *outfile;
   Uint16 w;
   Uint16 h;
 } init_t;
 
-static void *io(init_t *arg) {
-  init(arg->filename, arg->w, arg->h);
 
-  while(1) {
+static void init(init_t *arg) {
+
+  video_init(arg->w, arg->h);
+  image_init();
+  input_init();
+  font_init();
+  timer_init();
+  widgets_init(arg->w, arg->h);
+
+  // if the file doesn't exist, create it, filling it with the
+  // basic definitions
+
+  if (!file_exists(arg->infile)) {
+    if (!file_create(arg->infile)) {
+      FATAL("Unable to create spec file ``%s''", arg->infile);
+    }
+  }
+
+  if (file_empty(arg->infile)) {
+    if (!file_write(arg->infile, "(keydn 'esc (function (type state code name mod unicode) (quit)))")) {
+      FATAL("Unable to write to spec file ``%s''", arg->infile);
+    }
+  }
+
+
+  file_eval(arg->infile);
+  on_exit((void (*)(int, void *)) finish, arg->outfile);  
+}
+
+static void *io(init_t *arg) {
+  init(arg);
+  
+  while (1) {
     input_handle_events();
     video_refresh_screen();
   }
@@ -137,20 +116,69 @@ static void *io(init_t *arg) {
  
 int main(int argc, char *argv[]) {
 
+  init_t arg = {
+    .infile = NULL,
+    .outfile = NULL,
+    .w = 0,
+    .h = 0
+  };
+  
+  int opt;
+  while ((opt = getopt(argc, argv, "i:o:w:h:")) != -1) {
+    switch(opt) {
+    case 'i':
+      arg.infile = malloc(strlen(optarg) + 1);
+      if(arg.infile) {
+	sprintf(arg.infile, "%s", optarg);
+      }
+      break;
+    case 'o':
+      arg.outfile = malloc(strlen(optarg) + 1);
+      if(arg.outfile) {
+	sprintf(arg.outfile, "%s", optarg);
+      }
+      break;
+    case 'w':
+      arg.w = atoi(optarg);
+      break;
+    case 'h':
+      arg.h = atoi(optarg);
+      break;
+    }
+  }
+ 
 #ifdef NDEBUG
   setenv("GUILE_WARN_DEPRECATED", "no", 1);
 #else
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
 
-  init_t arg;
-  arg.filename = malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+  if(!arg.infile) {
+    arg.infile = 
+      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+    sprintf(arg.infile, "%s" SLAYER_SUFFIX, argv[0]);
+  }
 
-  sprintf(arg.filename, "%s" SLAYER_SUFFIX, argv[0]);
-  arg.w = 640;
-  arg.h = 480;
+  if(!arg.outfile) {
+    arg.outfile = 
+      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+    sprintf(arg.outfile, "%s" SLAYER_SUFFIX, argv[0]);
+  }
+
+  if(arg.w == 0) {
+    arg.w = 640;
+  }
+
+  if(arg.h == 0) {
+    arg.h = 480;
+  }
+
+  OUT("infile = %s, outfile = %s, w = %d, h = %d", arg.infile, arg.outfile, arg.w, arg.h);
 
   scm_with_guile((void *(*)(void *))&io, &arg);
-  free(arg.filename);
+
+  free(arg.outfile);
+  free(arg.infile);
+
   return 0;
 }
