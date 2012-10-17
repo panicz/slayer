@@ -54,7 +54,7 @@
 
 
 SCM scm_catch_handler(void *data, SCM key, SCM args) {
-  if(scm_is_eq(symbol("quit"), key)) {
+  if (scm_is_eq(symbol("quit"), key)) {
     exit(0);
   }
   funcall_1("write", key);
@@ -112,8 +112,8 @@ static void *io(init_t *arg) {
   return NULL;
 }
 
-#define SLAYER_SUFFIX ".spec"
- 
+#define SLAYER_SUFFIX ".scm"
+
 int main(int argc, char *argv[]) {
 
   init_t arg = {
@@ -125,16 +125,16 @@ int main(int argc, char *argv[]) {
   
   int opt;
   while ((opt = getopt(argc, argv, "i:o:w:h:")) != -1) {
-    switch(opt) {
+    switch (opt) {
     case 'i':
       arg.infile = malloc(strlen(optarg) + 1);
-      if(arg.infile) {
+      if (arg.infile) {
 	sprintf(arg.infile, "%s", optarg);
       }
       break;
     case 'o':
       arg.outfile = malloc(strlen(optarg) + 1);
-      if(arg.outfile) {
+      if (arg.outfile) {
 	sprintf(arg.outfile, "%s", optarg);
       }
       break;
@@ -153,23 +153,23 @@ int main(int argc, char *argv[]) {
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
 
-  if(!arg.infile) {
+  if (!arg.infile) {
     arg.infile = 
       malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
     sprintf(arg.infile, "%s" SLAYER_SUFFIX, argv[0]);
   }
 
-  if(!arg.outfile) {
+  if (!arg.outfile) {
     arg.outfile = 
       malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
-    sprintf(arg.outfile, "%s" SLAYER_SUFFIX, argv[0]);
+    sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
 
-  if(arg.w == 0) {
+  if (arg.w == 0) {
     arg.w = 640;
   }
 
-  if(arg.h == 0) {
+  if (arg.h == 0) {
     arg.h = 480;
   }
 
