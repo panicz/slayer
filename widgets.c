@@ -4,6 +4,10 @@
 #include "utils.h"
 
 SCM stage;
+SCM input_widget;
+SCM active_widget;
+SCM nearby_widget;
+
 
 extern char const _binary_scm_widgets_scm_start[];
 //extern char const _binary_scm_widgets_scm_end[];
@@ -13,9 +17,11 @@ void widgets_init(Uint16 w, Uint16 h) {
   //file_eval("scm/widgets.scm");
 
   eval(_binary_scm_widgets_scm_start);
-  evalf("(define *stage* (make <widget> #:w %i #:h %i))", w, h);
-  eval("(define *active-widget* *stage*)");
- 
+  evalf("(define *stage* (make <widget> #:w %i #:h %i))", w, h); 
   stage = eval("*stage*");
-  
+
+  eval("(define *input-widget* #f)");
+  eval("(define *active-widget* *stage*)");
+  eval("(define *nearby-widget* #f)");
+
 }

@@ -5,6 +5,7 @@
 	     (srfi srfi-2)
 	     (srfi srfi-11)
 	     (ice-9 match)
+	     (ice-9 format)
 	     (ice-9 optargs)
 	     (ice-9 pretty-print)
 	     (ice-9 local-eval)
@@ -62,7 +63,6 @@
     ((compose 
       (lambda(s)(regexp-substitute/global #f "(^|[^.])([*+?])" s 'pre 1 "\\" 2 'post))) s)))
       
-
 (define (make-soft-port* pv modes)
   (let ((port (make-soft-port pv modes)))
     (set! #[ *soft-port-sources* port ] (cons pv modes))
@@ -73,16 +73,15 @@
    (vector 
     (function (c) (write c *stdout*)) ; procedure accepting one character for output
     (function (s) (display s *stdout*)) ; procedure accepting a string for output
-    (function () (display "." *stdout*)) ; thunk for flushing output
-    (function () (char-upcase (read-char))) ; thunk for getting one character
-    (function () (display "@" *stdout*)) ; thunk for closing port (not by garbage collector)
+    (function () (force-output *stdout*)) ; thunk for flushing output
+    (function () (read-char)) ; thunk for getting one character
+    (function () (close-port *stdout*)) ; thunk for closing port (not by garbage collector)
     #f) ; (if present and not `#f') thunk for computing the number
    ;; of characters that can be read from the port without blocking
    "rw"))
 
 (set-current-input-port *stdio*)
 (set-current-output-port *stdio*)
-
 
 (define (port-source port)
   (cond ((equal? port (current-input-port))
@@ -203,8 +202,7 @@
 (define (save file)
   (with-output-to-port (open-file file "w")
     (lambda()
-      ;(display (string-append "saving to file "file":\n"))
-      
+      ;(display (string-append "saving to file "file":\n"))      
       (let ((kdn (key-bindings 'pressed))
 	    (kup (key-bindings 'released))
 	    (dump-key 
@@ -224,7 +222,6 @@
       (pretty-print `(mousemove ,(procedure-source* (mousemove-binding))))
       (pretty-print `(define *stage* ,(complete-source *stage*))))))
 
-
 (define-generic update!)
 (define-generic draw)
 (define-generic area)
@@ -234,6 +231,11 @@
   (parent #:init-value #f #:init-keyword #:parent)
   (children #:init-value '() #:init-keyword #:children)
   (click #:init-value noop #:init-keyword #:click)
+  (unclick #:init-value noop #:init-keyword #:unclick)
+  (right-click #:init-value noop #:init-keyword #:right-click)
+  (right-unclick #:init-value noop #:init-keyword #:right-unclick)
+  (mouse-over #:init-value noop #:init-keyword #:mouse-over)
+  (mouse-out #:init-value noop #:init-keyword #:mouse-out)
   (drag #:init-value noop #:init-keyword #:drag)
   (update!  #:init-value noop #:init-keyword #:update)
   (activate #:init-value noop #:init-keyword #:activate)
@@ -276,6 +278,25 @@
 (define-method (draw (i <bitmap>))
   (draw-image #[ i 'image ] #[ i 'x ] #[ i 'y ]))
 
+(define* (make-button #:key (text "button") x y (w #f) (h #f))
+  (let ((normal (render-text text *default-font* #xffffff #xff0000))
+	(over (render-text text *default-font* #xffffff #x00ff00))
+	(clicked (render-text text *default-font* #xffffff #x0000ff)))
+    (let ((button (make <bitmap> #:image normal #:x x #:y y 
+			#:w (or w (image-width normal))
+			#:h (or h (image-height normal)))))
+      (set! #[ button 'mouse-over ] (function e (set! #[ button 'image ] over )))
+      (set! #[ button 'mouse-out ] (function e (set! #[ button 'image ] normal )))
+      (set! #[ button 'click ] (function e (set! #[ button 'image ] clicked )))
+      (set! #[ button 'unclick ] #[ button 'mouse-over ])
+
+      (set! #[ button 'drag ]
+	    (function (type state x y xrel yrel)		 
+	      (set! #[ button 'x ] (+ #[ button 'x ] xrel))
+	      (set! #[ button 'y ] (+ #[ button 'y ] yrel))))
+
+      button)))
+
 (define (make-image image x y)
   (let ((image (make <bitmap> #:image image #:x x #:y y 
 		     #:w (image-width image) 
@@ -284,10 +305,18 @@
 	  (function (type state x y xrel yrel)		 
 	    (set! #[ image 'x ] (+ #[ image 'x ] xrel))
 	    (set! #[ image 'y ] (+ #[ image 'y ] yrel))))
+    #;(set! #[ image 'mouse-over ]
+	  (function (type state x y xrel yrel)
+	    (format #t "now mouse is over ~s\n" image)))
+    #;(set! #[ image 'mouse-out ]
+	  (function (type state x y xrel yrel)
+	    (format #t "mouse is no longer over ~s\n" image)))
+    
     image))
 
-
 (define *default-font* (load-font "./VeraMono.ttf" 12))
+
+
 ;(set-font-style! *default-font* 1)
 
 (define-class <text-area> (<widget>)
@@ -315,7 +344,7 @@
       (if (equal? (current-output-port) #[ t 'port ])
 	  (draw-image cursor 
 		      (+ #[t 'x] (* (image-width space) (port-column #[ t 'port ])) )
-		      (+ #[t 'y](* line-skip (port-line #[ t 'port ])))))
+		      (+ #[t 'y] (* line-skip (port-line #[ t 'port ])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
 
 (define-method (move-cursor! (w <text-area>)
@@ -396,7 +425,6 @@
 			      (move-cursor! t 1 0)))))
     (set-key! "up" (function()(move-cursor! t 0 -1)))
     (set-key! "down" (function()(move-cursor! t 0 1)))
-
     (set-key! "f1" (function()
 		     (let* ((lines (vector->list #[ t 'lines ]))
 			    (line (port-line #[ t 'port ]))
@@ -406,9 +434,7 @@
 					       "\n"))
 			    (last-sexp (substring text (last-sexp-starting-position text))))
 		       (display (eval-string last-sexp) *stdout*))))
-
     (set-key! "backspace" (function()
-			    (display "backspace" *stdout*)
 			    (let ((p #[ t 'port ])
 				  (lines #[ t 'lines ]))
 			      (if (= (port-column p) 0)
@@ -422,15 +448,14 @@
 							      (append pre 
 								      `(,(string-append this next)) 
 								      rest)))
-						       (move-cursor! t 
-								     (string-length #[ lines(-(port-line p)1) ])
-								     -1))))))
+						       (move-cursor! 
+							t 
+							(string-length #[lines (- (port-line p) 1)])
+							-1))))))
 				  (begin 
 				    (delete-char! t)
 				    (move-cursor! t -1 0))))))
-`
     (set-key! "delete" (function()
-			 (display "delete" *stdout*)
 			 (let* ((p #[ t 'port ])
 				(lines #[ t 'lines ]))
 			   (if (= (port-column p) (string-length #[ lines (port-line p) ]))
@@ -447,7 +472,6 @@
 			       (begin
 				 (delete-char! t (+ (port-column p) 1) (port-line p)) 
 				 (move-cursor! t 0 0)))))))
-    
   (set! #[t 'click]
 	(function e
 	  (set-current-output-port #[ t 'port ])
@@ -457,6 +481,4 @@
   (set! #[t 'y] y)
   t))
 
-
 (define-generic input-text!)
-(define *input-widget* #f)
