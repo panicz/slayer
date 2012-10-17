@@ -166,6 +166,7 @@ static inline SCM unsupported_event(SDL_Event *e) {
 }
 
 static inline SCM activeevent_handler(SDL_Event *e) {
+  WARN_UPTO(3, "SDL_ACTIVEEVENT (%i) not supported", e->type);
   return SCM_UNSPECIFIED;
 }
 
