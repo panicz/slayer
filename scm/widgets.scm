@@ -8,6 +8,7 @@
 	     (ice-9 optargs)
 	     (ice-9 pretty-print)
 	     (ice-9 local-eval)
+	     (ice-9 regex)
 	     (system base compile)
 	     (system syntax)
 	     (extra ref)
@@ -56,6 +57,12 @@
 
 (define *soft-port-sources* (make-hash-table))
 
+(define (symbol->regexp s)
+  (let ((s (symbol->string s)))
+    ((compose 
+      (lambda(s)(regexp-substitute/global #f "(^|[^.])([*+?])" s 'pre 1 "\\" 2 'post))) s)))
+      
+
 (define (make-soft-port* pv modes)
   (let ((port (make-soft-port pv modes)))
     (set! #[ *soft-port-sources* port ] (cons pv modes))
@@ -75,6 +82,7 @@
 
 (set-current-input-port *stdio*)
 (set-current-output-port *stdio*)
+
 
 (define (port-source port)
   (cond ((equal? port (current-input-port))
@@ -278,6 +286,7 @@
 	    (set! #[ image 'y ] (+ #[ image 'y ] yrel))))
     image))
 
+
 (define *default-font* (load-font "./VeraMono.ttf" 12))
 ;(set-font-style! *default-font* 1)
 
@@ -305,8 +314,8 @@
 		(iota (vector-length lines) 0 line-skip))
       (if (equal? (current-output-port) #[ t 'port ])
 	  (draw-image cursor 
-		      (* (image-width space) (port-column #[ t 'port ])) 
-		      (* line-skip (port-line #[ t 'port ]))))
+		      (+ #[t 'x] (* (image-width space) (port-column #[ t 'port ])) )
+		      (+ #[t 'y](* line-skip (port-line #[ t 'port ])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
 
 (define-method (move-cursor! (w <text-area>)
@@ -327,6 +336,127 @@
 	 (l (substring s 0 (max 0 (min sl (- col 1)))))
 	 (r (substring s (min sl col))))
     (set! #[ #[ w 'lines ] line ] (string-append l r))))
+
+(define* (make-text-area #:key (text "hi! :)\n") (x 0)(y 0))
+  (let* ((t (make <text-area>))
+	 (put-string (function(s)
+		       (let ((p #[ t 'port ]))
+			 (let ((row (port-line p))
+			       (col (port-column p)))
+			   (let ((line #[ #[ t 'lines ] row ]))
+			     (set! #[ #[ t 'lines ] row ]
+				   (string-append
+				    (substring line 0 col)
+				    s
+				    (substring line col)))))))))
+    (set! #[t 'lines] (list->vector (string-split text #\newline)))
+    (set! #[t 'port] (make-soft-port*
+		      (vector
+		       (function(c) (put-string (list->string (list c))))
+		       put-string
+		       (function()
+			 (for-each display 
+				   (vector->list #[t 'lines])))
+		       #f
+		       #f) "w"))
+  (let* ((set-key! (function (key action)
+		     (set! #[#[t 'special-keys] #[*scancodes* key]] action))))
+    (set-key! "esc" (function()
+		      (set-current-output-port *stdout*)
+		      (input-mode 'direct)))
+    (set-key! "return"
+	      (function ()
+		(let ((line #[ #[ t 'lines ] (port-line #[ t 'port ]) ])
+		      (line-number (port-line #[ t 'port ]))
+		      (lines (vector->list #[ t 'lines ]))
+		      (column (port-column #[ t 'port ])))
+		  (let ((left (substring line 0 column))
+			(right (substring line column)))
+		    (set! #[ t 'lines ]
+			  (list->vector
+			   (append (take lines line-number)
+				   (list left right)
+				   (drop lines (+ line-number 1)))))
+		    (move-cursor! t (- (port-column #[ t 'port ])) 1)))))
+    (set-key! "left" (function()
+		       (let ((line (port-line #[ t 'port ]))
+			     (column (port-column #[ t 'port ])))
+			 (if (and (= column 0)
+				  (> line 0))
+			     (move-cursor! t (string-length #[ #[ t 'lines ] (- line 1) ]) -1)
+			     ;;else
+			     (move-cursor! t -1 0)))))
+    (set-key! "right" (function()
+			(let ((line (port-line #[ t 'port ]))
+			      (column (port-column #[ t 'port ])))
+			  (if (and (= column (string-length #[ #[ t 'lines ] line ]))
+				   (< (+ line 1) (vector-length #[ t 'lines ])))
+			      (move-cursor! t (- (string-length #[ #[ t 'lines ] line ])) 1)
+			      ;;else
+			      (move-cursor! t 1 0)))))
+    (set-key! "up" (function()(move-cursor! t 0 -1)))
+    (set-key! "down" (function()(move-cursor! t 0 1)))
+
+    (set-key! "f1" (function()
+		     (let* ((lines (vector->list #[ t 'lines ]))
+			    (line (port-line #[ t 'port ]))
+			    (column (port-column #[ t 'port ]))
+			    (text (string-join (append (take lines line)
+						       (list (substring #[ #[ t 'lines ] line ] 0 column)))
+					       "\n"))
+			    (last-sexp (substring text (last-sexp-starting-position text))))
+		       (display (eval-string last-sexp) *stdout*))))
+
+    (set-key! "backspace" (function()
+			    (display "backspace" *stdout*)
+			    (let ((p #[ t 'port ])
+				  (lines #[ t 'lines ]))
+			      (if (= (port-column p) 0)
+				  (let*-values (((pre post) (split-at (vector->list lines) (port-line p))))
+				    (if (> (length pre) 0)
+					(let ((this (last pre))
+					      (pre (drop-right pre 1)))
+					  (match post ((next . rest)
+						       (set! #[ t 'lines ] 
+							     (list->vector 
+							      (append pre 
+								      `(,(string-append this next)) 
+								      rest)))
+						       (move-cursor! t 
+								     (string-length #[ lines(-(port-line p)1) ])
+								     -1))))))
+				  (begin 
+				    (delete-char! t)
+				    (move-cursor! t -1 0))))))
+`
+    (set-key! "delete" (function()
+			 (display "delete" *stdout*)
+			 (let* ((p #[ t 'port ])
+				(lines #[ t 'lines ]))
+			   (if (= (port-column p) (string-length #[ lines (port-line p) ]))
+			       (let*-values (((pre post) (split-at (vector->list lines) (+ (port-line p) 1))))
+				 (if (> (length pre) 0)
+				     (let ((this (last pre))
+					   (pre (drop-right pre 1)))
+				       (match post ((next . rest)
+						    (set! #[ t 'lines ]
+							  (list->vector
+							   (append pre
+								   `(,(string-append this next))
+								   rest))))))))
+			       (begin
+				 (delete-char! t (+ (port-column p) 1) (port-line p)) 
+				 (move-cursor! t 0 0)))))))
+    
+  (set! #[t 'click]
+	(function e
+	  (set-current-output-port #[ t 'port ])
+	  (set! *input-widget* t)
+	  (input-mode 'typing)))
+  (set! #[t 'x] x)
+  (set! #[t 'y] y)
+  t))
+
 
 (define-generic input-text!)
 (define *input-widget* #f)
