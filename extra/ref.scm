@@ -25,6 +25,8 @@
 	 (string-set! obj key value))
 	((instance? obj)
 	 (slot-set! obj key value))
+	((boolean? obj)
+	 (if #f #f))
 	((array? obj)
 	 (array-set! obj value key))))
 
@@ -61,11 +63,16 @@
 (define-method (ref (list <list>) key)
   (asref list key))
 
+(define-method (ref (bool <boolean>) key)
+  #f)
+
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
 
 (read-hash-extend #\[
-		  (let ((process (match-lambda 
+		  (let ((process (match-lambda
+				  (('_ key)
+				   `(lambda(_)(ref _ ,key)))
 				  ((object key)
 				   `(ref ,object ,key))
 				  ((seq start '.. end)
