@@ -6,10 +6,21 @@
   #:use-module (ice-9 regex)
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
-  #:export (in? compose expand unix-environment ?not ?and ?or map-n
-		contains-duplicates module->hash-map module->list module-symbols
-		hash-map->alist alist->hash-map last-sexp-starting-position
-		properize)
+  #:export (expand 
+	    ?not ?and ?or in? 
+	    map-n
+	    contains-duplicates?
+	    module->hash-map
+	    module->list
+	    module-symbols
+	    hash-map->alist 
+	    alist->hash-map
+	    last-sexp-starting-position
+	    properize
+	    flatten
+	    cart
+	    take-at-most drop-at-most
+	    )
   #:export-syntax (\ for))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
@@ -68,13 +79,6 @@
 			   (#t (hash-set! keys (car l) #t)
 			       (next (cdr l)))))))
       (next l))))
-
-(define (compose f . rest)
-  (if (null? rest)
-      f
-      (let ((g (apply compose rest)))
-        (lambda args
-          (call-with-values (lambda () (apply g args)) f)))))
 
 (define-macro (\ f . args)
   (let* ((prefix "\\")
@@ -199,6 +203,27 @@
 		  (eat (- pos 1) (- level 1)))
 		 (#t
 		  (error "mismatch braces")))))))
+
+(define (cart . args)
+  (let ((n (length args)))
+    (cond ((= n 0) '())
+	  ((= n 1) (map list (car args)))
+	  (#t (append-map (lambda(x)
+			    (map (lambda(y)
+				   (cons y x))
+				 (car args)))
+			  (apply cart (cdr args)))))))
+
+(define (flatten l)
+  (if (list? l)
+    (append-map flatten l)
+    (list l)))
+
+(define (take-at-most lst i)
+  (take lst (min i (length lst))))
+
+(define (drop-at-most lst i)
+  (drop lst (min i (length lst))))
 
 
 ;; do dalszej rozkminki
