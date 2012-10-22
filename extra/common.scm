@@ -9,6 +9,7 @@
   #:export (expand 
 	    ?not ?and ?or in? 
 	    map-n
+	    array-map
 	    contains-duplicates?
 	    module->hash-map
 	    module->list
@@ -40,6 +41,12 @@
 	 (reverse dst))
 	(else 
 	 (reverse (cons src dst)))))
+
+(define (array-map proc . args)
+  (let ((dest (apply make-typed-array (array-type (car args)) *unspecified* 
+		     (array-dimensions (car args)))))
+    (apply array-map! dest proc args)
+    dest))
 
 (define* (module->hash-map #:optional (module (current-module)))
   (module-obarray module))
