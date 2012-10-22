@@ -26,10 +26,21 @@
 
 (keydn 'mouse1 
   (function (type name state x y)
-    (and-let* ((w (widget-nested-find (lambda(w)(in-area?(list x y)(area w))) *stage*)))
+    (and-let* ((w (widget-nested-find 
+		   (lambda(w)
+		     (in-area? (list x y)
+			       (absolute-area w)))
+		   *stage*)))
+      ;;(shout (list 'ancestors (ancestors w) 'children (map absolute-area #[w 'children])))
+      ;;(and-let* ((children #[w 'children])
+      ;;((not (null? children))))
+      ;;(shout (list 'ancestors-of-first-child (ancestors (first #;of children)))))
+      ;;(shout (absolute-area w))
+      ;;(if (is-a? w <bitmap>)
+      ;;(shout (class-of w)))
       ;;(display `(grabbing ,w with children at ,(map area (slot-ref w 'children))))(newline)
-      (set! *active-widget* w)
-      (#[ w 'click ] type name state x y))))
+      (set! *active-widget* w))
+    (if *active-widget* (#[ *active-widget* 'click ] type name state x y))))
 
 (keyup 'mouse1 (function (type name state x y) 
 		 (if *active-widget* (#[ *active-widget* 'unclick ] type name state x y))
@@ -37,17 +48,35 @@
 
 (keydn 'mouse2
        (function (type name state x y)
-	 (and-let* ((w (widget-nested-find (lambda(w)(in-area? (list x y) (area w))) *stage*)))
+	 (and-let* ((w (widget-nested-find (lambda(w)
+					     (in-area? (list x y)
+						       (absolute-area w)))
+					   *stage*)))
 	   (#[ w 'right-click ] type name state x y))))
 
 (mousemove (function (type state x y xrel yrel)
-	     (let ((mouseover-widget (widget-nested-find (lambda (w) (in-area? (list x y) (area w))) *stage*)))
+	     (let ((mouseover-widget 
+		    (widget-nested-find (lambda (w) (in-area? (list x y) (absolute-area w))) *stage*)))
 	       (if (and mouseover-widget (not (equal? mouseover-widget *nearby-widget*)))
 		   (begin
 		     (if *nearby-widget* (#[ *nearby-widget* 'mouse-out ] type state x y xrel yrel))
 		     (set! *nearby-widget* mouseover-widget)
 		     (#[ *nearby-widget* 'mouse-over ] type state x y xrel yrel)))
 	       (#[ *active-widget* 'drag ] type state x y xrel yrel))))
+
+(let ((menu (make-container #:x 0 #:y 0 #:name "menu" 
+			    #:content (list (make-button #:text "button 1")
+					    (make-button #:text "button 2")
+					    (make-button #:text "button 3")))))
+  (set! #[*stage* 'right-click]
+	(function (type name state x y)
+	  (if (not (find (lambda(x)(equal? x menu)) #[*stage* 'children]))
+	      (add-child! *stage* menu))
+	  (set! #[menu 'x] x)
+	  (set! #[menu 'y] y)))
+  (set! #[*stage* 'click]
+	(function (type name state x y)
+	  (remove-child! *stage* menu))))
 
 (keydn 'e
   (function e (display e)

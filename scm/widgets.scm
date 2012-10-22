@@ -16,9 +16,8 @@
 	     (extra vector-lib)
 	     (extra common)
 	     (extra function)
-	     ((rnrs) :version (6))
-	     )
-
+	     (extra math)
+	     ((rnrs) :version (6)))
 
 (define (local-lexicals id)
   (filter (lambda (x)
@@ -54,7 +53,8 @@
 (define *stderr* (current-error-port))
 
 (define (shout obj)
-  (display (string-append (with-output-to-string (lambda()(display obj))) "\n") (current-error-port)))
+  (display (string-append (with-output-to-string (lambda()(display obj))) "\n") (current-error-port))
+  obj)
 
 (define *soft-port-sources* (make-hash-table))
 
@@ -226,6 +226,7 @@
 (define-generic draw)
 (define-generic area)
 (define-generic add-child!)
+(define-generic remove-child!)
 
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
@@ -245,8 +246,19 @@
   (w #:init-value 0 #:init-keyword #:w)
   (h #:init-value 0 #:init-keyword #:h))
 
+(define-method (ancestors (w <widget>))
+  (or (and-let* ((parent #[w 'parent]))
+	(cons parent (ancestors parent)))
+      '()))
+
 (define-method (area (w <widget>))
   (list #[ w 'x ] #[ w 'y ] #[ w 'w ] #[ w 'h ]))
+
+(define-method (absolute-area (w <widget>))
+  (let ((widgets (cons w (ancestors w))))
+    (list (apply + (map #[_ 'x] widgets))
+	  (apply + (map #[_ 'y] widgets))
+	  #[w 'w] #[w 'h])))
 
 (define-method (draw (w <widget>))
   (for-each draw (reverse #[ w 'children ])))
@@ -256,6 +268,10 @@
   (set! #[ parent 'w ] (max #[ parent 'w ] (+ #[ child 'x ] #[ child 'w ])))
   (set! #[ parent 'h ] (max #[ parent 'h ] (+ #[ child 'y ] #[ child 'h ])))
   (set! #[ child 'parent ] parent))
+
+(define-method (remove-child! (parent <widget>) (child <widget>))
+  (set! #[ child 'parent ] #f)
+  (set! #[ parent 'children ] (delete child #[ parent 'children ])))
 
 (define (in-area? point area)
   (match-let
@@ -276,9 +292,11 @@
   (image #:init-keyword #:image))
 
 (define-method (draw (i <bitmap>))
-  (draw-image #[ i 'image ] #[ i 'x ] #[ i 'y ]))
+  (draw-image #[ i 'image ]
+	      (+ (or #[#[ i 'parent ] 'x] 0) #[ i 'x ]) 
+	      (+ (or #[#[ i 'parent ] 'y] 0) #[ i 'y ])))
 
-(define* (make-button #:key (text "button") x y (w #f) (h #f))
+(define* (make-button #:key (text "button") (x 0) (y 0) (w #f) (h #f))
   (let ((normal (render-text text *default-font* #xffffff #xff0000))
 	(over (render-text text *default-font* #xffffff #x00ff00))
 	(clicked (render-text text *default-font* #xffffff #x0000ff)))
@@ -289,13 +307,27 @@
       (set! #[ button 'mouse-out ] (function e (set! #[ button 'image ] normal )))
       (set! #[ button 'click ] (function e (set! #[ button 'image ] clicked )))
       (set! #[ button 'unclick ] #[ button 'mouse-over ])
-
-      (set! #[ button 'drag ]
-	    (function (type state x y xrel yrel)		 
-	      (set! #[ button 'x ] (+ #[ button 'x ] xrel))
-	      (set! #[ button 'y ] (+ #[ button 'y ] yrel))))
+      (set! #[ button 'drag ] noop
+	    )
 
       button)))
+
+(define* (make-container #:key x y (name "menu") (content '()))
+  (let ((container (make <widget>))
+	(label (make-button #:text name)))
+    (set! #[label 'drag] (function (type state x y xrel yrel)		 
+			   (set! #[ container 'x ] (+ #[ container 'x ] xrel))
+			   (set! #[ container 'y ] (+ #[ container 'y ] yrel))))
+    (for child in (append content `(,label))
+	 (add-child! container child))
+    ;(add-child! container (make-button #:x 0 #:y 0 #:text name))
+    (let ((top 0))
+      (for w in #[container 'children]
+	   (set! #[container 'w] (max #[w 'w] #[container 'w]))
+	   (set! #[w 'y] top)
+	   (set! top (+ top #[w 'h])))
+      (set! #[container 'h] top))
+    container))
 
 (define (make-image image x y)
   (let ((image (make <bitmap> #:image image #:x x #:y y 
@@ -311,11 +343,9 @@
     #;(set! #[ image 'mouse-out ]
 	  (function (type state x y xrel yrel)
 	    (format #t "mouse is no longer over ~s\n" image)))
-    
     image))
 
 (define *default-font* (load-font "./VeraMono.ttf" 12))
-
 
 ;(set-font-style! *default-font* 1)
 
@@ -338,7 +368,8 @@
       (for-each (lambda(line top)
 		  (let ((image (render-text line font)))
 		    (set! #[ t 'w ] (max #[ t 'w ] (image-width image)))
-		    (draw-image image #[ t 'x ] (+ #[ t 'y ] top))))
+		    (draw-image image (+ (or #[ #[ t 'parent ] 'x ] 0) #[ t 'x ]) 
+				(+ (or #[ #[ t 'parent ] 'y ] 0) #[ t 'y ] top))))
 		(vector->list lines)
 		(iota (vector-length lines) 0 line-skip))
       (if (equal? (current-output-port) #[ t 'port ])
