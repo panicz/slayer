@@ -1,3 +1,39 @@
+EXCITING STUFF:
+go to 3d! (no gl bindings for guile; gl is to be
+used in C only! however, certain vertex procedures
+are allowed from the scheme level, like sort-vertices)
+- objects and a camera
+- 3d view associated with the object
+- support for the primitive shapes
+- network module system
+(perhaps it requires making a branch in rcs)
+
+Implement the system containing the following features:
+- connecting to goose
+- adding new views (as slayer widgets)
+- associating views with cameras (obtained from
+goose)
+
+Then, think about an editor that would allow to make
+changes within the world within the current goose
+session. These would be specified in more detail by
+the very goose protocol, but the target version
+should be able to do the following:
+- modify the map (planes, textures etc)
+- create (design) new objects by merging shapes
+and nodes
+- the certain kind of nodes (namely, motors)
+would enable the control over an object. The
+owner of the object is in control and can send
+messages to motors (it might happen, that two
+or more players control one object)
+- additionally, each object can have its eyecandies
+associated (things like the exact model shapes, skins,
+clothes and so forth)
+
+
+BORING STUFF:
+
 Create the following demo application:
 - right-click on the stage causes a new list-window
 to appear at the point of click
