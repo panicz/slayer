@@ -1,4 +1,4 @@
-(define-module (goose matrix)
+(define-module (extra math)
   :use-module (ice-9 optargs)
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-17)
