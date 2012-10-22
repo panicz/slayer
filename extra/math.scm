@@ -5,16 +5,27 @@
   :use-module (extra common)
   :use-module (extra ref)
   :use-module ((rnrs) :version (6))  
-
-  :export (eye 
-	   transpose 
+  :export (eye transpose 
 	   rows columns row column
 	   matrix->vector vector->matrix
 	   dot norm square project
 	   normalize! normalized
 	   det3x3 inv3x3 wedge3x3 crossm3x3
-	   matrix-mul
-	   matrix-vector-mul))
+	   matrix-mul matrix-vector-mul
+	   sgn
+	   pi/4 pi/2 pi e
+	   deg->rad rad->deg))
+
+(define pi/4 (atan 1))
+(define pi/2 (acos 0))
+(define pi (* 2 pi/2))
+(define e (exp 1))
+(define (deg->rad x) (* x (/ pi 180)))
+(define (rad->deg x) (* x (/ 180 pi)))
+(define (sgn x) 
+  (cond ((> x 0) 1)
+	((< x 0) -1)
+	(#t 0)))
 
 (define* (eye size #:optional (type #t))
   (let ((m (make-typed-array type 0 size size)))
@@ -40,10 +51,8 @@
 (define (column a i) 
   (make-shared-array a (lambda (x) (list x i)) (list 0 (1- (rows a)))))
 
-(define (dot a b) 
-  (let ((sum 0))
-    (array-for-each (lambda(x y) (set! sum (+ sum (* x y)))) a b)
-    sum))
+(define (dot a b)
+  (apply + (array->list (vector-map * a b))))
 
 (define (square v)
   (dot v v))
@@ -66,6 +75,7 @@
     (array-map (lambda(x)(* x s)) onto)))
 
 (define (matrix-mul2 a b)
+  (assert (= (columns a) (rows b)))
   (let ((result (make-typed-array (array-type a) *unspecified* (rows a) (columns b))))
     (array-index-map! result (lambda(i j)(dot (column b j) (row a i))))
     result))
@@ -125,4 +135,3 @@
 	
 	(transpose 1/M)))))
 
-(inv3x3 #2f32((1 -3 7)(2 0 5)(16 8 -2)))
