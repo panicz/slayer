@@ -2,7 +2,7 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref))
+  #:export (ref aref))
  
 (define (getter obj key)
   (cond ((vector? obj)
