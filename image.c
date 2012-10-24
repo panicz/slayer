@@ -49,6 +49,7 @@ draw_image(SCM image_smob, SCM x, SCM y) {
   int Y = screen->h - scm_to_int(y);
 
   if(video_mode & SDL_OPENGL) {
+    WARN_ONCE("using OpenGL");
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_BLEND);
 

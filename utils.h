@@ -13,7 +13,7 @@
 #define LOG(expr) ({OUT("[ %09d ] %s/%s[%d]: "STR(expr),now(),__FILE__,__FUNCTION__,__LINE__);expr;})
 #define LOGTIME(expr) \
   ({int time=now();expr;time=now()-time;\
-    OUT("[ %09d ] %s/%s[%d]: "STR(expr)" (%d ticks)",now(),__FILE__,__FUNCTION__,__LINE__,time);})
+    OUT("[ %09d ] %s/%s,%d: "STR(expr)" (%d ticks)",now(),__FILE__,__FUNCTION__,__LINE__,time);})
 
 #define FATAL(msg, ...) do { fprintf(stderr, "FATAL ERROR: " msg "\n", ## __VA_ARGS__ ); exit(0); } while(0)
 #define NELEMS(array) (sizeof(array)/sizeof array[0])

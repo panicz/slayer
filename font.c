@@ -42,36 +42,58 @@ SCM set_font_style(SCM font, SCM style) {
 }
 
 SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
-  SCM smob;
+  //SCM smob;
 
   char *string = as_c_string(text);
-  if(string == NULL)
+  SDL_Surface *surface = NULL;
+  if (string == NULL)
     return SCM_BOOL_F;
+
   TTF_Font *ttf = (TTF_Font *) SCM_SMOB_DATA(font);
 
-  if(color == SCM_UNDEFINED) {
+  if (color == SCM_UNDEFINED) {
     color = scm_from_uint(0xffffff);
   }
 
-  SDL_Surface *render = (bgcolor == SCM_UNDEFINED)
-    ? TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)))
-    : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), sdl_color(scm_to_uint(bgcolor)));
-
-  if (!render) {
-    render = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
+  if (!*string) {
+    surface = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
   }
-  SDL_Surface *image = sdl_surface(render->w, render->h, 4);
+  if (!surface && (bgcolor == SCM_UNDEFINED)) {
+    surface = TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)));
+    bgcolor = scm_from_uint(0);
+  }
+  if (!surface) {
+    surface = TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)),
+				    sdl_color(scm_to_uint(bgcolor)));
+  }
+  
+  free(string);
+
+  if (!surface) {
+    WARN("failed to render text '%s'", string);
+    surface = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
+  }
+
+
+  SCM smob = rectangle(scm_from_int(surface->w), scm_from_int(surface->h), 
+		       (bgcolor == SCM_UNDEFINED) 
+		       ? scm_from_uint(0xff000000)
+		       : bgcolor, scm_from_int(4));
+  
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(smob);
   
   if (!image) {
-    image = render;
+    //image = render;
+    WARN("failed to create image");
+    SCM_SET_SMOB_DATA(smob, surface);
   } 
   else {
-    SDL_BlitSurface(render, NULL, image, NULL);
+    SDL_BlitSurface(surface, NULL, image, NULL);
+    SDL_FreeSurface(surface);
   }
-  SDL_FreeSurface(render);
 
   //print_sdl_surface(image);
-  SCM_NEWSMOB(smob, image_tag, image);
+  //SCM_NEWSMOB(smob, image_tag, image);
   scm_remember_upto_here_1(font);
   return smob;
 }
