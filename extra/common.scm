@@ -22,7 +22,7 @@
 	    cart
 	    take-at-most drop-at-most
 	    )
-  #:export-syntax (\ for))
+  #:export-syntax (\ for if*))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
@@ -30,6 +30,19 @@
   (syntax-rules (in)
     ((_ x in list body ...)
      (for-each (lambda(x) body ...) list))))
+
+(define-syntax if*
+  (syntax-rules (in)
+    ((_ condition then else)
+     (let ((value condition))
+       (if (not (unspecified? value))
+	   (if value
+	       then
+	       else))))
+    ((_ condition then)
+     (let ((value condition))
+       (if (not (unspecified? value))
+	   (if value then))))))
 
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
