@@ -10,7 +10,6 @@
 #include "timer.h"
 #include "utils.h"
 
-
 /*
   There is a set of widgets/modules, written either in C or
   in guile scheme, that can be loaded at runtime.
@@ -70,17 +69,18 @@ typedef struct {
   char *outfile;
   Uint16 w;
   Uint16 h;
+  int video_mode;
 } init_t;
 
 
 static void init(init_t *arg) {
 
-  video_init(arg->w, arg->h);
+  video_init(arg->w, arg->h, arg->video_mode);
   image_init();
   input_init();
   font_init();
   timer_init();
-  widgets_init(arg->w, arg->h);
+  LOGTIME(widgets_init(arg->w, arg->h));
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
@@ -97,12 +97,12 @@ static void init(init_t *arg) {
     }
   }
 
-
-  file_eval(arg->infile);
+  LOGTIME(file_eval(arg->infile));
   on_exit((void (*)(int, void *)) finish, arg->outfile);  
 }
 
 static void *io(init_t *arg) {
+
   init(arg);
   
   while (1) {
@@ -120,11 +120,12 @@ int main(int argc, char *argv[]) {
     .infile = NULL,
     .outfile = NULL,
     .w = 0,
-    .h = 0
+    .h = 0,
+    .video_mode = SDL_HWSURFACE | SDL_DOUBLEBUF
   };
   
   int opt;
-  while ((opt = getopt(argc, argv, "i:o:w:h:")) != -1) {
+  while ((opt = getopt(argc, argv, "i:o:w:h:re:")) != -1) {
     switch (opt) {
     case 'i':
       arg.infile = malloc(strlen(optarg) + 1);
@@ -143,6 +144,16 @@ int main(int argc, char *argv[]) {
       break;
     case 'h':
       arg.h = atoi(optarg);
+      break;
+    case 'e':
+      if(!strcmp(optarg, "3d")) {
+	arg.video_mode |= SDL_OPENGL;
+      } else {
+	WARN("unknown extension: %s", optarg);
+      }
+      break;
+    case 'r':
+      arg.video_mode |= SDL_RESIZABLE;
       break;
     }
   }

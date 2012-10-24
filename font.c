@@ -3,6 +3,10 @@
 #include "image.h"
 #include "utils.h"
 
+#ifdef USE_OPENGL
+#include "video.h"
+#endif
+
 scm_t_bits font_tag;
 
 static size_t free_font(SCM font_smob) {
@@ -37,7 +41,6 @@ SCM set_font_style(SCM font, SCM style) {
   return SCM_UNSPECIFIED;
 }
 
-
 SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
   SCM smob;
 
@@ -50,14 +53,24 @@ SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
     color = scm_from_uint(0xffffff);
   }
 
-  SDL_Surface *image = (bgcolor == SCM_UNDEFINED)
+  SDL_Surface *render = (bgcolor == SCM_UNDEFINED)
     ? TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)))
     : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), sdl_color(scm_to_uint(bgcolor)));
 
-  if(!image) {
-    image = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
+  if (!render) {
+    render = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
   }
+  SDL_Surface *image = sdl_surface(render->w, render->h, 4);
+  
+  if (!image) {
+    image = render;
+  } 
+  else {
+    SDL_BlitSurface(render, NULL, image, NULL);
+  }
+  SDL_FreeSurface(render);
 
+  //print_sdl_surface(image);
   SCM_NEWSMOB(smob, image_tag, image);
   scm_remember_upto_here_1(font);
   return smob;

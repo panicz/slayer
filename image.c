@@ -7,13 +7,15 @@
 
 scm_t_bits image_tag;
 
-static size_t free_image(SCM image_smob) {
+static size_t 
+free_image(SCM image_smob) {
   SDL_Surface *surface = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SDL_FreeSurface(surface);
   return 0;
 }
 
-static int print_image(SCM image, SCM port, scm_print_state *pstate) {
+static int 
+print_image(SCM image, SCM port, scm_print_state *pstate) {
   char *string;
   if(asprintf(&string, "#<image %p>", (void *) SCM_SMOB_DATA(image)) == -1)
     return 0;
@@ -23,28 +25,50 @@ static int print_image(SCM image, SCM port, scm_print_state *pstate) {
   return 1;
 }
 
-SCM load_image(SCM path) {
+SCM 
+load_image(SCM path) {
   SCM smob;
   char *filename = as_c_string(path);
   if(filename == NULL)
     return SCM_BOOL_F;
   SDL_Surface *image = IMG_Load(filename);
+  //print_sdl_surface(image);
   free(filename);
   SCM_NEWSMOB(smob, image_tag, image);
   return smob;
 }
 
-SCM draw_image(SCM image_smob, SCM x, SCM y) {
-  scm_assert_smob_type(image_tag, image_smob);
-  
+SCM 
+draw_image(SCM image_smob, SCM x, SCM y) {
+  scm_assert_smob_type(image_tag, image_smob);  
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  SDL_Rect area = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
-  SDL_BlitSurface(image, NULL, screen, &area);
+#ifdef USE_OPENGL
+  int W = image->w;
+  int H = image->h;
+  int X = scm_to_int(x);
+  int Y = screen->h - scm_to_int(y);
+
+  if(video_mode & SDL_OPENGL) {
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+    glWindowPos2i(X, Y);
+    glPixelZoom(1.0, -1.0);
+    glDrawPixels(W, H, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);    
+  }
+  else {
+#endif
+    SDL_Rect area = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
+    SDL_BlitSurface(image, NULL, screen, &area);
+#ifdef USE_OPENGL
+  }
+#endif
   scm_remember_upto_here_1(image_smob);
   return SCM_UNSPECIFIED;
 }
 
-SCM image_width(SCM image_smob) {
+SCM 
+image_width(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM w = scm_from_int(image->w);
@@ -52,7 +76,8 @@ SCM image_width(SCM image_smob) {
   return w;
 }
 
-SCM image_height(SCM image_smob) {
+SCM 
+image_height(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM h = scm_from_int(image->h);
@@ -60,16 +85,17 @@ SCM image_height(SCM image_smob) {
   return h;
 }
 
-SCM image_size(SCM image_smob) {
+SCM 
+image_size(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
-
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM l = scm_list_2(scm_from_int(image->w), scm_from_int(image->h));
   scm_remember_upto_here_1(image_smob);
   return l;
 }
 
-SCM rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
+SCM 
+rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   SCM smob;
   if(BytesPerPixel == SCM_UNDEFINED) {
     BytesPerPixel = scm_from_int(4);
@@ -89,7 +115,8 @@ static SCM s_u16;
 static SCM s_u32;
 static SCM s_u64;
 
-static void init_static_symbols() {
+static void 
+init_static_symbols() {
 #define INIT_SYMBOL(var, val) \
   var = symbol(val);\
   hold_scm(var);
@@ -102,7 +129,8 @@ static void init_static_symbols() {
 #undef INIT_SYMBOL
 }
 
-SCM image_to_array(SCM image_smob) {
+SCM 
+image_to_array(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   SCM type;
@@ -139,7 +167,8 @@ SCM image_to_array(SCM image_smob) {
   return array;
 }
 
-SCM array_to_image(SCM array) {
+SCM 
+array_to_image(SCM array) {
   //WARN("TODO: assuming 32-bit pixels (this should be taken from array type)");
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
@@ -171,13 +200,14 @@ SCM array_to_image(SCM array) {
 
   void *data = scm_array_handle_uniform_writable_elements(&handle);
   memcpy(image->pixels, data, w * h * image->format->BytesPerPixel);
-  
+  //print_sdl_surface(image);  
   scm_array_handle_release(&handle);
   return image_smob;
 }
 
 
-static void export_functions() {
+static void 
+export_functions() {
   scm_c_define_gsubr("rectangle", 2, 2, 0, rectangle);
   scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
   scm_c_define_gsubr("draw-image", 3, 0, 0, draw_image);
@@ -188,7 +218,8 @@ static void export_functions() {
   scm_c_define_gsubr("array->image", 1, 0, 0, array_to_image);
 }
 
-void image_init() {
+void 
+image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
