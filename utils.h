@@ -6,6 +6,7 @@
 #include <time.h>
 #include <SDL.h>
 
+
 #define now() SDL_GetTicks()
 #define OUT(msg, ...) fprintf(stderr, msg "\n", ## __VA_ARGS__ )
 #define OUT_(msg, ...) fprintf(stderr, msg, ## __VA_ARGS__ )
@@ -24,6 +25,12 @@
       if(c++ < n) OUT("[ %09d ] %s/%s: " msg " (warning %i of %i)", now(), __FILE__, f, ## __VA_ARGS__, c, n); \
     } __fn__(__FUNCTION__); })
 #define WARN_ONCE(msg, ...) WARN_UPTO(1, msg, ## __VA_ARGS__ )
+#define TOSTRING(x) STR(x)
+#define TRY(f) if((f) == -1) { perror(__FILE__ ", " TOSTRING(__LINE__)  " [" #f "]"); }
+#define TRY_SDL(f) if((f) == -1) { \
+    OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, STR(f),SDL_GetError()); }
+
+
 
 //do { } while(0)
 

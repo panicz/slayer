@@ -97,7 +97,7 @@ video_refresh_screen() {
 void
 video_init(Uint16 w, Uint16 h, int mode) {
 
-  SDL_Init(SDL_INIT_VIDEO);
+  TRY_SDL(SDL_Init(SDL_INIT_VIDEO));
 
   if(mode & SDL_OPENGL) {
 #ifndef USE_OPENGL

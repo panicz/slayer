@@ -1,4 +1,7 @@
 BUGS:
+- we still can't render fonts with no background
+(look back to revision 67, when everything's been
+working alright)
 - text-area widget renders way too much text,
 there should be some sort of cache (which, in turn,
 requires development of a more sophisticated object

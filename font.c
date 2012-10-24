@@ -59,8 +59,8 @@ SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
     surface = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
   }
   if (!surface && (bgcolor == SCM_UNDEFINED)) {
-    surface = TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)));
-    bgcolor = scm_from_uint(0);
+    surface = TTF_RenderUTF8_Blended(ttf, string, sdl_color(0x00ffffff &scm_to_uint(color)));
+    bgcolor = scm_from_uint(0x505050);
   }
   if (!surface) {
     surface = TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)),
@@ -113,7 +113,7 @@ static void export_functions() {
 }
 
 void font_init() {
-  TTF_Init();
+  TRY_SDL(TTF_Init());
   font_tag = scm_make_smob_type("font", sizeof(TTF_Font *));
   scm_set_smob_free(font_tag, free_font);
   scm_set_smob_print(font_tag, print_font);  
