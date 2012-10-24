@@ -156,12 +156,13 @@ SCM scm_from_sdl_event(SDL_Event *event) {
   case SDL_VIDEOEXPOSE: // SDL_ExposeEvent
   case SDL_USEREVENT: // SDL_UserEvent
   default:
+    WARN_UPTO(5, "unsupported event type: %i", event->type);
     return SCM_BOOL_F;
   }
 }
 
 static inline SCM unsupported_event(SDL_Event *e) {
-  WARN("unsupported event %i", e->type);
+  WARN_UPTO(5, "unsupported event %i", e->type);
   return SCM_UNSPECIFIED;
 }
 
