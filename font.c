@@ -9,13 +9,26 @@
 
 scm_t_bits font_tag;
 
-static size_t free_font(SCM font_smob) {
+SDL_PixelFormat rgba32 = {
+  .palette = NULL,
+  .BitsPerPixel = 32,
+  .BytesPerPixel = 4,
+  .Rloss = 0, .Gloss = 0, .Bloss = 0, .Aloss = 0,
+  .Rshift = 0, .Gshift = 8, .Bshift = 16, .Ashift = 24,
+  .Rmask = 0xff, .Gmask = 0xff00, .Bmask = 0xff0000, .Amask = 0xff000000,
+  .colorkey = 0,
+  .alpha = 0xff
+};
+
+static size_t 
+free_font(SCM font_smob) {
   TTF_Font *font = (TTF_Font *) SCM_SMOB_DATA(font_smob);
   TTF_CloseFont(font);
   return 0;
 }
 
-static int print_font(SCM font, SCM port, scm_print_state *state) {
+static int 
+print_font(SCM font, SCM port, scm_print_state *state) {
   char *string;
   if(asprintf(&string, "#<font %p>", (void *) SCM_SMOB_DATA(font)) == -1)
     return 0;
@@ -25,7 +38,8 @@ static int print_font(SCM font, SCM port, scm_print_state *state) {
   return 1;
 }
 
-SCM load_font(SCM path, SCM ptsize) {
+SCM 
+load_font(SCM path, SCM ptsize) {
   SCM smob;
   char *filename = as_c_string(path);
   if(filename == NULL)
@@ -36,19 +50,20 @@ SCM load_font(SCM path, SCM ptsize) {
   return smob;
 }
 
-SCM set_font_style(SCM font, SCM style) {  
+SCM 
+set_font_style(SCM font, SCM style) {  
   TTF_SetFontStyle((TTF_Font *) SCM_SMOB_DATA(font), scm_to_int(style));
   return SCM_UNSPECIFIED;
 }
 
-SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
-  //SCM smob;
+
+SCM 
+render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
+  SDL_Surface *surface = NULL;
 
   char *string = as_c_string(text);
-  SDL_Surface *surface = NULL;
   if (string == NULL)
     return SCM_BOOL_F;
-
   TTF_Font *ttf = (TTF_Font *) SCM_SMOB_DATA(font);
 
   if (color == SCM_UNDEFINED) {
@@ -57,63 +72,53 @@ SCM render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
 
   if (!*string) {
     surface = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
+  } 
+  else {
+    surface = 
+      (bgcolor == SCM_UNDEFINED) 
+      ? TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)))
+      : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), 
+			      sdl_color(scm_to_uint(bgcolor)));      
   }
-  if (!surface && (bgcolor == SCM_UNDEFINED)) {
-    surface = TTF_RenderUTF8_Blended(ttf, string, sdl_color(0x00ffffff &scm_to_uint(color)));
-    bgcolor = scm_from_uint(0x505050);
-  }
-  if (!surface) {
-    surface = TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)),
-				    sdl_color(scm_to_uint(bgcolor)));
-  }
-  
-  free(string);
 
   if (!surface) {
     WARN("failed to render text '%s'", string);
     surface = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
   }
+  free(string);
 
-
-  SCM smob = rectangle(scm_from_int(surface->w), scm_from_int(surface->h), 
-		       (bgcolor == SCM_UNDEFINED) 
-		       ? scm_from_uint(0xff000000)
-		       : bgcolor, scm_from_int(4));
-  
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(smob);
-  
-  if (!image) {
-    //image = render;
-    WARN("failed to create image");
-    SCM_SET_SMOB_DATA(smob, surface);
-  } 
-  else {
-    SDL_BlitSurface(surface, NULL, image, NULL);
-    SDL_FreeSurface(surface);
+  if (!surface) {
+    WARN("unable to create surface");
+    return SCM_BOOL_F;
   }
+  SCM smob;
+  SDL_Surface *image = SDL_ConvertSurface(surface, &rgba32, SDL_SRCALPHA);
+  SDL_FreeSurface(surface);
 
-  //print_sdl_surface(image);
-  //SCM_NEWSMOB(smob, image_tag, image);
+  SCM_NEWSMOB(smob, image_tag, image);
   scm_remember_upto_here_1(font);
   return smob;
 }
 
-SCM font_line_skip(SCM font) {
+SCM 
+font_line_skip(SCM font) {
   TTF_Font *ttf = (TTF_Font *) SCM_SMOB_DATA(font);
   int skip = TTF_FontLineSkip(ttf);
   scm_remember_upto_here_1(font);
   return scm_from_int(skip);
 }
 
-static void export_functions() {
+static void 
+export_functions() {
   scm_c_define_gsubr("load-font", 2, 0, 0, load_font);
   scm_c_define_gsubr("render-text", 2, 2, 0, render_text);
   scm_c_define_gsubr("set-font-style!", 2, 0, 0, set_font_style);
   scm_c_define_gsubr("font-line-skip", 1, 0, 0, font_line_skip);
 }
 
-void font_init() {
-  TRY_SDL(TTF_Init());
+void 
+font_init() {
+  TTF_Init();
   font_tag = scm_make_smob_type("font", sizeof(TTF_Font *));
   scm_set_smob_free(font_tag, free_font);
   scm_set_smob_print(font_tag, print_font);  
