@@ -3,7 +3,8 @@
 #include <SDL/SDL.h>
 #include "utils.h"
 
-static inline SDL_Surface *sdl_surface(int w, int h, int BytesPerPixel) {
+static inline SDL_Surface *sdl_surface(int w, int h, 
+				       int BytesPerPixel) {
   Uint32 r, g, b, a;
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
   r = 0xff000000;
@@ -16,7 +17,8 @@ static inline SDL_Surface *sdl_surface(int w, int h, int BytesPerPixel) {
   b = 0x00ff0000;
   a = 0xff000000;
 #endif
-  return SDL_CreateRGBSurface(SDL_SWSURFACE, w, h, 8*BytesPerPixel, r, g, b, a);
+  return SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_SRCALPHA,
+			      w, h, 8*BytesPerPixel, r, g, b, a);
 }
 
 
@@ -44,12 +46,42 @@ static inline SDL_Color sdl_color(Uint32 rgba) {
 
 static inline void print_sdl_surface(SDL_Surface *surface) {
   OUT("struct SDL_Surface <%p> {", surface);
-  OUT("\tUint32 flags = 0x%x;", surface->flags);
+  Uint32 flags = surface->flags;
+  OUT_("\tUint32 flags = 0");
+#define FLAG(flag) if(flags & flag) OUT_("\n\t\t     | " # flag);
+  FLAG(SDL_SWSURFACE);
+  FLAG(SDL_HWSURFACE);
+  FLAG(SDL_ASYNCBLIT);
+  FLAG(SDL_ANYFORMAT);
+  FLAG(SDL_HWPALETTE);
+  FLAG(SDL_DOUBLEBUF);
+  FLAG(SDL_FULLSCREEN);
+  FLAG(SDL_OPENGL);
+  FLAG(SDL_OPENGLBLIT);
+  FLAG(SDL_RESIZABLE);
+  FLAG(SDL_HWACCEL);
+  FLAG(SDL_SRCCOLORKEY);
+  FLAG(SDL_RLEACCEL);
+  FLAG(SDL_SRCALPHA);
+  FLAG(SDL_PREALLOC);
+#undef FLAG
+  OUT(";");
+
   if(surface->format) {
     OUT("\tSDL_PixelFormat *format <%p> = {", surface->format);
     if(surface->format->palette) {
       OUT("\t\tSDL_Palette *palette <%p> = {", surface->format->palette);
-      OUT("\t\t\t...");
+      OUT("\t\t\tint ncolors = %d;", surface->format->palette->ncolors);
+      int i;
+      OUT("\t\t\tSDL_Color *colors = {");
+      for (i = 0; i < surface->format->palette->ncolors; ++i) {
+	Uint8 r, g, b, a;
+	SDL_Color c = surface->format->palette->colors[i];
+	//OUT("\t\t\t\t%d: red = 0x%02x, green = 0x%02x, blue = 0x%02x, alpha = 0x%02x", i, c.r, c.g, c.b, c.unused);
+      }
+      OUT("\t\t\t\t...");
+      OUT("\t\t\t}");
+      //      OUT("\t\t\t...");
       OUT("\t\t}");
     } else {
       OUT("\t\tSDL_Palette *palette = NULL;");
