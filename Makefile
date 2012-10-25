@@ -30,3 +30,7 @@ slayer:	$(OBJECTS)
 
 clean:
 	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~
+
+again:
+	make clean
+	make -j
