@@ -303,7 +303,7 @@ SCM input_grab(SCM on) {
     if(indeed(on)) {
       SDL_WM_GrabInput(SDL_GRAB_ON);
       SDL_ShowCursor(SDL_DISABLE);
-    } else if(not(on)) {
+    } else if(isnt(on)) {
       SDL_WM_GrabInput(SDL_GRAB_OFF);
       SDL_ShowCursor(SDL_ENABLE);
     }

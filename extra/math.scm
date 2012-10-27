@@ -51,8 +51,10 @@
 (define (column a i) 
   (make-shared-array a (lambda (x) (list x i)) (list 0 (1- (rows a)))))
 
-(define (dot a b)
-  (apply + (array->list (vector-map * a b))))
+(define (dot a b) 
+  (let ((sum 0))
+    (array-for-each (lambda(x y) (set! sum (+ sum (* x y)))) a b)
+    sum))
 
 (define (square v)
   (dot v v))
@@ -80,8 +82,10 @@
     (array-index-map! result (lambda(i j)(dot (column b j) (row a i))))
     result))
 
+
 (define (vector->matrix v)
-  (let ((vl (vector-length v)))
+  (let* ((vector-length (if (uniform-vector? v) uniform-vector-length vector-length))
+	 (vl (vector-length v)))
     (make-shared-array v (lambda(i j)(list i)) vl 1)))
 
 (define (matrix->vector V)
@@ -92,7 +96,8 @@
 (define (matrix-vector-mul M v)
   (matrix-mul2 M (vector->matrix v)))
 
-(define (matrix-mul . args) (reduce matrix-mul2 (if #f #f) args))
+(define (matrix-mul first . rest) 
+  (fold (lambda(b a)(matrix-mul2 a b)) first rest))
 
 (define (det3x3 M)
   (assert (and (array? M) (= (columns M) (rows M) 3)))
@@ -101,15 +106,15 @@
      (* #[M 0 1] (- (* #[M 2 0] #[M 1 2]) (* #[M 1 0] #[M 2 2])))))
 
 (define (wedge3x3 u v)
-  (assert (and (vector? u) (vector? v) 
-	       (= (vector-length u) (vector-length v) 3)))
-  (list->typed-array (array-type u) 1 
-		     (list (- (* #[u 1] #[v 2]) (* #[u 2] #[v 1]))
-			   (- (* #[u 2] #[v 0]) (* #[u 0] #[v 2]))
-			   (- (* #[u 0] #[v 1]) (* #[u 1] #[v 0])))))
+  (let ((vector-length (if (uniform-vector? v) uniform-vector-length vector-length)))
+    (assert (and (vector? u) (vector? v)
+		 (= (vector-length u) (vector-length v) 3)))
+    (list->typed-array (array-type u) 1 
+		       (list (- (* #[u 1] #[v 2]) (* #[u 2] #[v 1]))
+			     (- (* #[u 2] #[v 0]) (* #[u 0] #[v 2]))
+			     (- (* #[u 0] #[v 1]) (* #[u 1] #[v 0]))))))
 
 (define (crossm3x3 v)
-  (assert (and (array? M) (= (columns M) (rows M) 3)))
   (list->typed-array (array-type v) 2
 		     (list (list        0 (- #[v 2])   #[v 1])
 			   (list    #[v 2]       0  (- #[v 0]))

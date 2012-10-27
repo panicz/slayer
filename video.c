@@ -80,18 +80,21 @@ flip_screen() {
 }
 
 static void 
-export_functions() {
+export_symbols() {
   scm_c_define_gsubr("set-caption!", 1, 0, 0, set_caption); 
   scm_c_define_gsubr("clear-screen", 0, 0, 0, clear_screen);
   scm_c_define_gsubr("wipe-screen", 0, 0, 0, wipe_screen);
   scm_c_define_gsubr("flip-screen", 0, 0, 0, flip_screen);
+#ifdef USE_OPENGL
+  scm_c_define("*use-opengl*", SCM_BOOL_T);
+#endif
 }
 
 void
 video_refresh_screen() {
   wipe_screen();
   eval("(draw *stage*)");
-  flip_screen();  
+  flip_screen();
 }
 
 void
@@ -106,7 +109,6 @@ video_init(Uint16 w, Uint16 h, int mode) {
     video_mode = mode;
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
     glDepthMask(GL_TRUE);
     glClearColor(0,0,0,0);
     glShadeModel(GL_SMOOTH);
@@ -115,18 +117,11 @@ video_init(Uint16 w, Uint16 h, int mode) {
     glViewport(0, 0, (GLsizei) w, (GLsizei) h);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    //glRotatef(180.0, 0, 0, 1.0);
-    //glOrtho(0.0, w, 0.0, h, -1.0, 1.0);
     glWindowPos2i(0, 0);
-    //gluOrtho2D(0.0, (GLdouble) w, 0.0, (GLdouble) h);
-    //glMatrixMode(GL_MODELVIEW);
-    //gl(0.0, 0.0, 1.0, 90.0);
-    LOG(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
-    LOG(glEnable(GL_BLEND));
-
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
 #endif
   }
-
   screen = SDL_SetVideoMode(w, h, 0, mode);
-  export_functions();
+  export_symbols();
 }

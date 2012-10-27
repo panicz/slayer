@@ -10,6 +10,10 @@
 #include "timer.h"
 #include "utils.h"
 
+#ifdef USE_OPENGL
+#include "draw3d.h"
+#endif
+
 /*
   There is a set of widgets/modules, written either in C or
   in guile scheme, that can be loaded at runtime.
@@ -76,6 +80,11 @@ typedef struct {
 static void init(init_t *arg) {
 
   video_init(arg->w, arg->h, arg->video_mode);
+#ifdef USE_OPENGL
+  if(video_mode & SDL_OPENGL) {
+    LOG(draw3d_init());
+  }
+#endif
   image_init();
   input_init();
   font_init();

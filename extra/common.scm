@@ -55,10 +55,10 @@
 	(else 
 	 (reverse (cons src dst)))))
 
-(define (array-map proc . args)
-  (let ((dest (apply make-typed-array (array-type (car args)) *unspecified* 
-		     (array-dimensions (car args)))))
-    (apply array-map! dest proc args)
+(define (array-map proc first . rest)
+  (let ((dest (apply make-typed-array (array-type first) *unspecified* 
+		     (array-dimensions first))))
+    (apply array-map! dest proc first rest)
     dest))
 
 (define* (module->hash-map #:optional (module (current-module)))
