@@ -43,6 +43,9 @@ or more players control one object)
 associated (things like the exact model shapes, skins,
 clothes and so forth)
 
+EXTENDING GUILE:
+- fix the hierarchy of vectors so that <uvec> is-a? <vector>
+- add quaternion type as described in some online document
 
 BORING STUFF:
 
