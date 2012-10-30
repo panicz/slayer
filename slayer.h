@@ -75,8 +75,8 @@ static inline void print_sdl_surface(SDL_Surface *surface) {
       int i;
       OUT("\t\t\tSDL_Color *colors = {");
       for (i = 0; i < surface->format->palette->ncolors; ++i) {
-	Uint8 r, g, b, a;
-	SDL_Color c = surface->format->palette->colors[i];
+	//Uint8 r, g, b, a;
+	//SDL_Color c = surface->format->palette->colors[i];
 	//OUT("\t\t\t\t%d: red = 0x%02x, green = 0x%02x, blue = 0x%02x, alpha = 0x%02x", i, c.r, c.g, c.b, c.unused);
       }
       OUT("\t\t\t\t...");
