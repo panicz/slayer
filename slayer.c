@@ -11,7 +11,7 @@
 #include "utils.h"
 
 #ifdef USE_OPENGL
-#include "draw3d.h"
+#include "3d.h"
 #endif
 
 /*
@@ -80,11 +80,6 @@ typedef struct {
 static void init(init_t *arg) {
 
   video_init(arg->w, arg->h, arg->video_mode);
-#ifdef USE_OPENGL
-  if(video_mode & SDL_OPENGL) {
-    LOG(draw3d_init());
-  }
-#endif
   image_init();
   input_init();
   font_init();
@@ -111,9 +106,7 @@ static void init(init_t *arg) {
 }
 
 static void *io(init_t *arg) {
-
   init(arg);
-  
   while (1) {
     input_handle_events();
     video_refresh_screen();

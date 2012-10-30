@@ -7,6 +7,7 @@
 #ifdef USE_OPENGL
 #include <GL/gl.h>
 #include <GL/glu.h>
+#include <GL/glext.h>
 #endif
 
 extern SDL_Surface *screen;

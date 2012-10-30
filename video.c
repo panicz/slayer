@@ -5,6 +5,7 @@
 #include "widgets.h"
 
 #ifdef USE_OPENGL
+#include "3d.h"
 int video_mode = 0;
 #endif
 
@@ -23,11 +24,6 @@ clear_screen() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glBegin(GL_POINTS);
-    glVertex2i(1,1);
-    glEnd();
-
     SDL_GL_SwapBuffers();
   } 
   else {
@@ -46,9 +42,6 @@ wipe_screen() {
   if(video_mode & SDL_OPENGL) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glBegin(GL_POINTS);
-    glVertex2i(1,1);
-    glEnd();
   }
   else {
 #endif
@@ -64,11 +57,6 @@ flip_screen() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     SDL_GL_SwapBuffers();
-
-    glBegin(GL_POINTS);
-    glVertex2i(0,0);
-    glEnd();
-
   }
   else {
 #endif
@@ -107,19 +95,7 @@ video_init(Uint16 w, Uint16 h, int mode) {
     FATAL("slayer compiled without opengl support");
 #else
     video_mode = mode;
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glClearColor(0,0,0,0);
-    glShadeModel(GL_SMOOTH);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glDisable(GL_COLOR_MATERIAL);
-    glViewport(0, 0, (GLsizei) w, (GLsizei) h);
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    glWindowPos2i(0, 0);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
+    init_3d(w, h);
 #endif
   }
   screen = SDL_SetVideoMode(w, h, 0, mode);
