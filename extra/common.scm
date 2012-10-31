@@ -22,9 +22,24 @@
 	    cart
 	    take-at-most drop-at-most
 	    )
-  #:export-syntax (\ for if*))
+  #:export-syntax (\ for if* 
+		   transform! increase! decrease! multiply!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define-syntax transform!
+  (syntax-rules ()
+    ((_ fx x args ...)
+     (set! x (fx x args ...)))))
+  
+(define-macro (increase! x . args)
+  `(transform! + ,x ,@args))
+
+(define-macro (decrease! x . args)
+  `(transform! - ,x ,@args))
+
+(define-macro (multiply! x . args)
+  `(transform! - ,x ,@args))
 
 (define-syntax for
   (syntax-rules (in)
