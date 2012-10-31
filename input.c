@@ -2,6 +2,7 @@
 #include "utils.h"
 #include "userevent.h"
 #include "timer.h"
+#include "symbols.h"
 
 SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
 SCM (*userevent[MAX_USEREVENTS])(SDL_Event *);
@@ -24,48 +25,6 @@ static void input_mode_typing() {
   SDL_EnableUNICODE(1);
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
   input_mode = TYPING_MODE;
-}
-
-static SCM s_typing;
-static SCM s_direct;
-static SCM s_unknown;
-static SCM s_mouse;
-static SCM s_input;
-static SCM s_active;
-static SCM s_gain;
-static SCM s_loss;
-static SCM s_pressed;
-static SCM s_released;
-static SCM s_keyboard;
-static SCM s_mousemotion;
-static SCM s_mousebutton;
-static SCM s_left;
-static SCM s_right;
-static SCM s_middle;
-
-static void init_static_symbols() {
-#define INIT_SYMBOL(var, val) \
-  var = symbol(val);\
-  hold_scm(var);
-
-  INIT_SYMBOL(s_typing, "typing");
-  INIT_SYMBOL(s_direct, "direct");
-  INIT_SYMBOL(s_unknown, "unknown");
-  INIT_SYMBOL(s_mouse, "mouse");
-  INIT_SYMBOL(s_input, "input");
-  INIT_SYMBOL(s_active, "active");
-  INIT_SYMBOL(s_gain, "gain");
-  INIT_SYMBOL(s_loss, "loss");
-  INIT_SYMBOL(s_pressed, "pressed");
-  INIT_SYMBOL(s_released, "released");
-  INIT_SYMBOL(s_keyboard, "keyboard");
-  INIT_SYMBOL(s_mousemotion, "mousemotion");
-  INIT_SYMBOL(s_mousebutton, "mousebutton");
-  INIT_SYMBOL(s_left, "left");
-  INIT_SYMBOL(s_right, "right");
-  INIT_SYMBOL(s_middle, "middle");
-
-#undef INIT_SYMBOL
 }
 
 static SCM input_mode_x(SCM mode) {
@@ -352,7 +311,7 @@ static void export_functions() {
 
 void input_init() {
   int i;
-  init_static_symbols();
+
   for(i = 0; i < SDLK_LAST + SDL_NBUTTONS; ++i) {
     keydown[i] = keyup[i] = SCM_UNSPECIFIED;
   }

@@ -4,6 +4,7 @@
 #include "slayer.h"
 #include "extend.h"
 #include "video.h"
+#include "symbols.h"
 
 scm_t_bits image_tag;
 
@@ -50,8 +51,6 @@ draw_image(SCM image_smob, SCM x, SCM y) {
 
   if(video_mode & SDL_OPENGL) {
     WARN_ONCE("using OpenGL");
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glEnable(GL_BLEND);
 
     glWindowPos2i(X, Y);
     glPixelZoom(1.0, -1.0);
@@ -111,24 +110,6 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   return smob;
 }
 
-static SCM s_u8;
-static SCM s_u16;
-static SCM s_u32;
-static SCM s_u64;
-
-static void 
-init_static_symbols() {
-#define INIT_SYMBOL(var, val) \
-  var = symbol(val);\
-  hold_scm(var);
-
-  INIT_SYMBOL(s_u8, "u8");
-  INIT_SYMBOL(s_u16, "u16");
-  INIT_SYMBOL(s_u32, "u32");
-  INIT_SYMBOL(s_u64, "u64");
-
-#undef INIT_SYMBOL
-}
 
 SCM 
 image_to_array(SCM image_smob) {
@@ -208,7 +189,7 @@ array_to_image(SCM array) {
 
 
 static void 
-export_functions() {
+export_symbols() {
   scm_c_define_gsubr("rectangle", 2, 2, 0, rectangle);
   scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
   scm_c_define_gsubr("draw-image", 3, 0, 0, draw_image);
@@ -224,6 +205,5 @@ image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
-  init_static_symbols();
-  export_functions();
+  export_symbols();
 }

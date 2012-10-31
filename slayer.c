@@ -79,12 +79,15 @@ typedef struct {
 
 static void init(init_t *arg) {
 
+  symbols_init();
   video_init(arg->w, arg->h, arg->video_mode);
+  
   image_init();
   input_init();
   font_init();
   timer_init();
   LOGTIME(widgets_init(arg->w, arg->h));
+
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
@@ -103,6 +106,7 @@ static void init(init_t *arg) {
 
   LOGTIME(file_eval(arg->infile));
   on_exit((void (*)(int, void *)) finish, arg->outfile);  
+
 }
 
 static void *io(init_t *arg) {

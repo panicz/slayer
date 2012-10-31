@@ -29,7 +29,7 @@ scm/3d.o:	scm/3d.scm
 .cc.o:
 	$(CXX) $(CFLAGS) -c $< -o $@
 
-OBJECTS = input.o slayer.o video.o file.o timer.o widgets.o image.o font.o scm/defs.o scm/widgets.o scm/3d.o 3d.o
+OBJECTS = input.o slayer.o symbols.o video.o file.o timer.o widgets.o image.o font.o scm/defs.o scm/widgets.o scm/3d.o 3d.o
 
 slayer:	$(OBJECTS)
 	$(CXX) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
