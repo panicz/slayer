@@ -39,7 +39,7 @@
   `(transform! - ,x ,@args))
 
 (define-macro (multiply! x . args)
-  `(transform! - ,x ,@args))
+  `(transform! * ,x ,@args))
 
 (define-syntax for
   (syntax-rules (in)
