@@ -7,6 +7,8 @@
 (define (getter obj key)
   (cond ((vector? obj)
 	 (vector-ref obj key))
+	((uniform-vector? obj)
+	 (uniform-vector-ref obj key))
 	((hash-table? obj)
 	 (hash-ref obj key))
 	((string? obj)
@@ -19,6 +21,8 @@
 (define (setter obj key value)
   (cond ((vector? obj)
  	 (vector-set! obj key value))
+	((uniform-vector? obj)
+	 (uniform-vector-set! obj key value))
 	((hash-table? obj)
 	 (hash-set! obj key value))
 	((string? obj)
@@ -35,6 +39,8 @@
 (define-generic ref)
 
 (define vref (make-procedure-with-setter vector-ref vector-set!))
+
+(define uvref (make-procedure-with-setter uniform-vector-ref uniform-vector-set!))
 
 (define href (make-procedure-with-setter hash-ref hash-set!))
 
@@ -54,6 +60,9 @@
 (define-method (ref (vector <vector>) (key <integer>))
   (vref vector key))
 
+(define-method (ref (vector <uvec>) (key <integer>))
+  (uvref vector key))
+
 (define-method (ref (hash <hashtable>) key)
   (href hash key))
 
@@ -70,29 +79,39 @@
   (sref object key))
 
 (read-hash-extend #\[
-		  (let ((process (match-lambda
-				  (('_ key)
-				   `(lambda(_)(ref _ ,key)))
-				  ((object key)
-				   `(ref ,object ,key))
-				  ((seq start '.. end)
-				   `(substring ,seq ,start ,end))
-				  ((seq start ': count)
-				   `(substring ,seq ,start ,(min (string-length seq) (+ start count))))
-				  ((array . indices)
-				   `(aref ,array (list ,@indices)))
-				  (default
-				    default))))
-		    (lambda (char port) 
-		      (let loop ((exp '()))
-			(let ((char (read-char port)))
-			  (cond ((char-whitespace? char)
-				 (loop exp))
-				((eq? char #\])
-				 (process (reverse exp)))
-				(#t
-				 (unread-char char port)
-				 (loop (cons (read port) exp)))))))))
+		  (letrec ((process-:-sequence (lambda(sequence initial)
+						 (match sequence
+						   (()
+						    initial)
+						   ((': key . rest)
+						    (process-:-sequence rest `(ref ,initial ,key)))))))
+		    (let ((process (match-lambda
+				    (('_ key)
+				     `(lambda(_)(ref _ ,key)))
+				    ((object key)
+				     `(ref ,object ,key))
+				    (('_ ': key . rest)
+				     `(lambda(_),(process-:-sequence rest `(ref _ ,key))))
+				    ((object ': key . rest)
+				     (process-:-sequence rest `(ref ,object ,key)))
+				    ((seq start '.. end)
+				     `(substring ,seq ,start ,end))
+				    ((seq start ': count)
+				     `(substring ,seq ,start ,(min (string-length seq) (+ start count))))
+				    ((array . indices)
+				     `(aref ,array (list ,@indices)))
+				    (default
+				      default))))
+		      (lambda (char port) 
+			(let loop ((exp '()))
+			  (let ((char (read-char port)))
+			    (cond ((char-whitespace? char)
+				   (loop exp))
+				  ((eq? char #\])
+				   (process (reverse exp)))
+				  (#t
+				   (unread-char char port)
+				   (loop (cons (read port) exp))))))))))
 
 (if (string<? (version) "2.0.0")
     (read-hash-extend #\;
