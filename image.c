@@ -142,21 +142,24 @@ image_to_array(SCM image_smob) {
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
   void *data = scm_array_handle_uniform_writable_elements(&handle);
-  memcpy(data, image->pixels, image->w * image->h * image->format->BytesPerPixel);
+  memcpy(data, image->pixels, 
+	 image->w * image->h * image->format->BytesPerPixel);
 
   scm_array_handle_release(&handle);
   scm_remember_upto_here_1(image_smob);
   return array;
 }
 
-static int array_type_to_BytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_LAST+1];
+
+#define NOT_SUPPORTED -1
+static int bytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_LAST+1];
 static inline void 
-init_array_type_to_BytesPerPixel() {
-  int i;
-  for(i = 0; i < NELEMS(array_type_to_BytesPerPixel); ++i)
-    array_type_to_BytesPerPixel[i] = -1;
+init_bytesPerPixel() {
+  unsigned int i;
+  for(i = 0; i < NELEMS(bytesPerPixel); ++i)
+    bytesPerPixel[i] = NOT_SUPPORTED;
 #define SET_TYPE_SIZE(type, size) \
-  array_type_to_BytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_##type] = size
+  bytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_##type] = size
 
 #define SET_SDL_INT_SIZE(sign, bits) \
   SET_TYPE_SIZE(sign##bits, sizeof(sign##int##bits))
@@ -168,8 +171,8 @@ init_array_type_to_BytesPerPixel() {
   SET_SDL_INT_SIZE(U,32);
   SET_SDL_INT_SIZE(S,32);
 
-  SET_TYPE_SIZE(F32, sizeof(float));
-  SET_TYPE_SIZE(F64, sizeof(double));
+  SET_TYPE_SIZE(F32, sizeof (float));
+  SET_TYPE_SIZE(F64, sizeof (double));
 
 #undef SET_SDL_INT_SIZE
 #undef SET_TYPE_SIZE
@@ -181,34 +184,18 @@ array_to_image(SCM array) {
   //WARN("TODO: assuming 32-bit pixels (this should be taken from array type)");
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
-  if(scm_array_handle_rank(&handle) != 2) {
+  if (scm_array_handle_rank(&handle) != 2) {
+    WARN("invalid array dimension");
+    scm_array_handle_release(&handle);
     return SCM_UNSPECIFIED;
   }
 
-
-  int BytesPerPixel = array_type_to_BytesPerPixel[handle.element_type];
-  if(BytesPerPixel == -1) {
+  int BytesPerPixel = bytesPerPixel[handle.element_type];
+  if (BytesPerPixel == NOT_SUPPORTED) {
     WARN("Unrecognized array type");
+    scm_array_handle_release(&handle);
     return SCM_UNSPECIFIED;
   }
-
-
-  /*
-  SCM type = scm_array_handle_element_type(&handle);
-  int BytesPerPixel;
-  if(equal(type, s_u32)) {
-    BytesPerPixel = 4;
-  } else if(equal(type, s_u16)) {
-    BytesPerPixel = 2;
-  } else if(equal(type, s_u8)) {
-    BytesPerPixel = 1;
-  } else if(equal(type, s_u64)) {
-    BytesPerPixel = 8;
-  } else {
-    WARN("Unrecognized array type");
-    return SCM_UNSPECIFIED;
-  }
-  */
 
   scm_t_array_dim *dims = scm_array_handle_dims(&handle);
 
@@ -220,11 +207,12 @@ array_to_image(SCM array) {
 
   void *data = scm_array_handle_uniform_writable_elements(&handle);
   memcpy(image->pixels, data, w * h * image->format->BytesPerPixel);
-  //print_sdl_surface(image);  
+  //print_sdl_surface(image);
+
   scm_array_handle_release(&handle);
   return image_smob;
 }
-
+#undef NOT_SUPPORTED
 
 static void 
 export_symbols() {
@@ -243,6 +231,6 @@ image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
-  init_array_type_to_BytesPerPixel();
+  init_bytesPerPixel();
   export_symbols();
 }
