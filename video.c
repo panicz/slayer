@@ -73,14 +73,12 @@ export_symbols() {
   scm_c_define_gsubr("clear-screen", 0, 0, 0, clear_screen);
   scm_c_define_gsubr("wipe-screen", 0, 0, 0, wipe_screen);
   scm_c_define_gsubr("flip-screen", 0, 0, 0, flip_screen);
-#ifdef USE_OPENGL
-  scm_c_define("*use-opengl*", SCM_BOOL_T);
-#endif
 }
 
 void
 video_refresh_screen() {
   wipe_screen();
+  
   eval("(draw *stage*)");
   flip_screen();
 }
@@ -90,6 +88,8 @@ video_init(Uint16 w, Uint16 h, int mode) {
 
   TRY_SDL(SDL_Init(SDL_INIT_VIDEO));
 
+  screen = SDL_SetVideoMode(w, h, 0, mode);
+
   if(mode & SDL_OPENGL) {
 #ifndef USE_OPENGL
     FATAL("slayer compiled without opengl support");
@@ -98,6 +98,6 @@ video_init(Uint16 w, Uint16 h, int mode) {
     init_3d(w, h);
 #endif
   }
-  screen = SDL_SetVideoMode(w, h, 0, mode);
+
   export_symbols();
 }
