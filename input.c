@@ -1,7 +1,6 @@
 #include "input.h"
 #include "utils.h"
 #include "userevent.h"
-#include "timer.h"
 #include "symbols.h"
 
 SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
@@ -15,19 +14,22 @@ enum input_modes input_mode;
 SCM scancodes;
 SCM key_names;
 
-static void input_mode_direct() {
+static void 
+input_mode_direct() {
   SDL_EnableUNICODE(0); // actually DisableUNICODE
   SDL_EnableKeyRepeat(0, 0); //actually DisableKeyRepeat
   input_mode = DIRECT_MODE;
 }
 
-static void input_mode_typing() {
+static void 
+input_mode_typing() {
   SDL_EnableUNICODE(1);
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
   input_mode = TYPING_MODE;
 }
 
-static SCM input_mode_x(SCM mode) {
+static SCM 
+input_mode_x(SCM mode) {
   if (equal(mode, s_typing)) {
     input_mode_typing();
   }
@@ -37,142 +39,82 @@ static SCM input_mode_x(SCM mode) {
   return input_mode == TYPING_MODE ? s_typing : s_direct;
 }
 
-
-SCM scm_from_sdl_event(SDL_Event *event) {
-  SCM state = s_unknown;
-
-  switch(event->type) {
-  case SDL_ACTIVEEVENT:  // SDL_ActiveEvent
-    switch(event->active.state) {
-    case SDL_APPMOUSEFOCUS:
-      state = s_mouse;
-      break;
-    case SDL_APPINPUTFOCUS:
-      state = s_input;
-      break;
-    case SDL_APPACTIVE:
-      state = s_active;
-      break;
-    }
-    return scm_list_3(s_active,
-		      event->active.gain ? s_gain : s_loss,
-		      state);
-  case SDL_KEYDOWN: // SDL_KeyboardEvent
-  case SDL_KEYUP:
-    switch(event->key.state) {
-    case SDL_PRESSED:
-      state = s_pressed;
-      break;
-    case SDL_RELEASED:
-      state = s_released;
-      break;
-    }
-    return scm_list_n(s_keyboard,
-		      state,
-		      scm_from_uint8(event->key.keysym.scancode),
-		      scm_c_vector_ref(key_names, event->key.keysym.sym),
-		      scm_from_uint32(event->key.keysym.mod),
-		      (event->key.keysym.unicode)
-		      ? scm_integer_to_char(scm_from_uint16(event->key.keysym.unicode)) 
-		      : SCM_BOOL_F,
-		      SCM_UNDEFINED);
-  case SDL_MOUSEMOTION: // SDL_MouseMotionEvent
-    return scm_list_n(s_mousemotion,
-		      scm_from_uint8(event->motion.state),
-		      scm_from_uint16(event->motion.x),
-		      scm_from_uint16(event->motion.y),
-		      scm_from_int16(event->motion.xrel),
-		      scm_from_int16(event->motion.yrel),
-		      SCM_UNDEFINED);
-
-  case SDL_MOUSEBUTTONDOWN: // SDL_MouseButtonEvent
-  case SDL_MOUSEBUTTONUP: 
-    switch(event->button.state) {
-    case SDL_PRESSED:
-      state = s_pressed;
-      break;
-    case SDL_RELEASED:
-      state = s_released;
-      break;
-    }
-    //button = scm_from_int(mouseb    }
-    return scm_list_n(s_mousebutton,
-		      scm_c_vector_ref(key_names, 
-				       SDLK_LAST + event->button.button),
-		      state,
-		      scm_from_uint16(event->button.x),
-		      scm_from_uint16(event->button.y),
-		      SCM_UNDEFINED);
-
-  case SDL_JOYAXISMOTION: // SDL_JoyAxisEvent
-  case SDL_JOYBALLMOTION: // SDL_JoyBallEvent
-  case SDL_JOYHATMOTION: // SDL_JoyHatEvent
-  case SDL_JOYBUTTONDOWN: // SDL_JoyButtonEvent
-  case SDL_JOYBUTTONUP:
-  case SDL_QUIT: // SDL_QuitEvent
-  case SDL_SYSWMEVENT: // SDL_SysWMEvent
-  case SDL_VIDEORESIZE: // SDL_ResizeEvent
-  case SDL_VIDEOEXPOSE: // SDL_ExposeEvent
-  case SDL_USEREVENT: // SDL_UserEvent
-  default:
-    WARN_UPTO(5, "unsupported event type: %i", event->type);
-    return SCM_BOOL_F;
-  }
-}
-
-static inline SCM unsupported_event(SDL_Event *e) {
+static inline SCM 
+unsupported_event(SDL_Event *e) {
   WARN_UPTO(5, "unsupported event %i", e->type);
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM activeevent_handler(SDL_Event *e) {
+static inline SCM 
+activeevent_handler(SDL_Event *e) {
   WARN_UPTO(3, "SDL_ACTIVEEVENT (%i) not supported", e->type);
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM keydown_handler(SDL_Event *e) {
+static inline SCM 
+keydown_handler(SDL_Event *e) {
   SCM handler = keydown[e->key.keysym.sym];
   if(is_scm_procedure(handler))
-    return scm_apply_0(handler, scm_from_sdl_event(e));
+    return scm_call_0(handler);
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM keyup_handler(SDL_Event *e) {
+static inline SCM 
+keyup_handler(SDL_Event *e) {
   SCM handler = keyup[e->key.keysym.sym];
   if(is_scm_procedure(handler))
-    return scm_apply_0(handler, scm_from_sdl_event(e));
+    return scm_call_0(handler);
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM mousemotion_handler(SDL_Event *e) {
+static inline SCM 
+mousemotion_handler(SDL_Event *e) {
   if(is_scm_procedure(mousemove))
-    return scm_apply_0(mousemove, scm_from_sdl_event(e));
+    return scm_call_4(mousemove, 
+		      scm_from_uint16(e->motion.x),
+		      scm_from_uint16(e->motion.y),
+		      scm_from_int16(e->motion.xrel),
+		      scm_from_int16(e->motion.yrel));
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM mousepressed_handler(SDL_Event *e) {
+static inline SCM 
+mousepressed_handler(SDL_Event *e) {
   SCM handler = keydown[SDLK_LAST + e->button.button];
   if(is_scm_procedure(handler))
-    return scm_apply_0(handler, scm_from_sdl_event(e));
+    return scm_call_2(handler, 		      
+		      scm_from_uint16(e->button.x),
+		      scm_from_uint16(e->button.y));
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM mousereleased_handler(SDL_Event *e) {
+static inline SCM 
+mousereleased_handler(SDL_Event *e) {
   SCM handler = keyup[SDLK_LAST + e->button.button];
   if(is_scm_procedure(handler))
-    return scm_apply_0(handler, scm_from_sdl_event(e));
+    return scm_call_2(handler, 		      
+		      scm_from_uint16(e->button.x),
+		      scm_from_uint16(e->button.y));
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM userevent_handler(SDL_Event *e) {
+static inline SCM 
+userevent_handler(SDL_Event *e) {
   return (userevent[e->user.code])(e);
 }
 
-static inline SCM quit_handler(SDL_Event *e) {
+static inline SCM 
+quit_handler(SDL_Event *e) {
   SDL_Quit();
   exit(0);
   return SCM_UNSPECIFIED;
 }
+
+static SCM 
+get_ticks() {
+  return scm_from_uint32(SDL_GetTicks());
+}
+
 
 #include "scancode.c" // contains the definition of scancode table
 //struct scancode {
@@ -181,7 +123,8 @@ static inline SCM quit_handler(SDL_Event *e) {
 //};
 //static struct scancode keymap[];
 
-static void build_keymap() {
+static void 
+build_keymap() {
 
   int i, max = 0;
   
@@ -210,7 +153,8 @@ static void build_keymap() {
 
 }
 
-static inline int get_scancode(SCM key) {
+static inline int 
+get_scancode(SCM key) {
   if(!(scm_is_string(key) || scm_is_symbol(key)))
     return -1;
 
@@ -224,7 +168,8 @@ static inline int get_scancode(SCM key) {
   return scm_to_int(keycode);
 }
 
-void bind_key(SCM *keytab, SDLKey key, SCM function) {
+void 
+bind_key(SCM *keytab, SDLKey key, SCM function) {
   if(!is_scm_procedure(function))
     return;
 
@@ -236,14 +181,16 @@ void bind_key(SCM *keytab, SDLKey key, SCM function) {
   hold_scm(keytab[key]);
 }
 
-SCM bind_keydown(SCM key, SCM function) {
+SCM 
+bind_keydown(SCM key, SCM function) {
   int scancode = get_scancode(key);
   if(scancode > -1)
     bind_key(keydown, scancode, function);
   return SCM_UNSPECIFIED;
 }
 
-SCM bind_keyup(SCM key, SCM function) {
+SCM 
+bind_keyup(SCM key, SCM function) {
   int scancode = get_scancode(key);
   if(scancode > -1)
     bind_key(keyup, scancode, function);
@@ -251,13 +198,15 @@ SCM bind_keyup(SCM key, SCM function) {
 }
 
 
-SCM bind_mousemove(SCM function) {
+SCM 
+bind_mousemove(SCM function) {
   WARN("function should check for arity of its argument");
   bind_key(&mousemove, 0, function); 
   return SCM_UNSPECIFIED;
 }
 
-SCM input_grab(SCM on) {
+SCM 
+input_grab(SCM on) {
   if(on != SCM_UNDEFINED) {
     if(indeed(on)) {
       SDL_WM_GrabInput(SDL_GRAB_ON);
@@ -272,7 +221,8 @@ SCM input_grab(SCM on) {
     : SCM_BOOL_F;
 }
 
-static SCM key_bindings(SCM type) {
+static 
+SCM key_bindings(SCM type) {
   SCM vector;
   SCM *bindings;
   if(equal(type, s_pressed)) {
@@ -292,12 +242,14 @@ static SCM key_bindings(SCM type) {
   return vector;
 }
 
-static SCM mousemove_binding(SCM type) {
+static SCM 
+mousemove_binding(SCM type) {
   return mousemove;
 }
 
 
-static void export_functions() {
+static void 
+export_functions() {
   scm_c_define_gsubr("handle-input", 0, 0, 0, input_handle_events);
   scm_c_define_gsubr("grab-input", 0, 1, 0, input_grab);
   scm_c_define_gsubr("keydn", 2, 0, 0, bind_keydown);
@@ -306,10 +258,12 @@ static void export_functions() {
   scm_c_define_gsubr("input-mode", 0, 1, 0, input_mode_x);
   scm_c_define_gsubr("key-bindings", 1, 0, 0, key_bindings);
   scm_c_define_gsubr("mousemove-binding", 0, 0, 0, mousemove_binding);
+  scm_c_define_gsubr("get-ticks", 0, 0, 0, get_ticks);
 }
 
 
-void input_init() {
+void 
+input_init() {
   int i;
 
   for(i = 0; i < SDLK_LAST + SDL_NBUTTONS; ++i) {
@@ -347,7 +301,8 @@ void (*handle_events)(SDL_Event *e);
 // pytanie: czy tworząc konsolę chcielibyśmy móc używać kilku rodzajów powłoki?
 // czy dałoby się to zrobić tak, żeby móc linkować programy napisane pod bibliotekę
 // curses z naszą konsolą?
-SCM input_handle_events() {
+SCM 
+input_handle_events() {
   SDL_Event event;
   SCM c, input_widget;
 

@@ -24,5 +24,6 @@ extern SCM s_left;
 extern SCM s_right;
 extern SCM s_middle;
 
+extern void symbols_init();
 
 #endif /* SYMBOLS_H */

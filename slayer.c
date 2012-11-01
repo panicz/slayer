@@ -7,8 +7,8 @@
 #include "file.h"
 #include "font.h"
 #include "widgets.h"
-#include "timer.h"
 #include "utils.h"
+#include "symbols.h"
 
 #ifdef USE_OPENGL
 #include "3d.h"
@@ -66,6 +66,7 @@ SCM scm_catch_handler(void *data, SCM key, SCM args) {
 
 static void finish(int status, char *filename) {
   evalf("(save \"%s\")", filename);
+  SDL_Quit();
 }
 
 typedef struct {
@@ -85,9 +86,7 @@ static void init(init_t *arg) {
   image_init();
   input_init();
   font_init();
-  timer_init();
   LOGTIME(widgets_init(arg->w, arg->h));
-
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
@@ -99,7 +98,7 @@ static void init(init_t *arg) {
   }
 
   if (file_empty(arg->infile)) {
-    if (!file_write(arg->infile, "(keydn 'esc (function (type state code name mod unicode) (quit)))")) {
+    if (!file_write(arg->infile, "(keydn 'esc quit)")) {
       FATAL("Unable to write to spec file ``%s''", arg->infile);
     }
   }
@@ -131,39 +130,46 @@ int main(int argc, char *argv[]) {
   };
   
   int opt;
-  while ((opt = getopt(argc, argv, "i:o:w:h:re:")) != -1) {
+  while ((opt = getopt(argc, argv, "i:o:w:h:rfe:")) != -1) {
     switch (opt) {
-    case 'i':
+    case 'i': // input file
       arg.infile = malloc(strlen(optarg) + 1);
       if (arg.infile) {
 	sprintf(arg.infile, "%s", optarg);
       }
       break;
-    case 'o':
+    case 'o': // output file
       arg.outfile = malloc(strlen(optarg) + 1);
       if (arg.outfile) {
 	sprintf(arg.outfile, "%s", optarg);
       }
       break;
-    case 'w':
+    case 'w': // screen width
       arg.w = atoi(optarg);
       break;
-    case 'h':
+    case 'h': // screen height
       arg.h = atoi(optarg);
       break;
-    case 'e':
+    case 'e': // extensions (3d, net)
       if(!strcmp(optarg, "3d")) {
 	arg.video_mode |= SDL_OPENGL;
       } else {
 	WARN("unknown extension: %s", optarg);
       }
       break;
-    case 'r':
+    case 'r': // resizable
       arg.video_mode |= SDL_RESIZABLE;
+      break;
+    case 'f':
+      arg.video_mode |= SDL_FULLSCREEN;
+      break;
+      
+    default:
       break;
     }
   }
  
+
 #ifdef NDEBUG
   setenv("GUILE_WARN_DEPRECATED", "no", 1);
 #else
