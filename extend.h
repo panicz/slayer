@@ -7,6 +7,17 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+static inline size_t
+scm_array_handle_nelems(scm_t_array_handle *handle) {
+  scm_t_array_dim *dims = scm_array_handle_dims(handle);
+  int rank = scm_array_handle_rank(handle);
+  int i, nelems = (rank > 0) ? 1 : 0;
+  for (i = 0; i < rank; ++i) {
+    nelems *= abs(dims[i].ubnd - dims[i].lbnd) + 1;
+  }
+  return nelems;
+}
+
 static inline float
 scm_to_float(SCM number) {
   return (float) scm_to_double(number);
@@ -65,14 +76,17 @@ static inline SCM
 funcall_0(const char *fname) {
   return scm_apply_0(eval(fname), SCM_EOL);
 }
+
 static inline SCM 
 funcall_1(const char *fname, SCM arg1) {
   return scm_apply_1(eval(fname), arg1, SCM_EOL);
 }
+
 static inline SCM 
 funcall_2(const char *fname, SCM arg1, SCM arg2) {
   return scm_apply_2(eval(fname), arg1, arg2, SCM_EOL);
 }
+
 static inline SCM 
 funcall_3(const char *fname, SCM arg1, SCM arg2, SCM arg3) {
   return scm_apply_3(eval(fname), arg1, arg2, arg3, SCM_EOL);
@@ -82,26 +96,32 @@ static inline int
 is_scm_defined(SCM s) {
   return scm_is_true(scm_defined_p(s, SCM_UNDEFINED));
 }
+
 static inline int 
 is_scm_procedure(SCM s) {
   return scm_is_true(scm_procedure_p(s));
 }
+
 static inline int 
 stands_for_scm_procedure(SCM s) {
   return is_scm_procedure(scm_primitive_eval(s));
 }
+
 static inline int 
 is_scm_macro(SCM s) {
   return scm_is_true(scm_macro_p(s));
 }
+
 static inline int 
 stands_for_scm_macro(SCM symbol) {
   return is_scm_macro(scm_primitive_eval(symbol));
 }
+
 static inline int 
 is_scm_symbol(SCM s) {
   return scm_is_true(scm_symbol_p(s));
 }
+
 static inline int 
 is_scm_hash_table(SCM s) {
   return scm_is_true(scm_hash_table_p(s));
@@ -122,7 +142,5 @@ static inline void
 hold_scm(SCM s) {
   scm_gc_protect_object(s);
 }
-
-
 
 #endif /* EXTEND_H */
