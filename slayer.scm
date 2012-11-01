@@ -9,10 +9,19 @@
 
 (define ku (load-image "./ku.png"))
 
-(add-child! *stage* (make-image ku 50 50))
-(add-child! *stage* (make-button #:text "the game" #:x 150 #:y 150))
+(add-child! *stage* (make-image ku 75 25))
+;(add-child! *stae* (make-button #:text "the game" #:x 150 #:y 150))
+;(add-child! *stage* (make-image (rectangle 25 25 #x20eeaa22) 90 10))
 
-(add-child! *stage* (make-image (rectangle 50 50 #x20eeaa22) 50 50))
+(define 3d-object #f)
+(define 3d-camera #f)
+(if (defined? '<3d-view>)
+    (begin 
+      (set! 3d-object (make <3d-mesh>))
+      (let ((view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400)))
+	(add-child! *stage* view)
+	(set! 3d-camera #[view 'camera])
+	(add-object! view 3d-object))))
 
 ;; (let ((ku (make-image (load-image "./ku.png")  50 150)))
 ;;   (make-timer 100 (lambda()
@@ -85,5 +94,37 @@
 (set-caption! "*SLAYER*")
 
 (keydn 't (function e (input-mode 'typing)))
+
+(define (rotator deg axis)
+  (let* ((rad (deg->rad deg))
+	 (p (quaternion (cos rad) (* (sin rad) (normalized axis)))))
+    (lambda(q)(* p q (~ p)))))
+
+
+(if 3d-camera
+    (begin
+      (keydn 'right (function e 
+		     (increase! #[3d-camera 'position] #(0.07 0 0))))
+      (keydn 'left (function e 
+		   (increase! #[3d-camera 'position] #(-0.07 0 0))))
+      (keydn 'down (function e 
+		     (increase! #[3d-camera 'position] #(0 0.07 0))))
+      (keydn 'up (function e 
+		      (increase! #[3d-camera 'position] #(0 -0.07 0))))
+      (keydn "[" (function e 
+		   (increase! #[3d-camera 'position] #f32(0 0 0.7))))
+      (keydn "]" (function e 
+		   (increase! #[3d-camera 'position] #f32(0 0 -0.7))))
+
+      (keydn '= (function e 
+		     (transform! 
+		      (rotator (/ pi 12) #f32(0 0 1)) 
+		      #[3d-camera 'orientation])))
+      (keydn '- (function e 
+		      (transform! 
+		       (rotator (/ pi -12) #f32(0 0 1)) 
+		       #[3d-camera 'orientation])))
+      ))
+
 
 ;(make-timer 1000 (function()(display "hello")) ) 
