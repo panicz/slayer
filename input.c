@@ -1,10 +1,8 @@
 #include "input.h"
 #include "utils.h"
-#include "userevent.h"
 #include "symbols.h"
 
 SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
-SCM (*userevent[MAX_USEREVENTS])(SDL_Event *);
 
 SCM keydown[SDLK_LAST + SDL_NBUTTONS];
 SCM keyup[SDLK_LAST + SDL_NBUTTONS];
@@ -39,19 +37,19 @@ input_mode_x(SCM mode) {
   return input_mode == TYPING_MODE ? s_typing : s_direct;
 }
 
-static inline SCM 
+static SCM 
 unsupported_event(SDL_Event *e) {
   WARN_UPTO(5, "unsupported event %i", e->type);
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 activeevent_handler(SDL_Event *e) {
   WARN_UPTO(3, "SDL_ACTIVEEVENT (%i) not supported", e->type);
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 keydown_handler(SDL_Event *e) {
   SCM handler = keydown[e->key.keysym.sym];
   if(is_scm_procedure(handler))
@@ -59,7 +57,7 @@ keydown_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 keyup_handler(SDL_Event *e) {
   SCM handler = keyup[e->key.keysym.sym];
   if(is_scm_procedure(handler))
@@ -67,7 +65,7 @@ keyup_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 mousemotion_handler(SDL_Event *e) {
   if(is_scm_procedure(mousemove))
     return scm_call_4(mousemove, 
@@ -78,7 +76,7 @@ mousemotion_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 mousepressed_handler(SDL_Event *e) {
   SCM handler = keydown[SDLK_LAST + e->button.button];
   if(is_scm_procedure(handler))
@@ -88,7 +86,7 @@ mousepressed_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 mousereleased_handler(SDL_Event *e) {
   SCM handler = keyup[SDLK_LAST + e->button.button];
   if(is_scm_procedure(handler))
@@ -98,12 +96,13 @@ mousereleased_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 userevent_handler(SDL_Event *e) {
-  return (userevent[e->user.code])(e);
+  WARN_ONCE("not (quite) implemented");
+  return SCM_UNSPECIFIED;
 }
 
-static inline SCM 
+static SCM 
 quit_handler(SDL_Event *e) {
   SDL_Quit();
   exit(0);
@@ -115,6 +114,20 @@ get_ticks() {
   return scm_from_uint32(SDL_GetTicks());
 }
 
+static SCM
+generate_userevent(SCM code) {
+  SDL_Event event;
+
+  event.type = SDL_USEREVENT;
+  event.user.code = (code == SCM_UNDEFINED) ? 0 : scm_to_int(code);
+  event.user.data1 = NULL;
+  event.user.data2 = NULL;
+
+  SDL_PeepEvents(&event, 1, SDL_ADDEVENT, 0xffffffff);
+  return SCM_UNSPECIFIED;
+}
+
+
 
 #include "scancode.c" // contains the definition of scancode table
 //struct scancode {
@@ -123,7 +136,7 @@ get_ticks() {
 //};
 //static struct scancode keymap[];
 
-static void 
+static inline void 
 build_keymap() {
 
   int i, max = 0;
@@ -134,7 +147,7 @@ build_keymap() {
 
   scm_c_define("*scancodes*", scancodes);
     
-  for(i = 0; i < NELEMS(keymap); ++i) { //*(keymap[i].keyname)
+  for(i = 0; i < NELEMS(keymap); ++i) { 
     scm_hash_set_x(scancodes, 
 		   scm_from_locale_string(keymap[i].keyname), 
 		   scm_from_int((int) keymap[i].value));
@@ -248,7 +261,7 @@ mousemove_binding(SCM type) {
 }
 
 
-static void 
+static inline void 
 export_functions() {
   scm_c_define_gsubr("handle-input", 0, 0, 0, input_handle_events);
   scm_c_define_gsubr("grab-input", 0, 1, 0, input_grab);
@@ -259,6 +272,7 @@ export_functions() {
   scm_c_define_gsubr("key-bindings", 1, 0, 0, key_bindings);
   scm_c_define_gsubr("mousemove-binding", 0, 0, 0, mousemove_binding);
   scm_c_define_gsubr("get-ticks", 0, 0, 0, get_ticks);
+  scm_c_define_gsubr("generate-userevent", 0, 1, 0, generate_userevent);
 }
 
 
@@ -281,9 +295,6 @@ input_init() {
   event_handler[SDL_MOUSEMOTION] = mousemotion_handler;
   event_handler[SDL_QUIT] = quit_handler;
   event_handler[SDL_USEREVENT] = userevent_handler;
-
-  for(i = 0; i < MAX_USEREVENTS; ++i)
-    userevent[i] = unsupported_event;
 
   build_keymap();
   export_functions();
