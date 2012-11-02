@@ -3,6 +3,8 @@
 #include "symbols.h"
 
 SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
+SCM *userevent_handlers = NULL;
+int next_userevent = 0;
 
 SCM keydown[SDLK_LAST + SDL_NBUTTONS];
 SCM keyup[SDLK_LAST + SDL_NBUTTONS];
@@ -96,9 +98,27 @@ mousereleased_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
+static SCM
+register_userevent(SCM handler) {
+  userevent_handlers = realloc(userevent_handlers, next_userevent+1);
+  assert(userevent_handlers);
+  userevent_handlers[next_userevent] = handler;
+  hold_scm(handler);
+  return scm_from_int(next_userevent++);
+}
+
 static SCM 
 userevent_handler(SDL_Event *e) {
-  WARN_ONCE("not (quite) implemented");
+  if (-1 < e->user.code && e->user.code < next_userevent) {
+    if (e->user.data2)
+      return scm_call_2(userevent_handlers[e->user.code],
+			e->user.data1, e->user.data2);
+    if (e->user.data1)
+      return scm_call_1(userevent_handlers[e->user.code],
+			e->user.data1);
+    return scm_call_0(userevent_handlers[e->user.code]);
+  }
+  WARN_UPTO(10, "unregistered callback: %d", e->user.code);
   return SCM_UNSPECIFIED;
 }
 
@@ -115,18 +135,17 @@ get_ticks() {
 }
 
 static SCM
-generate_userevent(SCM code) {
+generate_userevent(SCM code, SCM data1, SCM data2) {
   SDL_Event event;
 
   event.type = SDL_USEREVENT;
-  event.user.code = (code == SCM_UNDEFINED) ? 0 : scm_to_int(code);
-  event.user.data1 = NULL;
-  event.user.data2 = NULL;
+  event.user.code = (code == SCM_UNDEFINED) ? -1 : scm_to_int(code);
+  event.user.data1 = (data1 == SCM_UNDEFINED) ? NULL : (void *) data1;
+  event.user.data2 = (data2 == SCM_UNDEFINED) ? NULL : (void *) data2;
 
   SDL_PeepEvents(&event, 1, SDL_ADDEVENT, 0xffffffff);
   return SCM_UNSPECIFIED;
 }
-
 
 
 #include "scancode.c" // contains the definition of scancode table
@@ -260,19 +279,29 @@ mousemove_binding(SCM type) {
   return mousemove;
 }
 
-
 static inline void 
 export_functions() {
-  scm_c_define_gsubr("handle-input", 0, 0, 0, input_handle_events);
-  scm_c_define_gsubr("grab-input", 0, 1, 0, input_grab);
-  scm_c_define_gsubr("keydn", 2, 0, 0, bind_keydown);
-  scm_c_define_gsubr("keyup", 2, 0, 0, bind_keyup);
-  scm_c_define_gsubr("mousemove", 1, 0, 0, bind_mousemove);  
-  scm_c_define_gsubr("input-mode", 0, 1, 0, input_mode_x);
-  scm_c_define_gsubr("key-bindings", 1, 0, 0, key_bindings);
-  scm_c_define_gsubr("mousemove-binding", 0, 0, 0, mousemove_binding);
+  scm_c_define_gsubr("handle-input", 0, 0, 0, 
+		     (scm_t_subr) input_handle_events);
+  scm_c_define_gsubr("grab-input", 0, 1, 0, 
+		     (scm_t_subr) input_grab);
+  scm_c_define_gsubr("keydn", 2, 0, 0, 
+		     (scm_t_subr) bind_keydown);
+  scm_c_define_gsubr("keyup", 2, 0, 0, 
+		     (scm_t_subr) bind_keyup);
+  scm_c_define_gsubr("mousemove", 1, 0, 0, 
+		     (scm_t_subr) bind_mousemove);  
+  scm_c_define_gsubr("input-mode", 0, 1, 0, 
+		     (scm_t_subr) input_mode_x);
+  scm_c_define_gsubr("key-bindings", 1, 0, 0, 
+		     (scm_t_subr) key_bindings);
+  scm_c_define_gsubr("mousemove-binding", 0, 0, 0, 
+		     (scm_t_subr) mousemove_binding);
   scm_c_define_gsubr("get-ticks", 0, 0, 0, get_ticks);
-  scm_c_define_gsubr("generate-userevent", 0, 1, 0, generate_userevent);
+  scm_c_define_gsubr("generate-userevent", 0, 3, 0, 
+		     (scm_t_subr) generate_userevent);
+  scm_c_define_gsubr("register-userevent", 1, 0, 0, 
+		     (scm_t_subr) register_userevent);
 }
 
 
@@ -359,9 +388,6 @@ input_handle_events() {
 	assert(!"NAH, THAT'S IMPOSSIBLE...");
       }
     }
-  }
-  
+  }  
   return SCM_UNSPECIFIED;
 }
-
-
