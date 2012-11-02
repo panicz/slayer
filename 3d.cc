@@ -281,6 +281,8 @@ export_symbols() {
 		     (scm_t_subr) set_vertices_array_x);
   scm_c_define_gsubr("set-colors-array!", 1, 0, 0, 
 		     (scm_t_subr) set_colors_array_x);
+  scm_c_define_gsubr("set-texture-coords-array!", 1, 0, 0, 
+		     (scm_t_subr) set_texture_coords_array_x);
   scm_c_define_gsubr("draw-faces!", 2, 0, 0, 
 		     (scm_t_subr) draw_faces_x);
 

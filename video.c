@@ -69,10 +69,14 @@ flip_screen() {
 
 static void 
 export_symbols() {
-  scm_c_define_gsubr("set-caption!", 1, 0, 0, set_caption); 
-  scm_c_define_gsubr("clear-screen", 0, 0, 0, clear_screen);
-  scm_c_define_gsubr("wipe-screen", 0, 0, 0, wipe_screen);
-  scm_c_define_gsubr("flip-screen", 0, 0, 0, flip_screen);
+  scm_c_define_gsubr("set-caption!", 1, 0, 0, 
+		     (scm_t_subr) set_caption); 
+  scm_c_define_gsubr("clear-screen", 0, 0, 0, 
+		     (scm_t_subr) clear_screen);
+  scm_c_define_gsubr("wipe-screen", 0, 0, 0, 
+		     (scm_t_subr) wipe_screen);
+  scm_c_define_gsubr("flip-screen", 0, 0, 0, 
+		     (scm_t_subr) flip_screen);
 }
 
 void

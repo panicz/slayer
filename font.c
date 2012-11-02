@@ -110,10 +110,14 @@ font_line_skip(SCM font) {
 
 static void 
 export_functions() {
-  scm_c_define_gsubr("load-font", 2, 0, 0, load_font);
-  scm_c_define_gsubr("render-text", 2, 2, 0, render_text);
-  scm_c_define_gsubr("set-font-style!", 2, 0, 0, set_font_style);
-  scm_c_define_gsubr("font-line-skip", 1, 0, 0, font_line_skip);
+  scm_c_define_gsubr("load-font", 2, 0, 0, 
+		     (scm_t_subr) load_font);
+  scm_c_define_gsubr("render-text", 2, 2, 0, 
+		     (scm_t_subr) render_text);
+  scm_c_define_gsubr("set-font-style!", 2, 0, 0, 
+		     (scm_t_subr) set_font_style);
+  scm_c_define_gsubr("font-line-skip", 1, 0, 0, 
+		     (scm_t_subr) font_line_skip);
 }
 
 void 

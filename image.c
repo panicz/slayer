@@ -216,14 +216,22 @@ array_to_image(SCM array) {
 
 static void 
 export_symbols() {
-  scm_c_define_gsubr("rectangle", 2, 2, 0, rectangle);
-  scm_c_define_gsubr("load-image", 1, 0, 0, load_image);
-  scm_c_define_gsubr("draw-image", 3, 0, 0, draw_image);
-  scm_c_define_gsubr("image-width", 1, 0, 0, image_width);
-  scm_c_define_gsubr("image-height", 1, 0, 0, image_height);
-  scm_c_define_gsubr("image-size", 1, 0, 0, image_size);
-  scm_c_define_gsubr("image->array", 1, 0, 0, image_to_array);
-  scm_c_define_gsubr("array->image", 1, 0, 0, array_to_image);
+  scm_c_define_gsubr("rectangle", 2, 2, 0,
+		     (scm_t_subr) rectangle);
+  scm_c_define_gsubr("load-image", 1, 0, 0, 
+		     (scm_t_subr) load_image);
+  scm_c_define_gsubr("draw-image", 3, 0, 0, 
+		     (scm_t_subr) draw_image);
+  scm_c_define_gsubr("image-width", 1, 0, 0, 
+		     (scm_t_subr) image_width);
+  scm_c_define_gsubr("image-height", 1, 0, 0, 
+		     (scm_t_subr) image_height);
+  scm_c_define_gsubr("image-size", 1, 0, 0, 
+		     (scm_t_subr) image_size);
+  scm_c_define_gsubr("image->array", 1, 0, 0, 
+		     (scm_t_subr) image_to_array);
+  scm_c_define_gsubr("array->image", 1, 0, 0, 
+		     (scm_t_subr) array_to_image);
 }
 
 void 

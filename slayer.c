@@ -56,7 +56,8 @@
 //static widget *active_widget;
 
 
-SCM scm_catch_handler(void *data, SCM key, SCM args) {
+SCM 
+scm_catch_handler(void *data, SCM key, SCM args) {
   if (scm_is_eq(symbol("quit"), key)) {
     exit(0);
   }
@@ -64,7 +65,8 @@ SCM scm_catch_handler(void *data, SCM key, SCM args) {
   return SCM_UNSPECIFIED;
 }
 
-static void finish(int status, char *filename) {
+static void 
+finish(int status, char *filename) {
   evalf("(save \"%s\")", filename);
   SDL_Quit();
 }
@@ -78,7 +80,8 @@ typedef struct {
 } init_t;
 
 
-static void init(init_t *arg) {
+static void 
+init(init_t *arg) {
 
   symbols_init();
   video_init(arg->w, arg->h, arg->video_mode);
@@ -108,7 +111,8 @@ static void init(init_t *arg) {
 
 }
 
-static void *io(init_t *arg) {
+static void *
+io(init_t *arg) {
   init(arg);
   while (1) {
     input_handle_events();
@@ -119,7 +123,8 @@ static void *io(init_t *arg) {
 
 #define SLAYER_SUFFIX ".scm"
 
-int main(int argc, char *argv[]) {
+int 
+main(int argc, char *argv[]) {
 
   init_t arg = {
     .infile = NULL,
