@@ -93,7 +93,7 @@
 (define* (make-container #:key x y (name "menu") (content '()))
   (let ((container (make <widget>))
 	(label (make-button #:text name)))
-    (set! #[label 'drag] (function (type state x y xrel yrel)		 
+    (set! #[label 'drag] (function (x y xrel yrel)		 
 			   (set! #[ container 'x ] (+ #[ container 'x ] xrel))
 			   (set! #[ container 'y ] (+ #[ container 'y ] yrel))))
     (for child in (append content `(,label))
@@ -112,14 +112,14 @@
 		     #:w (image-width image) 
 		     #:h (image-height image))))
     (set! #[ image 'drag ]
-	  (function (type state x y xrel yrel)		 
+	  (function (x y xrel yrel)		 
 	    (set! #[ image 'x ] (+ #[ image 'x ] xrel))
 	    (set! #[ image 'y ] (+ #[ image 'y ] yrel))))
     #;(set! #[ image 'mouse-over ]
-	  (function (type state x y xrel yrel)
+	  (function (x y xrel yrel)
 	    (format #t "now mouse is over ~s\n" image)))
     #;(set! #[ image 'mouse-out ]
-	  (function (type state x y xrel yrel)
+	  (function (x y xrel yrel)
 	    (format #t "mouse is no longer over ~s\n" image)))
     image))
 
