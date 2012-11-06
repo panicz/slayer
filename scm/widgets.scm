@@ -94,8 +94,8 @@
   (let ((container (make <widget>))
 	(label (make-button #:text name)))
     (set! #[label 'drag] (function (x y xrel yrel)		 
-			   (set! #[ container 'x ] (+ #[ container 'x ] xrel))
-			   (set! #[ container 'y ] (+ #[ container 'y ] yrel))))
+			   (increase! #[ container 'x ] xrel)
+			   (increase! #[ container 'y ] yrel)))
     (for child in (append content `(,label))
 	 (add-child! container child))
     ;(add-child! container (make-button #:x 0 #:y 0 #:text name))
@@ -113,8 +113,8 @@
 		     #:h (image-height image))))
     (set! #[ image 'drag ]
 	  (function (x y xrel yrel)		 
-	    (set! #[ image 'x ] (+ #[ image 'x ] xrel))
-	    (set! #[ image 'y ] (+ #[ image 'y ] yrel))))
+	    (increase! #[ image 'x ] xrel)
+	    (increase! #[ image 'y ] yrel)))
     #;(set! #[ image 'mouse-over ]
 	  (function (x y xrel yrel)
 	    (format #t "now mouse is over ~s\n" image)))
