@@ -121,8 +121,8 @@
   
 (define-method (draw (object <3d-mesh>))
   (push-matrix!)
-  ;(translate-view! #[object 'position])
-  ;(rotate-view! #[object 'orientation])
+  (translate-view! #[object 'position])
+  (rotate-view! #[object 'orientation])
   (draw-mesh #[object 'mesh])
   (pop-matrix!))
 

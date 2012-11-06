@@ -36,10 +36,11 @@
 
 (keydn 'mouse2
        (function (x y)
-	 (and-let* ((w (widget-nested-find (lambda(w)
-					     (in-area? (list x y)
-						       (absolute-area w)))
-					   *stage*)))
+	 (and-let* ((w (widget-nested-find 
+			(lambda(w)
+			  (in-area? (list x y)
+				    (absolute-area w)))
+			*stage*)))
 	   (#[ w 'right-click ] x y))))
 
 (mousemove (function (x y xrel yrel)
@@ -94,6 +95,29 @@
 		      (transform! 
 		       (rotator (/ pi -12) #f32(0 0 1)) 
 		       #[3d-camera 'orientation])))
+
+      (keydn 'd (function () 
+		     (increase! #[3d-object 'position] #(0.07 0 0))))
+      (keydn 'a (function ()
+		   (increase! #[3d-object 'position] #(-0.07 0 0))))
+      (keydn 's (function ()
+		     (increase! #[3d-object 'position] #(0 0.07 0))))
+      (keydn 'w (function ()
+		      (increase! #[3d-object 'position] #(0 -0.07 0))))
+      (keydn 'r (function () 
+		   (increase! #[3d-object 'position] #f32(0 0 0.7))))
+      (keydn 'f (function ()
+		   (increase! #[3d-object 'position] #f32(0 0 -0.7))))
+
+      (keydn 'e (function ()
+		     (transform! 
+		      (rotator (/ pi 12) #f32(0 0 1)) 
+		      #[3d-object 'orientation])))
+      (keydn 'q (function ()
+		      (transform! 
+		       (rotator (/ pi -12) #f32(0 0 1)) 
+		       #[3d-object 'orientation])))
+
       ))
 
 

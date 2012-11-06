@@ -10,16 +10,24 @@ SCM active_widget;
 SCM nearby_widget;
 
 extern char const _binary_scm_defs_scm_start[];
-extern char const _binary_scm_widgets_scm_start[];
-extern char const _binary_scm_3d_scm_start[];
-
 extern char const _binary_scm_defs_scm_end[];
-extern char const _binary_scm_widgets_scm_end[];
-extern char const _binary_scm_3d_scm_end[];
-
 extern size_t const _binary_scm_defs_scm_size;
+
+extern char const _binary_scm_widgets_scm_start[];
+extern char const _binary_scm_widgets_scm_end[];
 extern size_t const _binary_scm_widgets_scm_size;
+
+#ifdef USE_OPENGL
+extern char const _binary_scm_3d_scm_start[];
+extern char const _binary_scm_3d_scm_end[];
 extern size_t const _binary_scm_3d_scm_size;
+#endif
+
+#ifdef USE_GOOSE
+extern char const _binary_scm_goose_scm_start[];
+extern char const _binary_scm_goose_scm_end[];
+extern size_t const _binary_scm_goose_scm_size;
+#endif
 
 void widgets_init(Uint16 w, Uint16 h) {
 
@@ -43,6 +51,12 @@ void widgets_init(Uint16 w, Uint16 h) {
     EVAL(scm_3d_scm);
   }
 #endif
+
+#ifdef USE_GOOSE
+  EVAL(scm_goose_scm);
+#endif
+
+
 #undef EVAL
 
   evalf("(define *stage* (make <widget> #:w %i #:h %i))", w, h); 
