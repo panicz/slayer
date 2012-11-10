@@ -6,7 +6,8 @@
   #:use-module (ice-9 regex)
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
-  #:export (expand 
+  #:export (
+	    expand 
 	    ?not ?and ?or in? 
 	    map-n
 	    array-map
@@ -22,10 +23,26 @@
 	    cart
 	    take-at-most drop-at-most
 	    )
-  #:export-syntax (\ for if* 
+  #:export-syntax (\ for if*
+		   safely symbol-list
 		   transform! increase! decrease! multiply!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+
+(define-syntax safely 
+  (syntax-rules ()
+    ((_ function) 
+     (catch #t (lambda () (values function #t))
+       (lambda (key . args)
+	 (with-output-to-port (current-output-port)
+	   (lambda()
+	     (backtrace)
+	     (display (list 'exception key args))
+	     (values #f #f))))))))
+
+(define-syntax-rule (symbol-list symbol ...)
+  `((symbol ,symbol) ...))
 
 (define-syntax transform!
   (syntax-rules ()
@@ -44,7 +61,7 @@
 (define-syntax for
   (syntax-rules (in)
     ((_ x in list body ...)
-     (for-each (lambda(x) body ...) list))))
+     (for-each (match-lambda(x body ...)) list))))
 
 (define-syntax if*
   (syntax-rules (in)
@@ -172,7 +189,6 @@
 		   (map (\ cons \1 x)
 			first))
 		 (apply cart rest)))))
-
 
 (define (?not pred)(lambda(x)(not (pred x))))
 

@@ -13,53 +13,6 @@
   ;;   #:password "phrase"
   )
 
-(define (make-connection address)
-  (let*  ((address+port (string-split address #\:))
-	  (address (if (not (null? address+port)) 
-		      (inet-aton (first address+port)) 
-		      INADDR_LOOPBACK))
-	  (port (if (> (length address+port) 1)
-		   (string->number (second address+port))
-		   41337))
-	  (socket (socket PF_INET SOCK_DGRAM 0))
-	  (address (make-socket-address AF_INET address port)))
-    (cons socket address)))
-
-
-(define (transmit recipent data)
-  (match-let (((socket . address) recipent))
-	     (sendto socket data address)))
-
-(define (receive! sender  buffer)
-  (match-let (((socket . address) sender))
-	     (recvfrom! socket buffer)))
-
-(define (make-client-protocol typehash)
-  (let ((protocol (make-hash-table))
-	(objects (make-hash-table)))
-    (set! #[protocol 'objects] objects)
-    (set! #[protocol 'set-slots!]
-	  (lambda (id . slots)
-	    (and-let* ((object #[objects id]))
-	      (for-each (match-lambda ((name value)
-				       (slot-set! object name value)))
-			  slots))))
-    (set! #[protocol 'add!]
-	  (lambda (type id . slots)
-	    (and-let* ((type #[typehash type])
-		       (object (make type)))
-	      (for-each (match-lambda ((name value)
-				       (slot-set! object name value)))
-			slots)
-	      (set! #[objects id] object))))
-    (set! #[protocol 'remove!]
-	  (lambda (id)
-	    (hash-remove! objects id)))
-    protocol))
-
-(define-syntax-rule (export-types typename ...)
-  (list ((quote typename) typename) ...))
-
 (define-method (initialize (this <goose-client>) args)
   (next-method)
   (let-keywords args 
@@ -77,7 +30,7 @@
 	  (buffer (make-bytevector 1024)))
       (set! #[this 'connection] connection)
       (set! #[this 'protocol] protocol)
-      (let ((code (register-userevent 
+      (let ((code (register-userevent ; this code is executed by the main thread
 		   (lambda (data connection)
 		     #;(lock-mutex mutex)
 		     (match-let (((proc . args) (with-input-from-string data read)))
