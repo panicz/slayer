@@ -67,6 +67,19 @@ flip_screen() {
   return SCM_UNSPECIFIED;
 }
 
+static SCM display_procedure = scm_noop;
+static SCM
+set_display_procedure_x(SCM procedure) {
+  if(is_scm_procedure(procedure)) {
+    display_procedure = procedure;
+  }
+  else {
+    WARN("trying to set a non-procedure as the display procedure!");
+  }
+  return SCM_UNSPECIFIED;
+}
+
+
 static void 
 export_symbols() {
   scm_c_define_gsubr("set-caption!", 1, 0, 0, 
@@ -77,13 +90,15 @@ export_symbols() {
 		     (scm_t_subr) wipe_screen);
   scm_c_define_gsubr("flip-screen", 0, 0, 0, 
 		     (scm_t_subr) flip_screen);
+  scm_c_define_gsubr("set-display-procedure!", 1, 0, 0, 
+		     (scm_t_subr) set_display_procedure_x);
+  
 }
 
 void
 video_refresh_screen() {
   wipe_screen();
-  
-  eval("(draw *stage*)");
+  scm_call_0(display_procedure);
   flip_screen();
 }
 

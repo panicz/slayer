@@ -65,9 +65,22 @@ scm_catch_handler(void *data, SCM key, SCM args) {
   return SCM_UNSPECIFIED;
 }
 
+static SCM exit_procedure = scm_noop;
+static SCM 
+set_exit_procedure_x(SCM procedure) {
+  if(is_scm_procedure(procedure)) {
+    exit_procedure = procedure;
+  }
+  else {
+    WARN("trying to set a non-procedure as the exit procedure!");
+  }
+  return SCM_UNSPECIFIED;
+}
+
 static void 
 finish(int status, char *filename) {
-  evalf("(save \"%s\")", filename);
+  scm_call_1(exit_procedure, scm_from_locale_string(filename));
+  //evalf("(save \"%s\")", filename);
   SDL_Quit();
 }
 
@@ -79,6 +92,11 @@ typedef struct {
   int video_mode;
 } init_t;
 
+static void
+export_symbols() {
+  scm_c_define_gsubr("set-exit-procedure!", 1, 0, 0, 
+		     (scm_t_subr) set_exit_procedure_x); 
+}
 
 static void 
 init(init_t *arg) {
@@ -101,7 +119,9 @@ init(init_t *arg) {
   }
 
   if (file_empty(arg->infile)) {
-    if (!file_write(arg->infile, "(keydn 'esc quit)")) {
+    if (!file_write(arg->infile, "(keydn 'esc quit)\n"
+		    "(set-display-procedure! noop)\n"
+		    "(define *input-widget* #f)\n")) {
       FATAL("Unable to write to spec file ``%s''", arg->infile);
     }
   }

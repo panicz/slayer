@@ -1,5 +1,7 @@
 (keydn 'esc (function()(quit)))
 
+(set-display-procedure! (lambda()(draw *stage*)))
+
 (keydn 'v
        (function ()
 	 (display (version)) (newline)))
