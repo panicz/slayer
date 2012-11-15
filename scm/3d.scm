@@ -2,89 +2,8 @@
 
 (use-modules (extra math))
 
-(define-syntax define-symmetric-method
-  (syntax-rules ()
-    ((_ (name arg1 arg2) (body ...))
-     (begin
-       (define-method (name arg1 arg2) (body ...))
-       (define-method (name arg2 arg1) (body ...))))))
-
 (define *tolerance* 0.0001)
 ;; this needs to be fixed in the core guile
-(define <point> <top>) 
-(define <generalized-vector> <top>)
-(define <quaternion> <pair>)
-
-(define (quaternion real imag)
-  (cons real imag))
-
-(define (quaternion-real q)
-  (car q))
-
-(define (quaternion-imag q)
-  (cdr q))
-
-(define-method (re (q <quaternion>))
-  (quaternion-real q))
-
-(define-method (im (q <quaternion>))
-  (quaternion-imag q))
-
-(define-method (re (c <complex>))
-  (real-part c))
-
-(define-method (im (c <complex>))
-  (imag-part c))
-
-(define (array-map proc first . rest)
-  (let ((dest (apply make-typed-array (array-type first) *unspecified* 
-		     (array-dimensions first))))
-    (apply array-map! dest proc first rest)
-    dest))
-
-(define-method (+ (p <point>) . rest)
-  (apply array-map + p rest))
-
-(define-method (- (p <point>) . rest)
-  (apply array-map - p rest))
-
-; this has to be added to support unary minus, as guile probably 
-; implements it like as (define (- (first <number>)) (- 0 first)) ...
-(define-method (- (n <number>) (p <point>))
-  (array-map (lambda(x)(- n x)) p)) 
-
-(define (quaternion-multiply2 p q)
-  (cons (- (* (re p) (re q))
-	   (* (im p) (im q)))
-	(+ (* (re p) (im q))
-	   (* (re q) (im p))
-	   (* (wedge3x3 (im p) (im q))))))
-
-(define-method (* (p <quaternion>) . rest)
-  (fold (lambda(q p)(quaternion-multiply2 p q)) p rest))
-
-(define-generic ~)
-
-(define-method (~ (c <complex>))
-  (make-rectangular (real-part c) (- (imag-part c))))
-
-(define-method (~ (q <quaternion>))
-  (cons (car q) (- (cdr q))))
-
-(define-symmetric-method (* (s <number>) (p <point>))
-  (array-map (lambda(x)(* x s)) p))
-
-(define-method (* (m <array>) (v <generalized-vector>))
-  (matrix-vector-mul m v))
-
-(define-method (* (u <generalized-vector>) (v <generalized-vector>))
-  (dot u v))
-
-(define-method (* (p <point>))
-  p)
-
-(define-method (* (m1 <array>) (m2 <array>) . rest)
-  (apply matrix-mul m1 (cons m2 rest)))
 
 (define-class <3d> ()
   (position #:init-value #f32(0 0 0))

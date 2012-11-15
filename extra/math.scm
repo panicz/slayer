@@ -2,6 +2,7 @@
   :use-module (ice-9 optargs)
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-17)
+  :use-module (oop goops)
   :use-module (extra common)
   :use-module (extra ref)
   :use-module ((rnrs) :version (6))  
@@ -14,14 +15,65 @@
 	   matrix-mul matrix-vector-mul
 	   sgn
 	   pi/4 pi/2 pi e
-	   deg->rad rad->deg))
+	   deg->rad rad->deg
+	   ;+ - * ~
+	   multiply add subtract divide
+	   <point>
+	   <generalized-vector>
+	   <quaternion> 
+	   quaternion quaternion-real quaternion-imag re im
+	   ))
+
+(define <point> <top>) 
+
+(define <generalized-vector> <top>)
+
+(define <quaternion> <pair>)
+
+(define (quaternion real imag)
+  (cons real imag))
+
+(define (quaternion-real q)
+  (car q))
+
+(define (quaternion-imag q)
+  (cdr q))
+
+(define-generic re)
+
+(define-generic im)
+
+(define-method (re (q <quaternion>))
+  (quaternion-real q))
+
+(define-method (im (q <quaternion>))
+  (quaternion-imag q))
+
+(define-method (re (c <complex>))
+  (real-part c))
+
+(define-method (im (c <complex>))
+  (imag-part c))
+
+(define (quaternion-multiply2 p q)
+  (cons (- (* (re p) (re q))
+	   (* (im p) (im q)))
+	(+ (* (re p) (im q))
+	   (* (re q) (im p))
+	   (* (wedge3x3 (im p) (im q))))))
 
 (define pi/4 (atan 1))
+
 (define pi/2 (acos 0))
+
 (define pi (* 2 pi/2))
+
 (define e (exp 1))
+
 (define (deg->rad x) (* x (/ pi 180)))
+
 (define (rad->deg x) (* x (/ 180 pi)))
+
 (define (sgn x) 
   (cond ((> x 0) 1)
 	((< x 0) -1)
@@ -82,7 +134,6 @@
     (array-index-map! result (lambda(i j)(dot (column b j) (row a i))))
     result))
 
-
 (define (vector->matrix v)
   (let* ((vector-length (if (uniform-vector? v) uniform-vector-length vector-length))
 	 (vl (vector-length v)))
@@ -106,8 +157,10 @@
      (* #[M 0 1] (- (* #[M 2 0] #[M 1 2]) (* #[M 1 0] #[M 2 2])))))
 
 (define (wedge3x3 u v)
-  (let ((vector-length (if (uniform-vector? v) uniform-vector-length vector-length)))
-    (assert (and (vector? u) (vector? v)
+  (let ((vector-length 
+	 (if (uniform-vector? v) uniform-vector-length vector-length)))
+    #;(assert (and (or (and (vector? u) (vector? v))
+		     (and (uniform-vector? u) (uniform-vector? v)))
 		 (= (vector-length u) (vector-length v) 3)))
     (list->typed-array (array-type u) 1 
 		       (list (- (* #[u 1] #[v 2]) (* #[u 2] #[v 1]))
@@ -129,14 +182,70 @@
 	(set! #[1/M 0 0] (* 1/d (- (* #[M 1 1] #[M 2 2]) (* #[M 2 1] #[M 1 2]))))
 	(set! #[1/M 0 1] (* 1/d (- (* #[M 2 0] #[M 1 2]) (* #[M 1 0] #[M 2 2]))))
 	(set! #[1/M 0 2] (* 1/d (- (* #[M 1 0] #[M 2 1]) (* #[M 2 0] #[M 1 1]))))
-
+	;;
 	(set! #[1/M 1 0] (* 1/d (- (* #[M 2 1] #[M 0 2]) (* #[M 0 1] #[M 2 2]))))
 	(set! #[1/M 1 1] (* 1/d (- (* #[M 0 0] #[M 2 2]) (* #[M 2 0] #[M 0 2]))))
 	(set! #[1/M 1 2] (* 1/d (- (* #[M 2 0] #[M 0 1]) (* #[M 0 0] #[M 2 1]))))
-
+	;;
 	(set! #[1/M 2 0] (* 1/d (- (* #[M 0 1] #[M 1 2]) (* #[M 1 1] #[M 0 2]))))
 	(set! #[1/M 2 1] (* 1/d (- (* #[M 1 0] #[M 0 2]) (* #[M 0 0] #[M 1 2]))))
 	(set! #[1/M 2 2] (* 1/d (- (* #[M 0 0] #[M 1 1]) (* #[M 1 0] #[M 0 1]))))
-	
+	;;
 	(transpose 1/M)))))
 
+(define-syntax-rule (save-operation op #;as name #;for <type>)
+  (begin
+    (define name op)
+    (define-generic op)
+    (define-method (op (n <type>) (m <type>))
+      (name n m))
+    (define-method (op (n <type>) (m <type>) . rest)
+      (apply op (op n m) rest))))
+
+(save-operation + #;as add #;for <number>)
+
+(save-operation * #;as multiply #;for <number>)
+
+(save-operation / #;as divide #;for <number>)
+
+(save-operation - #;as subtract #;for <number>)
+
+(define-method (* (s <number>) (p <point>)) 
+  (array-map (lambda (x) (* x s)) p))
+
+(define-method (* (p <point>) (s <number>))
+  (array-map (lambda (x) (* x s)) p))
+
+(define-method (* (m <array>) (v <generalized-vector>))
+  (matrix-vector-mul m v))
+
+(define-method (* (u <generalized-vector>) (v <generalized-vector>))
+  (dot u v))
+
+(define-method (* (p <point>))
+  p)
+
+(define-method (* (m1 <array>) (m2 <array>) . rest)
+  (apply matrix-mul m1 (cons m2 rest)))
+
+(define-method (+ (p <point>) . rest)
+  (apply array-map + p rest))
+
+(define-method (- (p <point>) . rest)
+  (apply array-map - p rest))
+
+; this has to be added to support unary minus, as guile probably 
+; implements it like as (define (- (first <number>)) (- 0 first)) ...
+(define-method (- (n <number>) (p <point>))
+  (array-map (lambda(x)(- n x)) p)) 
+
+(define-method (* (p <quaternion>) . rest)
+  (fold (lambda(q p)(quaternion-multiply2 p q)) p rest))
+
+(define-generic ~)
+
+(define-method (~ (c <complex>))
+  (make-rectangular (real-part c) (- (imag-part c))))
+
+(define-method (~ (q <quaternion>))
+  (cons (car q) (- (cdr q))))
