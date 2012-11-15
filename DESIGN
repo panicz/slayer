@@ -1,0 +1,37 @@
+server.scm uses:
+- network.scm
+- 3d.scm
+
+
+
+The following supplement programs need to be done
+before the game can be finished:
+
+- a robot editor, that allows to join various
+shapes (adjusting their size and other parameters) 
+using specified joints, adjusting their parameters
+as well [perhaps you could think about using
+Russell Smith's ODE, instead of reinventing the
+wheel]
+
+- a pose editor, that allows to come up with
+new poses that could later be recalled by the
+actual code. such editor would enable to:
+- set certain joints in a given position
+- release constrains on another joints
+(so they can be either loosen or left as they
+were in a previous pose)
+- among other joints, there is the horizon
+that can be set accurately
+
+- a map editor
+
+a pose is a function of joints and time/energy
+that should be applied in order to get to a
+given pose
+
+(define-move (walk energy)
+  (pose 'stand-straight energy)
+  (pose 'left-leg-lift energy)
+  (pose 'left-leg-lean
+	

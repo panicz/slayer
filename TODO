@@ -1,21 +1,25 @@
-BUGS:
-- we still can't render fonts with no background
-(look back to revision 67, when everything's been
-working alright)
-- text-area widget renders way too much text,
-there should be some sort of cache (which, in turn,
-requires development of a more sophisticated object
-system, especially for its serialization features)
-- check the code for memory leaks
-- each font should have a one one-pixel wide surface
-associated that would be created for the empty text
+URGENT STUFF:
+- implement a simple GOOSE server
+- create a simple world containing a few moving
+and perhaps controllable objects
+- design and implement a connection scenario
+(like: server runs a game. a client connects
+and gets verified (how?). a server assigns (perhaps
+creating) an object to the client, and exports
+a protocol to the client. then the game begins,
+so the client issues commands and receives the
+changes of state)
+
 
 EXCITING STUFF:
 go to 3d! (no gl bindings for guile; gl is to be
 used in C only! however, certain vertex procedures
 are allowed from the scheme level, like sort-vertices)
 - objects and a camera
-- 3d view associated with the object
+
+- 3d view associated with the object (it is done so,
+but only with the camera object)
+
 - support for the primitive shapes
 - network module system
 (perhaps it requires making a branch in rcs)
@@ -45,7 +49,19 @@ clothes and so forth)
 
 EXTENDING GUILE:
 - fix the hierarchy of vectors so that <uvec> is-a? <vector>
-- add quaternion type as described in some online document
+- add quaternion type as described in an online document:
+http://www.ccs.neu.edu/home/dorai/squat/squat.html
+
+
+BUGS:
+- text-area widget renders way too much text,
+there should be some sort of cache (which, in turn,
+requires development of a more sophisticated object
+system, especially for its serialization features)
+- check the code for memory leaks
+- each font should have a one one-pixel wide surface
+associated that would be created for the empty text
+
 
 BORING STUFF:
 
