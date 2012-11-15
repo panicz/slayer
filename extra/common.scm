@@ -22,24 +22,31 @@
 	    flatten
 	    cart
 	    take-at-most drop-at-most
+	    remove-keyword-args
+	    random-array
 	    )
   #:export-syntax (\ for if*
 		   safely symbol-list
-		   transform! increase! decrease! multiply!))
+		   transform! increase! decrease! multiply!
+		   define-symmetric-method))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
+(define-syntax-rule (define-symmetric-method (name arg1 arg2) body ...)
+  (begin
+    (define-method (name arg1 arg2) body ...)
+    (define-method (name arg2 arg1) body ...)))
 
 (define-syntax safely 
   (syntax-rules ()
-    ((_ function) 
-     (catch #t (lambda () (values function #t))
+    ((_ sexp) 
+     (catch #t (lambda () (values sexp #t))
        (lambda (key . args)
 	 (with-output-to-port (current-output-port)
 	   (lambda()
 	     (backtrace)
-	     (display (list 'exception key args))
-	     (values #f #f))))))))
+	     (display `(error calling sexp : ,key ,args))
+	     (values (if #f #f) #f))))))))
 
 (define-syntax-rule (symbol-list symbol ...)
   `((symbol ,symbol) ...))
@@ -133,28 +140,39 @@
       (next l))))
 
 (define-macro (\ f . args)
-  (let* ((prefix "\\")
-	 (placeholder '\.)
-	 (ellipsis '\...)
+  (let* ((prefix "_")
+	 (placeholder '_)
+	 (ellipsis '...)
 	 (rest (if (equal? (last args) ellipsis) ellipsis '()))
 	 (args (if (symbol? rest) (drop-right args 1) args))
 	 (max-arg 0)
-	 (next-arg (lambda ()
-		     (set! max-arg (+ max-arg 1))
-		     (string->symbol (string-append 
-				      prefix (number->string max-arg))))))
-    (let ((args (map (lambda(arg)
-		       (cond ((eq? arg placeholder)
-			      (next-arg))
-			     ((and-let* (((symbol? arg))
-					 (arg-string (symbol->string arg))
-					 (match-struct (string-match 
-							(string-append "^" (regexp-quote prefix) "([0-9]+)$")
-							arg-string))
-					 (number (string->number (match:substring match-struct 1))))
-				(if (> number max-arg) (set! max-arg number))
-				#t)			      arg)
-			     (else arg))) args)))
+	 (next-arg 
+	  (lambda ()
+	    (set! max-arg (+ max-arg 1))
+	    (string->symbol (string-append 
+			     prefix (number->string max-arg))))))
+    (let ((args 
+	   (map (lambda(arg)
+		  (cond ((eq? arg placeholder)
+			 (next-arg))
+			((and-let* 
+			     (((symbol? arg))
+			      (arg-string (symbol->string arg))
+			      (match-struct (string-match 
+					     (string-append 
+					      "^" 
+					      (regexp-quote prefix) 
+					      "([0-9]+)$")
+					     arg-string))
+			      (number (string->number 
+				       (match:substring 
+					match-struct 1))))
+				(if (> number max-arg) 
+				    (set! max-arg number))
+				#t)
+			 arg)
+			(else arg))) 
+		args)))
       `(lambda ,(append
 		 (map (lambda (n) 
 			(string->symbol 
@@ -186,7 +204,7 @@
     ((only) (map list only))
     ((first . rest)
      (append-map (lambda(x)
-		   (map (\ cons \1 x)
+		   (map (\ cons _ x)
 			first))
 		 (apply cart rest)))))
 
@@ -276,6 +294,22 @@
 (define (drop-at-most lst i)
   (drop lst (min i (length lst))))
 
+(define remove-keyword-args
+  (letrec ((self (lambda(list)
+		   (match list
+		     (((? keyword?) (? (?not keyword?)) . rest)
+		      (self rest))
+		     (((? (?not keyword?) x) . rest)
+		      (cons x (self rest)))
+		     (((? keyword?) . rest)
+		      (self rest))
+		     (() '())))))
+    self))
+
+(define* (random-array #:key (range 1.0) (type #t) (mean 0) #:rest dims)
+  (let ((dims (remove-keyword-args dims)))
+    (array-map (lambda (mean) (+ mean (- (random (* 2 range)) range)))
+		(apply make-typed-array type mean dims))))
 
 ;; do dalszej rozkminki
 ;; (define (collatz n)
