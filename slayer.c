@@ -200,6 +200,7 @@ main(int argc, char *argv[]) {
 #else
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
+  setenv("GUILE_LOAD_PATH", ".", 1);
 
   if (!arg.infile) {
     arg.infile = 
