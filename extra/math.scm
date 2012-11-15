@@ -16,12 +16,12 @@
 	   sgn
 	   pi/4 pi/2 pi e
 	   deg->rad rad->deg
-	   ;+ - * ~
+	   ;+ - * 
 	   multiply add subtract divide
 	   <point>
 	   <generalized-vector>
 	   <quaternion> 
-	   quaternion quaternion-real quaternion-imag re im
+	   quaternion quaternion-real quaternion-imag re im ~
 	   ))
 
 (define <point> <top>) 
