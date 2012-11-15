@@ -3,7 +3,8 @@
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-11)
   #:use-module (extra common)
-  #:export (free-variables))
+  #:export (free-variables procedure-args)
+  #:export-syntax (proc))
 
 (define (used-variables form)
   (define (diff . args) (apply lset-difference equal? args))
@@ -65,3 +66,23 @@
 (define (free-variables form)
   (used-variables 
    (expand form #:opts '(#:use-derived-syntax? #f #:avoid-lambda #f))))
+
+(define-syntax proc
+  (syntax-rules ()
+    ((_ args body ...)
+     (let ((p (lambda args body ...)))
+       (set-procedure-property! p 'source '(lambda args body ...))
+       p))))
+
+(define (procedure-args proc)
+  (match (procedure-source proc)
+    (('lambda args body ...)
+     args)
+    (else
+     (match (procedure-minimum-arity proc)
+       ((required optional rest)
+	(append (make-list required '_)
+		(if (> optional 0) (cons #:optional (make-list optional '_)) '())
+		(if rest '_ '())))
+       (else
+	'(..?))))))

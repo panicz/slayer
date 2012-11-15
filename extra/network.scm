@@ -5,6 +5,7 @@
   #:use-module (extra ref)
   #:use-module (extra common)
   #:use-module (extra time)
+  #:use-module (extra function)
   #:use-module (ice-9 match)
   #:use-module (oop goops)
   #:use-module ((rnrs) :version (6))
@@ -19,8 +20,7 @@
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
-		    protocol-remove!
-		    proc))
+		    protocol-remove!))
 
 (define <socket> <file-input-output-port>)
 (define <address> <vector>)
@@ -88,13 +88,6 @@
    (lambda (ticks-left)
      (if (input-available socket  (ticks->seconds ticks-left))
 	 (handle-packet! socket clients register-protocol)))))
-
-(define-syntax proc
-  (syntax-rules ()
-    ((_ args body ...)
-     (let ((p (lambda args body ...)))
-       (set-procedure-property! p 'source '(lambda args body ...))
-       p))))
 
 (define-syntax protocol-add!
   (syntax-rules ()
