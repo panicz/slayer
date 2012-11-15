@@ -123,7 +123,7 @@
 	    (format #t "mouse is no longer over ~s\n" image)))
     image))
 
-(define *default-font* (load-font "./VeraMono.ttf" 12))
+(define *default-font* (load-font "./art/VeraMono.ttf" 12))
 
 ;(set-font-style! *default-font* 1)
 
