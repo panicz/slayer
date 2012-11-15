@@ -56,8 +56,6 @@
   (hash-set! world #[player 'id] player))
 
 (define (procedure-args proc)
-  (let
-
   (match (procedure-source proc)
     (('lambda args body ...)
      args)
