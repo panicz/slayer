@@ -6,7 +6,7 @@
        (function ()
 	 (display (version)) (newline)))
 
-(define ku (load-image "./ku.png"))
+(define ku (load-image "./art/ku.png"))
 
 (add-child! *stage* (make-image ku 75 25))
 
