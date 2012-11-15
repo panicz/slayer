@@ -1,24 +1,5 @@
-(display "loading 3d.scm\n")
-
-(use-modules (extra math))
-
-(define *tolerance* 0.0001)
-;; this needs to be fixed in the core guile
-
-(define-class <3d> ()
-  (position #:init-value #f32(0 0 0))
-  (orientation #:init-value '(0 . #f32(1 0 0))))
-
-(define-class <3d-cam> (<3d>)
-  (fovy #:init-value 70.0))
-
-(define-class <3d-shape> (<3d>)
-  (shape #:init-value '()))
-
-(define-class <3d-mesh> (<3d-shape>)
-  (mesh #:init-thunk 
-	(lambda()(with-input-from-file "3d/cube.3d" read))))
-
+(use-modules (extra math)
+	     (extra 3d))
 
 (define (draw-mesh mesh)
   (match mesh
