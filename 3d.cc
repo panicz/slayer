@@ -86,22 +86,31 @@ set_viewport_x(SCM X, SCM Y, SCM W, SCM H) {
 
 static SCM
 current_viewport() {
-  GLint params[4];
-  glGetIntegerv(GL_VIEWPORT, params);
-  return scm_list_4(scm_from_int(params[0]), scm_from_int(params[1]),
-		    scm_from_int(params[2]), scm_from_int(params[3]));
+  struct { GLint x, y, w, h; } s;
+  glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
+  return scm_list_4(scm_from_int(s.x), scm_from_int(s.y),
+		    scm_from_int(s.w), scm_from_int(s.h));
 }
 
 static SCM
 perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
   GLdouble fovy = scm_to_float(FOVY);
-  GLdouble aspect = ((ASPECT == SCM_UNDEFINED)
-		     || (ASPECT == SCM_UNSPECIFIED)
-		     || (ASPECT == SCM_BOOL_F))
-    ? (GLdouble) screen->w / (GLdouble) screen->h
-    : (GLdouble) scm_to_double(ASPECT);
+
+  
+  GLdouble aspect;
+  if ((ASPECT == SCM_UNDEFINED) 
+      || (ASPECT == SCM_UNSPECIFIED)
+      || (ASPECT == SCM_BOOL_F)) {
+    struct { GLint x, y, w, h; } s;
+    glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
+    aspect = (GLdouble) s.w / (GLdouble) s.h; 
+  }
+  else {
+    aspect = (GLdouble) scm_to_double(ASPECT);
+  }
+
   GLdouble near = (NEAR == SCM_UNDEFINED)
-    ? 0.01 : (GLdouble) scm_to_double(NEAR);
+    ? 0.1 : (GLdouble) scm_to_double(NEAR);
   GLdouble far = (FAR == SCM_UNDEFINED)
     ? 1000.0 : (GLdouble) scm_to_double(FAR);
 
@@ -122,7 +131,6 @@ ortographic_projection_x() {
   WARN("unimplemented");
   return SCM_UNSPECIFIED;
 }
-
 
 static GLenum GLtypes[SCM_ARRAY_ELEMENT_TYPE_LAST+1];
 static inline void
@@ -223,9 +231,6 @@ init_GLnames() {
   
 #undef SET_VALUE
 }
-
-
-
 
 static SCM
 draw_faces_x(SCM type, SCM array) {
