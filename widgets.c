@@ -24,9 +24,9 @@ extern size_t const _binary_scm_3d_view_scm_size;
 #endif
 
 #ifdef USE_GOOSE
-extern char const _binary_scm_goose_scm_start[];
-extern char const _binary_scm_goose_scm_end[];
-extern size_t const _binary_scm_goose_scm_size;
+extern char const _binary_scm_goose_view_scm_start[];
+extern char const _binary_scm_goose_view_scm_end[];
+extern size_t const _binary_scm_goose_view_scm_size;
 #endif
 
 void widgets_init(Uint16 w, Uint16 h) {
@@ -50,11 +50,13 @@ void widgets_init(Uint16 w, Uint16 h) {
   if(video_mode & SDL_OPENGL) {
     EVAL(scm_3d_view_scm);
   }
-#endif
 
 #ifdef USE_GOOSE
-  EVAL(scm_goose_scm);
+  EVAL(scm_goose_view_scm);
 #endif
+
+#endif
+
 
 
 #undef EVAL
