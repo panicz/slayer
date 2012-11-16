@@ -88,15 +88,20 @@
 	   (if client-env
 	       (hash-set! clients address client-env))))
     (if (and client-env address)
-	(let ((packet (safely (read (open-input-string data)))))
+	(and-let* ((packet (safely (read (open-input-string data)))))
 	  (match packet
 	    ((proc . args)
 	     (let ((result (safely (apply (hash-ref client-env proc) 
 					  args))))
 	       (if (not (unspecified? result))
-		   (sendto socket (with-output-to-utf8 
-				   (\ display result))
-			   address)))))))))
+		   (begin
+		     (display `(sending ,result to ,address))
+		     (newline)
+		     (sendto socket (with-output-to-utf8 
+				     (\ display result))
+			     address)))))
+	    (else
+	     (display `(ignoring ,else from ,address))))))))
 
 (define-method (handle-clients (socket <socket>) 
 			       (clients <protocol>) 
@@ -105,7 +110,7 @@
   (pass-ticks-left 
    period 
    (lambda (ticks-left)
-     (if (input-available socket  (ticks->seconds ticks-left))
+     (if (input-available socket (ticks->seconds ticks-left))
 	 (handle-packet! socket clients register-protocol)))))
 
 (define-syntax protocol-add!
@@ -132,7 +137,12 @@
 	 (let ((protocol-name (make-hash-table)))
 	   (let* bindings
 	     (hash-set! protocol-name (quote fname)
-			(proc (arg ...) body ...))
+			(proc (arg ...) 
+			      (display `(received (fname arg ...)
+						  from
+						  ,client-address))
+			      (newline)
+			      body ...))
 	     ...)
 	   protocol-name))))))
 
@@ -141,7 +151,7 @@
 		     (clients <hashtable>) 
 		     (register-protocol <procedure>)
 		     (update-world <procedure> #;obj->obj)
-		     (respond <procedure> #;cn,pr->?)
+		     (respond <procedure> #;sock,addr,pr->?)
 		     (period <seconds>))
   (let ((ticks (seconds->ticks period)))
     (lambda ()
