@@ -1,7 +1,4 @@
-(define-class <goose> ()
-  (owners #:init-value #f #:init-keyword #:owners)
-  (private-slots #:init-value '())
-  (id #:init-thunk gensym))
+(use-modules (extra math) (extra 3d) (extra goose))
 
 (define-class <player> (<goose> <3d>) 
   (health #:init-value 100.0)
