@@ -6,6 +6,7 @@
   #:use-module (ice-9 regex)
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
+  #:use-module ((rnrs) #:version (6))
   #:export (
 	    expand 
 	    ?not ?and ?or in? 
@@ -27,13 +28,13 @@
 	    with-output-to-utf8
 	    )
   #:export-syntax (\ for if*
-		   safely symbol-list
+		   safely export-types
 		   transform! increase! decrease! multiply!
 		   define-symmetric-method))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
-(define-syntax-rule (define-symmetric-method (name arg1 arg2) body ...)
+(define-syntax-rule(define-symmetric-method(name arg1 arg2) body ...)
   (begin
     (define-method (name arg1 arg2) body ...)
     (define-method (name arg2 arg1) body ...)))
@@ -49,7 +50,7 @@
 	     (display `(error calling sexp : ,key ,args))
 	     (values (if #f #f) #f))))))))
 
-(define-syntax-rule (symbol-list symbol ...)
+(define-syntax-rule (export-types symbol ...)
   `((symbol ,symbol) ...))
 
 (define-syntax transform!
@@ -96,7 +97,7 @@
 	 (reverse (cons src dst)))))
 
 (define (array-map proc first . rest)
-  (let ((dest (apply make-typed-array (array-type first) *unspecified* 
+  (let ((dest (apply make-typed-array (array-type first) (if #f #f) 
 		     (array-dimensions first))))
     (apply array-map! dest proc first rest)
     dest))
@@ -186,17 +187,22 @@
 
 (define* (expand e #:key (opts '()))
   (let-values (((exp env) (decompile 
-			   (compile e #:from 'scheme #:to 'tree-il #:env (current-module))
-			   #:from 'tree-il #:to 'scheme #:opts opts)))
+			   (compile e #:from 'scheme 
+				    #:to 'tree-il 
+				    #:env (current-module))
+			   #:from 'tree-il 
+			   #:to 'scheme 
+			   #:opts opts)))
     exp))
 
 (define (unix-environment)
   (let ((env (make-hash-table)))
-	(for-each (lambda(s)
-		    (match-let (((name . values)
-				 (string-split s #\=)))
-			       (hash-set! env name (string-join values "="))))
-		  (environ))
+	(for-each 
+	 (lambda(s)
+	   (match-let (((name . values)
+			(string-split s #\=)))
+	     (hash-set! env name (string-join values "="))))
+	 (environ))
 	env))
 
 (define (cart . lists)
@@ -211,7 +217,8 @@
 
 (define (?not pred)(lambda(x)(not (pred x))))
 
-;; Note that (?and p? q? ...) is equivalent to (lambda(x)(and (p? x) (q? x)) ...)
+;; Note that (?and p? q? ...) is equivalent to 
+;; (lambda(x)(and (p? x) (q? x)) ...)
 ;; (the same applies /mutatis mutandis/ to disjunction, i.e. ?or)
 (define (?and . predicates)
   (lambda(x) (every (lambda(p)(p x)) predicates)))
@@ -219,10 +226,11 @@
 (define (?or . predicates)
   (lambda(x) (any (lambda(p)(p x)) predicates)))
 
-(define (map-n n fn lst . out)                                                            
+(define (map-n n fn lst . out)                    
    (if (< (length lst) n)
      out
-     (apply map-n n fn (drop lst n) (append out (list (apply fn (take lst n)))))))
+     (apply map-n n fn (drop lst n) 
+	    (append out (list (apply fn (take lst n)))))))
 
 (define (last-sexp-starting-position str)
   (define opening-braces '(#\( #\[))
@@ -235,13 +243,17 @@
 	  pos)))
   (define (last-symbol-starting-position str init-pos)
     (rewind #:string str #:starting-from init-pos 
-	    #:while (lambda(c)(and (not (char-whitespace? c)) (not (in? c braces))))))
+	    #:while (lambda(c)
+		      (and (not (char-whitespace? c)) 
+			   (not (in? c braces))))))
   (define (last-whitespaces-starting-position str init-pos)
-    (rewind #:string str #:starting-from init-pos #:while char-whitespace?))
+    (rewind #:string str #:starting-from init-pos 
+	    #:while char-whitespace?))
   (define (last-string-starting-position str init-pos)
     (let loop ((pos init-pos))
       (if (and (eq? (string-ref str pos) #\")
-	       (or (= pos 0) (not (eq? (string-ref str (- pos 1)) #\\))))
+	       (or (= pos 0) 
+		   (not (eq? (string-ref str (- pos 1)) #\\))))
 	  pos
 	  (loop (1- pos)))))
   (let eat ((pos (- (string-length str) 1))
@@ -251,7 +263,8 @@
 	  ((eq? (string-ref str pos) #\")
 	   (if (= level 0)
 	       (last-string-starting-position str (- pos 1))
-	       (eat (- (last-string-starting-position str (- pos 1)) 1) level)))
+	       (eat (- (last-string-starting-position str (- pos 1))
+		       1) level)))
 	  ((not (in? (string-ref str pos) braces))
 	   (if (= level 0)
 	       (+ (last-symbol-starting-position str pos) 1)
@@ -261,18 +274,24 @@
 	  ((in? (string-ref str pos) opening-braces)
 	   (cond ((= level 1)
 		  (if (and (> pos 0)
-			   (not (char-whitespace? (string-ref str (- pos 1))))
-			   (not (in? (string-ref str (- pos 1)) braces)))
-		      (let ((pos* (+ (last-symbol-starting-position str (- pos 1)) 1)))
-			(if (and (in? (string-ref str pos*) '(#\# #\' #\`))
-				 (not (eq? (string-ref str (+ pos* 1)) #\:)))
+			   (not (char-whitespace? 
+				 (string-ref str (- pos 1))))
+			   (not (in? (string-ref str (- pos 1)) 
+				     braces)))
+		      (let ((pos* (+ (last-symbol-starting-position 
+				      str (- pos 1)) 
+				     1)))
+			(if (and (in? (string-ref str pos*) 
+				      '(#\# #\' #\`))
+				 (not(eq? (string-ref str (+ pos* 1))
+					  #\:)))
 			    pos*
 			    pos))
 		      pos))
 		 ((> level 1)
 		  (eat (- pos 1) (- level 1)))
 		 (#t
-		  (error "mismatch braces")))))))
+		  (throw 'mismatch-braces)))))))
 
 (define (cart . args)
   (let ((n (length args)))
