@@ -10,12 +10,10 @@
  (ice-9 session)
  (system base compile) (system syntax)
  (extra ref) (extra common) (extra network) (extra function)
- (extra math) (extra 3d)
  ((rnrs) :version (6)))
 
 (define *world* (make-hash-table))
 (define *users* (make-hash-table))
-
 (define *logged-users* '())
 
 ;; server is stupid and reliable; client is fancy and fallable
@@ -28,10 +26,15 @@
    (drcz 12345)
    (polak żółć)))
 
+(define current-step 0)
+(define (step!)
+  (set! current-step (bitwise-and #xffff (+ current-step 1))))
+
 (define-protocol-generator (kutasa-protocol connection)
   ((username #f)
    (player #f)
-   (address connection))
+   (address connection)
+   (objects '()))
   (((login name password)
     (if (and (not username) password 
 	     (equal? (hash-ref *users* name) password))
@@ -44,6 +47,7 @@
     (if username
 	(begin
 	  (set! player (make <player> #:owners `(,address)))
+	  (set! objects (cons player objects))
 	  (spawn-object! *world* player)
 	  (protocol-add! kutasa-protocol
 			 ((jump) (jump! player))
@@ -51,20 +55,23 @@
 			 ((turn degs) (turn! player degs))
 			 ((crouch) (crouch! player))
 			 ((walk) (walk! player)))
-	  #t)
+	  `(add! <player> ,#[player 'id] ,@(state-of player)))
 	'not-logged-in))
    ((leave)
     (set! player #f)
     (protocol-remove! kutasa-protocol jump shoot turn crouch walk))
-   ((prn)
-    '(prn))
+   ((echo)
+    '(echo))
+   ((owned-objects)
+    objects)
    ((display message)
     (display message))
    ((describe-protocol)
-    (hash-map->list (lambda (name proc)
-		      (cons name
-			    (procedure-args proc)))
-		    kutasa-protocol))
+    (hash-map->list
+     (lambda (name proc)
+       (cons name
+	     (procedure-args proc)))
+     kutasa-protocol))
    ((logout)
     (if username (set! username #f))
     (set! *logged-users*
@@ -72,18 +79,27 @@
 
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
-  (let ((server-cycle (make-server-cycle 
-		       socket
-		       (make-hash-table)
-		       kutasa-protocol
-		       (lambda()
-			 (display "update!\n")
-			 (for-each update! 
-				   (hash-map->list
-				    (lambda(id object)
-				      object)
-				    *world*)))
-		       (lambda x x)
-		       3
-		       )))
-  (while #t (server-cycle))))
+  (let ((server-cycle 
+	 (make-server-cycle 
+	  socket
+	  (make-hash-table)
+	  kutasa-protocol
+	  (lambda()
+	    (for-each update!
+		      (hash-map->list
+		       (lambda(id object)
+			 ;(display object)
+			 object)
+		       *world*))
+	    (newline))
+	  (lambda (sock addr proto)
+	    (for object in (#[proto 'owned-objects])
+		 (for object in (objects-visible-to object)
+		      (let ((message 
+			     (with-output-to-utf8
+			      (\ display `(set-slots! 
+					   ,#[object 'id] 
+					   ,@(state-of object))))))
+			(sendto sock message addr)))))
+	  0.3)))
+    (while #t (server-cycle))))
