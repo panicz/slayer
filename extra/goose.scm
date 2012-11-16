@@ -5,14 +5,30 @@
   :use-module (oop goops)
   :use-module (ice-9 match)
   :use-module (ice-9 optargs)
-  :use-module (extra slayer)
+  ;:use-module (extra slayer)
   :use-module (extra ref)
   :use-module (extra common)
   :use-module (extra network)
   :use-module ((rnrs) :version (6))
-  :export (<goose>))
+  :export (
+	   objects-visible-to
+	   <goose>
+	   state-of
+	   ))
 
 (define-class <goose> ()
   (owners #:init-value #f #:init-keyword #:owners)
+  (context #:init-value #f) ; the subspace to which it belongs
   (private-slots #:init-value '())
-  (id #:init-thunk gensym))
+  (id #:init-thunk (\ gensym "g-")))
+
+(define (state-of object)
+  (map (match-lambda ((slot . rest)
+		      (list slot #[object slot])))
+       (lset-difference equal? 
+	 (class-slots (class-of object))
+	 (class-slots <goose>))))
+
+(define-method (objects-visible-to object)
+  (list object))
+
