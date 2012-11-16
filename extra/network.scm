@@ -34,23 +34,26 @@
   (match-let (((socket . address) sender))
     (recvfrom! socket buffer)))
 
-(define (make-client-protocol typehash)
+(define* (make-client-protocol typehash #:key (add-symbol 'add!) 
+			       (remove-symbol 'remove!) 
+			       (set-slots-symbol 'set-slots!)
+			       (objects-symbol 'objects))
   (let ((protocol (make-hash-table))
 	(objects (make-hash-table)))
-    (set! #[protocol 'objects] objects)
-    (set! #[protocol 'set-slots!]
+    (set! #[protocol objects-symbol] objects)
+    (set! #[protocol set-slots-symbol]
 	  (lambda (id . slots)
 	    (and-let* ((object #[objects id]))
 	      (for (name value) in slots
 		   (slot-set! object name value)))))
-    (set! #[protocol 'add!]
+    (set! #[protocol add-symbol]
 	  (lambda (type id . slots)
 	    (and-let* ((type #[typehash type])
 		       (object (make type)))
 	      (for (name value) in slots
 		   (slot-set! object name value))
 	      (set! #[objects id] object))))
-    (set! #[protocol 'remove!]
+    (set! #[protocol remove-symbol]
 	  (lambda (id)
 	    (hash-remove! objects id)))
     protocol))
@@ -73,10 +76,11 @@
 	(let ((packet (safely (read (open-input-string data)))))
 	  (match packet
 	    ((proc . args)
-	     (let ((result (safely (apply (hash-ref client-env proc) args))))
+	     (let ((result (safely (apply (hash-ref client-env proc) 
+					  args))))
 	       (if (not (unspecified? result))
-		   (sendto socket (string->utf8 (with-output-to-string 
-						  (\ display result)))
+		   (sendto socket (with-output-to-utf8 
+				   (\ display result))
 			   address)))))))))
 
 (define-method (handle-clients (socket <socket>) 
