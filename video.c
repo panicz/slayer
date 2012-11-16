@@ -67,7 +67,7 @@ flip_screen() {
   return SCM_UNSPECIFIED;
 }
 
-static SCM display_procedure = scm_noop;
+static SCM display_procedure = (SCM) scm_noop;
 static SCM
 set_display_procedure_x(SCM procedure) {
   if(is_scm_procedure(procedure)) {

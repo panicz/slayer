@@ -65,7 +65,7 @@ scm_catch_handler(void *data, SCM key, SCM args) {
   return SCM_UNSPECIFIED;
 }
 
-static SCM exit_procedure = scm_noop;
+static SCM exit_procedure = (SCM) scm_noop;
 static SCM 
 set_exit_procedure_x(SCM procedure) {
   if(is_scm_procedure(procedure)) {
@@ -102,6 +102,7 @@ static void
 init(init_t *arg) {
 
   symbols_init();
+  export_symbols();
   video_init(arg->w, arg->h, arg->video_mode);
   
   image_init();
