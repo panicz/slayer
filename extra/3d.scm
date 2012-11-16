@@ -9,7 +9,7 @@
 	   <3d-shape>
 	   <3d-mesh>
 	   ))
-  
+
 (define-class <3d> ()
   (position #:init-value #f32(0 0 0))
   (orientation #:init-value '(0 . #f32(1 0 0))))
