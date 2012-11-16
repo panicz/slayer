@@ -1,6 +1,7 @@
 (display "loading goose.scm\n")
 
-(use-modules (extra network))
+(use-modules (extra network)
+	     (extra goose))
 
 (define-class <goose-client> ()
   (socket.address #:init-value #f)
@@ -17,19 +18,6 @@
   ;;   #:username "name"
   ;;   #:password "phrase"
   )
-
-(define (resolve-address string)
-  (let-values (((address port) (match (string-split string #\:)
-				 ((address ... port)
-				  (values (string-join address "") 
-					  (string->number port)))
-				 ((address)
-				  (values address 41337)))))
-    (let ((address (if (string-match "^([0-9]{1,3}[.]){3}[0-9]{1,3}"
-				     address)
-		       (inet-aton address)
-		       INADDR_LOOPBACK)))
-      (cons address port))))
 
 (define-method (initialize (this <goose-client>) args)
   (next-method)

@@ -7,6 +7,7 @@
   #:use-module (extra time)
   #:use-module (extra function)
   #:use-module (ice-9 match)
+  #:use-module (ice-9 regex)
   #:use-module (oop goops)
   #:use-module ((rnrs) :version (6))
   #:export (
@@ -15,6 +16,7 @@
 	    input-available
 	    handle-clients
 	    make-server-cycle
+	    resolve-address
 	    <socket>
 	    <address>
 	    )
@@ -25,6 +27,19 @@
 (define <socket> <file-input-output-port>)
 (define <address> <vector>)
 (define <protocol> <hashtable>)
+
+(define (resolve-address string)
+  (let-values (((address port) (match (string-split string #\:)
+				 ((address ... port)
+				  (values (string-join address "") 
+					  (string->number port)))
+				 ((address)
+				  (values address 41337)))))
+    (let ((address (if (string-match "^([0-9]{1,3}[.]){3}[0-9]{1,3}"
+				     address)
+		       (inet-aton address)
+		       INADDR_LOOPBACK)))
+      (cons address port))))
 
 (define (transmit recipent data)
   (match-let (((socket . address) recipent))
