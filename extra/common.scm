@@ -24,6 +24,7 @@
 	    take-at-most drop-at-most
 	    remove-keyword-args
 	    random-array
+	    with-output-to-utf8
 	    )
   #:export-syntax (\ for if*
 		   safely symbol-list
@@ -306,10 +307,13 @@
 		     (() '())))))
     self))
 
-(define* (random-array #:key (range 1.0) (type #t) (mean 0) #:rest dims)
+(define* (random-array #:key (range 1.0)(type #t)(mean 0) #:rest dims)
   (let ((dims (remove-keyword-args dims)))
     (array-map (lambda (mean) (+ mean (- (random (* 2 range)) range)))
 		(apply make-typed-array type mean dims))))
+
+(define (with-output-to-utf8 thunk)
+  (string->utf8 (with-output-to-string thunk)))
 
 ;; do dalszej rozkminki
 ;; (define (collatz n)
