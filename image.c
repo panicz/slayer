@@ -216,22 +216,20 @@ array_to_image(SCM array) {
 
 static void 
 export_symbols() {
-  scm_c_define_gsubr("rectangle", 2, 2, 0,
-		     (scm_t_subr) rectangle);
-  scm_c_define_gsubr("load-image", 1, 0, 0, 
-		     (scm_t_subr) load_image);
-  scm_c_define_gsubr("draw-image", 3, 0, 0, 
-		     (scm_t_subr) draw_image);
-  scm_c_define_gsubr("image-width", 1, 0, 0, 
-		     (scm_t_subr) image_width);
-  scm_c_define_gsubr("image-height", 1, 0, 0, 
-		     (scm_t_subr) image_height);
-  scm_c_define_gsubr("image-size", 1, 0, 0, 
-		     (scm_t_subr) image_size);
-  scm_c_define_gsubr("image->array", 1, 0, 0, 
-		     (scm_t_subr) image_to_array);
-  scm_c_define_gsubr("array->image", 1, 0, 0, 
-		     (scm_t_subr) array_to_image);
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
+
+  EXPORT_PROCEDURE("rectangle", 2, 2, 0, rectangle);
+  EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
+  EXPORT_PROCEDURE("draw-image", 3, 0, 0, draw_image);
+  EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);
+  EXPORT_PROCEDURE("image-height", 1, 0, 0, image_height);
+  EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);
+  EXPORT_PROCEDURE("image->array", 1, 0, 0, image_to_array);
+  EXPORT_PROCEDURE("array->image", 1, 0, 0, array_to_image);
+  
+#undef EXPORT_PROCEDURE
 }
 
 void 

@@ -266,31 +266,29 @@ draw_faces_x(SCM type, SCM array) {
 
 static void
 export_symbols() {
-  scm_c_define_gsubr("push-matrix!", 0, 0, 0, 
-		     (scm_t_subr) push_matrix_x);
-  scm_c_define_gsubr("pop-matrix!", 0, 0, 0, 
-		     (scm_t_subr) pop_matrix_x);
-  scm_c_define_gsubr("translate-view!", 1, 0, 0, 
-		     (scm_t_subr) translate_view_x);
-  scm_c_define_gsubr("rotate-view!", 1, 0, 0, 
-		     (scm_t_subr) rotate_view_x);
-  scm_c_define_gsubr("set-viewport!", 4, 0, 0, 
-		     (scm_t_subr) set_viewport_x);
-  scm_c_define_gsubr("current-viewport", 0, 0, 0, 
-		     (scm_t_subr) current_viewport);
-  scm_c_define_gsubr("perspective-projection!", 1, 3, 0, 
-		     (scm_t_subr) perspective_projection_x);
-  scm_c_define_gsubr("ortographic-projection!", 4, 2, 0, 
-		     (scm_t_subr) ortographic_projection_x);
-  scm_c_define_gsubr("set-vertices-array!", 1, 0, 0, 
-		     (scm_t_subr) set_vertices_array_x);
-  scm_c_define_gsubr("set-colors-array!", 1, 0, 0, 
-		     (scm_t_subr) set_colors_array_x);
-  scm_c_define_gsubr("set-texture-coords-array!", 1, 0, 0, 
-		     (scm_t_subr) set_texture_coords_array_x);
-  scm_c_define_gsubr("draw-faces!", 2, 0, 0, 
-		     (scm_t_subr) draw_faces_x);
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
 
+  EXPORT_PROCEDURE("push-matrix!", 0, 0, 0, push_matrix_x);
+  EXPORT_PROCEDURE("pop-matrix!", 0, 0, 0, pop_matrix_x);
+  EXPORT_PROCEDURE("translate-view!", 1, 0, 0, translate_view_x);
+  EXPORT_PROCEDURE("rotate-view!", 1, 0, 0, rotate_view_x);
+  EXPORT_PROCEDURE("set-viewport!", 4, 0, 0, set_viewport_x);
+  EXPORT_PROCEDURE("current-viewport", 0, 0, 0, current_viewport);
+  EXPORT_PROCEDURE("perspective-projection!", 1, 3, 0, 
+		      perspective_projection_x);
+  EXPORT_PROCEDURE("ortographic-projection!", 4, 2, 0, 
+		      ortographic_projection_x);
+  EXPORT_PROCEDURE("set-vertices-array!", 1, 0, 0, 
+		   set_vertices_array_x);
+  EXPORT_PROCEDURE("set-colors-array!", 1, 0, 0, 
+		      set_colors_array_x);
+  EXPORT_PROCEDURE("set-texture-coords-array!", 1, 0, 0, 
+		      set_texture_coords_array_x);
+  EXPORT_PROCEDURE("draw-faces!", 2, 0, 0, draw_faces_x);
+
+#undef EXPORT_PROCEDURE
 }
 
 extern "C" void

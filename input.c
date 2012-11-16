@@ -229,7 +229,6 @@ bind_keyup(SCM key, SCM function) {
   return SCM_UNSPECIFIED;
 }
 
-
 SCM 
 bind_mousemove(SCM function) {
   WARN("function should check for arity of its argument");
@@ -281,27 +280,23 @@ mousemove_binding(SCM type) {
 
 static inline void 
 export_functions() {
-  scm_c_define_gsubr("handle-input", 0, 0, 0, 
-		     (scm_t_subr) input_handle_events);
-  scm_c_define_gsubr("grab-input", 0, 1, 0, 
-		     (scm_t_subr) input_grab);
-  scm_c_define_gsubr("keydn", 2, 0, 0, 
-		     (scm_t_subr) bind_keydown);
-  scm_c_define_gsubr("keyup", 2, 0, 0, 
-		     (scm_t_subr) bind_keyup);
-  scm_c_define_gsubr("mousemove", 1, 0, 0, 
-		     (scm_t_subr) bind_mousemove);  
-  scm_c_define_gsubr("input-mode", 0, 1, 0, 
-		     (scm_t_subr) input_mode_x);
-  scm_c_define_gsubr("key-bindings", 1, 0, 0, 
-		     (scm_t_subr) key_bindings);
-  scm_c_define_gsubr("mousemove-binding", 0, 0, 0, 
-		     (scm_t_subr) mousemove_binding);
-  scm_c_define_gsubr("get-ticks", 0, 0, 0, get_ticks);
-  scm_c_define_gsubr("generate-userevent", 0, 3, 0, 
-		     (scm_t_subr) generate_userevent);
-  scm_c_define_gsubr("register-userevent", 1, 0, 0, 
-		     (scm_t_subr) register_userevent);
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc);\
+  scm_c_export(name,NULL);
+
+  EXPORT_PROCEDURE("handle-input", 0, 0, 0, input_handle_events);
+  EXPORT_PROCEDURE("grab-input", 0, 1, 0, input_grab);
+  EXPORT_PROCEDURE("keydn", 2, 0, 0, bind_keydown);
+  EXPORT_PROCEDURE("keyup", 2, 0, 0, bind_keyup);
+  EXPORT_PROCEDURE("mousemove", 1, 0, 0, bind_mousemove);  
+  EXPORT_PROCEDURE("input-mode", 0, 1, 0, input_mode_x);
+  EXPORT_PROCEDURE("key-bindings", 1, 0, 0, key_bindings);
+  EXPORT_PROCEDURE("mousemove-binding", 0, 0, 0, mousemove_binding);
+  EXPORT_PROCEDURE("get-ticks", 0, 0, 0, get_ticks);
+  EXPORT_PROCEDURE("generate-userevent", 0, 3, 0, generate_userevent);
+  EXPORT_PROCEDURE("register-userevent", 1, 0, 0, register_userevent);
+
+#undef EXPORT_PROCEDURE
 }
 
 
@@ -327,9 +322,6 @@ input_init() {
 
   build_keymap();
   export_functions();
-
-  //  scm_c_define_gsubr("keydown", 2, 0, 0, (SCM(*)()) bind_keydown);
-  //  scm_c_define_gsubr("keyup", 2, 0, 0, (SCM(*)()) bind_keyup);
 
   input_mode_direct();
 }

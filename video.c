@@ -82,17 +82,17 @@ set_display_procedure_x(SCM procedure) {
 
 static void 
 export_symbols() {
-  scm_c_define_gsubr("set-caption!", 1, 0, 0, 
-		     (scm_t_subr) set_caption); 
-  scm_c_define_gsubr("clear-screen", 0, 0, 0, 
-		     (scm_t_subr) clear_screen);
-  scm_c_define_gsubr("wipe-screen", 0, 0, 0, 
-		     (scm_t_subr) wipe_screen);
-  scm_c_define_gsubr("flip-screen", 0, 0, 0, 
-		     (scm_t_subr) flip_screen);
-  scm_c_define_gsubr("set-display-procedure!", 1, 0, 0, 
-		     (scm_t_subr) set_display_procedure_x);
-  
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
+
+  EXPORT_PROCEDURE("set-caption!", 1, 0, 0, set_caption); 
+  EXPORT_PROCEDURE("clear-screen", 0, 0, 0, clear_screen);
+  EXPORT_PROCEDURE("wipe-screen", 0, 0, 0, wipe_screen);
+  EXPORT_PROCEDURE("flip-screen", 0, 0, 0, flip_screen);
+  EXPORT_PROCEDURE("set-display-procedure!", 1, 0, 0, 
+		   set_display_procedure_x);
+#undef EXPORT_PROCEDURE
 }
 
 void

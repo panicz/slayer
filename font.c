@@ -110,14 +110,16 @@ font_line_skip(SCM font) {
 
 static void 
 export_functions() {
-  scm_c_define_gsubr("load-font", 2, 0, 0, 
-		     (scm_t_subr) load_font);
-  scm_c_define_gsubr("render-text", 2, 2, 0, 
-		     (scm_t_subr) render_text);
-  scm_c_define_gsubr("set-font-style!", 2, 0, 0, 
-		     (scm_t_subr) set_font_style);
-  scm_c_define_gsubr("font-line-skip", 1, 0, 0, 
-		     (scm_t_subr) font_line_skip);
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
+
+  EXPORT_PROCEDURE("load-font", 2, 0, 0, load_font);
+  EXPORT_PROCEDURE("render-text", 2, 2, 0, render_text);
+  EXPORT_PROCEDURE("set-font-style!", 2, 0, 0, set_font_style);
+  EXPORT_PROCEDURE("font-line-skip", 1, 0, 0, font_line_skip);
+
+#undef EXPORT_PROCEDURE
 }
 
 void 

@@ -94,8 +94,13 @@ typedef struct {
 
 static void
 export_symbols() {
-  scm_c_define_gsubr("set-exit-procedure!", 1, 0, 0, 
-		     (scm_t_subr) set_exit_procedure_x); 
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc)	    \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
+  
+  EXPORT_PROCEDURE("set-exit-procedure!", 1, 0, 0, 
+		   set_exit_procedure_x);
+#undef EXPORT_PROCEDURE
 }
 
 static void 
