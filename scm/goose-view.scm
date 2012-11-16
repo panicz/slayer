@@ -8,9 +8,10 @@
   #;(mutex #:init-thunk make-mutex)
   (protocol #:init-thunk make-hash-table)
   (type-hash #:init-thunk make-hash-table)
+  
   ;; type-hash contains a hash whose keys are type-names (symbols)
   ;; and values are GOOPS types, thus making it closer
-
+  ;; 
   ;; the keywords the class is meant to be
   ;; initialized with:
   ;;   #:address "nu.mb.e.r:port"
@@ -24,8 +25,8 @@
   (let-keywords args 
       #t
       ((address "127.0.0.1:41337")
-       (username "anonymous") ;; currently these are dismissed
-       (password "")
+       (username 'panicz) ;; currently these are dismissed
+       (password 'k0byl4)
        (types '()))
     (for (name type) in types 
 	 (hash-set! #[this 'type-hash] name type))
@@ -37,23 +38,34 @@
 	  (buffer (make-bytevector 1024)))
       (set! #[this 'socket.address] (cons socket address))
       (set! #[this 'protocol] protocol)
+      (sendto socket (with-output-to-utf8 
+		      (\ display `(login ,username ,password)))
+	      address)
+      (sendto socket (string->utf8 "(join)") address)
       (let ((code (register-userevent ; this code is executed 
 		   (lambda (data socket.address) ; by the main thread
 		     #;(lock-mutex mutex)
-		     (match-let (((socket . address) socket.address)
-				 ((proc . args) 
-				  (with-input-from-string data read)))
-		       (let ((result (apply #[protocol proc] args)))
-			 (if (not (unspecified? result))
-			     (sendto socket
-				     (with-output-to-utf8 
-				      (\ write result))
-				     address))))
+		     (begin
+		       (display `(received ,data) *stdout*)
+		       (newline))
+		     (match-let (((socket . address) socket.address))
+		       (match (with-input-from-string data read)
+			 ((proc args ...)
+			  (let ((result (apply #[protocol proc] args)))
+			    (if (not (unspecified? result))
+				(sendto socket
+					(with-output-to-utf8 
+					 (\ write result))
+					address))))
+			 (else
+			  (display `(ignoring ,else) *stdout*))))
 		     #;(unlock-mutex mutex)))))
 	(call-with-new-thread 
 	 (lambda ()
 	   (while #t
 	     (match-let (((nread . address)(recvfrom! socket buffer)))
+	       #;(begin (display `(received ,(utf8->string buffer))
+			       *stdout*) (newline))
 	       (generate-userevent 
 		code 
 		(substring (utf8->string buffer) 0 nread) 
@@ -67,6 +79,7 @@
   (set! #[this 'objects] (hash-map->list 
 			  (lambda (key value) value) 
 			  #[this : 'protocol : 'objects]))
+  (display #[this 'objects])(newline)
   (next-method)
   #;(unlock-mutex #[this 'mutex]))
 
