@@ -21,4 +21,14 @@
 	    render-text
 	    set-font-style!
 	    font-line-skip
+	    ;; input.c
+	    handle-input
+	    grab-input
+	    keydn keyup mousemove
+	    input-mode
+	    key-bindings
+	    mousemove-binding
+	    get-ticks
+	    generate-userevent
+	    register-userevent
 	    ))
