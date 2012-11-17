@@ -11,14 +11,27 @@
 (add-child! *stage* (make-image ku 75 25))
 
 (define 3d-object #f)
+
 (define 3d-camera #f)
+
+(load "game.scm")
+
 (if (defined? '<3d-view>)
     (begin 
       (set! 3d-object (make <3d-mesh>))
-      (let ((view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400)))
+      (let ((view (make <3d-view> #:x 50 #:y 50 #:w 260 #:h 400)))
 	(add-child! *stage* view)
 	(set! 3d-camera #[view 'camera])
 	(add-object! view 3d-object))))
+
+(if (defined? '<goose-view>)
+    (begin
+      (let ((gv (make <goose-view> #:x 320 #:y 50 #:w 260 #:h 400 
+		      #:address "127.0.0.1:41337"
+		      #:types (export-types <player>)
+		      )))
+	(add-child! *stage* gv))
+      ))
 
 (add-child! *stage* (make-text-area))
 

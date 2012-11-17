@@ -30,6 +30,7 @@
 (define (step!)
   (set! current-step (bitwise-and #xffff (+ current-step 1))))
 
+
 (define-protocol-generator (kutasa-protocol connection)
   ((username #f)
    (player #f)
@@ -77,6 +78,8 @@
     (set! *logged-users*
 	  (remove (\ equal? _ username) *logged-users*)))))
 
+
+
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
   (let ((server-cycle 
@@ -91,15 +94,22 @@
 			 ;(display object)
 			 object)
 		       *world*))
-	    (newline))
+	    #;(newline))
 	  (lambda (sock addr proto)
-	    (for object in (#[proto 'owned-objects])
-		 (for object in (objects-visible-to object)
-		      (let ((message 
-			     (with-output-to-utf8
-			      (\ display `(set-slots! 
-					   ,#[object 'id] 
-					   ,@(state-of object))))))
-			(sendto sock message addr)))))
+	    (let ((owned-objects (#[proto 'owned-objects])))
+	      (for owned-object in owned-objects
+		   (for object in (objects-visible-to owned-object)
+			(let ((message 
+			       (with-output-to-utf8
+				(\ display `(set-slots! 
+					     ,#[object 'id] 
+					     ,@(let ((s (state-of object)))
+						 (if (in? object owned-objects) 
+						     s
+						     (lset-difference 
+						      (lambda (a b) 
+							(equal? (first a) b))
+						      s #[object 'private-slots]))))))))
+			(sendto sock message addr))))))
 	  0.3)))
     (while #t (server-cycle))))

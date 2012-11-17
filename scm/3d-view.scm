@@ -1,6 +1,13 @@
 (use-modules (extra math)
 	     (extra 3d))
 
+(load "game.scm")
+
+(define-method (initialize (mesh <3d-mesh>) args)
+  (next-method)
+  (display "initializing mesh\n")
+  (set! #[mesh 'mesh] (with-input-from-file "3d/cube.3d" read)))
+
 (define (draw-mesh mesh)
   (match mesh
     (('mesh . definition)
@@ -17,8 +24,7 @@
 	       definition))
     (else
      (display `(no-match ,else)))))
-		 
-  
+
 (define-method (draw (object <3d-mesh>))
   (push-matrix!)
   (translate-view! #[object 'position])

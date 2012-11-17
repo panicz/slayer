@@ -19,15 +19,16 @@
 (define-class <goose> ()
   (owners #:init-value #f #:init-keyword #:owners)
   (context #:init-value #f) ; the subspace to which it belongs
-  (private-slots #:init-value '())
+  (private-slots #:init-value '()) ; slots visible only to the owners
+  (client-slots #:init-value '())
   (id #:init-thunk (\ gensym "g-")))
 
 (define (state-of object)
-  (map (match-lambda ((slot . rest)
-		      (list slot #[object slot])))
-       (lset-difference equal? 
-	 (class-slots (class-of object))
-	 (class-slots <goose>))))
+  (map (lambda (slot) (list slot #[object slot]))
+       (lset-difference equal?
+			(map first (class-slots (class-of object)))
+			(map first (class-slots <goose>))
+			#[object 'client-slots])))
 
 (define-method (objects-visible-to object)
   (list object))

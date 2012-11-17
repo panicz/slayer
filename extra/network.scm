@@ -67,7 +67,8 @@
 		       (object (make type)))
 	      (for (name value) in slots
 		   (slot-set! object name value))
-	      (set! #[objects id] object))))
+	      (if (not (set! #[objects id] object)) ; this is needed,
+		  #f)))) ; because hash-set returns the object
     (set! #[protocol remove-symbol]
 	  (lambda (id)
 	    (hash-remove! objects id)))
@@ -83,12 +84,18 @@
   (match-let* (((numread . address) (recvfrom! socket buffer))
 	       (data (substring (utf8->string buffer) 0 numread))
 	       (client-env (hash-ref clients address)))
+    (begin
+      (display `(received ,data from ,address))
+      (newline))
+
     (cond ((and (not client-env) handle-new-client)
 	   (set! client-env (handle-new-client address))
+	   (begin (display `(a new client connected from ,address))
+		  (newline))
 	   (if client-env
 	       (hash-set! clients address client-env))))
     (if (and client-env address)
-	(and-let* ((packet (safely (read (open-input-string data)))))
+	(and-let*((packet(safely(with-input-from-string data read))))
 	  (match packet
 	    ((proc . args)
 	     (let ((result (safely (apply (hash-ref client-env proc) 
@@ -138,10 +145,11 @@
 	   (let* bindings
 	     (hash-set! protocol-name (quote fname)
 			(proc (arg ...) 
-			      (display `(received (fname arg ...)
-						  from
-						  ,client-address))
-			      (newline)
+			      #;(begin 
+				(display `(received (fname arg ...)
+						    from
+						    ,client-address))
+				(newline))
 			      body ...))
 	     ...)
 	   protocol-name))))))

@@ -21,5 +21,5 @@
   (shape #:init-value '()))
 
 (define-class <3d-mesh> (<3d-shape>)
-  (mesh #:init-thunk 
-	(\ with-input-from-file "3d/cube.3d" read)))
+  (mesh #:init-value '() 
+	#;(\ with-input-from-file "3d/cube.3d" read)))
