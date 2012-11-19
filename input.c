@@ -54,8 +54,15 @@ activeevent_handler(SDL_Event *e) {
 static SCM 
 keydown_handler(SDL_Event *e) {
   SCM handler = keydown[e->key.keysym.sym];
-  if(is_scm_procedure(handler))
+  /*
+  WARN_UPTO(12, "%s (%d) has been pressed", 
+	    scm_to_locale_string(scm_c_vector_ref(key_names,
+						  e->key.keysym.sym)),
+	    e->key.keysym.sym);
+  */
+  if(is_scm_procedure(handler)) {
     return scm_call_0(handler);
+  }
   return SCM_UNSPECIFIED;
 }
 
@@ -348,7 +355,7 @@ input_handle_events() {
     while(SDL_PollEvent(&event)) {
       ++i;
       if(input_mode == DIRECT_MODE) {
-        (*event_handler[event.type])(&event);
+	(*event_handler[event.type])(&event);
       } else if(input_mode == TYPING_MODE) {
 	switch(event.type) {
 	case SDL_KEYUP:
