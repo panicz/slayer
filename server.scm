@@ -4,7 +4,7 @@
 
 (use-modules 
  (oop goops)
- (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) 
+ (srfi srfi-1) (srfi srfi-2) (srfi srfi-11)
  (ice-9 match) (ice-9 format) (ice-9 optargs) 
  (ice-9 pretty-print) (ice-9 local-eval) (ice-9 regex)
  (ice-9 session)
@@ -44,6 +44,17 @@
 	  (set! *logged-users* (cons name *logged-users*))
 	  #t)
 	#f))
+   ((request number message)
+    (match message
+      (((? symbol? fn) args ...)
+       (let ((result (and-let* ((fn #[kutasa-protocol fn])
+				((procedure? fn)))
+		       (safely (apply fn args)))))
+	 `(response ,number ,(if (unspecified? result)
+				'unspecified
+				result))))
+      (else
+       `(response ,number ,else))))
    ((join)
     (if username
 	(begin
@@ -79,7 +90,6 @@
 	  (remove (\ equal? _ username) *logged-users*)))))
 
 
-
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
   (let ((server-cycle 
@@ -97,19 +107,22 @@
 	    #;(newline))
 	  (lambda (sock addr proto)
 	    (let ((owned-objects (#[proto 'owned-objects])))
-	      (for owned-object in owned-objects
-		   (for object in (objects-visible-to owned-object)
+	      (for actor in owned-objects
+		   (for object in (objects-visible-to actor)
+			;(display object)(newline)
 			(let ((message 
 			       (with-output-to-utf8
-				(\ display `(set-slots! 
-					     ,#[object 'id] 
-					     ,@(let ((s (state-of object)))
-						 (if (in? object owned-objects) 
-						     s
-						     (lset-difference 
-						      (lambda (a b) 
-							(equal? (first a) b))
-						      s #[object 'private-slots]))))))))
-			(sendto sock message addr))))))
+				(\ display 
+				 `(set-slots! 
+				   ,#[object 'id]
+				   ,@(state-of
+				      object
+				      (in? object 
+					   owned-objects)))))))
+			  (sendto sock message addr)
+			  (display `(sending
+				     ,(utf8->string message)))
+			  (newline)
+			  )))))
 	  0.3)))
     (while #t (server-cycle))))

@@ -8,7 +8,8 @@
   #;(mutex #:init-thunk make-mutex)
   (protocol #:init-thunk make-hash-table)
   (type-hash #:init-thunk make-hash-table)
-  
+  (receive #:init-value noop) ; this is a procedure called
+  ;; when a packet is received
   ;; type-hash contains a hash whose keys are type-names (symbols)
   ;; and values are GOOPS types, thus making it closer
   ;; 
@@ -24,9 +25,7 @@
   (next-method)
   (let-keywords args 
       #t
-      ((address "127.0.0.1:41337")
-       (username 'panicz) ;; currently these are dismissed
-       (password 'k0byl4)
+      ((address "127.0.0.1:41337")(username 'panicz)(password 'k0byl4)
        (types '()))
     (for (name type) in types 
 	 (hash-set! #[this 'type-hash] name type))
@@ -51,7 +50,7 @@
 		     (match-let (((socket . address) socket.address))
 		       (match (with-input-from-string data read)
 			 ((proc args ...)
-			  (let ((result (apply #[protocol proc] args)))
+			  (let ((result(apply #[protocol proc] args)))
 			    (if (not (unspecified? result))
 				(sendto socket
 					(with-output-to-utf8 
@@ -72,6 +71,17 @@
 		(cons socket address))))))
 	this))))
 
+(define-method (request (gate <goose-client>) content handler)
+  (match-let (((socket . address) #[gate 'socket.address])
+	      (requests #[#[gate 'protocol] 'requests])
+	      (request-id (gensym "r-")))
+    (set! #[requests request-id] handler)
+    (display `(sending (request ,request-id ,content)))
+    (newline)
+    (sendto socket (with-output-to-utf8 
+		    (\ display `(request ,request-id ,content)))
+	    address)))
+
 (define-class <goose-view> (<3d-view> <goose-client>))
 
 (define-method (draw (this <goose-view>))
@@ -79,9 +89,8 @@
   (set! #[this 'objects] (hash-map->list 
 			  (lambda (key value) value) 
 			  #[this : 'protocol : 'objects]))
-  (display #[this 'objects])(newline)
+  #;(begin(display #[this 'objects])(newline))
   (next-method)
   #;(unlock-mutex #[this 'mutex]))
-
 
 (display "loaded goose.scm\n")

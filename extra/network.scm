@@ -52,26 +52,46 @@
 (define* (make-client-protocol typehash #:key (add-symbol 'add!) 
 			       (remove-symbol 'remove!) 
 			       (set-slots-symbol 'set-slots!)
+			       (response-symbol 'response)
+			       (requests-symbol 'requests)
 			       (objects-symbol 'objects))
   (let ((protocol (make-hash-table))
-	(objects (make-hash-table)))
+	(objects (make-hash-table))
+	(requests (make-hash-table)))
     (set! #[protocol objects-symbol] objects)
+    (set! #[protocol requests-symbol] requests)
     (set! #[protocol set-slots-symbol]
 	  (lambda (id . slots)
-	    (and-let* ((object #[objects id]))
-	      (for (name value) in slots
-		   (slot-set! object name value)))))
+	    (or (and-let* ((object #[objects id]))
+		  (for (name value) in slots
+		       (slot-set! object name value)))
+		(begin 
+		  (display `(failed to set slots of object ,id))
+		  (newline)))))
     (set! #[protocol add-symbol]
 	  (lambda (type id . slots)
-	    (and-let* ((type #[typehash type])
-		       (object (make type)))
-	      (for (name value) in slots
-		   (slot-set! object name value))
-	      (if (not (set! #[objects id] object)) ; this is needed,
-		  #f)))) ; because hash-set returns the object
+	    (or (and-let* ((type #[typehash type])
+			   (object (make type)))
+		  (for (name value) in slots
+		       (slot-set! object name value))
+		  (set! #[objects id] object)
+		  (if #f #f))
+		(begin 
+		  (display `(unknown type ,type))
+		  (newline)))))
     (set! #[protocol remove-symbol]
 	  (lambda (id)
 	    (hash-remove! objects id)))
+    (set! #[protocol response-symbol]
+	  (lambda (request-id . data)
+	    (or (and-let* ((request #[requests request-id])
+			   ((procedure? request)))
+		  (safely (apply request data))
+		  (hash-remove! requests request-id)
+		  (if #f #f))
+		(begin 
+		  (display `(invalid request ,request-id))
+		  (newline)))))
     protocol))
 
 (define (input-available socket seconds)
@@ -97,9 +117,8 @@
     (if (and client-env address)
 	(and-let*((packet(safely(with-input-from-string data read))))
 	  (match packet
-	    ((proc . args)
-	     (let ((result (safely (apply (hash-ref client-env proc) 
-					  args))))
+	    ((fn args ...)
+	     (let ((result (safely (apply #[client-env fn] args))))
 	       (if (not (unspecified? result))
 		   (begin
 		     (display `(sending ,result to ,address))
@@ -146,10 +165,8 @@
 	     (hash-set! protocol-name (quote fname)
 			(proc (arg ...) 
 			      #;(begin 
-				(display `(received (fname arg ...)
-						    from
-						    ,client-address))
-				(newline))
+			      (display `(received (fname arg ...) from ,client-address))
+			      (newline))
 			      body ...))
 	     ...)
 	   protocol-name))))))
@@ -159,7 +176,7 @@
 		     (clients <hashtable>) 
 		     (register-protocol <procedure>)
 		     (update-world <procedure> #;obj->obj)
-		     (respond <procedure> #;sock,addr,pr->?)
+		     (broadcast <procedure> #;sock,addr,pr->?)
 		     (period <seconds>))
   (let ((ticks (seconds->ticks period)))
     (lambda ()
@@ -167,7 +184,7 @@
 		      (seconds->ticks period))
       (update-world)
       (for-each (match-lambda ((address . protocol)
-			       (respond socket address protocol)))
+			       (broadcast socket address protocol)))
 		(hash-map->list cons clients)))))
 
 
