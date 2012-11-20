@@ -3,6 +3,7 @@
   #:export (
 	    class-tree-append-map
 	    class-names+classes
+	    make*
 	    ))
 
 (define (class-tree-append-map f root)
@@ -16,3 +17,10 @@
 	 `((,(class-name class) ,class))
 	 '()))
    root))
+
+(define (make* class . args)
+  (let ((object (make class)))
+    (apply for-each (lambda(key value)
+		      (slot-set! object (keyword->symbol key) value))
+	   (apply map list (map-n list args 2)))
+    object))
