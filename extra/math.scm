@@ -9,6 +9,7 @@
   :export (eye transpose 
 	   rows columns row column
 	   matrix->vector vector->matrix
+	   vectors->matrix
 	   dot norm square project
 	   normalize! normalized
 	   det3x3 inv3x3 wedge3x3 crossm3x3
@@ -98,14 +99,21 @@
   (cadr (array-dimensions a)))
 
 (define (row a i) 
-  (make-shared-array a (lambda (x) (list i x)) (list 0 (1- (columns a)))))
+  (make-shared-array 
+   a 
+   (lambda (x) (list i x)) 
+   (list 0 (1- (columns a)))))
 
 (define (column a i) 
-  (make-shared-array a (lambda (x) (list x i)) (list 0 (1- (rows a)))))
+  (make-shared-array 
+   a 
+   (lambda (x) (list x i)) 
+   (list 0 (1- (rows a)))))
 
 (define (dot a b) 
   (let ((sum 0))
-    (array-for-each (lambda(x y) (set! sum (+ sum (* x y)))) a b)
+    (array-for-each 
+     (lambda(x y) (set! sum (+ sum (* x y)))) a b)
     sum))
 
 (define (square v)
@@ -120,7 +128,7 @@
 
 (define (normalized v)
   (let ((lv (norm v))
-	(u (apply make-typed-array (array-type v) *unspecified* 
+	(u (apply make-typed-array (array-type v) (if #f #f) 
 		  (array-dimensions v))))
     (array-map! u (lambda(x)(/ x lv)) v)
     u))
@@ -134,12 +142,16 @@
   (assert (= (columns a) (rows b)))
   (let ((result (make-typed-array (array-type a) (if #f #f) 
 				  (rows a) (columns b))))
-    (array-index-map! result (lambda(i j)(dot (column b j) (row a i))))
+    (array-index-map! 
+     result 
+     (lambda(i j)(dot (column b j) (row a i))))
     result))
 
 (define (vector->matrix v)
-  (let* ((vector-length (if (uniform-vector? v) 
-			    uniform-vector-length vector-length))
+  (let* ((vector-length 
+	  (if (uniform-vector? v) 
+	      uniform-vector-length 
+	      vector-length))
 	 (vl (vector-length v)))
     (make-shared-array v (lambda(i j)(list i)) vl 1)))
 
@@ -147,6 +159,12 @@
   (cond ((= (columns V) 1) (column V 0))
 	((= (rows V) 1) (row V 0))
 	(#t (error "unable to convert matrix to vector" V))))
+
+(define (vectors->matrix . vectors)
+  (transpose 
+   (apply array-append 
+	  (map transpose 
+	       (map vector->matrix vectors)))))
 
 (define (matrix-vector-mul M v)
   (matrix-mul2 M (vector->matrix v)))
@@ -242,10 +260,10 @@
   (apply matrix-mul m1 (cons m2 rest)))
 
 (define-method (+ (p <point>) . rest)
-  (apply array-map + p rest))
+  (apply array-map add p rest))
 
 (define-method (- (p <point>) . rest)
-  (apply array-map - p rest))
+  (apply array-map subtract p rest))
 
 ; this has to be added to support unary minus, as guile probably 
 ; implements it like as (define (- (first <number>)) (- 0 first)) ...
