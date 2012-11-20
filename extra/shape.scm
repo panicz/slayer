@@ -16,7 +16,6 @@
    <plane>
    <line>
    <sphere>
-   <triangle>
    <segment>
    <capsule>
    <complex-shape>
@@ -55,15 +54,12 @@
   (displacement #:init-keyword #:displacement)) ; scalar
 
 (define-class <sphere> (<basic-shape>)
-  (position #:init-value #(0 0 0))
+  (position #:init-value #f32(0 0 0))
   (radius #:init-value 1))
 
 (define-class <line> (<basic-shape>)
   direction ; vector
   displacement) ; vector
-
-(define-class <triangle> (<basic-shape>)
-  (vertices #:init-value #(#(1 0 0) #(0 1 0) #(0 0 1))))
 
 (define-class <segment> (<basic-shape>)
   (a #:init-value #f32(1 -1 0))
@@ -108,10 +104,6 @@
     (make* <plane>  #:normal (* normal 1/norm) 
 	   #:displacement (* distance 1/norm))))
 
-(define-method (plane (t <triangle>))
-    (let ((v (t 'vertices)))
-      (plane #[v 0] #[v 1] #[v 2])))
-
 (define (project-onto-line l x)
   (+ (* x #[l 'direction]) #[l 'displacement]))
 
@@ -155,27 +147,26 @@
 
 (define-generic distance)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;      1        2        3        4        5        6        7
-;1<pt>|<pt><pt>|<pt><pl>|<pt><ln>|<pt><sp>|<pt><tr>|<pt><sg>|<pt><cp>|
-;2<pl>         |<pl><pl>|<pl><ln>|<pl><sp>|<pl><tr>|<pl><sg>|<pl><cp>|
-;3<ln>                  |<ln><ln>|<ln><sp>|<ln><tr>|<ln><sg>|<ln><cp>|
-;4<sp>                           |<sp><sp>|<sp><tr>|<sp><sg>|<sp><cp>|
-;5<tr>                                    |<tr><tr>|<tr><sg>|<tr><cp>|
-;6<sg>                                             |<sg><sg>|<sg><cp>|
-;7<cp> 28!                                                  |<cp><cp>|
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; For 7 primitives there are 28 symmetric methods (49 actual methods)
-;; to check the distance between them: 
-;;  +1. <pt><pt>     +8. <pl><sp>     15. <tr><tr>     22. <pt><cp>
-;;  +2. <pt><pl>      9. <ln><sp>     16. <pt><sg>     23. <pl><cp>
-;;   3. <pl><pl>    +10. <sp><sp>    +17. <pl><sg>     24. <ln><cp>
-;;  +4. <pt><ln>     11. <pt><tr>     18. <ln><sg>     25. <sp><cp>
-;;   5. <pl><ln>     12. <pl><tr>     19. <sp><sg>     26. <tr><cp>
-;;   6. <ln><ln>     13. <ln><tr>     20. <tr><sg>     27. <sg><cp>
-;;  +7. <pt><sp>     14. <sp><tr>    +21. <sg><sg>    +28. <cp><cp>
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;      1        2        3        4        5        6 
+;1 <pt>|<pt><pt>|<pt><pl>|<pt><ln>|<pt><sp>|<pt><sg>|<pt><cp>|
+;2 <pl>         |<pl><pl>|<pl><ln>|<pl><sp>|<pl><sg>|<pl><cp>|
+;3 <ln>                  |<ln><ln>|<ln><sp>|<ln><sg>|<ln><cp>|
+;4 <sp>                           |<sp><sp>|<sp><sg>|<sp><cp>|
+;5 <sg>                                    |<sg><sg>|<sg><cp>|
+;6 <cp>                                             |<cp><cp>|
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; For 6 primitives there are 21 symmetric methods (36 actual 
+;; methods) to check the distance between them: 
+;;  +1. <pt><pt>     +8. <pl><sp>    +15. <sg><sg>
+;;  +2. <pt><pl>     +9. <ln><sp>     16. <pt><cp>
+;;  +3. <pl><pl>    +10. <sp><sp>     17. <pl><cp>
+;;  +4. <pt><ln>     11. <pt><sg>     18. <ln><cp>
+;;   5. <pl><ln>    +12. <pl><sg>     19. <sp><cp>
+;;   6. <ln><ln>     13. <ln><sg>     20. <sg><cp>
+;;  +7. <pt><sp>     14. <sp><sg>    +21. <cp><cp>
 
-;;  1. <pt><pt>               
+;;  1. <pt><pt>       
 (define-method (distance (p1 <point>) (p2 <point>))
   (norm (- p1 p2)))
 
@@ -185,7 +176,9 @@
 
 ;;  3. <pl><pl>
 (define-method (distance (p1 <plane>) (p2 <plane>))
-  (throw 'not-implemented))
+  (if (< (abs (* #[p1 'normal] #[p2 'normal])) #[tolerance])
+      (abs (- #[p1 'displacement] #[p2 'displacement]))
+      0.0))
 
 ;;  4. <pt><ln> 
 (define-symmetric-method (distance (p <point>) (l <line>))
@@ -210,6 +203,8 @@
 
 ;;  9. <ln><sp>
 (define-symmetric-method (distance (l <line>) (s <sphere>))
+  (- (distance #[s 'position] l) #[s 'radius]))
+
   (throw 'not-implemented))
 
 ;; 10. <sp><sp>
@@ -217,47 +212,23 @@
     (- (distance #[s1 'position] #[s2 'position]) 
        #[s1 'radius] #[s2 'radius]))
 
-;; 11. <pt><tr>
-(define-symmetric-method (distance (p <point>) (t <triangle>))
+;; 11. <pt><sg>
+(define-symmetric-method (distance (p <point>) (s <segment>))
   (throw 'not-implemented))
 
-;; 12. <pl><tr>
-(define-symmetric-method (distance (P <plane>) (t <triangle>))
-  (throw 'not-implemented))
-
-;; 13. <ln><tr>
-(define-symmetric-method (distance (l <line>) (t <triangle>))
-  (throw 'not-implemented))
-
-;; 14. <sp><tr>
-(define-symmetric-method (distance (s <sphere>) (t <triangle>))
-  (throw 'not-implemented))
-
-;; 15. <tr><tr>
-(define-method (distance (t1 <triangle>) (t2 <triangle>))
-  (throw 'not-implemented))
-
-;; 16. <pt><sg>
-(define-symmetric-method (distance (p <sphere>) (t <triangle>))
-  (throw 'not-implemented))
-
-;; 17. <pl><sg>
+;; 12. <pl><sg>
 (define-symmetric-method (distance (p <plane>) (s <segment>))
   (min (distance p #[s 'a]) (distance p #[s 'b])))
 
-;; 18. <ln><sg>
+;; 13. <ln><sg>
 (define-symmetric-method (distance (l <line>) (s <segment>))
   (throw 'not-implemented))
 
-;; 19. <sp><sg>
+;; 14. <sp><sg>
 (define-symmetric-method (distance (s <sphere>) (g <segment>))
   (throw 'not-implemented))
 
-;; 20. <tr><sg>
-(define-symmetric-method (distance (t <triangle>) (s <segment>))
-  (throw 'not-implemented))
-
-;; 21. <sg><sg>
+;; 15. <sg><sg>
 (define-method (distance (s1 <segment>) (s2 <segment>))
   (let ((l1 (line #[s1 'a] #[s1 'b]))
 	(l2 (line #[s2 'a] #[s2 'b])))
@@ -279,30 +250,26 @@
 						 l2 l2p))
 					  '()))))))))
 
-;; 22. <pt><cp>
+;; 16. <pt><cp>
 (define-symmetric-method (distance (p <point>) (c <capsule>))
   (throw 'not-implemented))
 
-;; 23. <pl><cp>
+;; 17. <pl><cp>
 (define-symmetric-method (distance (p <plane>) (c <capsule>))
   (throw 'not-implemented))
 
-;; 24. <ln><cp>
+;; 18. <ln><cp>
 (define-symmetric-method (distance (l <line>) (c <capsule>))
   (throw 'not-implemented))
 
-;; 25. <sp><cp>
+;; 19. <sp><cp>
 (define-symmetric-method (distance (s <sphere>) (c <capsule>))
   (throw 'not-implemented))
 
-;; 26. <tr><cp>
-(define-symmetric-method (distance (t <triangle>) (c <capsule>))
-  (throw 'not-implemented))
-
-;; 27. <sg><cp>
+;; 20. <sg><cp>
 (define-symmetric-method (distance (s <segment>) (c <capsule>))
   (throw 'not-implemented))
 
-;; 28. <cp><cp>
+;; 21. <cp><cp>
 (define-method (distance (c1 <capsule>) (c2 <capsule>))
   (- (next-method) #[c1 'radius] #[c2 'radius]))
