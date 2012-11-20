@@ -59,14 +59,15 @@
 (define-class <goose> ()
   (owners #:init-value #f #:init-keyword #:owners)
   (context #:init-value #f) ; the subspace to which it belongs
-  (private-slots #:init-value '()) ; slots visible only to the owners
-  (client-slots #:init-value '())
+  (private-slots #:init-value '() #:allocation #:each-subclass) 
+  (client-slots #:init-value '() #:allocation #:each-subclass)
   (id #:init-value 0))
 
 (define-method (initialize (this <goose>) args)
   (next-method)
   (match-let (((type ... id)
-	       (with-input-from-string (with-output-to-string (\ display this)) read)))
+	       (with-input-from-string 
+		   (with-output-to-string (\ display this)) read)))
     (set! #[this 'id] id)))
 
 (define* (state-of object #:optional (owner #t))
@@ -76,8 +77,8 @@
 			(map first (class-slots <goose>))
 			#[object 'client-slots]
 			(if owner
-			    #[object 'private-slots]
-			    '()))))
+			    '()
+			    #[object 'private-slots]))))
 
 (define-method (objects-visible-to object)
   (list object))
