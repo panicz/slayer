@@ -14,6 +14,9 @@
   :export (
 	   objects-visible-to
 	   <goose>
+	   <goose-client>
+	   request
+	   command
 	   state-of
 	   ))
 
@@ -79,3 +82,35 @@
 (define-method (objects-visible-to object)
   (list object))
 
+(define-class <goose-client> ()
+  (socket.address #:init-value #f)
+  #;(mutex #:init-thunk make-mutex)
+  (protocol #:init-thunk make-hash-table)
+  (type-hash #:init-thunk make-hash-table)
+  (receive #:init-value noop) ; this is a procedure called
+  ;; when a packet is received
+  ;; type-hash contains a hash whose keys are type-names (symbols)
+  ;; and values are GOOPS types, thus making it closer
+  ;; 
+  ;; the keywords the class is meant to be
+  ;; initialized with:
+  ;;   #:address "nu.mb.e.r:port"
+  ;;   #:types '((typename type) ...)
+  ;;   #:username "name"
+  ;;   #:password "phrase"
+  )
+
+(define-method (request (gate <goose-client>) content handler)
+  (match-let (((socket . address) #[gate 'socket.address])
+	      (requests #[#[gate 'protocol] 'requests])
+	      (request-id (gensym "r-")))
+    (set! #[requests request-id] handler)
+    (sendto socket (with-output-to-utf8 
+		    (\ display `(request ,request-id ,content)))
+	    address)))
+
+(define-method (command (gate <goose-client>) content)
+  (match-let (((socket . address) #[gate 'socket.address]))
+    (sendto socket (with-output-to-utf8
+		    (\ display content))
+	    address)))

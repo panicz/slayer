@@ -41,14 +41,6 @@
 		       INADDR_LOOPBACK)))
       (cons address port))))
 
-(define (transmit recipent data)
-  (match-let (((socket . address) recipent))
-    (sendto socket data address)))
-
-(define (receive! sender  buffer)
-  (match-let (((socket . address) sender))
-    (recvfrom! socket buffer)))
-
 (define* (make-client-protocol typehash #:key (add-symbol 'add!) 
 			       (remove-symbol 'remove!) 
 			       (set-slots-symbol 'set-slots!)
