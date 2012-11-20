@@ -20,7 +20,8 @@
   "pass-ticks-left performs to-procedure until the given amount of internal-clock ticks passes. The operation is expected to take exactly one parameter -- the number of ticks for the loop to finish. Returns the number of additional ticks the loop took."
   (let ((initial-ticks (get-internal-real-time)))
     (let loop ((elapsed-ticks 0))
-      (let ((ticks-left (- until-how-many-ticks-elapsed elapsed-ticks)))
+      (let ((ticks-left (- until-how-many-ticks-elapsed 
+			   elapsed-ticks)))
 	(if (< 0 ticks-left)
 	    (begin
 	      (to-procedure ticks-left)

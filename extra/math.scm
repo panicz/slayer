@@ -120,22 +120,26 @@
 
 (define (normalized v)
   (let ((lv (norm v))
-	(u (apply make-typed-array (array-type v) *unspecified* (array-dimensions v))))
+	(u (apply make-typed-array (array-type v) *unspecified* 
+		  (array-dimensions v))))
     (array-map! u (lambda(x)(/ x lv)) v)
     u))
 
-(define* (project source #:optional destination #:key (onto destination)) ; project src onto dest
+(define* (project source #:optional destination 
+		  #:key (onto destination)) ; project src onto dest
   (let ((s (/ (dot source onto) (square onto))))
     (array-map (lambda(x)(* x s)) onto)))
 
 (define (matrix-mul2 a b)
   (assert (= (columns a) (rows b)))
-  (let ((result (make-typed-array (array-type a) *unspecified* (rows a) (columns b))))
+  (let ((result (make-typed-array (array-type a) (if #f #f) 
+				  (rows a) (columns b))))
     (array-index-map! result (lambda(i j)(dot (column b j) (row a i))))
     result))
 
 (define (vector->matrix v)
-  (let* ((vector-length (if (uniform-vector? v) uniform-vector-length vector-length))
+  (let* ((vector-length (if (uniform-vector? v) 
+			    uniform-vector-length vector-length))
 	 (vl (vector-length v)))
     (make-shared-array v (lambda(i j)(list i)) vl 1)))
 
@@ -163,9 +167,9 @@
 		     (and (uniform-vector? u) (uniform-vector? v)))
 		 (= (vector-length u) (vector-length v) 3)))
     (list->typed-array (array-type u) 1 
-		       (list (- (* #[u 1] #[v 2]) (* #[u 2] #[v 1]))
-			     (- (* #[u 2] #[v 0]) (* #[u 0] #[v 2]))
-			     (- (* #[u 0] #[v 1]) (* #[u 1] #[v 0]))))))
+		       (list (- (* #[u 1] #[v 2])(* #[u 2] #[v 1]))
+			     (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
+			     (- (* #[u 0] #[v 1])(* #[u 1] #[v 0]))))))
 
 (define (crossm3x3 v)
   (list->typed-array (array-type v) 2
@@ -179,17 +183,26 @@
     (if (not (= d 0))
 	(let ((1/M (make-typed-array (array-type M) *unspecified* 3 3))
 	      (1/d (/ 1 d)))
-	(set! #[1/M 0 0] (* 1/d (- (* #[M 1 1] #[M 2 2]) (* #[M 2 1] #[M 1 2]))))
-	(set! #[1/M 0 1] (* 1/d (- (* #[M 2 0] #[M 1 2]) (* #[M 1 0] #[M 2 2]))))
-	(set! #[1/M 0 2] (* 1/d (- (* #[M 1 0] #[M 2 1]) (* #[M 2 0] #[M 1 1]))))
+	(set! #[1/M 0 0] (* 1/d (- (* #[M 1 1] #[M 2 2]) 
+				   (* #[M 2 1] #[M 1 2]))))
+	(set! #[1/M 0 1] (* 1/d (- (* #[M 2 0] #[M 1 2]) 
+				   (* #[M 1 0] #[M 2 2]))))
+	(set! #[1/M 0 2] (* 1/d (- (* #[M 1 0] #[M 2 1]) 
+				   (* #[M 2 0] #[M 1 1]))))
 	;;
-	(set! #[1/M 1 0] (* 1/d (- (* #[M 2 1] #[M 0 2]) (* #[M 0 1] #[M 2 2]))))
-	(set! #[1/M 1 1] (* 1/d (- (* #[M 0 0] #[M 2 2]) (* #[M 2 0] #[M 0 2]))))
-	(set! #[1/M 1 2] (* 1/d (- (* #[M 2 0] #[M 0 1]) (* #[M 0 0] #[M 2 1]))))
+	(set! #[1/M 1 0] (* 1/d (- (* #[M 2 1] #[M 0 2]) 
+				   (* #[M 0 1] #[M 2 2]))))
+	(set! #[1/M 1 1] (* 1/d (- (* #[M 0 0] #[M 2 2]) 
+				   (* #[M 2 0] #[M 0 2]))))
+	(set! #[1/M 1 2] (* 1/d (- (* #[M 2 0] #[M 0 1]) 
+				   (* #[M 0 0] #[M 2 1]))))
 	;;
-	(set! #[1/M 2 0] (* 1/d (- (* #[M 0 1] #[M 1 2]) (* #[M 1 1] #[M 0 2]))))
-	(set! #[1/M 2 1] (* 1/d (- (* #[M 1 0] #[M 0 2]) (* #[M 0 0] #[M 1 2]))))
-	(set! #[1/M 2 2] (* 1/d (- (* #[M 0 0] #[M 1 1]) (* #[M 1 0] #[M 0 1]))))
+	(set! #[1/M 2 0] (* 1/d (- (* #[M 0 1] #[M 1 2]) 
+				   (* #[M 1 1] #[M 0 2]))))
+	(set! #[1/M 2 1] (* 1/d (- (* #[M 1 0] #[M 0 2]) 
+				   (* #[M 0 0] #[M 1 2]))))
+	(set! #[1/M 2 2] (* 1/d (- (* #[M 0 0] #[M 1 1]) 
+				   (* #[M 1 0] #[M 0 1]))))
 	;;
 	(transpose 1/M)))))
 

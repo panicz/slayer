@@ -28,7 +28,8 @@
     (((or 'lambda 'lambda*) arg body ...)
      (cond
       ((or (pair? arg) (list? arg))
-       (diff (append-map used-variables body) (filter-map argument-name (properize arg))))
+       (diff (append-map used-variables body) 
+	     (filter-map argument-name (properize arg))))
       ((symbol? arg)
        (diff (append-map used-variables body) (list arg)))))
     #;(((or 'define 'define*) (name ...) body ...)
@@ -36,14 +37,19 @@
     (('define name value)
      (used-variables value))
     (((or 'case-lambda 'case-lambda*) def ...)
-     (apply join (map (match-lambda ((arg body)
-				     (cond
-				      ((symbol? arg)
-				       (diff (append-map used-variables body) (list arg)))
-				      ((or (pair? arg) (list? arg))
-				       (diff (append-map used-variables body) 
-					     (filter-map argument-name (properize arg)))))))
-		      def)))
+     (apply join 
+	    (map (match-lambda ((arg body)
+				(cond
+				 ((symbol? arg)
+				  (diff (append-map used-variables 
+						    body) (list arg)))
+				 ((or (pair? arg) (list? arg))
+				  (diff (append-map used-variables 
+						    body) 
+					(filter-map 
+					 argument-name 
+					 (properize arg)))))))
+		 def)))
     (('if expr ...)
      (append-map used-variables expr))
     (('quote data)
@@ -82,7 +88,8 @@
      (match (procedure-minimum-arity proc)
        ((required optional rest)
 	(append (make-list required '_)
-		(if (> optional 0) (cons #:optional (make-list optional '_)) '())
+		(if (> optional 0) (cons #:optional 
+					 (make-list optional '_)) '())
 		(if rest '_ '())))
        (else
 	'(..?))))))

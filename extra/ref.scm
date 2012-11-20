@@ -40,7 +40,8 @@
 
 (define vref (make-procedure-with-setter vector-ref vector-set!))
 
-(define uvref (make-procedure-with-setter uniform-vector-ref uniform-vector-set!))
+(define uvref (make-procedure-with-setter uniform-vector-ref 
+					  uniform-vector-set!))
 
 (define href (make-procedure-with-setter hash-ref hash-set!))
 
@@ -54,7 +55,9 @@
 
 (define aref (make-procedure-with-setter 
 	      (lambda(array indices)(apply array-ref array indices))
-	      (lambda(array indices value)(apply array-set! array value indices))))
+	      (lambda(array indices value)(apply 
+					   array-set! 
+					   array value indices))))
 
 (define-method (ref (fluid <fluid>) . rest)
   (apply ref (fluid-ref fluid) rest))
