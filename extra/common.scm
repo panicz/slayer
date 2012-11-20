@@ -32,17 +32,11 @@
 	    )
   #:export-syntax (\ for if*
 		   safely export-types
-		   transform! increase! decrease! multiply!
-		   define-symmetric-method))
+		   transform! increase! decrease! multiply!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
 (define rest cdr)
-
-(define-syntax-rule(define-symmetric-method(name arg1 arg2) body ...)
-  (begin
-    (define-method (name arg1 arg2) body ...)
-    (define-method (name arg2 arg1) body ...)))
 
 (define-syntax safely 
   (syntax-rules ()
