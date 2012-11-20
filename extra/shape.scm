@@ -46,13 +46,13 @@
        (define-method (name arg1 arg2) body ...)
        (define-method (name arg2 arg1) body ...)))))
 
-(define *tolerance* (make-fluid 0.0001))
+(define tolerance (make-fluid 0.0001))
 
 (define-class <basic-shape> ())
 
 (define-class <plane> (<basic-shape>)
-  normal ; vector
-  displacement) ; scalar
+  (normal #:init-keyword #:normal) ; vector
+  (displacement #:init-keyword #:displacement)) ; scalar
 
 (define-class <sphere> (<basic-shape>)
   (position #:init-value #(0 0 0))
@@ -118,16 +118,40 @@
 (define (unproject-from-line l v)
   (* #[l 'direction] (- v #[l 'displacement])))
 
-
 (define-method (nearest-points (l1 <line>) (l2 <line>))
   (let* ((ldot (* #[l1 'direction] #[l2 'direction]))
 	 (x (- 1 ldot)))
-    (if (< x #[*tolerance*]);lines are parallel, so any points will do
+    (if (< x #[tolerance]);lines are parallel, so any points will do
 	(cons x (unproject-from-line l2 (project-onto-line l1 x)))
 	(let* ((v (- #[l1 'displacement] #[l2 'displacement]))
 	       (lv (* #[l1 'direction] v))
 	       (y (/ (- (* #[l2 'displacement] v) (* ldot lv)) x)))
 	  (cons (- (* ldot y) lv) y)))))
+
+(define-generic intersection)
+
+(define-method (intersection (P <plane>) (Q <plane>) (R <plane>))
+  (let ((type (array-type #[P 'normal]))
+	(d (det3x3 (vectors->matrix
+		    #[P 'normal]
+		    #[Q 'normal] 
+		    #[R 'normal]))))
+    (if (> (abs d) #[tolerance])
+	(let ((all (list P Q R)))
+	  (let ((N (map #[_ 'normal] all))
+		(V (list->uniform-vector 
+		    type
+		    (map #[_ 'displacement] all))))
+	    (let ((X (list->uniform-vector type (map #[_ 0] N)))
+		  (Y (list->uniform-vector type (map #[_ 1] N)))
+		  (Z (list->uniform-vector type (map #[_ 2] N))))
+	      (let ((dx (det3x3 (vectors->matrix V Y Z)))
+		    (dy (det3x3 (vectors->matrix X V Z)))
+		    (dz (det3x3 (vectors->matrix X Y V))))
+		(* (/ 1.0 d)
+		   (list->uniform-vector 
+		    type
+		    (list dx dy dz))))))))))
 
 (define-generic distance)
 
@@ -160,7 +184,7 @@
   (- (* #[p 'normal] v) #[p 'displacement]))
 
 ;;  3. <pl><pl>
-(define-method (distance (P1 <plane>) (p2 <plane>))
+(define-method (distance (p1 <plane>) (p2 <plane>))
   (throw 'not-implemented))
 
 ;;  4. <pt><ln> 
