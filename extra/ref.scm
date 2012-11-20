@@ -2,7 +2,7 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref))
+  #:export (ref aref fref))
  
 (define (getter obj key)
   (cond ((vector? obj)
@@ -49,6 +49,8 @@
 (define stref (make-procedure-with-setter string-ref string-set!))
 
 (define asref (make-procedure-with-setter assoc-ref assoc-set!))
+
+(define fref (make-procedure-with-setter fluid-ref fluid-set!))
 
 (define aref (make-procedure-with-setter 
 	      (lambda(array indices)(apply array-ref array indices))
@@ -104,6 +106,8 @@
 		     `(substring ,seq ,start 
 				 ,(min (string-length seq) 
 				       (+ start count))))
+		    ((fluid)
+		     `(fref ,fluid))
 		    ((array . indices)
 		     `(aref ,array (list ,@indices)))
 		    (default
