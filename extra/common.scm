@@ -11,7 +11,10 @@
 	    expand 
 	    ?not ?and ?or in? 
 	    map-n
+	    rest
 	    array-map
+	    array-append
+	    list->uniform-vector
 	    contains-duplicates?
 	    module->hash-map
 	    module->list
@@ -33,6 +36,8 @@
 		   define-symmetric-method))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define rest cdr)
 
 (define-syntax-rule(define-symmetric-method(name arg1 arg2) body ...)
   (begin
@@ -101,6 +106,17 @@
 		     (array-dimensions first))))
     (apply array-map! dest proc first rest)
     dest))
+
+(define (array-append first . rest)
+  (list->typed-array 
+   (array-type first)
+   (length (array-dimensions first))
+   (apply append (map array->list (cons first rest)))))
+
+(define (list->uniform-vector t l)
+  (let ((v (make-typed-array t (if #f #f) (length l))))
+    (array-map! v (lambda(x)x) (list->vector l))
+    v))
 
 (define* (module->hash-map #:optional (module (current-module)))
   (module-obarray module))
