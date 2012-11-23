@@ -163,37 +163,41 @@
 	    (set! max-arg (+ max-arg 1))
 	    (string->symbol (string-append 
 			     prefix (number->string max-arg))))))
-    (let ((args 
-	   (map (lambda(arg)
-		  (cond ((eq? arg placeholder)
-			 (next-arg))
-			((and-let* 
-			     (((symbol? arg))
-			      (arg-string (symbol->string arg))
-			      (match-struct (string-match 
-					     (string-append 
-					      "^" 
-					      (regexp-quote prefix) 
-					      "([0-9]+)$")
+    (letrec ((process-arg
+	      (lambda(arg)
+		(cond ((eq? arg placeholder)
+		       (next-arg))
+		      ((and-let* 
+			   (((symbol? arg))
+			    (arg-string (symbol->string arg))
+			    (match-struct (string-match 
+					   (string-append 
+					    "^" 
+					    (regexp-quote prefix) 
+					    "([0-9]+)$")
 					     arg-string))
-			      (number (string->number 
-				       (match:substring 
-					match-struct 1))))
-				(if (> number max-arg) 
-				    (set! max-arg number))
-				#t)
-			 arg)
-			(else arg))) 
-		args)))
-      `(lambda ,(append
-		 (map (lambda (n) 
-			(string->symbol 
-			 (string-append prefix (number->string n)))) 
-		      (iota max-arg 1))
-		 rest)
-	 ,(if (symbol? rest)
-	      `(apply ,f ,@args ,rest)
-	      `(,f ,@args))))))
+			    (number (string->number 
+				     (match:substring 
+				      match-struct 1))))
+			 (if (> number max-arg) 
+			     (set! max-arg number))
+			 #t)
+		       arg)
+		      ((and (list? arg)
+			    (not (null? arg))
+			    (not (in? (first arg) '(\ quote))))
+		       (map process-arg arg))
+		      (else arg)))))
+      (let ((args (map process-arg args)))
+	`(lambda ,(append
+		   (map (lambda (n) 
+			  (string->symbol 
+			   (string-append prefix (number->string n)))) 
+			(iota max-arg 1))
+		   rest)
+	   ,(if (symbol? rest)
+		`(apply ,f ,@args ,rest)
+		`(,f ,@args)))))))
 
 (define* (expand e #:key (opts '()))
   (let-values (((exp env) (decompile 
