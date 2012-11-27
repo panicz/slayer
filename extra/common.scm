@@ -15,6 +15,7 @@
 	    array-map
 	    array-append
 	    list->uniform-vector
+	    list->uniform-array
 	    contains-duplicates?
 	    module->hash-map
 	    module->list
@@ -67,7 +68,10 @@
   `(transform! * ,x ,@args))
 
 (define-syntax for
-  (syntax-rules (in)
+  (syntax-rules (in ..)
+    ((_ x in first .. last body ...)
+     (for-each (lambda(x) body ...) 
+	       (iota (1+ (- last first)) first)))
     ((_ x in list body ...)
      (for-each (match-lambda(x body ...)) list))))
 
@@ -107,10 +111,33 @@
    (length (array-dimensions first))
    (apply append (map array->list (cons first rest)))))
 
-(define (list->uniform-vector t l)
-  (let ((v (make-typed-array t (if #f #f) (length l))))
-    (array-map! v (lambda(x)x) (list->vector l))
-    v))
+(define (list->uniform-vector type list)
+  (list->typed-array type 1 list))
+
+(define (list->uniform-array shape numbers)
+  (let ((type 
+	 (let ((flat-list (flatten numbers)))
+	   (if (any (lambda(x)(not (zero? (imag-part x)))) flat-list)
+	       'c32
+	       (let ((upper (apply max flat-list))
+		     (lower (apply min flat-list)))
+		 (cond ((not (every integer? flat-list))
+			'f32)
+		       ((< lower 0)
+			(cond ((<= (- 1 (expt 2 7)) lower upper (expt 2 7))
+			       's8)
+			      ((<= (- 1 (expt 2 15)) lower upper (expt 2 15))
+			       's16)
+			      ((<= (- 1 (expt 2 31)) lower upper (expt 2 31))
+			       's32)))
+		       (else
+			(cond ((<= upper (expt 2 8))
+			       'u8)
+			      ((<= upper (expt 2 16))
+			       'u16)
+			      ((<= upper (expt 2 32))
+			       'u32)))))))))
+	(list->typed-array type shape numbers)))
 
 (define* (module->hash-map #:optional (module (current-module)))
   (module-obarray module))
