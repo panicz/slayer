@@ -95,7 +95,6 @@ current_viewport() {
 static SCM
 perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
   GLdouble fovy = scm_to_float(FOVY);
-
   
   GLdouble aspect;
   if ((ASPECT == SCM_UNDEFINED) 
@@ -149,7 +148,7 @@ init_GLtypes() {
   or (GL_UNSIGNED_BYTE == NOT_SUPPORTED)	\
   or (GL_UNSIGNED_INT == NOT_SUPPORTED)		\
   or (GL_SHORT_INT == NOT_SUPPORTED)	
-#error "Invalid special value (the ``NOT_SUPPORTED'' macro constant"
+#error "Invalid special value (the ``NOT_SUPPORTED'' macro constant)"
 #endif
 
 #define SET_TYPE(type, GLtype) \
@@ -297,7 +296,7 @@ init_3d(Uint16 w, Uint16 h) {
   init_GLnames();
 
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-  //glEnable(GL_DEPTH_TEST);
+  glEnable(GL_DEPTH_TEST);
   glClearDepth(1.0);
   glDepthMask(GL_TRUE);
 
@@ -305,9 +304,7 @@ init_3d(Uint16 w, Uint16 h) {
   glShadeModel(GL_SMOOTH);
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-  
-
-   //    glDisable(GL_COLOR_MATERIAL);
+     //    glDisable(GL_COLOR_MATERIAL);
   //gluLookAt (0.0, 0.0, 21.0, 0.0, 0.0, -100.0, 0.0, 1.0, 0.0);
 
   glWindowPos2i(0, 0);
