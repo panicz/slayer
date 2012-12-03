@@ -19,6 +19,7 @@
    <capsule>
    ;<complex-shape>
    distance
+   TOLERANCE
    nearest-points))
 
 #;(set! %load-path (append (list "." "..")  %load-path))
