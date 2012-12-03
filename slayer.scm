@@ -21,6 +21,35 @@
       (set! 3d-object (make <3d-mesh>))
       (let ((view (make <3d-view> #:x 50 #:y 50 #:w 260 #:h 400)))
 	(add-child! *stage* view)
+	(set! #[view 'click]
+	      (function (x y)
+		(set! #[view : 'data : 'anchor] (list x y))
+		(set! #[view : 'data : 'original-orientation] 
+		      #[3d-object 'orientation])))
+	(set! #[view 'unclick]
+	      (function (x y)
+		(hash-remove! #[view 'data] 'anchor)
+		(hash-remove! #[view 'data] 'original-orientation)))
+	(set! #[view 'drag] 
+	      (function (x y dx dy)
+		(match #[view : 'data : 'anchor]
+		  ((x0 y0)
+		   (let ((p #[view : 'data : 'original-orientation])
+			 (vx (- x x0))
+			 (vy (- y y0)))
+		     (let* ((axis (wedge3x3 
+				   (list->f32vector (list vx vy 0.0))
+				   (list->f32vector (list 0.0 0.0 1.0))))
+			    (norm (norm axis))
+			    (θ (exact->inexact 
+				(/ norm (min #[view 'w] #[view 'h]))))
+			    (q (quaternion (sin θ) (* (cos θ)
+						      (* (/ 1 norm) axis)))))
+		       (if (> norm 0.1)
+			   (set! #[3d-object 'orientation] (* (~ q) p q)))
+		     )))
+		  (else
+		   (display "dragging with anchor unset (strange?)\n")))))
 	(set! 3d-camera #[view 'camera])
 	(add-object! view 3d-object))))
 
@@ -29,39 +58,60 @@
       (let ((gv (make <goose-view> #:x 320 #:y 50 #:w 260 #:h 400 
 		      #:address "127.0.0.1:41337"
 		      #:types (export-types <player>)
+		      
 		      )))
+	(request gv '(owned-objects)
+		 (lambda(owned-objects)
+		   (begin
+		     (display `(owned objects: ,owned-objects))
+		     (newline))
+		   (match owned-objects
+		     ((('<player> id) _ ...)
+		      (keydn 'space (\ command gv `(jump)))
+		      (keydn 'f1 (\ command gv `(turn 5)))
+		      (keydn 'lshift (\ command gv `(crouch)))
+		      (keydn 'lalt (\ display "LEFT ALT\n"))
+		      ))))
 	(add-child! *stage* gv))
       ))
 
 (add-child! *stage* (make-text-area))
 
-(keydn 'mouse1 
-  (function (x y)
-    (and-let* ((w (widget-nested-find 
-		   (lambda(w)
-		     (in-area? (list x y)
-			       (absolute-area w)))
-		   *stage*)))
-      (set! *active-widget* w))
-    (if *active-widget* (#[ *active-widget* 'click ] x y))))
+(keydn 
+ 'mouse1 
+ (function (x y)
+   (and-let* ((w (widget-nested-find 
+		  (lambda(w)
+		    (in-area? (list x y)
+			      (absolute-area w)))
+		  *stage*)))
+     (set! *active-widget* w))
+   (if *active-widget* (#[ *active-widget* 'click ] x y))))
 
-(keyup 'mouse1 (function (x y) 
-		 (if *active-widget* (#[ *active-widget* 'unclick ] x y))
-		 (set! *active-widget* *stage*)))
+(keyup 
+ 'mouse1 
+ (function (x y) 
+   (if *active-widget* (#[ *active-widget* 'unclick ] x y))
+   (set! *active-widget* *stage*)))
 
-(keydn 'mouse2
-       (function (x y)
-	 (and-let* ((w (widget-nested-find 
-			(lambda(w)
-			  (in-area? (list x y)
-				    (absolute-area w)))
-			*stage*)))
-	   (#[ w 'right-click ] x y))))
+(keydn 
+ 'mouse2
+ (function (x y)
+   (and-let* ((w (widget-nested-find 
+		  (lambda(w)
+		    (in-area? (list x y)
+			      (absolute-area w)))
+		  *stage*)))
+     (#[ w 'right-click ] x y))))
 
-(mousemove (function (x y xrel yrel)
-	     (let ((mouseover-widget 
-		    (widget-nested-find (lambda (w) (in-area? (list x y) (absolute-area w))) *stage*)))
-	       (if (and mouseover-widget (not (equal? mouseover-widget *nearby-widget*)))
+(mousemove 
+ (function (x y xrel yrel)
+   (let ((mouseover-widget 
+	  (widget-nested-find 
+	   (lambda (w) 
+	     (in-area? (list x y) (absolute-area w))) 
+	   *stage*)))
+     (if (and mouseover-widget (not (equal? mouseover-widget *nearby-widget*)))
 		   (begin
 		     (if *nearby-widget* (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
 		     (set! *nearby-widget* mouseover-widget)

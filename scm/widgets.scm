@@ -24,6 +24,9 @@
   (w #:init-value 0 #:init-keyword #:w)
   (h #:init-value 0 #:init-keyword #:h))
 
+(define-class <extended-widget> (<widget>)
+  (data #:init-thunk make-hash-table))
+
 (define-method (ancestors (w <widget>))
   (or (and-let* ((parent #[w 'parent]))
 	(cons parent (ancestors parent)))
