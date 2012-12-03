@@ -15,7 +15,7 @@
 	   det3x3 inv3x3 wedge3x3 crossm3x3
 	   matrix-mul matrix-vector-mul
 	   sgn
-	   pi/4 pi/2 pi e
+	   pi/4 pi/2 pi 2pi π/4 π/2 π 2π e
 	   deg->rad rad->deg
 	   ;+ - * 
 	   multiply add subtract divide
@@ -65,9 +65,19 @@
 
 (define pi/4 (atan 1))
 
+(define π/4 pi/4)
+
 (define pi/2 (acos 0))
 
+(define π/2 pi/2)
+
 (define pi (* 2 pi/2))
+
+(define π pi)
+
+(define 2pi (* 2 pi))
+
+(define 2π 2pi)
 
 (define e (exp 1))
 
