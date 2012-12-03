@@ -12,6 +12,7 @@
 	    ?not ?and ?or in? 
 	    map-n
 	    rest
+	    depth
 	    array-map
 	    array-append
 	    list->uniform-vector
@@ -28,6 +29,7 @@
 	    cart
 	    take-at-most drop-at-most
 	    remove-keyword-args
+	    array-size
 	    random-array
 	    with-output-to-utf8
 	    )
@@ -38,6 +40,11 @@
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
 (define rest cdr)
+
+(define (depth x)
+  (if (list? x)
+      (1+ (apply max (map depth x)))
+      0))
 
 (define-syntax safely 
   (syntax-rules ()
@@ -114,29 +121,32 @@
 (define (list->uniform-vector type list)
   (list->typed-array type 1 list))
 
-(define (list->uniform-array shape numbers)
-  (let ((type 
+(define (list->uniform-array numbers)
+  (let ((shape (depth numbers))
+	(type 
 	 (let ((flat-list (flatten numbers)))
-	   (if (any (lambda(x)(not (zero? (imag-part x)))) flat-list)
-	       'c32
-	       (let ((upper (apply max flat-list))
-		     (lower (apply min flat-list)))
-		 (cond ((not (every integer? flat-list))
-			'f32)
-		       ((< lower 0)
-			(cond ((<= (- 1 (expt 2 7)) lower upper (expt 2 7))
-			       's8)
-			      ((<= (- 1 (expt 2 15)) lower upper (expt 2 15))
-			       's16)
-			      ((<= (- 1 (expt 2 31)) lower upper (expt 2 31))
-			       's32)))
-		       (else
-			(cond ((<= upper (expt 2 8))
-			       'u8)
-			      ((<= upper (expt 2 16))
-			       'u16)
-			      ((<= upper (expt 2 32))
-			       'u32)))))))))
+	   (cond ((not (every number? flat-list))
+		  #t)
+		 ((not (every real? flat-list))
+		  'c32)
+		 ((let ((upper (apply max flat-list))
+			(lower (apply min flat-list)))
+		    (cond ((not (every integer? flat-list))
+			   'f32)
+			  ((< lower 0)
+			   (cond ((<= (- 1 (expt 2 7)) lower upper (expt 2 7))
+				  's8)
+				 ((<= (- 1 (expt 2 15)) lower upper (expt 2 15))
+				  's16)
+				 (else
+				  's32)))
+			  (else
+			   (cond ((<= upper (expt 2 8))
+				  'u8)
+				 ((<= upper (expt 2 16))
+				  'u16)
+				 (else
+				  'u32))))))))))
 	(list->typed-array type shape numbers)))
 
 (define* (module->hash-map #:optional (module (current-module)))
@@ -371,6 +381,11 @@
   (let ((dims (remove-keyword-args dims)))
     (array-map (lambda (mean) (+ mean (- (random (* 2 range)) range)))
 		(apply make-typed-array type mean dims))))
+
+(define (array-size a)
+  (apply * (map (match-lambda((lower upper) 
+			      (1+ (abs (- upper lower)))))
+		(array-shape a))))
 
 (define (with-output-to-utf8 thunk)
   (string->utf8 (with-output-to-string thunk)))
