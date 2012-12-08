@@ -1,13 +1,15 @@
-(display "loading goose.scm\n")
+(display "loading goose-view.scm\n")
 
 (use-modules (extra network)
-	     (extra goose))
+	     (extra network-objects))
 
-(define-method (initialize (this <goose-client>) args)
+(define-method (initialize (this <network-client>) args)
   (next-method)
   (let-keywords args 
       #t
-      ((address "127.0.0.1:41337")(username 'panicz)(password 'k0byl4)
+      ((address "127.0.0.1:41337")
+       (username 'panicz)
+       (password 'k0byl4)
        (types '()))
     (for (name type) in types 
 	 (hash-set! #[this 'type-hash] name type))
@@ -53,9 +55,9 @@
 		(cons socket address))))))
 	this))))
 
-(define-class <goose-view> (<3d-view> <goose-client>))
+(define-class <network-3d-view> (<3d-view> <network-client>))
 
-(define-method (draw (this <goose-view>))
+(define-method (draw (this <network-3d-view>))
   #;(lock-mutex #[this 'mutex])
   (set! #[this 'objects] (hash-map->list 
 			  (lambda (key value) value) 
@@ -64,4 +66,4 @@
   (next-method)
   #;(unlock-mutex #[this 'mutex]))
 
-(display "loaded goose.scm\n")
+(display "loaded goose-view.scm\n")

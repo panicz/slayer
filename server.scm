@@ -10,14 +10,15 @@
  (ice-9 session)
  (system base compile) (system syntax)
  (extra ref) (extra common) (extra network) (extra function)
+ (extra network-objects)
  ((rnrs) :version (6)))
 
-(define *world* (make-hash-table))
 (define *users* (make-hash-table))
 (define *logged-users* '())
 
 ;; server is stupid and reliable; client is fancy and fallable
-(load "game.scm")
+(load "game.scm") ; defines update-world!, as well as procedures
+;; that can be called remotely by the client
 
 (for-each
  (match-lambda((username password)
@@ -28,14 +29,13 @@
 
 (define current-step 0)
 (define (step!)
-  (set! current-step (bitwise-and #xffff (+ current-step 1))))
-
+  (set! current-step (bitwise-and #xffff (1+ current-step))))
 
 (define-protocol-generator (kutasa-protocol connection)
   ((username #f)
    (player #f)
    (address connection)
-   (objects '()))
+   (objects '())) ; objects owned by the player
   (((login name password)
     (if (and (not username) password 
 	     (equal? (hash-ref *users* name) password))
@@ -58,9 +58,9 @@
    ((join)
     (if username
 	(begin
-	  (set! player (make <player> #:owners `(,address)))
+	  (set! player (make <player> #:owners (list address)))
 	  (set! objects (cons player objects))
-	  (spawn-object! *world* player)
+	  (spawn-object! player)
 	  (protocol-add! kutasa-protocol
 			 ((jump) (jump! player))
 			 ((shoot) (shoot! player))
@@ -87,8 +87,7 @@
    ((logout)
     (if username (set! username #f))
     (set! *logged-users*
-	  (remove (\ equal? _ username) *logged-users*)))))
-
+	  (delete username *logged-users*)))))
 
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
@@ -97,14 +96,7 @@
 	  socket
 	  (make-hash-table)
 	  kutasa-protocol
-	  (lambda()
-	    (for-each update!
-		      (hash-map->list
-		       (lambda(id object)
-			 ;(display object)
-			 object)
-		       *world*))
-	    #;(newline))
+	  update-world!
 	  (lambda (sock addr proto)
 	    (let ((owned-objects (#[proto 'owned-objects])))
 	      (for actor in owned-objects
@@ -120,9 +112,10 @@
 				      (in? object 
 					   owned-objects)))))))
 			  (sendto sock message addr)
-			  (display `(sending
-				     ,(utf8->string message)))
-			  (newline)
+			  #;(begin
+			    (display `(sending
+				       ,(utf8->string message)))
+			    (newline))
 			  )))))
 	  0.3)))
     (while #t (server-cycle))))

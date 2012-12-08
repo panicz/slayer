@@ -1,6 +1,6 @@
 CC = gcc
 CXX = g++
-CFLAGS = -Wall -pg `sdl-config --cflags` `guile-config compile` -DUSE_OPENGL -DUSE_GOOSE -lGL -lGLU # -DUSE_EVENT_HANDLER
+CFLAGS = -Wall -pg `sdl-config --cflags` `guile-config compile` -DUSE_OPENGL -DUSE_NETWORK -lGL -lGLU # -DUSE_EVENT_HANDLER
 LIBS = `guile-config link` `sdl-config --libs` -lSDL_image -lSDL_ttf -lc -lGL -lGLU # -lSDL_net -lSDL_mixer -pg
 OBJCOPY = objcopy
 
@@ -23,7 +23,7 @@ scm/widgets.o:	scm/widgets.scm
 	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
 scm/3d-view.o:	scm/3d-view.scm
 	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
-scm/goose-view.o:	scm/goose-view.scm
+scm/network-3d-view.o:	scm/network-3d-view.scm
 	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
 
 .c.o:
@@ -31,7 +31,7 @@ scm/goose-view.o:	scm/goose-view.scm
 .cc.o:
 	$(CXX) $(CFLAGS) -c $< -o $@
 
-OBJECTS = input.o slayer.o symbols.o video.o file.o widgets.o image.o font.o scm/defs.o scm/widgets.o scm/3d-view.o scm/goose-view.o 3d.o
+OBJECTS = input.o slayer.o symbols.o video.o file.o widgets.o image.o font.o scm/defs.o scm/widgets.o scm/3d-view.o scm/network-3d-view.o 3d.o
 
 slayer:	$(OBJECTS)
 	$(CXX) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)

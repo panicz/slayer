@@ -39,23 +39,26 @@
 			 (vy (- y y0)))
 		     (let* ((axis (wedge3x3 
 				   (list->f32vector (list vx vy 0.0))
-				   (list->f32vector (list 0.0 0.0 1.0))))
+				   #f32(0.0 0.0 1.0)))
 			    (norm (norm axis))
 			    (θ (exact->inexact 
 				(/ norm (min #[view 'w] #[view 'h]))))
-			    (q (quaternion (sin θ) (* (cos θ)
-						      (* (/ 1 norm) axis)))))
+			    (q (quaternion (sin θ) 
+					   (* (cos θ)
+					      (* (/ 1 norm) axis)))))
 		       (if (> norm 0.1)
-			   (set! #[3d-object 'orientation] (* (~ q) p q)))
+			   (set! #[3d-object 'orientation] 
+				 (* (~ q) p q)))
 		     )))
 		  (else
 		   (display "dragging with anchor unset (strange?)\n")))))
 	(set! 3d-camera #[view 'camera])
 	(add-object! view 3d-object))))
 
-(if (defined? '<goose-view>)
+(if (defined? '<network-3d-view>)
     (begin
-      (let ((gv (make <goose-view> #:x 320 #:y 50 #:w 260 #:h 400 
+      (let ((gv (make <network-3d-view> #:x 320 #:y 50 
+		      #:w 260 #:h 400 
 		      #:address "127.0.0.1:41337"
 		      #:types (export-types <player>)
 		      
