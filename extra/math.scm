@@ -6,7 +6,7 @@
   :use-module (extra common)
   :use-module (extra ref)
   :use-module ((rnrs) :version (6))  
-  :export (eye transpose 
+  :export (eye transpose reciprocal
 	   rows columns row column
 	   matrix->vector vector->matrix
 	   vectors->matrix
@@ -209,7 +209,7 @@
   (assert (and (array? M) (= (columns M) (rows M) 3)))
   (let ((d (det3x3 M)))
     (if (not (= d 0))
-	(let ((1/M (make-typed-array (array-type M) *unspecified* 3 3))
+	(let ((1/M (make-typed-array (array-type M) (if #f #f) 3 3))
 	      (1/d (/ 1 d)))
 	(set! #[1/M 0 0] (* 1/d (- (* #[M 1 1] #[M 2 2]) 
 				   (* #[M 2 1] #[M 1 2]))))
@@ -290,3 +290,14 @@
 
 (define-method (~ (q <quaternion>))
   (cons (car q) (- (cdr q))))
+
+(define-generic reciprocal)
+
+(define-method (reciprocal (v <point>))
+  (- v))
+
+(define-method (reciprocal (q <quaternion>))
+  (~ q))
+
+(define-method (reciprocal (M <array>))
+  (inv3x3 M))
