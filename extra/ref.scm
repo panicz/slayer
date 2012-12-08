@@ -2,7 +2,7 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref fref))
+  #:export (ref aref fref random-element))
  
 (define (getter obj key)
   (cond ((vector? obj)
@@ -37,6 +37,14 @@
 (define ref (make-procedure-with-setter getter setter))
 
 (define-generic ref)
+
+(define-generic random-element)
+
+(define-method (random-element (l <list>))
+  (list-ref l (random (length l))))
+
+(define-method (random-element (v <vector>))
+  (vector-ref v (random (vector-length v))))
 
 (define vref (make-procedure-with-setter vector-ref vector-set!))
 
