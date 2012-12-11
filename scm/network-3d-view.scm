@@ -1,7 +1,6 @@
 (display "loading goose-view.scm\n")
 
-(use-modules (extra network)
-	     (extra network-objects))
+(use-modules (extra network))
 
 (define-method (initialize (this <network-client>) args)
   (next-method)
@@ -16,9 +15,9 @@
     (match-let* (((address . port) (resolve-address address))
 		 (socket (socket PF_INET SOCK_DGRAM 0))
 		 (address (make-socket-address AF_INET address port))
-		 (protocol (make-client-protocol #[this 'type-hash]))
+		 (protocol (make-client-protocol this))
 	  #;(mutex #[this 'mutex])
-	  (buffer (make-bytevector 1024)))
+		 (buffer (make-bytevector 1024)))
       (set! #[this 'socket.address] (cons socket address))
       (set! #[this 'protocol] protocol)
       (sendto socket (with-output-to-utf8 
@@ -28,13 +27,15 @@
       (let ((code (register-userevent ; this code is executed 
 		   (lambda (data socket.address) ; by the main thread
 		     #;(lock-mutex mutex)
-		     #;(begin
+		     (begin
 		       (display `(received ,data) *stdout*)
 		       (newline))
 		     (match-let (((socket . address) socket.address))
 		       (match (with-input-from-string data read)
 			 ((proc args ...)
-			  (let ((result(apply #[protocol proc] args)))
+			  (let ((result 
+				 (safely 
+				  (apply #[protocol proc] args))))
 			    (if (not (unspecified? result))
 				(sendto socket
 					(with-output-to-utf8 

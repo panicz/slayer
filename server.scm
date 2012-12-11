@@ -10,7 +10,6 @@
  (ice-9 session)
  (system base compile) (system syntax)
  (extra ref) (extra common) (extra network) (extra function)
- (extra network-objects)
  ((rnrs) :version (6)))
 
 (define *users* (make-hash-table))
@@ -44,17 +43,17 @@
 	  (set! *logged-users* (cons name *logged-users*))
 	  #t)
 	#f))
-   ((request number message)
+   ((request id message)
     (match message
       (((? symbol? fn) args ...)
        (let ((result (and-let* ((fn #[kutasa-protocol fn])
 				((procedure? fn)))
 		       (safely (apply fn args)))))
-	 `(response ,number ,(if (unspecified? result)
+	 `(response ,id ,(if (unspecified? result)
 				'unspecified
 				result))))
       (else
-       `(response ,number ,else))))
+       `(response ,id ,else))))
    ((join)
     (if username
 	(begin
@@ -78,6 +77,10 @@
     objects)
    ((display message)
     (display message))
+   ((type-of id)
+    (and-let* ((object #[*object-registry* id])
+	       (type (class-name (class-of object))))
+      `(add! ,type ,id)))
    ((describe-protocol)
     (hash-map->list
      (lambda (name proc)
@@ -88,6 +91,7 @@
     (if username (set! username #f))
     (set! *logged-users*
 	  (delete username *logged-users*)))))
+
 
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
