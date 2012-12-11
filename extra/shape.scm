@@ -19,7 +19,6 @@
    <capsule>
    ;<complex-shape>
    distance
-   TOLERANCE
    nearest-points))
 
 #;(set! %load-path (append (list "." "..")  %load-path))
@@ -43,8 +42,6 @@
      (begin
        (define-method (name arg1 arg2) body ...)
        (define-method (name arg2 arg1) body ...)))))
-
-(define TOLERANCE (make-fluid 0.0001))
 
 (define-class <basic-shape> ())
 

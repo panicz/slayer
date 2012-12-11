@@ -23,7 +23,11 @@
 	   <generalized-vector>
 	   <quaternion> 
 	   quaternion quaternion-real quaternion-imag re im ~
+	   rotation-quaternion
+	   TOLERANCE
 	   ))
+
+(define TOLERANCE (make-fluid 0.0001))
 
 (define <point> <top>) 
 
@@ -190,14 +194,17 @@
 
 (define (wedge3x3 u v)
   (let ((vector-length 
-	 (if (uniform-vector? v) uniform-vector-length vector-length)))
+	 (if (uniform-vector? v) 
+	     uniform-vector-length 
+	     vector-length)))
     #;(assert (and (or (and (vector? u) (vector? v))
 		     (and (uniform-vector? u) (uniform-vector? v)))
 		 (= (vector-length u) (vector-length v) 3)))
-    (list->typed-array (array-type u) 1 
-		       (list (- (* #[u 1] #[v 2])(* #[u 2] #[v 1]))
-			     (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
-			     (- (* #[u 0] #[v 1])(* #[u 1] #[v 0]))))))
+    (list->typed-array 
+     (array-type u) 1 
+     (list (- (* #[u 1] #[v 2])(* #[u 2] #[v 1]))
+	   (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
+	   (- (* #[u 0] #[v 1])(* #[u 1] #[v 0]))))))
 
 (define (crossm3x3 v)
   (list->typed-array (array-type v) 2
@@ -275,6 +282,9 @@
 (define-method (- (p <point>) . rest)
   (apply array-map subtract p rest))
 
+(define-method (/ (p <point>) (n <number>))
+  (* p (/ 1.0 n)))
+
 ; this has to be added to support unary minus, as guile probably 
 ; implements it like as (define (- (first <number>)) (- 0 first)) ...
 (define-method (- (n <number>) (p <point>))
@@ -301,3 +311,33 @@
 
 (define-method (reciprocal (M <array>))
   (inv3x3 M))
+
+(define* (projection #:key of onto)
+  (let ((u of)
+	(v onto))
+    (let ((v^2 (* v v)))
+      (if (< v^2 #[TOLERANCE])
+	  #f32(0 0 0)
+	  (/ (* (* u v) v) v^2)))))
+
+(define (random-vector size)
+  (let loop ((v (random-array size)))
+    (if (< (* v v) #[TOLERANCE])
+	(random-array size)
+	v)))
+
+(define (rotation-quaternion u w); This method is borrowed from Game
+  (let ((u (normalized u)); Programming Gems vol.1 chapter 2.10
+	(w (normalized w))); written by Stan Melax
+    (let ((v (wedge3x3 u w)) 
+	  (f (sqrt (* 2.0 (+ (* u w) 1.0)))))
+      (cond ((> f #[TOLERANCE])
+	     (quaternion (* 0.5 f) (/ v f)))
+	    ((> (* u v) 0)
+	     (quaternion 1.0 #f32(0 0 0)))
+	    (else
+	     (let ((v (random-vector 3)))
+	       (quaternion 
+		0.0
+		(normalized 
+		 (- v (projection #:of v #:onto u))))))))))
