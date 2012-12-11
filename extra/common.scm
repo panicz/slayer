@@ -35,7 +35,8 @@
 	    )
   #:export-syntax (\ for if*
 		   safely export-types
-		   transform! increase! decrease! multiply!))
+		   transform! increase! decrease! multiply!
+		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
@@ -73,6 +74,14 @@
 
 (define-macro (multiply! x . args)
   `(transform! * ,x ,@args))
+
+(define-macro (push! l e) 
+  `(set! ,l (cons ,e ,l)))
+
+(define-syntax-rule (pop! l)
+  (let ((result (car l)))
+    (set! l (cdr l))
+    result))
 
 (define-syntax for
   (syntax-rules (in ..)
