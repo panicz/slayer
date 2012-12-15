@@ -117,10 +117,14 @@
 		     `(substring ,seq ,start 
 				 ,(min (string-length seq) 
 				       (+ start count))))
+		    (((? integer? size))
+		     `(make-hash-table ,size))
 		    ((fluid)
 		     `(fref ,fluid))
 		    ((array . indices)
 		     `(aref ,array (list ,@indices)))
+		    (()
+		     '(make-hash-table))
 		    (default
 		      default))))
      (lambda (char port) 
