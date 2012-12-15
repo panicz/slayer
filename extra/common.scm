@@ -10,6 +10,7 @@
   #:export (
 	    expand 
 	    ?not ?and ?or in? 
+	    union intersection difference
 	    map-n
 	    rest
 	    depth
@@ -32,6 +33,7 @@
 	    array-size
 	    random-array
 	    with-output-to-utf8
+	    <<
 	    )
   #:export-syntax (\ for if*
 		   safely export-types
@@ -40,7 +42,21 @@
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
+(define (<< . messages)
+  (for message in messages
+       (display message))
+  (newline))
+
 (define rest cdr)
+
+(define (intersection . lsets)
+  (apply lset-intersection equal? lsets))
+
+(define (union . lsets)
+  (apply lset-union equal? lsets))
+
+(define (difference lset . lsets)
+  (apply lset-difference equal? lset lsets))
 
 (define (depth x)
   (if (list? x)
