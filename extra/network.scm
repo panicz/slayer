@@ -9,7 +9,8 @@
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (oop goops)
-  #:use-module ((rnrs) :version (6))
+  #:use-module ((rnrs) :version (6) 
+		:select (make-bytevector utf8->string string->utf8))
   #:export (
 	    make-client-protocol
 	    handle-packet!
@@ -21,44 +22,49 @@
 	    <address>
 	    <network-client>
 	    request
-	    command
+	    remote
 
+	    <unique-id>
 
-	   <unique-id>
-	   *object-registry*
-	   <registered-object>
-	   <network-object>
-	   state-of
-
+	    *object-registry*
+	    <registered-object>
+	    <network-object>
+	    state-of
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
 		    protocol-remove!))
 
+
 (define <socket> <file-input-output-port>)
 (define <address> <vector>)
 (define <protocol> <hashtable>)
 
-
 (define-class <unique-id> ()
-  (id #:init-value 0))
+  (%id #:init-thunk (lambda()(gensym "domain"))) ; we consider the slots whose 
+  (id #:allocation #:virtual ;                     names begin with % private
+      #:slot-ref (lambda (this) #[this '%id])
+      #:slot-set! (lambda (this id) (set! #[this '%id] id))))
 
-(define-method (initialize (this <unique-id>) args)
-  (next-method)
-  (match-let (((type ... id)
-	       (with-input-from-string 
-		   (with-output-to-string (\ display this)) read)))
-    (set! #[this 'id] id)))
+(define-method (display (object <unique-id>) port)
+  (display (list (class-name (class-of object)) #[object 'id]) port))
 
+(define-method (write (object <unique-id>) port)
+  (write (list (class-name (class-of object)) (slot-ref object 'id)) port))
 
-(define *object-registry* (make-hash-table))
+(define *object-registry* #[])
+
 (define-class <registered-object> (<unique-id>)
-  (registry #:init-value *object-registry*
-	    #:allocation #:class))
+  (id #:allocation #:virtual
+      #:slot-ref (lambda (this) #[this '%id])
+      #:slot-set! (lambda (this id)
+		    (hash-remove! *object-registry* #[this '%id])
+		    (set! #[this '%id] id)
+		    (set! #[*object-registry* id] this))))
 
 (define-method (initialize (this <registered-object>) args)
   (next-method)
-  (set! #[#[this 'registry] #[this 'id]] this))
+  (set! #[*object-registry* #[this 'id]] this))
 
 (define-generic remove!)
 
@@ -73,13 +79,13 @@
 
 (define* (state-of object #:optional (owner #t))
   (map (lambda (slot) (list slot #[object slot]))
-       (lset-difference equal?
-			(map first (class-slots (class-of object)))
-			(map first (class-slots <network-object>))
-			#[object 'client-slots]
-			(if owner
-			    '()
-			    #[object 'private-slots]))))
+       (difference (map first (class-slots (class-of object)))
+		   (difference (map first (class-slots <network-object>)) 
+			       '(context))
+		   #[object 'client-slots]
+		   (if owner
+		       '()
+		       #[object 'private-slots]))))
 
 (define (resolve-address string)
   (let-values (((address port) (match (string-split string #\:)
@@ -99,10 +105,10 @@
   #;(mutex #:init-thunk make-mutex)
   (protocol #:init-thunk make-hash-table)
   (type-hash #:init-thunk make-hash-table)
-  (receive #:init-value noop) ; this is a procedure called
-  ;; when a packet is received
   ;; type-hash contains a hash whose keys are type-names (symbols)
   ;; and values are GOOPS types, thus making it closer
+  (receive #:init-value noop) ; this is a procedure called
+  ;; when a packet is received
   ;; 
   ;; the keywords the class is meant to be
   ;; initialized with:
@@ -121,7 +127,7 @@
 		    (\ display `(request ,request-id ,content)))
 	    address)))
 
-(define-method (command (gate <network-client>) content)
+(define-method (remote (gate <network-client>) content)
   (match-let (((socket . address) #[gate 'socket.address]))
     (sendto socket (with-output-to-utf8
 		    (\ display content))
@@ -133,19 +139,32 @@
 			       (response-symbol 'response)
 			       (requests-symbol 'requests)
 			       (objects-symbol 'objects))
-  (let ((protocol (make-hash-table))
-	(objects (make-hash-table))
-	(requests (make-hash-table)))
+  #;(define (set-slots! id . slots)
+    (or (and-let* ((object #[objects id]))
+	  (for (name value) in slots
+	       (if (equal? name 'context)
+		   (display `(setting context to ,value)))
+	       (slot-set! object name value)))
+	(begin 
+	  (display `(failed to set slots of object ,id))
+	  (remote client `(type-of ,id))
+	  (newline))))
+  (let ((protocol #[])
+	(subspaces #[])
+	(objects #[])
+	(requests #[]))
     (set! #[protocol objects-symbol] objects)
     (set! #[protocol requests-symbol] requests)
     (set! #[protocol set-slots-symbol]
 	  (lambda (id . slots)
 	    (or (and-let* ((object #[objects id]))
 		  (for (name value) in slots
+		       (if (equal? name 'context)
+			   (display `(setting context to ,value)))
 		       (slot-set! object name value)))
 		(begin 
 		  (display `(failed to set slots of object ,id))
-		  (command client `(type-of ,id))
+		  (remote client `(type-of ,id))
 		  (newline)))))
     (set! #[protocol add-symbol]
 	  (lambda (type id . slots)
@@ -160,9 +179,13 @@
 				  ((equal? class type)))
 			 object)
 		       (make type))))
+		  #;(apply set-slots! id slots)
 		  (for (name value) in slots
 		       (slot-set! object name value))
-		  (set! #[objects id] object)
+		  ;; the structure guarantees, that at this point of execution
+		  ;; there is no object with id "id", but only if we're 
+		  ;; cooperating with a single server, so it has to be fixed 
+		  (set! #[objects id] object) ; in the future!
 		  (if #f #f))
 		(begin 
 		  (display `(unknown type ,type))
@@ -247,12 +270,13 @@
 	(((fname arg ...) body ...) ...))
      (define protocol-name 
        (lambda (client-address)
-	 (let ((protocol-name (make-hash-table)))
+	 (let ((protocol-name #[]))
 	   (let* bindings
 	     (hash-set! protocol-name (quote fname)
 			(proc (arg ...) 
 			      #;(begin 
-			      (display `(received (fname arg ...) from ,client-address))
+			      (display `(received (fname arg ...) 
+			      from ,client-address))
 			      (newline))
 			      body ...))
 	     ...)
@@ -273,42 +297,3 @@
       (for-each (match-lambda ((address . protocol)
 			       (broadcast socket address protocol)))
 		(hash-map->list cons clients)))))
-
-
-
-(read-hash-extend 
- #\<
- (lambda (char port)
-   (let* ((chars->data (lambda(l)
-			 (let ((s (list->string (reverse l))))
-			   (cond 
-			    ((string-match "^[0-9a-fA-F]+$" s)
-			     (string->number (string-append "#x" s)))
-			    (else
-			     (string->symbol s))))))
-	  (return 
-	   (lambda (tokens current-token)
-	     (reverse
-	      (if (null? current-token)
-		  tokens
-		  (cons (chars->data current-token) tokens))))))
-     (let loop ((level 0)
-		(current-token '())
-		(tokens '()))
-       (let ((char (read-char port)))
-	 (cond ((eof-object? char)
-		(return tokens current-token))
-	       ((char-whitespace? char)
-		(if (null? current-token)
-		    (loop level current-token tokens)
-		    (loop level '() (cons (chars->data current-token)
-					  tokens))))
-	       ((equal? char #\<)
-		(loop (1+ level) (cons char current-token) tokens))
-	       ((equal? char #\>)
-		(if (= level 0)
-		    (return tokens current-token)
-		    (loop (1- level) (cons char current-token)
-			  tokens)))
-	       (else
-		(loop level (cons char current-token) tokens))))))))
