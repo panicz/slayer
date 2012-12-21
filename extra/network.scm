@@ -40,6 +40,7 @@
 (define <address> <vector>)
 (define <protocol> <hashtable>)
 
+
 (define-class <unique-id> ()
   (%id #:init-thunk (lambda()(gensym "domain"))) ; we consider the slots whose 
   (id #:allocation #:virtual ;                     names begin with % private
@@ -120,7 +121,7 @@
 
 (define-method (request (gate <network-client>) content handler)
   (match-let (((socket . address) #[gate 'socket.address])
-	      (requests #[#[gate 'protocol] 'requests])
+	      (requests (#[#[gate 'protocol] 'requests]))
 	      (request-id (gensym "r-")))
     (set! #[requests request-id] handler)
     (sendto socket (with-output-to-utf8 
@@ -132,78 +133,6 @@
     (sendto socket (with-output-to-utf8
 		    (\ display content))
 	    address)))
-
-(define* (make-client-protocol client #:key (add-symbol 'add!)
- 			       (remove-symbol 'remove!) 
-			       (set-slots-symbol 'set-slots!)
-			       (response-symbol 'response)
-			       (requests-symbol 'requests)
-			       (objects-symbol 'objects))
-  #;(define (set-slots! id . slots)
-    (or (and-let* ((object #[objects id]))
-	  (for (name value) in slots
-	       (if (equal? name 'context)
-		   (display `(setting context to ,value)))
-	       (slot-set! object name value)))
-	(begin 
-	  (display `(failed to set slots of object ,id))
-	  (remote client `(type-of ,id))
-	  (newline))))
-  (let ((protocol #[])
-	(subspaces #[])
-	(objects #[])
-	(requests #[]))
-    (set! #[protocol objects-symbol] objects)
-    (set! #[protocol requests-symbol] requests)
-    (set! #[protocol set-slots-symbol]
-	  (lambda (id . slots)
-	    (or (and-let* ((object #[objects id]))
-		  (for (name value) in slots
-		       (if (equal? name 'context)
-			   (display `(setting context to ,value)))
-		       (slot-set! object name value)))
-		(begin 
-		  (display `(failed to set slots of object ,id))
-		  (remote client `(type-of ,id))
-		  (newline)))))
-    (set! #[protocol add-symbol]
-	  (lambda (type id . slots)
-	    (or (and-let* 
-		    ((type #[#[client 'type-hash] type])
-		     (object 
-		      (or 
-		       (and-let* ((object 
-				   #[*object-registry* id])
-				  (class
-				    (class-of object))
-				  ((equal? class type)))
-			 object)
-		       (make type))))
-		  #;(apply set-slots! id slots)
-		  (for (name value) in slots
-		       (slot-set! object name value))
-		  ;; the structure guarantees, that at this point of execution
-		  ;; there is no object with id "id", but only if we're 
-		  ;; cooperating with a single server, so it has to be fixed 
-		  (set! #[objects id] object) ; in the future!
-		  (if #f #f))
-		(begin 
-		  (display `(unknown type ,type))
-		  (newline)))))
-    (set! #[protocol remove-symbol]
-	  (lambda (id)
-	    (hash-remove! objects id)))
-    (set! #[protocol response-symbol]
-	  (lambda (request-id . data)
-	    (or (and-let* ((request #[requests request-id])
-			   ((procedure? request)))
-		  (safely (apply request data))
-		  (hash-remove! requests request-id)
-		  (if #f #f))
-		(begin 
-		  (display `(invalid request ,request-id))
-		  (newline)))))
-    protocol))
 
 (define (input-available socket seconds)
   (match-let (((reads () ()) 
@@ -264,23 +193,77 @@
 	       (list (quote fname1) ...)))))
 
 (define-syntax define-protocol-generator
-  (syntax-rules ()
+  (syntax-rules (define)
     ((_ (protocol-name client-address)
-	bindings
-	(((fname arg ...) body ...) ...))
+	((binding value) ...)
+	(define (fname . args) body ...) ...)
      (define protocol-name 
        (lambda (client-address)
-	 (let ((protocol-name #[]))
-	   (let* bindings
-	     (hash-set! protocol-name (quote fname)
-			(proc (arg ...) 
-			      #;(begin 
-			      (display `(received (fname arg ...) 
-			      from ,client-address))
-			      (newline))
-			      body ...))
-	     ...)
+	 (let* ((protocol-name #[])
+		(binding value) ...)
+	   (hash-set! protocol-name (quote fname)
+		      (proc args 
+			    #;(begin 
+			    (display `(received (fname arg ...) 
+			    from ,client-address))
+			    (newline))
+			    body ...))
+	   ...
 	   protocol-name))))))
+
+(define-protocol-generator (make-client-protocol client)
+  ((protocol #[])
+   (subspaces #[])
+   (objects #[])
+   (requests #[]))
+  (define (objects)
+    objects)
+  (define (requests)
+    requests)
+  (define (set-slots! id . slots)
+    (or (and-let* ((object #[objects id]))
+	  (for (name value) in slots
+	       (if (equal? name 'context)
+		   (display `(setting context to ,value)))
+	       (slot-set! object name value)))
+	(begin 
+	  (display `(failed to set slots of object ,id))
+	  (remote client `(type-of ,id))
+	  (newline))))
+  (define (add! type id . slots)
+    (or (and-let* 
+	    ((type #[#[client 'type-hash] type])
+	     (object 
+	      (or 
+	       (and-let* ((object 
+			   #[*object-registry* id])
+			  (class
+			    (class-of object))
+			  ((equal? class type)))
+		 object)
+	       (make type))))
+	  #;(apply set-slots! id slots)
+	  (for (name value) in slots
+	       (slot-set! object name value))
+	  ;; the structure guarantees, that at this point of execution
+	  ;; there is no object with id "id", but only if we're 
+	  ;; cooperating with a single server, so it has to be fixed 
+	  (set! #[objects id] object) ; in the future!
+	  (if #f #f))
+	(begin 
+	  (display `(unknown type ,type))
+	  (newline))))
+  (define (remove! id)
+    (hash-remove! objects id))
+  (define (response request-id . data)
+    (or (and-let* ((request #[requests request-id])
+		   ((procedure? request)))
+	  (safely (apply request data))
+	  (hash-remove! requests request-id)
+	  (if #f #f))
+	(begin 
+	  (display `(invalid request ,request-id))
+	  (newline)))))
 
 (define-method 
   (make-server-cycle (socket <socket>) 

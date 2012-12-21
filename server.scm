@@ -35,7 +35,7 @@
    (player #f)
    (address connection)
    (objects '())) ; objects owned by the player
-  (((login name password)
+  (define (login name password)
     (if (and (not username) password 
 	     (equal? (hash-ref *users* name) password))
 	(begin
@@ -43,22 +43,23 @@
 	  (set! *logged-users* (cons name *logged-users*))
 	  #t)
 	#f))
-   ((request id message)
+  (define (request id message)
     (match message
       (((? symbol? fn) args ...)
        (let ((result (and-let* ((fn #[kutasa-protocol fn])
 				((procedure? fn)))
 		       (safely (apply fn args)))))
 	 `(response ,id ,(if (unspecified? result)
-				'unspecified
-				result))))
+			     'unspecified
+			     result))))
       (else
        `(response ,id ,else))))
-   ((join)
+  (define (join)
     (if username
 	(begin
+	  ;(display `(user ,username joins the game!))
 	  (set! player (make <player> #:owners (list address)))
-	  (set! objects (cons player objects))
+	  (push! objects player)
 	  (spawn-object! player)
 	  (protocol-add! kutasa-protocol
 			 ((jump) (jump! player))
@@ -68,30 +69,29 @@
 			 ((walk) (walk! player)))
 	  `(add! <player> ,#[player 'id] ,@(state-of player)))
 	'not-logged-in))
-   ((leave)
+  (define (leave)
     (set! player #f)
     (protocol-remove! kutasa-protocol jump shoot turn crouch walk))
-   ((echo)
+  (define (echo)
     '(echo))
-   ((owned-objects)
+  (define (owned-objects)
     objects)
-   ((display message)
+  (define (display message)
     (display message))
-   ((type-of id)
+  (define (type-of id)
     (and-let* ((object #[*object-registry* id])
 	       (type (class-name (class-of object))))
       `(add! ,type ,id)))
-   ((describe-protocol)
+  (define (describe-protocol)
     (hash-map->list
      (lambda (name proc)
        (cons name
 	     (procedure-args proc)))
      kutasa-protocol))
-   ((logout)
+  (define (logout)
     (if username (set! username #f))
     (set! *logged-users*
-	  (delete username *logged-users*)))))
-
+	  (delete username *logged-users*))))
 
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
@@ -119,7 +119,7 @@
 			  #;(begin
 			    (display `(sending
 				       ,(utf8->string message)))
-			    (newline))
+			  (newline))
 			  )))))
-	  0.3)))
+	  1.0)))
     (while #t (server-cycle))))

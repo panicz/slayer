@@ -20,14 +20,12 @@
 		 (buffer (make-bytevector 1024)))
       (set! #[this 'socket.address] (cons socket address))
       (set! #[this 'protocol] protocol)
-      (sendto socket (with-output-to-utf8 
-		      (\ display `(login ,username ,password)))
-	      address)
-      (sendto socket (string->utf8 "(join)") address)
+      (remote this `(login ,username ,password))
+      (remote this '(join))
       (let ((code (register-userevent ; this code is executed 
 		   (lambda (data socket.address) ; by the main thread
 		     #;(lock-mutex mutex)
-		     (begin
+		     #;(begin
 		       (display `(received ,data) *stdout*)
 		       (newline))
 		     (match-let (((socket . address) socket.address))
@@ -62,7 +60,7 @@
   #;(lock-mutex #[this 'mutex])
   (set! #[this 'objects] (hash-map->list 
 			  (lambda (key value) value) 
-			  #[this : 'protocol : 'objects]))
+			  (#[this : 'protocol : 'objects])))
   #;(begin(display #[this 'objects])(newline))
   (next-method)
   #;(unlock-mutex #[this 'mutex]))
