@@ -10,6 +10,7 @@
   #:export (
 	    expand 
 	    ?not ?and ?or in? 
+	    hash-keys hash-values hash-copy
 	    union intersection difference
 	    map-n
 	    rest
@@ -42,10 +43,17 @@
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
-(define (<< . messages)
-  (for message in messages
-       (display message))
-  (newline))
+(define (hash-keys hash-map)
+  (hash-map->list (lambda(key value) key) hash-map))
+
+(define (hash-values hash-map)
+  (hash-map->list (lambda(key value) value) hash-map))
+
+(define (hash-copy h)
+  (let ((result #[]))
+    (for (key . value) in (hash-map->list cons h)
+	 (set! #[result key] value))
+    result))
 
 (define rest cdr)
 
@@ -119,6 +127,13 @@
      (let ((value condition))
        (if (not (unspecified? value))
 	   (if value then))))))
+
+(define (<< . messages)
+  (with-output-to-port (current-error-port)
+    (lambda ()
+      (for message in messages
+	   (display message))
+      (newline))))
 
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))

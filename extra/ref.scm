@@ -104,6 +104,8 @@
    (let ((process (match-lambda
 		      (('_ key)
 		       `(lambda(_)(ref _ ,key)))
+		    ((object '_)
+		     `(lambda(_)(ref ,object _)))
 		    ((object key)
 		     `(ref ,object ,key))
 		    (('_ ': key . rest)
