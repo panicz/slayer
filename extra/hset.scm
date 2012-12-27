@@ -1,4 +1,5 @@
 (define-module (extra hset)
+  #:use-module (srfi srfi-1)
   #:use-module (ice-9 match)
   #:use-module (extra ref)
   #:use-module (extra common)

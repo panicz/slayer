@@ -13,16 +13,19 @@
 	    hash-keys hash-values hash-copy
 	    union intersection difference
 	    map-n
+	    for-each-n
 	    rest
 	    depth
 	    array-map
 	    array-append
+	    kw-list->hash-map
 	    list->uniform-vector
 	    list->uniform-array
 	    contains-duplicates?
 	    module->hash-map
 	    module->list
 	    module-symbols
+	    symbol->list
 	    hash-map->alist 
 	    alist->hash-map
 	    last-sexp-starting-position
@@ -43,19 +46,10 @@
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
-(define (hash-keys hash-map)
-  (hash-map->list (lambda(key value) key) hash-map))
-
-(define (hash-values hash-map)
-  (hash-map->list (lambda(key value) value) hash-map))
-
-(define (hash-copy h)
-  (let ((result #[]))
-    (for (key . value) in (hash-map->list cons h)
-	 (set! #[result key] value))
-    result))
-
 (define rest cdr)
+
+(define (symbol->list s)
+  (string->list (symbol->string s)))
 
 (define (intersection . lsets)
   (apply lset-intersection equal? lsets))
@@ -115,6 +109,18 @@
     ((_ x in list body ...)
      (for-each (match-lambda(x body ...)) list))))
 
+(define (hash-keys hash-map)
+  (hash-map->list (lambda(key value) key) hash-map))
+
+(define (hash-values hash-map)
+  (hash-map->list (lambda(key value) value) hash-map))
+
+(define (hash-copy h)
+  (let ((result (make-hash-table)))
+    (for (key . value) in (hash-map->list cons h)
+	 (hash-set! result key value))
+    result))
+
 (define-syntax if*
   (syntax-rules (in)
     ((_ condition then else)
@@ -129,12 +135,13 @@
 	   (if value then))))))
 
 (define (<< . messages)
-  (with-output-to-port (current-error-port)
-    (lambda ()
-      (for message in messages
-	   (display message))
-      (newline))))
-
+  (if #t
+      (with-output-to-port (current-error-port)
+	(lambda ()
+	  (for message in messages
+	       (display message))
+	  (newline)))))
+  
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
 
@@ -322,6 +329,17 @@
      out
      (apply map-n n fn (drop lst n) 
 	    (append out (list (apply fn (take lst n)))))))
+
+(define (for-each-n n fn lst)
+  (if (<= n (length lst))
+      (begin
+	(apply fn (take lst n))
+	(for-each-n n fn (drop lst n)))))
+
+(define (kw-list->hash-map kw-list)
+  (let ((result (make-hash-table)))
+    (for-each-n 2 (\ hash-set! result _ _) kw-list)
+    result))
 
 (define* (last-sexp-starting-position 
 	  str #:key 
