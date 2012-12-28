@@ -9,7 +9,6 @@
   :use-module (extra common)
   :use-module (extra math)
   :use-module (extra oop)
-  :use-module ((rnrs) :version (6))
   :export 
   (<basic-shape>
    <plane>
@@ -21,9 +20,9 @@
    distance
    nearest-points))
 
-#;(set! %load-path (append (list "." "..")  %load-path))
+(set! %load-path (append (list "." "..")  %load-path))
 
-#;(use-modules 
+(use-modules 
  (oop goops)
    (srfi srfi-1)
    (srfi srfi-2)
@@ -34,7 +33,8 @@
    (extra common)
    (extra math)
    (extra oop)
-   ((rnrs) :version (6)))
+   ;((rnrs) :version (6))
+)
 
 (define-syntax define-symmetric-method
   (syntax-rules ()
@@ -45,17 +45,23 @@
 
 (define-class <basic-shape> ())
 
+(define-method (display (shape <basic-shape>) port)
+  (display (list (class-name (class-of shape))) port))
+
+(define-method (write (shape <basic-shape>) port)
+  (write (list (class-name (class-of shape))) port))
+
 (define-class <plane> (<basic-shape>)
-  (normal #:init-keyword #:normal) ; vector
-  (displacement #:init-keyword #:displacement)) ; scalar
+  (normal #:init-value #f32(0 0 1) #:init-keyword #:normal) ; vector
+  (displacement #:init-value 0.0 #:init-keyword #:displacement)) ; scalar
 
 (define-class <sphere> (<basic-shape>)
   (position #:init-value #f32(0 0 0) #:init-keyword #:position)
   (radius #:init-value 1 #:init-keyword #:radius))
 
 (define-class <line> (<basic-shape>)
-  (direction #:init-keyword #:direction); vector
-  (displacement #:init-keyword #:displacement)) ; vector
+  (direction #:init-value #f32(1 0 0) #:init-keyword #:direction); vector
+  (displacement #:init-value #f32(0 0 0) #:init-keyword #:displacement)) ; vector
 
 (define-class <segment> (<basic-shape>)
   (a #:init-value #f32(1 -1 0) #:init-keyword #:a)
