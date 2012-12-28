@@ -2,8 +2,19 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref fref random-element))
- 
+  #:export (ref aref fref random-element slot-set! slot-ref))
+
+(define-generic slot-set!)
+
+(define-generic slot-ref)
+
+(define-method (slot-ref object slot-name)
+  ((@(oop goops)slot-ref) object slot-name))
+
+(define-method (slot-set! object slot-name value)
+  ((@(oop goops)slot-set!) object slot-name value))
+
+
 (define (getter obj key)
   (cond ((vector? obj)
 	 (vector-ref obj key))

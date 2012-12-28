@@ -2,13 +2,15 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-2)
   #:use-module (srfi srfi-11)
+  #:use-module (ice-9 match)
+  #:use-module (ice-9 regex)
+  #:use-module (oop goops)
+
   #:use-module (extra ref)
   #:use-module (extra common)
   #:use-module (extra time)
   #:use-module (extra function)
-  #:use-module (ice-9 match)
-  #:use-module (ice-9 regex)
-  #:use-module (oop goops)
+  #:use-module (extra oop)
   #:use-module ((rnrs) :version (6) 
 		:select (make-bytevector utf8->string string->utf8))
   #:export (
@@ -24,10 +26,15 @@
 	    request
 	    remote
 
+	    <call-before-slot-set!>
+	    <>
+
 	    <unique-id>
 
 	    *object-registry*
 	    <registered-object>
+	    remove!
+
 	    <network-object>
 	    state-of
 	    )
@@ -37,15 +44,30 @@
 
 
 (define <socket> <file-input-output-port>)
+
 (define <address> <vector>)
+
 (define <protocol> <hashtable>)
 
+(define-class <call-before-slot-set!> ())
+
+(define-generic before-slot-set!)
+
+(define-method (before-slot-set! (object <call-before-slot-set!>) slot-name value)
+  ;(<< "calling `before-slot-set!` on " object)
+  (noop))
+
+(define-method (slot-set! (object <call-before-slot-set!>) slot-name value)
+  (before-slot-set! object slot-name value)
+  (next-method))
 
 (define-class <unique-id> ()
-  (%id #:init-thunk (lambda()(gensym "domain"))) ; we consider the slots whose 
-  (id #:allocation #:virtual ;                     names begin with % private
-      #:slot-ref (lambda (this) #[this '%id])
-      #:slot-set! (lambda (this id) (set! #[this '%id] id))))
+  (id #:init-thunk (lambda()(gensym "domain"))))
+
+#;(define*-class <unique-id> (<register-write-access>)
+  (id #:init-thunk (lambda()(gensym "domain")) #:allow-override #t
+      #:on-write (lambda(this name value)
+		   (hash-set! #[this '%%write-registry] name value))))
 
 (define-method (display (object <unique-id>) port)
   (display (list (class-name (class-of object)) #[object 'id]) port))
@@ -55,13 +77,23 @@
 
 (define *object-registry* #[])
 
-(define-class <registered-object> (<unique-id>)
+#;(define-class <registered-object> (<unique-id>)
   (id #:allocation #:virtual
       #:slot-ref (lambda (this) #[this '%id])
       #:slot-set! (lambda (this id)
 		    (hash-remove! *object-registry* #[this '%id])
+		    (if #[*object-registry* id] (throw 'id-already-exists))
 		    (set! #[this '%id] id)
 		    (set! #[*object-registry* id] this))))
+
+(define-class <registered-object> (<unique-id> <call-before-slot-set!>))
+
+(define-method (before-slot-set! (object <registered-object>) slot-name value)
+  (cond ((equal? slot-name 'id)
+	 (hash-remove! *object-registry* #[object 'id])
+	 (if #[*object-registry* value] (throw 'id-already-exists))
+	 (set! #[*object-registry* value] object)))
+  (next-method))
 
 (define-method (initialize (this <registered-object>) args)
   (next-method)
@@ -72,17 +104,33 @@
 (define-method (remove! (object <registered-object>))
   (hash-remove! #[object 'registry] #[object 'id]))
 
-(define-class <network-object> (<registered-object>)
+(define-class <register-write-access> (<call-before-slot-set!>)
+  (%%write-registry #:init-thunk make-hash-table))
+
+(define-method (before-slot-set! (object <register-write-access>) slot-name value)
+  (and-let* ((peer-layer (find (lambda(layer)(in? <register-write-access> layer))
+			       (superclass-layers (class-of object))))
+	     (slot-names (difference (class-slot-names (class-of object))
+				     (append-map class-slot-names peer-layer)))
+	     ((in? slot-name slot-names)))
+    (set! #[object : '%%write-registry : slot-name] #t))
+  (next-method))
+
+(define-class <proto-network-object> (<registered-object>)
   (owners #:init-value #f #:init-keyword #:owners)
   (context #:init-value #f) ; the subspace to which it belongs
   (private-slots #:init-value '() #:allocation #:each-subclass)
   (client-slots #:init-value '() #:allocation #:each-subclass))
 
+(define-class <network-object> (<proto-network-object> <register-write-access>))
+
 (define* (state-of object #:optional (owner #t))
   (map (lambda (slot) (list slot #[object slot]))
-       (difference (map first (class-slots (class-of object)))
-		   (difference (map first (class-slots <network-object>)) 
-			       '(context))
+       (difference (filter (lambda(symbol)
+			     (not (string-match "^%.+" 
+						(symbol->string symbol))))
+			   (map first (class-slots (class-of object))))
+		   (map first (class-slots <network-object>))
 		   #[object 'client-slots]
 		   (if owner
 		       '()
@@ -202,34 +250,33 @@
 	 (let* ((protocol-name #[])
 		(binding value) ...)
 	   (hash-set! protocol-name (quote fname)
-		      (proc args 
-			    #;(begin 
-			    (display `(received (fname arg ...) 
-			    from ,client-address))
-			    (newline))
-			    body ...))
+		      (proc args body ...))
 	   ...
 	   protocol-name))))))
 
 (define-protocol-generator (make-client-protocol client)
+  
   ((protocol #[])
    (subspaces #[])
    (objects #[])
    (requests #[]))
+
   (define (objects)
     objects)
+
   (define (requests)
     requests)
+
   (define (set-slots! id . slots)
     (or (and-let* ((object #[objects id]))
 	  (for (name value) in slots
 	       (if (equal? name 'context)
-		   (display `(setting context to ,value)))
+		   (display `(setting context to ,value) (current-error-port)))
 	       (slot-set! object name value)))
 	(begin 
-	  (display `(failed to set slots of object ,id))
-	  (remote client `(type-of ,id))
-	  (newline))))
+	  (<< `(failed to set slots of object ,id))
+	  (remote client `(type-of ,id)))))
+
   (define (add! type id . slots)
     (or (and-let* 
 	    ((type #[#[client 'type-hash] type])
@@ -251,10 +298,11 @@
 	  (set! #[objects id] object) ; in the future!
 	  (if #f #f))
 	(begin 
-	  (display `(unknown type ,type))
-	  (newline))))
+	  (<< `(unknown type ,type)))))
+
   (define (remove! id)
     (hash-remove! objects id))
+
   (define (response request-id . data)
     (or (and-let* ((request #[requests request-id])
 		   ((procedure? request)))
@@ -263,7 +311,8 @@
 	  (if #f #f))
 	(begin 
 	  (display `(invalid request ,request-id))
-	  (newline)))))
+	  (newline))))
+  #;(define-protocol-generator (make-client-protocol client)))
 
 (define-method 
   (make-server-cycle (socket <socket>) 
