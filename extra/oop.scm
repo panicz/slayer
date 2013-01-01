@@ -24,6 +24,14 @@
   (map first (class-slots class)))
 
 (define (superclass-layers class)
+  (define (superclasses-layers classes result)
+    (let ((supers (apply union (map class-direct-supers classes))))
+      (if (null? supers)
+	  result
+	  (superclasses-layers supers (cons supers result)))))
+  (reverse (superclasses-layers (list class) '())))
+
+#;(define (superclass-layers class)
   (let loop ((supers (class-direct-supers class))
 	     (result '()))
     (if (null? supers)
