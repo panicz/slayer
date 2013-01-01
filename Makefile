@@ -37,7 +37,7 @@ slayer:	$(OBJECTS)
 	$(CXX) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
 
 clean:
-	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~
+	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~ *.go scm/*.go extra/*.go
 
 again:
 	make clean
