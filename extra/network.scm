@@ -12,7 +12,9 @@
   #:use-module (extra function)
   #:use-module (extra oop)
   #:use-module ((rnrs) :version (6) 
-		:select (make-bytevector utf8->string string->utf8))
+		:select (make-bytevector 
+			 utf8->string string->utf8 
+			 bytevector-fill!))
   #:export (
 	    make-client-protocol
 	    handle-packet!
@@ -25,9 +27,9 @@
 	    <network-client>
 	    request
 	    remote
+	    GATE
 
 	    <call-before-slot-set!>
-	    <>
 
 	    <unique-id>
 
@@ -36,12 +38,12 @@
 	    remove!
 
 	    <network-object>
+
 	    state-of
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
 		    protocol-remove!))
-
 
 (define <socket> <file-input-output-port>)
 
@@ -118,11 +120,11 @@
 
 (define-class <proto-network-object> (<registered-object>)
   (owners #:init-value #f #:init-keyword #:owners)
-  (context #:init-value #f) ; the subspace to which it belongs
   (private-slots #:init-value '() #:allocation #:each-subclass)
   (client-slots #:init-value '() #:allocation #:each-subclass))
 
-(define-class <network-object> (<proto-network-object> <register-write-access>))
+(define-class <network-object> (<proto-network-object> <register-write-access>)
+  (context #:init-value #f)) ; the subspace to which it belongs
 
 (define* (state-of object #:optional (owner #t))
   (map (lambda (slot) (list slot #[object slot]))
@@ -172,15 +174,25 @@
 	      (requests (#[#[gate 'protocol] 'requests]))
 	      (request-id (gensym "r-")))
     (set! #[requests request-id] handler)
+    (<< 'sending `(request ,request-id ,content) 'to address)
     (sendto socket (with-output-to-utf8 
 		    (\ display `(request ,request-id ,content)))
 	    address)))
 
+(define GATE (make-fluid))
+
+(define-method (request content (handler <procedure>))
+  (request #[GATE] content handler))
+
 (define-method (remote (gate <network-client>) content)
   (match-let (((socket . address) #[gate 'socket.address]))
+    (<< 'sending content 'to address)
     (sendto socket (with-output-to-utf8
 		    (\ display content))
 	    address)))
+
+(define-method (remote content)
+  (remote #[GATE] content))
 
 (define (input-available socket seconds)
   (match-let (((reads () ()) 
@@ -189,12 +201,12 @@
 
 (define (handle-packet! socket clients handle-new-client)
   (define buffer (make-bytevector 1024))
+  ;(bytevector-fill! buffer 0)
   (match-let* (((numread . address) (recvfrom! socket buffer))
-	       (data (substring (utf8->string buffer) 0 numread))
+	       (data (string-take (utf8->string buffer) numread))
 	       (client-env (hash-ref clients address)))
     (begin
-      (display `(received ,data from ,address))
-      (newline))
+      (<< `(received ,numread bytes: ,data from ,address)))
     (cond ((and (not client-env) handle-new-client)
 	   (set! client-env (handle-new-client address))
 	   (begin (display `(a new client connected from ,address))
@@ -208,13 +220,12 @@
 	     (let ((result (safely (apply #[client-env fn] args))))
 	       (if (not (unspecified? result))
 		   (begin
-		     (display `(sending ,result to ,address))
-		     (newline)
+		     (<< `(sending ,result to ,address))
 		     (sendto socket (with-output-to-utf8 
 				     (\ display result))
 			     address)))))
 	    (else
-	     (display `(ignoring ,else from ,address))))))))
+	     (<< `(ignoring ,else from ,address))))))))
 
 (define-method (handle-clients (socket <socket>) 
 			       (clients <protocol>) 
@@ -254,8 +265,7 @@
 	   ...
 	   protocol-name))))))
 
-(define-protocol-generator (make-client-protocol client)
-  
+(define-protocol-generator (make-client-protocol client)  
   ((protocol #[])
    (subspaces #[])
    (objects #[])
@@ -271,7 +281,7 @@
     (or (and-let* ((object #[objects id]))
 	  (for (name value) in slots
 	       (if (equal? name 'context)
-		   (display `(setting context to ,value) (current-error-port)))
+		   (<< `(setting context to ,value)))
 	       (slot-set! object name value)))
 	(begin 
 	  (<< `(failed to set slots of object ,id))
@@ -309,9 +319,7 @@
 	  (safely (apply request data))
 	  (hash-remove! requests request-id)
 	  (if #f #f))
-	(begin 
-	  (display `(invalid request ,request-id))
-	  (newline))))
+	(<< `(invalid request ,request-id))))
   #;(define-protocol-generator (make-client-protocol client)))
 
 (define-method 
