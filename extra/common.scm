@@ -11,10 +11,12 @@
 	    expand 
 	    ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy
-	    union intersection difference
+	    union intersection difference adjoin
 	    map-n
 	    for-each-n
+	    atom?
 	    rest
+	    tree-find tree-map
 	    depth
 	    array-map
 	    array-append
@@ -46,6 +48,9 @@
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
+(define (atom? x)
+  (and (not (pair? x)) (not (null? x))))
+
 (define rest cdr)
 
 (define (symbol->list s)
@@ -60,10 +65,26 @@
 (define (difference lset . lsets)
   (apply lset-difference equal? lset lsets))
 
+(define (adjoin lset . elements)
+  (apply lset-adjoin equal? lset elements))
+
 (define (depth x)
   (if (list? x)
       (1+ (apply max (map depth x)))
       0))
+
+(define (tree-find pred tree)
+  (if (null? tree)
+      #f
+      (or (find pred tree)
+	  (tree-find pred (concatenate (filter list? tree))))))
+
+(define (tree-map proc tree)
+  (map (lambda (item)
+	 (if (pair? item)
+	     (tree-map proc item)
+	     (proc item)))
+       tree))
 
 (define-syntax safely 
   (syntax-rules ()
