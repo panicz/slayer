@@ -10,11 +10,12 @@
   #:export (
 	    expand 
 	    ?not ?and ?or in? 
-	    hash-keys hash-values hash-copy
+	    hash-keys hash-values hash-copy hash-size
 	    union intersection difference adjoin
 	    map-n
 	    for-each-n
 	    atom?
+	    insert
 	    rest
 	    tree-find tree-map
 	    depth
@@ -47,6 +48,28 @@
 		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define* (insert new l condition 
+		 #:key (prefix '()) (right-bound +inf.0))
+  (match l
+    ((this next . rest)
+     (cond ((and (null? prefix) (condition new this next))
+	    (append prefix (list new this next) rest))
+	   ((condition this new next)
+	    (append prefix (list this new next) rest))
+	   (else 
+	    (insert new (cons next rest) condition 
+		    #:prefix (append prefix (list this))
+		    #:right-bound right-bound))))
+    ((last)
+     (cond ((and (null? prefix) (condition new last right-bound))
+	    (append prefix (list new last)))
+	   ((condition last new right-bound)
+	    (append prefix (list last new)))
+	   (else
+	    (append prefix (list last)))))
+    (()
+     (append prefix (list new)))))
 
 (define (atom? x)
   (and (not (pair? x)) (not (null? x))))
@@ -129,6 +152,9 @@
 	       (iota (1+ (- last first)) first)))
     ((_ x in list body ...)
      (for-each (match-lambda(x body ...)) list))))
+
+(define (hash-size hash-map)
+  (length (hash-values hash-map)))
 
 (define (hash-keys hash-map)
   (hash-map->list (lambda(key value) key) hash-map))
