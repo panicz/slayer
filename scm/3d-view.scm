@@ -1,12 +1,19 @@
 (use-modules (extra math)
-	     (extra 3d))
+	     (extra 3d)
+	     (extra subspace))
 
 (load "game.scm")
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
-  (display "initializing mesh\n")
-  (set! #[mesh 'mesh] (with-input-from-file "3d/cube.3d" read)))
+  ; (display "initializing mesh\n")
+  (set! #[mesh 'mesh] 
+	#;(generate-open-cylinder #:base-points 6)
+	#;(hemisphere #:density 30)
+	(generate-capsule)
+	#;(generate-hemisphere #:radius 0.2)
+	#;(generate-circle #:radius 0.2)
+	#;(with-input-from-file "3d/cube.3d" read)))
 
 (define (draw-mesh mesh)
   (match mesh
@@ -32,7 +39,23 @@
   (draw-mesh #[object 'mesh])
   (pop-matrix!))
 
-(define-class <3d-view> (<widget>)
+(define-method (draw (portal <portal>))
+  (push-matrix!)
+  (translate-view! #[portal 'position])
+  (rotate-view! #[portal 'orientation])
+  (or (and-let* ((passage #[portal 'passage])
+		 (its-objects #[passage 'objects]))
+	(for-each draw its-objects)
+	(let ((other-side (other-side portal)))
+	  (rotate-view! (reciprocal #[other-side 'orientation]))
+	  (translate-view! (recipriocal #[other-side 'position]))
+	  (and-let* ((opposite-sector #[other-side 'context])
+		     (its-objects #[opposite-sector 'objects]))
+	    (for-each draw (delete other-side its-objects)))))
+      (<< `(invalid portal ,portal)))
+  (pop-matrix!))
+
+(define-class <3d-view> (<extended-widget>)
   (camera #:init-thunk (lambda()(make <3d-cam>)))
   (objects #:init-value '()))
 
@@ -43,8 +66,7 @@
     (perspective-projection! #[view : 'camera : 'fovy])
     (translate-view! #[view : 'camera : 'position])
     (rotate-view! #[view : 'camera : 'orientation])
-    (for object in #[view 'objects]
-	 (draw object))
+    (for-each draw #[view 'objects])
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
 
