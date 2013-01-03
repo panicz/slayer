@@ -4,6 +4,8 @@
 (use-modules (oop goops)
 	     (srfi srfi-1) 
 	     (srfi srfi-2)
+	     (srfi srfi-4)
+	     (srfi srfi-4 gnu)
 	     (srfi srfi-11)
 	     (ice-9 match)
 	     (ice-9 format)
