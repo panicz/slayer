@@ -9,6 +9,7 @@
 	    class-names+classes
 	    superclass-layers
 	    class-slot-names
+	    class-specific-slot-names
 	    make*
 	    ))
 
@@ -22,6 +23,11 @@
 
 (define (class-slot-names class)
   (map first (class-slots class)))
+
+(define (class-specific-slot-names class)
+  (difference (class-slot-names class)
+	      (append-map class-slot-names (class-direct-supers class))))
+
 
 (define (superclass-layers class)
   (define (superclasses-layers classes result)
