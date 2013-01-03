@@ -14,7 +14,8 @@
   #:use-module ((rnrs) :version (6) 
 		:select (make-bytevector 
 			 utf8->string string->utf8 
-			 bytevector-fill!))
+			 bytevector-fill!)
+		)
   #:export (
 	    make-client-protocol
 	    handle-packet!
@@ -29,8 +30,10 @@
 	    remote
 	    GATE
 
-	    <call-before-slot-set!>
+	    signature
 
+	    <call-before-slot-set!>
+	    register-transaction
 	    <unique-id>
 
 	    *object-registry*
@@ -64,18 +67,23 @@
   (next-method))
 
 (define-class <unique-id> ()
-  (id #:init-thunk (lambda()(gensym "domain"))))
+  (id #:init-thunk (lambda()(gensym "domain")) #:init-keyword #:id))
 
 #;(define*-class <unique-id> (<register-write-access>)
   (id #:init-thunk (lambda()(gensym "domain")) #:allow-override #t
       #:on-write (lambda(this name value)
 		   (hash-set! #[this '%%write-registry] name value))))
 
+(define-generic signature)
+
+(define-method (signature (object <unique-id>))
+  (list (class-name (class-of object)) (slot-ref object 'id)))
+ 
 (define-method (display (object <unique-id>) port)
-  (display (list (class-name (class-of object)) #[object 'id]) port))
+  (display (signature object) port))
 
 (define-method (write (object <unique-id>) port)
-  (write (list (class-name (class-of object)) (slot-ref object 'id)) port))
+  (write (signature object) port))
 
 (define *object-registry* #[])
 
@@ -265,17 +273,43 @@
 	   ...
 	   protocol-name))))))
 
+(define-method (try-finalize-transaction (transactions <hashtable>) id)
+  (and-let* ((transaction #[transactions id])
+	     (finalize #[transaction 'finalize])
+	     (count #[transaction 'count])
+	     ((equal? (hash-size transaction) (+ count 2)))
+	     (stock 
+	      (map (match-lambda ((key . value) value))
+		   (sort (filter (match-lambda ((key . value)
+						(number? key))) 
+				 (hash-map->list cons transaction))
+			 (match-lambda* (((k1 . v1) (k2 . v2))
+					 (< k1 k2)))))))
+    (finalize stock)
+    (hash-remove! transactions id)))
+
+(define-method (register-transaction transactions id count callback)
+  (let ((transaction (or #[transactions id]
+			 (let ((transaction #[]))
+			   (set! #[transactions id] transaction)
+			   transaction))))
+    (set! #[transaction 'count] count)
+    (set! #[transaction 'finalize] callback)
+    (try-finalize-transaction transactions id)))
+
 (define-protocol-generator (make-client-protocol client)  
   ((protocol #[])
    (subspaces #[])
    (objects #[])
-   (requests #[]))
+   (requests #[])
+   (transactions #[]))
 
-  (define (objects)
-    objects)
-
-  (define (requests)
-    requests)
+  (define (objects) ;; those procedures are exported not because server is
+    objects) ;; ever going to call them, but because we want to have access
+  (define (requests) ;; to these variables from within the client. maybe it's
+    requests) ;; not the most elegant solution, but for now i don't have any
+  (define (transactions)
+    transactions);; better idea how to solve it
 
   (define (set-slots! id . slots)
     (or (and-let* ((object #[objects id]))
@@ -286,6 +320,30 @@
 	(begin 
 	  (<< `(failed to set slots of object ,id))
 	  (remote client `(type-of ,id)))))
+
+  (define (add-subspace! type id . slots)
+    (if (not (and-let* ((subspace #[subspaces 'id])
+			((equal? (class-name (class-of subspace)) type)))))
+	(and-let* ((type-hash #[client 'type-hash])
+		   (type #[type-hash type])
+		   (subspace (make type #:id id)))
+	  (set! #[subspaces 'id] subspace)
+	  (for (slot (type* id*)) in slots
+	       (cond ((and (in? slot '(left-portal right-portal))
+			   (equal? type* '<portal>)
+			   (symbol? id*))
+		      (let ((portal 
+			     (or #[objects id*]
+				 (let ((portal (make #[type-hash type*]
+						 #:id id*)))
+				   (set! #[objects id*] portal)
+				   (<< `(we should ask about some
+					    details of portal ,id*))
+				   portal))))
+			(set! #[subspace slot] portal)))
+		     (else
+		      (<< `(strange value (,slot (,type* ,id*)) in ,slots)))))
+	  (<< `(FINALLY CREATED ,subspace)))))
 
   (define (add! type id . slots)
     (or (and-let* 
@@ -298,7 +356,7 @@
 			    (class-of object))
 			  ((equal? class type)))
 		 object)
-	       (make type))))
+	       (make type #:id id))))
 	  #;(apply set-slots! id slots)
 	  (for (name value) in slots
 	       (slot-set! object name value))
@@ -313,9 +371,18 @@
   (define (remove! id)
     (hash-remove! objects id))
 
+  (define (transaction id order data)
+    (let ((transaction (or #[transactions id]
+			   (let ((transaction #[]))
+			     (set! #[transactions id] transaction)
+			     transaction))))
+      (set! #[transaction order] data)
+      (try-finalize-transaction transactions id)))
+
   (define (response request-id . data)
     (or (and-let* ((request #[requests request-id])
 		   ((procedure? request)))
+	  (<< `(applying ,data to ,request))
 	  (safely (apply request data))
 	  (hash-remove! requests request-id)
 	  (if #f #f))

@@ -1,4 +1,4 @@
-(display "loading goose-view.scm\n")
+(display "loading network-3d-view.scm\n")
 
 (use-modules (extra network))
 
@@ -6,9 +6,15 @@
 ;; to support currently needed cases -- so the 'requested' clause
 ;; can only appear at the least nested level
 
+(define (extract-request form)
+  (tree-find (match-lambda (('requested command) #t)
+	       (else #f))
+	     (list form)))
+
+
 (define-macro (command-request form)
-  (or (and-let* ((request (request form)))
-	`',(second request))
+  (or (and-let* ((extract-request (request form)))
+	(second request))
       (throw 'invalid-form)))
 
 (define-macro (literal-command xarg form)
@@ -25,25 +31,21 @@
   (transform-command xarg form))
 
 (define-macro (chain-request gate commands)
-  (define (request form)
-    (tree-find (match-lambda (('requested command) #t)
-		 (else #f))
-	       (list form)))
   (match commands
     ((last-command)
-     (let ((request (request last-command)))
+     (let ((request (extract-request last-command)))
        (match request
 	 (('requested command)
-	  `(request ,gate ',command
+	  `(request ,gate ,command
 		    (lambda (arg)
 		      (literal-command arg ,last-command))))
 	 (else
 	  `(begin ,last-command)))))
     ((first-command . remaining-commands)
-     (let ((request (request first-command)))
+     (let ((request (extract-request first-command)))
        (match request
 	 (('requested command)
-	  `(request ,gate ',command
+	  `(request ,gate ,command
 		    (lambda(arg)
 		      (literal-command arg ,first-command)
 		      (chain-request ,gate ,remaining-commands))))
@@ -77,17 +79,40 @@
 	(remote `(login ,username ,password))
 	(remote '(join))
 	
-	;(pretty-print #1expand #1quote
+	;;(pretty-print #1expand #1quote
 	(chain-request: 
 	 this
-	 ;(for-each #[protocol 'add!] (requested (owned-objects)))
-	 (display `(owned-objects: ,(requested (owned-objects))))
-	 ;(for-each #[protocol 'add-subspace!] (requested (visible-subspaces)))
-	 (<< 'visible-spaces: (requested (visible-subspaces)))
-	 ;(for-each #[protocol 'set-slots!] (requested (visible-objects)))
-	 (<< 'visible-objects: (requested (visible-objects)))
-	 (remote this '(inform-me-about-changes))))
-
+	 (for-each (\ apply #[protocol 'add!] _) (requested '(owned-objects)))
+	 ;(display `(owned-objects: ,(requested '(owned-objects))))
+	 (for-each (\ apply #[protocol 'add-subspace!] _)
+		   (requested '(visible-subspaces)))
+	 ;(<< 'visible-spaces: (requested '(visible-subspaces)))
+	 (for-each (\ apply #[protocol 'add!] _)
+		   (requested '(visible-objects)))
+	 ;(<< 'visible-objects: (requested '(visible-objects)))
+	 #;(for-each (lambda(object)
+		     (request this `(state-of ,#[object 'id])
+			      (lambda (state)
+				(if (list? state)
+				    (for (slot value) in state
+					 (slot-set! slot value))))))
+		   (hash-map->list (lambda(id object)object)
+				   (#[protocol 'objects])))
+	 (let* ((tid (gensym "tr-"))
+		(result (requested `(transaction 
+				     ,tid 
+				     (visible-objects+their-states)))))
+	   (match result
+	     (('transaction-begin id count)
+	      (register-transaction 
+	       id count
+	       (lambda (objects)
+		 (for-each (match-lambda ((type id . slots)
+					  (apply #[protocol 'add!] type id slots)))
+			   objects))))
+	     (else
+	      (<< `(unsupported transaction result ,result)))))))
+	 ;(remote this '(inform-me-about-changes))))
       (let ((code (register-userevent ; this code is executed 
 		   (lambda (data socket.address) ; by the main thread
 		     #;(lock-mutex mutex)
@@ -135,4 +160,4 @@
   (next-method)
   #;(unlock-mutex #[this 'mutex]))
 
-(display "loaded goose-view.scm\n")
+(display "loaded network-3d-view.scm\n")
