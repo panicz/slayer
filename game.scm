@@ -1,6 +1,27 @@
-(use-modules (extra math) (extra 3d) (extra goose))
+(use-modules (extra math) (extra 3d) (extra shape) 
+	     (extra network) (extra subspace))
 
-(define-class <player> (<goose> <3d-mesh>) 
+(define *world* #[])
+
+(define *subspaces* 
+  #f)
+
+(let ((subspace-1 (make <subspace>))
+      (subspace-2 (make <subspace>)))
+  (let* ((passage (make <passage>))
+	 (left-portal (make <portal> #:to passage))
+	 (right-portal (make <portal> #:to passage)))
+    (set! *subspaces* (list subspace-1 subspace-2 passage))
+    (set! #[passage 'left-portal] left-portal)
+    (add! left-portal subspace-1)
+    (set! #[passage 'right-portal] right-portal)
+    (add! right-portal subspace-2)))
+
+(define (update-world!)
+  (for-each update! *subspaces*)
+  #;(detect collision: here we may call (move! object #[portal 'passage])))
+
+(define-class <player> (<network-object> <3d-mesh>) 
   (client-slots #:init-value '(mesh))
   (health #:init-value 100.0)
   (reload-time-left #:init-value 0)
@@ -24,9 +45,17 @@
   (set! #[p 'reload-time-left] 20))
 
 (define-method (update! (p <player>))
+  ;(display (objects-visible-to p))(newline)
   (if (> #[p 'reload-time-left] 0)
       (decrease! #[p 'reload-time-left]))
   (increase! #[p 'position] #[p 'velocity]))
 
-(define-method (spawn-object! world player)
-  (hash-set! world #[player 'id] player))
+(define-method (spawn-object! player)
+  (let ((space (random-element *subspaces*)))
+    (add! player space))
+  ;(append! *world* (list player))
+  ;(display "SPAWNING ")(display world)(newline)
+  (hash-set! *world* #[player 'id] player)
+  (for s in *subspaces*
+       (display `(subspace ,s : ,@#[s 'objects]))
+       (newline)))
