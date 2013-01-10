@@ -6,17 +6,6 @@
 (define *subspaces* 
   #f)
 
-(let ((subspace-1 (make <subspace>))
-      (subspace-2 (make <subspace>)))
-  (let* ((passage (make <passage>))
-	 (left-portal (make <portal> #:to passage))
-	 (right-portal (make <portal> #:to passage)))
-    (set! *subspaces* (list subspace-1 subspace-2 passage))
-    (set! #[passage 'left-portal] left-portal)
-    (add! left-portal subspace-1)
-    (set! #[passage 'right-portal] right-portal)
-    (add! right-portal subspace-2)))
-
 (define (update-world!)
   (for-each update! *subspaces*)
   #;(detect collision: here we may call (move! object #[portal 'passage])))

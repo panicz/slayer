@@ -33,7 +33,19 @@
 
 (define *observers* '())
 
-(define-protocol-generator (kutasa-protocol connection)
+;;(load "map.scm")
+(let ((subspace-1 (make <subspace>))
+      (subspace-2 (make <subspace>)))
+  (let* ((passage (make <passage>))
+	 (left-portal (make <portal> #:to passage))
+	 (right-portal (make <portal> #:to passage)))
+    (set! *subspaces* (list subspace-1 subspace-2 passage))
+    (set! #[passage 'left-portal] left-portal)
+    (add! left-portal subspace-1)
+    (set! #[passage 'right-portal] right-portal)
+    (add! right-portal subspace-2)))
+
+(define-protocol-generator (kutasa-protocol socket connection)
   ((username #f)
    (player #f)
    (address connection)
@@ -68,17 +80,18 @@
 		       (safely (apply fn args)))))
 	 (if (list? result)
 	     (for-each (lambda(element number)
-			 (remote connection 
-				 `(transaction ,id ,number element)))
+			 (remote socket connection 
+				 `(transaction ,id ,number ,element)))
 		       result
 		       (iota (length result)))
+	     #;else 
 	     (if (not (unspecified? result))
-		 (remote connection result)))
+		 (remote socket connection result)))
 	 `(begin-transaction ,id ,(or (and (list? result) (length result))
 				      (and (unspecified? result) 0)
-				      1)))))
+				      1))))
       (else
-       (<< `(invalid transaction request ,message for ,id))))
+       (<< `(invalid transaction request ,message for ,id)))))
 
   (define (join)
     (if username
@@ -93,7 +106,7 @@
 			 ((turn degs) (turn! player degs))
 			 ((crouch) (crouch! player))
 			 ((walk) (walk! player)))
-	  `(add! <player> ,#[player 'id] ,@(state-of player)))
+	  `(add! <player> ,#[player 'id] ,@(network-state-of player)))
 	'not-logged-in))
 
   (define (leave)
@@ -116,7 +129,7 @@
 
   (define (state-of id)
     (and-let* ((object #[*object-registry* id]))
-      (cons id (state-of object (in? object objects)))))
+      (cons id (network-state-of object (in? object objects)))))
   
   (define (visible-subspaces)
     (apply union (map (lambda(object)
@@ -130,7 +143,8 @@
     (let ((visible-objects (#[kutasa-protocol 'visible-objects])))
       (map (lambda(object)
 	     (append (list (class-name (class-of object)) #[object 'id])
-		     (state-of object))))))
+		     (network-state-of object)))
+	   visible-objects)))
 
   (define (inform-me-about-changes)
     (set! *observers* (adjoin *observers* connection)))
@@ -146,7 +160,6 @@
     (if username (set! username #f))
     (set! *logged-users*
 	  (delete username *logged-users*)))
-  
   #;(define-protocol-generator (kutasa-protocol connection)))
 
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
@@ -154,7 +167,7 @@
   (let ((server-cycle 
 	 (make-server-cycle 
 	  socket
-	  (make-hash-table)
+	  #[]
 	  kutasa-protocol
 	  update-world!
 	  (lambda (sock addr proto)

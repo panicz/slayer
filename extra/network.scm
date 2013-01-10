@@ -43,6 +43,8 @@
 	    <network-object>
 
 	    state-of
+	    network-slot-value
+	    network-state-of
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
@@ -78,7 +80,7 @@
 
 (define-method (signature (object <unique-id>))
   (list (class-name (class-of object)) (slot-ref object 'id)))
- 
+
 (define-method (display (object <unique-id>) port)
   (display (signature object) port))
 
@@ -99,6 +101,7 @@
 (define-class <registered-object> (<unique-id> <call-before-slot-set!>))
 
 (define-method (before-slot-set! (object <registered-object>) slot-name value)
+  ;;(<< `(SETTING SLOT ,slot-name OF ,object TO ,value))
   (cond ((equal? slot-name 'id)
 	 (hash-remove! *object-registry* #[object 'id])
 	 (if #[*object-registry* value] (throw 'id-already-exists))
@@ -107,6 +110,8 @@
 
 (define-method (initialize (this <registered-object>) args)
   (next-method)
+  #;(if (in? (class-name (class-of this)) '(<subspace> <passage>))
+      (<< `(ADDING OBJECT ,this TO *object-registry*)))
   (set! #[*object-registry* #[this 'id]] this))
 
 (define-generic remove!)
@@ -134,17 +139,32 @@
 (define-class <network-object> (<proto-network-object> <register-write-access>)
   (context #:init-value #f)) ; the subspace to which it belongs
 
+(define-generic network-slot-value)
+
+(define-method (network-slot-value (slot <top>))
+  ;(<< "network-slot-value " slot)
+  slot)
+
+(define-method (network-slot-value (object <registered-object>))
+  #[object 'id])
+
 (define* (state-of object #:optional (owner #t))
   (map (lambda (slot) (list slot #[object slot]))
-       (difference (filter (lambda(symbol)
-			     (not (string-match "^%.+" 
-						(symbol->string symbol))))
-			   (map first (class-slots (class-of object))))
-		   (map first (class-slots <network-object>))
-		   #[object 'client-slots]
-		   (if owner
-		       '()
-		       #[object 'private-slots]))))
+       (cons 'context
+	     (difference (filter (lambda(symbol)
+				   (not (string-match "^%.+" 
+						      (symbol->string symbol))))
+				 (map first (class-slots (class-of object))))
+			 (map first (class-slots <network-object>))
+			 #[object 'client-slots]
+			 (if owner
+			     '()
+			     #[object 'private-slots])))))
+
+(define* (network-state-of object #:optional (owner #t))
+  (map (match-lambda((slot-name value)
+		     (list slot-name (network-slot-value value))))
+	 (state-of object owner)))
 
 (define (resolve-address string)
   (let-values (((address port) (match (string-split string #\:)
@@ -192,12 +212,15 @@
 (define-method (request content (handler <procedure>))
   (request #[GATE] content handler))
 
+(define-method (remote (socket <socket>) (address <address>) content)
+  (<< 'sending content 'to address)
+  (sendto socket (with-output-to-utf8
+		  (\ display content))
+	  address))
+
 (define-method (remote (gate <network-client>) content)
   (match-let (((socket . address) #[gate 'socket.address]))
-    (<< 'sending content 'to address)
-    (sendto socket (with-output-to-utf8
-		    (\ display content))
-	    address)))
+    (remote socket address content)))
 
 (define-method (remote content)
   (remote #[GATE] content))
@@ -216,7 +239,7 @@
     (begin
       (<< `(received ,numread bytes: ,data from ,address)))
     (cond ((and (not client-env) handle-new-client)
-	   (set! client-env (handle-new-client address))
+	   (set! client-env (handle-new-client socket address))
 	   (begin (display `(a new client connected from ,address))
 		  (newline))
 	   (if client-env
@@ -261,11 +284,11 @@
 
 (define-syntax define-protocol-generator
   (syntax-rules (define)
-    ((_ (protocol-name client-address)
+    ((_ (protocol-name connection-socket client-address)
 	((binding value) ...)
 	(define (fname . args) body ...) ...)
      (define protocol-name 
-       (lambda (client-address)
+       (lambda (connection-socket client-address)
 	 (let* ((protocol-name #[])
 		(binding value) ...)
 	   (hash-set! protocol-name (quote fname)
@@ -297,7 +320,28 @@
     (set! #[transaction 'finalize] callback)
     (try-finalize-transaction transactions id)))
 
-(define-protocol-generator (make-client-protocol client)  
+(define (set-slots! client objects id . slots)
+  (or (and-let* ((object #[objects id]))
+	(for (name value) in slots
+	     (if (equal? name 'context)
+		 (<< `(setting context to ,value)))
+	     (if (not (equal? name 'id))
+		 (if (symbol? value)
+		     (begin
+		       #;(<< `(trying to replace symbol ,value with object
+		       ,#[*object-registry* value]))
+		       (slot-set! object name (or #[*object-registry* value]
+						  (and (<< `(no object with id 
+								,value - setting
+								value of a symbol
+								instead)) 
+						       value))))
+		     (slot-set! object name value)))))
+      (begin 
+	(<< `(failed to set slots of object ,id))
+	(remote client `(type-of ,id)))))
+
+(define-protocol-generator (make-client-protocol socket client)
   ((protocol #[])
    (subspaces #[])
    (objects #[])
@@ -310,24 +354,22 @@
     requests) ;; not the most elegant solution, but for now i don't have any
   (define (transactions)
     transactions);; better idea how to solve it
+  (define (subspaces)
+    subspaces)
 
   (define (set-slots! id . slots)
-    (or (and-let* ((object #[objects id]))
-	  (for (name value) in slots
-	       (if (equal? name 'context)
-		   (<< `(setting context to ,value)))
-	       (slot-set! object name value)))
-	(begin 
-	  (<< `(failed to set slots of object ,id))
-	  (remote client `(type-of ,id)))))
+    (apply set-slots! client objects id slots))
 
   (define (add-subspace! type id . slots)
-    (if (not (and-let* ((subspace #[subspaces 'id])
+    ;;(<< `(DEALING WITH ,type ,id))
+    (if (not (and-let* ((subspace #[*object-registry* 'id])
+			;;((<< 'SUBSPACE: subspace(class-name(class-of subspace))))
 			((equal? (class-name (class-of subspace)) type)))))
 	(and-let* ((type-hash #[client 'type-hash])
 		   (type #[type-hash type])
 		   (subspace (make type #:id id)))
-	  (set! #[subspaces 'id] subspace)
+	  ;;(<< `(ADDING ,subspace TO subspaces hash))
+	  (set! #[subspaces id] subspace)
 	  (for (slot (type* id*)) in slots
 	       (cond ((and (in? slot '(left-portal right-portal))
 			   (equal? type* '<portal>)
@@ -343,7 +385,9 @@
 			(set! #[subspace slot] portal)))
 		     (else
 		      (<< `(strange value (,slot (,type* ,id*)) in ,slots)))))
-	  (<< `(FINALLY CREATED ,subspace)))))
+	  #;(<< `(FINALLY CREATED ,subspace)))
+	;;else
+	#;(<< `(SKIPPING ,type ,id))))
 
   (define (add! type id . slots)
     (or (and-let* 
@@ -358,8 +402,22 @@
 		 object)
 	       (make type #:id id))))
 	  #;(apply set-slots! id slots)
-	  (for (name value) in slots
-	       (slot-set! object name value))
+	  ;(apply #[make-client-protocol 'set-slots!] id slots)
+	  (apply set-slots! client objects id slots)
+	  #;(for (name value) in slots
+	       (if (equal? name 'context)
+		   (<< `(setting context to ,value)))
+	       (if (not (equal? name 'id))
+		   (if (symbol? value)
+		       (begin
+			 ;(<< `(trying to replace symbol ,value with object,#[*object-registry* value]))
+			 (slot-set! object name (or #[*object-registry* value]
+						    (and (<< `(no object with id 
+								  ,value - setting
+								  value of a symbol
+								  instead)) 
+							 value))))
+		       (slot-set! object name value))))
 	  ;; the structure guarantees, that at this point of execution
 	  ;; there is no object with id "id", but only if we're 
 	  ;; cooperating with a single server, so it has to be fixed 
@@ -387,7 +445,7 @@
 	  (hash-remove! requests request-id)
 	  (if #f #f))
 	(<< `(invalid request ,request-id))))
-  #;(define-protocol-generator (make-client-protocol client)))
+  #;(define-protocol-generator (makes-client-protocol client)))
 
 (define-method 
   (make-server-cycle (socket <socket>) 

@@ -22,6 +22,8 @@
 	   objects-visible-to
 	   subspaces-visible-from
 	   objects-visible-from
+
+	   ;network-slot-value
 	   
 	   update!
 	   add!
@@ -75,8 +77,8 @@
   (for-each update! #[subspace 'objects]))
 
 (define-class <passage> (<subspace>)
-  (left-portal #:init-value #f)
-  (right-portal #:init-value #f))
+  (left-portal #:init-value #f #;type #;<portal>)
+  (right-portal #:init-value #f #;type #;<portal>))
 
 (define-method (signature (passage <passage>))
   (append (next-method) 
@@ -86,7 +88,7 @@
 (define-class <portal> (<network-object> <3d-shape>)
   (shape #:init-keyword #:shape #:init-value 
 	 (make <plane> #:normal #f32(1 0 0) #:displacement 0.0))
-  (passage #:init-value #f #:init-keyword #:to))
+  (passage #:init-value #f #:init-keyword #:to #;type #;<passage>))
 
 (define-method (other-side (portal <portal>))
   (let ((passage #[portal 'passage]))
@@ -175,19 +177,3 @@
 	(objects-visible-from context)
 	(list object))))
 
-
-#|
-(define *subspaces* 
-  #f)
-
-(let ((subspace-1 (make <subspace>))
-      (subspace-2 (make <subspace>)))
-  (let* ((passage (make <passage>))
-	 (left-portal (make <portal> #:to passage))
-	 (right-portal (make <portal> #:to passage)))
-    (set! *subspaces* (list subspace-1 subspace-2 passage))
-    (set! #[passage 'left-portal] left-portal)
-    (add! left-portal subspace-1)
-    (set! #[passage 'right-portal] right-portal)
-    (add! right-portal subspace-2)))
-|#

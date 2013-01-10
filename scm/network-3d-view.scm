@@ -11,7 +11,6 @@
 	       (else #f))
 	     (list form)))
 
-
 (define-macro (command-request form)
   (or (and-let* ((extract-request (request form)))
 	(second request))
@@ -69,7 +68,7 @@
     (match-let* (((address . port) (resolve-address address))
 		 (socket (socket PF_INET SOCK_DGRAM 0))
 		 (address (make-socket-address AF_INET address port))
-		 (protocol (make-client-protocol this))
+		 (protocol (make-client-protocol socket this))
 	  #;(mutex #[this 'mutex])
 		 (buffer (make-bytevector 1024)))
       (set! #[this 'socket.address] (cons socket address))
@@ -78,18 +77,19 @@
       (with-fluids ((GATE this))
 	(remote `(login ,username ,password))
 	(remote '(join))
-	
+		
 	;;(pretty-print #1expand #1quote
 	(chain-request: 
 	 this
 	 (for-each (\ apply #[protocol 'add!] _) (requested '(owned-objects)))
-	 ;(display `(owned-objects: ,(requested '(owned-objects))))
+	 ;;(display `(owned-objects: ,(requested '(owned-objects))))
 	 (for-each (\ apply #[protocol 'add-subspace!] _)
 		   (requested '(visible-subspaces)))
-	 ;(<< 'visible-spaces: (requested '(visible-subspaces)))
+	 ;(display (hash-map->alist ((hash-ref protocol 'subspaces))))
+	 ;;(<< 'visible-spaces: (requested '(visible-subspaces)))
 	 (for-each (\ apply #[protocol 'add!] _)
 		   (requested '(visible-objects)))
-	 ;(<< 'visible-objects: (requested '(visible-objects)))
+	 ;;(<< 'visible-objects: (requested '(visible-objects)))
 	 #;(for-each (lambda(object)
 		     (request this `(state-of ,#[object 'id])
 			      (lambda (state)
@@ -98,21 +98,21 @@
 					 (slot-set! slot value))))))
 		   (hash-map->list (lambda(id object)object)
 				   (#[protocol 'objects])))
-	 (let* ((tid (gensym "tr-"))
-		(result (requested `(transaction 
-				     ,tid 
-				     (visible-objects+their-states)))))
+	 (let ((result (requested `(transaction 
+				    ,(gensym "tr-")
+				    (visible-objects+their-states)))))
 	   (match result
-	     (('transaction-begin id count)
+	     (('begin-transaction id count)
 	      (register-transaction 
-	       id count
+	       (#[protocol 'transactions]) id count
 	       (lambda (objects)
+		 ;(<< `(setting slots of ,objects))
 		 (for-each (match-lambda ((type id . slots)
 					  (apply #[protocol 'add!] type id slots)))
 			   objects))))
 	     (else
-	      (<< `(unsupported transaction result ,result)))))))
-	 ;(remote this '(inform-me-about-changes))))
+	      (<< `(unsupported transaction result ,result)))))
+	 (remote this '(inform-me-about-changes))))
       (let ((code (register-userevent ; this code is executed 
 		   (lambda (data socket.address) ; by the main thread
 		     #;(lock-mutex mutex)

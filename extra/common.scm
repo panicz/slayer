@@ -116,9 +116,10 @@
        (lambda (key . args)
 	 (with-output-to-port (current-output-port)
 	   (lambda()
-	     (backtrace)
+	     ;;(backtrace)
 	     (display `(error calling sexp : ,key ,args))
-	     (values (if #f #f) #f))))))))
+	     (values (if #f #f) #f))))
+       (lambda args (backtrace))))))
 
 (define-syntax-rule (export-types symbol ...)
   `((symbol ,symbol) ...))
@@ -212,6 +213,7 @@
    (length (array-dimensions first))
    (apply append (map array->list (cons first rest)))))
 
+
 (define (list->uniform-vector type list)
   (list->typed-array type 1 list))
 
@@ -261,7 +263,6 @@
   (let ((h (make-hash-table)))
     (for-each (lambda(kv)(hash-set! h (car kv) (cdr kv))) alist)
     h))
-
 
 ;; (define (contains-duplicates? l)
 ;;   (call/cc (lambda(break)
