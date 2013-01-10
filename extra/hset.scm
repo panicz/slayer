@@ -9,6 +9,9 @@
 	    hset-union 
 	    hset-intersection
 	    hset-difference
+	    hash->hset
+	    hash=
+	    hash-empty?
 	    ))
 
 (define (list->hset l)
@@ -58,3 +61,15 @@
 	 (for x in (hset->list hset)
 	      (hash-remove! result x)))
     result))
+
+(define (hash->hset hash)
+  (let ((hset #[]))
+    (for pair in (hash-map->list cons hash)
+	 (set! #[hset pair] #t))
+    hset))
+
+(define (hash= . hashes)
+  (apply hset= (map hash->hset hashes)))
+
+(define (hash-empty? hash)
+  (hash= hash #[]))
