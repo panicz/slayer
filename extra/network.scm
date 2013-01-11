@@ -127,23 +127,25 @@
 (define-class <register-write-access> (<call-before-slot-set!>)
   (%%write-registry #:init-thunk make-hash-table))
 
+(define-generic write-register-slots)
+
+(define-method (write-register-slots (object <register-write-access>))
+  (let ((peer-layer (find (lambda(layer)(in? <register-write-access> layer))
+			   (superclass-layers 
+			    (filter (lambda (class)
+				      (in? <register-write-access>
+					   (class-ancestors class)))
+				    (class-direct-supers (class-of object)))))))
+    (difference (class-slot-names (class-of object))
+		(append-map class-slot-names peer-layer))))
+
 (define-method (before-slot-set! (object <register-write-access>) slot-name value)
-  ;;(<< `(SETTING SLOT ,slot-name OF ,object TO ,value))
-  (and-let* ((peer-layer (find (lambda(layer)(in? <register-write-access> layer))
-			       (superclass-layers 
-				(filter (lambda (class)
-					  (in? <register-write-access>
-					       (class-ancestors class)))
-					(class-direct-supers (class-of object))))))
-	     ;;((for-each << (superclass-layers (class-of object))))
-	     ;;((<< "PEER LAYER: " peer-layer))
-	     (slot-names (difference (class-slot-names (class-of object))
-				     (append-map class-slot-names peer-layer)))
-	     ;;((<< "SLOT NAMES: " slot-names))
+  (and-let* ((slot-names (write-register-slots object))
 	     ((in? slot-name slot-names)))
     ;;(<< "REMEMBERING " slot-name)
     (set! #[object : '%%write-registry : slot-name] #t))
   (next-method))
+
 
 (define-method (modified? (object <register-write-access>))
   (not (hash-empty? #[object '%%write-registry])))
@@ -159,6 +161,10 @@
 
 (define-class <network-object> (<proto-network-object> <register-write-access>)
   (context #:init-value #f)) ; the subspace to which it belongs
+
+(define-method (write-register-slots (object <network-object>))
+  (cons 'context (difference (class-slot-names (class-of object))
+			     (class-slot-names <network-object>))))
 
 (define-generic network-slot-value)
 
