@@ -71,7 +71,8 @@
 (define-generic update!)
 
 (define-method (update! (object <network-object>))
-  (noop))
+  (<< "updating " object (hash-map->alist #[object '%%write-registry]))
+  (reset-write-registry! object))
 
 (define-method (update! (subspace <subspace>))
   (for-each update! #[subspace 'objects]))

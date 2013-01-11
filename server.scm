@@ -3,7 +3,7 @@
 (set! %load-path (append (list "." "..")  %load-path))
 
 (use-modules 
- (oop goops)
+ ((oop goops) #:hide (slot-ref slot-set!))
  (srfi srfi-1) (srfi srfi-2) (srfi srfi-11)
  (ice-9 match) (ice-9 format) (ice-9 optargs) 
  (ice-9 pretty-print) (ice-9 local-eval) (ice-9 regex)
@@ -13,7 +13,8 @@
  (extra subspace)
  ((rnrs) :version (6)))
 
-(define *users* (make-hash-table))
+(define *users* #[])
+
 (define *logged-users* '())
 
 ;; server is stupid and reliable; client is fancy and fallable
@@ -177,14 +178,15 @@
 		  (set! *modifications* '())
 		  (let ((owned-objects (#[proto 'owned-objects])))
 		    (for actor in owned-objects
-			 (for object in (objects-visible-to actor)
+			 (for object in (filter modified? 
+						(objects-visible-to actor))
 					;(display object)(newline)
 			      (let ((message 
 				     (with-output-to-utf8
 				      (\ display 
 				       `(set-slots! 
 					 ,#[object 'id]
-					 ,@(state-of
+					 ,@(modified-state-of
 					    object
 					    (in? object 
 						 owned-objects)))))))

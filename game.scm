@@ -34,6 +34,9 @@
   (set! #[p 'reload-time-left] 20))
 
 (define-method (update! (p <player>))
+  (next-method)
+  (<< "UPDATING PLAYER, DOESN'T IT MEAN ANYTHING? "
+      (is-a? p <register-write-access>))
   ;(display (objects-visible-to p))(newline)
   (if (> #[p 'reload-time-left] 0)
       (decrease! #[p 'reload-time-left]))

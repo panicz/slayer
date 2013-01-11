@@ -1,5 +1,5 @@
 (define-module (extra ref)
-  #:use-module (oop goops)
+  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
   #:use-module (ice-9 match)
   #:use-module (extra common)
   #:export (ref aref fref random-element slot-set! slot-ref))

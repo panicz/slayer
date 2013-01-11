@@ -4,13 +4,14 @@
   #:use-module (srfi srfi-11)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
-  #:use-module (oop goops)
+  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
 
   #:use-module (extra ref)
   #:use-module (extra common)
   #:use-module (extra time)
   #:use-module (extra function)
   #:use-module (extra oop)
+  #:use-module (extra hset)
   #:use-module ((rnrs) :version (6) 
 		:select (make-bytevector 
 			 utf8->string string->utf8 
@@ -38,6 +39,7 @@
 
 	    *object-registry*
 	    <registered-object>
+	    <register-write-access>
 	    remove!
 
 	    <network-object>
@@ -45,6 +47,9 @@
 	    state-of
 	    network-slot-value
 	    network-state-of
+	    modified?
+	    modified-state-of
+	    reset-write-registry!
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
@@ -61,7 +66,7 @@
 (define-generic before-slot-set!)
 
 (define-method (before-slot-set! (object <call-before-slot-set!>) slot-name value)
-  ;(<< "calling `before-slot-set!` on " object)
+  ;(<< "calling `before-slot-set!` on " object " with " slot-name ", " value)
   (noop))
 
 (define-method (slot-set! (object <call-before-slot-set!>) slot-name value)
@@ -123,13 +128,29 @@
   (%%write-registry #:init-thunk make-hash-table))
 
 (define-method (before-slot-set! (object <register-write-access>) slot-name value)
+  ;;(<< `(SETTING SLOT ,slot-name OF ,object TO ,value))
   (and-let* ((peer-layer (find (lambda(layer)(in? <register-write-access> layer))
-			       (superclass-layers (class-of object))))
+			       (superclass-layers 
+				(filter (lambda (class)
+					  (in? <register-write-access>
+					       (class-ancestors class)))
+					(class-direct-supers (class-of object))))))
+	     ;;((for-each << (superclass-layers (class-of object))))
+	     ;;((<< "PEER LAYER: " peer-layer))
 	     (slot-names (difference (class-slot-names (class-of object))
 				     (append-map class-slot-names peer-layer)))
+	     ;;((<< "SLOT NAMES: " slot-names))
 	     ((in? slot-name slot-names)))
+    ;;(<< "REMEMBERING " slot-name)
     (set! #[object : '%%write-registry : slot-name] #t))
   (next-method))
+
+(define-method (modified? (object <register-write-access>))
+  (not (hash-empty? #[object '%%write-registry])))
+
+(define-method (reset-write-registry! (object <register-write-access>))
+  (for-each (\ hash-remove! #[object '%%write-registry] _) 
+	    (hash-keys #[object '%%write-registry])))
 
 (define-class <proto-network-object> (<registered-object>)
   (owners #:init-value #f #:init-keyword #:owners)
@@ -165,6 +186,17 @@
   (map (match-lambda((slot-name value)
 		     (list slot-name (network-slot-value value))))
 	 (state-of object owner)))
+
+(define-method (modified-state-of (object <network-object>) (owner <boolean>))
+  (map (lambda (slot) (list slot #[object slot]))
+       (difference
+	(hset->list #[object '%%write-registry])
+	(if owner
+	    '()
+	    #[object 'private-slots]))))
+
+(define-method (modified-state-of (object <network-object>))
+  (modified-state-of object #t))
 
 (define (resolve-address string)
   (let-values (((address port) (match (string-split string #\:)

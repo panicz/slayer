@@ -5,7 +5,9 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-2)
   #:export (
-	    class-tree-append-map
+	    class-tree-append-map-down
+	    class-tree-append-map-up
+	    class-ancestors
 	    class-names+classes
 	    superclass-layers
 	    class-slot-names
@@ -15,11 +17,21 @@
 
 ;; this module is barely used
 
-(define (class-tree-append-map f root)
-  "class-tree-append-map returns a flat list containing the result of application of f to the class object in the root, appended with the list of all its descendants, appended with the list of all their descenants' descentants and so on. f should always return a list."
+(use-modules (oop goops))
+
+(define (class-tree-append-map-down f root)
+  "class-tree-append-map-down returns a flat list containing the result of application of f to the class object in the root, appended with the list of all its descendants, appended with the list of all their descenants' descentants and so on. f should always return a list."
   (apply append (f root) 
-	 (map (lambda(class)(class-tree-append-map f class)) 
+	 (map (lambda(class)(class-tree-append-map-down f class)) 
 	      (class-direct-subclasses root))))
+
+(define (class-tree-append-map-up f root)
+  (apply append (f root)
+	 (map (lambda(class)(class-tree-append-map-up f class))
+	      (class-direct-supers root))))
+
+(define (class-ancestors class)
+  (class-tree-append-map-up list class))
 
 (define (class-slot-names class)
   (map first (class-slots class)))
@@ -28,8 +40,16 @@
   (difference (class-slot-names class)
 	      (append-map class-slot-names (class-direct-supers class))))
 
+(define* (superclass-layers classes #:key (initial '()))
+  (if (not (list? classes))
+      (superclass-layers (list classes) #:initial initial)
+      (let ((supers (apply union (map class-direct-supers classes))))
+	(if (null? supers)
+	    initial
+	    (superclass-layers supers #:initial (append initial 
+							(list supers)))))))
 
-(define (superclass-layers class)
+#;(define (superclass-layers class)
   (define (superclasses-layers classes result)
     (let ((supers (apply union (map class-direct-supers classes))))
       (if (null? supers)
@@ -46,7 +66,7 @@
 	      (append result (list supers))))))
 
 (define (class-names+classes root)
-  (class-tree-append-map
+  (class-tree-append-map-down
    (lambda(class)
      (if (slot-bound? class 'name)
 	 `((,(class-name class) ,class))
