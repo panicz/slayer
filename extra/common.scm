@@ -35,6 +35,7 @@
 	    properize
 	    flatten
 	    cart
+	    all-tuples all-pairs all-triples
 	    take-at-most drop-at-most
 	    remove-keyword-args
 	    array-size
@@ -361,6 +362,23 @@
 			first))
 		 (apply cart rest)))))
 
+(define (all-tuples n l)
+  (cond
+   ((= n 0) '())
+   ((= n 1) (map list l))
+   ((> n 1)
+    (match l
+      (() '())
+      ((first . rest)
+       (append (map (\ cons first _) (all-tuples (1- n) rest))
+	       (all-tuples n rest)))))))
+
+(define (all-pairs l)
+  (all-tuples 2 l))
+
+(define (all-triples l)
+  (all-tuples 3 l))
+
 (define (?not pred)(lambda(x)(not (pred x))))
 
 ;; Note that (?and p? q? ...) is equivalent to 
@@ -450,7 +468,7 @@
 		 (#t
 		  (throw 'mismatch-braces)))))))
 
-(define (cart . args)
+#;(define (cart . args)
   (let ((n (length args)))
     (cond ((= n 0) '())
 	  ((= n 1) (map list (car args)))
