@@ -50,10 +50,18 @@
 	    modified?
 	    modified-state-of
 	    reset-write-registry!
+
+	    
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
-		    protocol-remove!))
+		    protocol-remove!
+
+		    literal-command
+		    command-request
+		    chain-request
+		    chain-request:
+		    ))
 
 (define <socket> <file-input-output-port>)
 
@@ -263,6 +271,55 @@
 (define-method (remote content)
   (remote #[GATE] content))
 
+(define (extract-request form)
+  (tree-find (match-lambda (('requested command) #t)
+	       (else #f))
+	     (list form)))
+
+(define-macro (command-request form)
+  (or (and-let* ((extract-request (request form)))
+	(second request))
+      (throw 'invalid-form)))
+
+(define-macro (literal-command xarg form)
+  (define (transform-command xarg form)
+    (match form
+      (('requested command)
+       xarg)
+      (('quote datum)
+       (list 'quote datum))
+      ((items ...)
+       (map (lambda(form)(transform-command xarg form)) items))
+      (else
+       else)))
+  (transform-command xarg form))
+
+(define-macro (chain-request gate commands)
+  (match commands
+    ((last-command)
+     (let ((request (extract-request last-command)))
+       (match request
+	 (('requested command)
+	  `(request ,gate ,command
+		    (lambda (arg)
+		      (literal-command arg ,last-command))))
+	 (else
+	  `(begin ,last-command)))))
+    ((first-command . remaining-commands)
+     (let ((request (extract-request first-command)))
+       (match request
+	 (('requested command)
+	  `(request ,gate ,command
+		    (lambda(arg)
+		      (literal-command arg ,first-command)
+		      (chain-request ,gate ,remaining-commands))))
+	 (else
+	  `(begin ,first-command
+	    (chain-request ,remaining-commands))))))))
+
+(define-macro (chain-request: gate . commands)
+  `(chain-request ,gate ,commands))
+
 (define (input-available socket seconds)
   (match-let (((reads () ()) 
 	       (select `(,socket) '() '() seconds)))
@@ -390,8 +447,8 @@
     objects) ;; ever going to call them, but because we want to have access
   (define (requests) ;; to these variables from within the client. maybe it's
     requests) ;; not the most elegant solution, but for now i don't have any
-  (define (transactions)
-    transactions);; better idea how to solve it
+  (define (transactions) ;; better idea how to solve it
+    transactions)
   (define (subspaces)
     subspaces)
 
@@ -401,7 +458,7 @@
   (define (add-subspace! type id . slots)
     ;;(<< `(DEALING WITH ,type ,id))
     (if (not (and-let* ((subspace #[*object-registry* 'id])
-			;;((<< 'SUBSPACE: subspace(class-name(class-of subspace))))
+			((<< 'SUBSPACE: subspace(class-name(class-of subspace))))
 			((equal? (class-name (class-of subspace)) type)))))
 	(and-let* ((type-hash #[client 'type-hash])
 		   (type #[type-hash type])
@@ -464,8 +521,27 @@
 	(begin 
 	  (<< `(unknown type ,type)))))
 
-  (define (remove! id)
+  (define (subspaces-becomes-visible! . subspace-ids)
+    ;; zapytujemy o szczegoly dotyczace podprzestrzeni
+    
+    ...)
+  
+  (define (subspace-no-logner-visible! . subspace-ids)
+    ;; usuwamy podprzeszczenie z listy
+    ...)
+
+  (define (new-object! subspace-id id . slots)
+    ...)
+
+  (define (remove-object! id)
+    ...)
+  
+  (define (move-object! source-id dest-id)
+    ...)
+
+  #;(define (remove! id)
     (hash-remove! objects id))
+  
 
   (define (transaction id order data)
     (let ((transaction (or #[transactions id]
@@ -478,7 +554,7 @@
   (define (response request-id . data)
     (or (and-let* ((request #[requests request-id])
 		   ((procedure? request)))
-	  (<< `(applying ,data to ,request))
+	  (<< `(applying ,data to ,request-id))
 	  (safely (apply request data))
 	  (hash-remove! requests request-id)
 	  (if #f #f))

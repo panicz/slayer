@@ -8,6 +8,7 @@
 
 (define (update-world!)
   (for-each update! *subspaces*)
+
   #;(detect collision: here we may call (move! object #[portal 'passage])))
 
 (define-class <player> (<network-object> <3d-mesh>) 
@@ -35,7 +36,7 @@
 
 (define-method (update! (p <player>))
   (next-method)
-  (<< "UPDATING PLAYER, DOESN'T IT MEAN ANYTHING? "
+  #;(<< "UPDATING PLAYER, DOESN'T IT MEAN ANYTHING? "
       (is-a? p <register-write-access>))
   ;(display (objects-visible-to p))(newline)
   (if (> #[p 'reload-time-left] 0)
@@ -44,7 +45,7 @@
 
 (define-method (spawn-object! player)
   (let ((space (random-element *subspaces*)))
-    (add! player space))
+    (add! player #;to space))
   ;(append! *world* (list player))
   ;(display "SPAWNING ")(display world)(newline)
   (hash-set! *world* #[player 'id] player)

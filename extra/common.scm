@@ -153,7 +153,8 @@
      (for-each (lambda(x) body ...) 
 	       (iota (1+ (- last first)) first)))
     ((_ x in list body ...)
-     (for-each (match-lambda(x body ...)) list))))
+     (for-each (match-lambda (x body ...)
+		 (else (throw 'invalid-for-clause else))) list))))
 
 (define (hash-size hash-map)
   (length (hash-values hash-map)))

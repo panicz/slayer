@@ -6,55 +6,6 @@
 ;; to support currently needed cases -- so the 'requested' clause
 ;; can only appear at the least nested level
 
-(define (extract-request form)
-  (tree-find (match-lambda (('requested command) #t)
-	       (else #f))
-	     (list form)))
-
-(define-macro (command-request form)
-  (or (and-let* ((extract-request (request form)))
-	(second request))
-      (throw 'invalid-form)))
-
-(define-macro (literal-command xarg form)
-  (define (transform-command xarg form)
-    (match form
-      (('requested command)
-       xarg)
-      (('quote datum)
-       (list 'quote datum))
-      ((items ...)
-       (map (lambda(form)(transform-command xarg form)) items))
-      (else
-       else)))
-  (transform-command xarg form))
-
-(define-macro (chain-request gate commands)
-  (match commands
-    ((last-command)
-     (let ((request (extract-request last-command)))
-       (match request
-	 (('requested command)
-	  `(request ,gate ,command
-		    (lambda (arg)
-		      (literal-command arg ,last-command))))
-	 (else
-	  `(begin ,last-command)))))
-    ((first-command . remaining-commands)
-     (let ((request (extract-request first-command)))
-       (match request
-	 (('requested command)
-	  `(request ,gate ,command
-		    (lambda(arg)
-		      (literal-command arg ,first-command)
-		      (chain-request ,gate ,remaining-commands))))
-	 (else
-	  `(begin ,first-command
-	    (chain-request ,remaining-commands))))))))
-
-(define-macro (chain-request: gate . commands)
-  `(chain-request ,gate ,commands))
-
 (define-method (initialize (this <network-client>) args)
   (next-method)
   (let-keywords args 
@@ -108,7 +59,9 @@
 	       (lambda (objects)
 		 ;(<< `(setting slots of ,objects))
 		 (for-each (match-lambda ((type id . slots)
-					  (apply #[protocol 'add!] type id slots)))
+					  (apply #[protocol 'add!] type id slots))
+			     (else (throw 'invalid-argument else))
+			     )
 			   objects))))
 	     (else
 	      (<< `(unsupported transaction result ,result)))))

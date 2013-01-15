@@ -2,7 +2,7 @@
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-2)
   :use-module (srfi srfi-11)
-  :use-module (oop goops)
+  :use-module ((oop goops) #:hide (slot-ref slot-set!))
   :use-module (ice-9 match)
   :use-module (ice-9 optargs)
   :use-module (ice-9 regex)
@@ -24,6 +24,8 @@
 	   objects-visible-from
 
 	   ;network-slot-value
+
+	   colliding-objects
 	   
 	   update!
 	   add!
@@ -41,7 +43,7 @@
 
 (define-generic add!)
 
-(define-method (add! (object <network-object>) (space <subspace>))
+(define-method (add! (object <network-object>) #;to (space <subspace>))
   (push! *modifications* 
 	 (make <modification> #:of object #:to space))
   (push! #[space 'objects] object)
@@ -59,7 +61,7 @@
 
 (define-generic move!)
 
-(define-method (move! (object <network-object>) (destination <subspace>))
+(define-method (move! (object <network-object>) #;to (destination <subspace>))
   (push! *modifications*
 	 (make <modification> #:of object #:from #[object 'context]
 	       #:to destination))
@@ -68,23 +70,16 @@
     (delete! object #[context 'objects]))
   (add! object destination))
 
-(define-generic update!)
-
-(define-method (update! (object <network-object>))
-  (<< "updating " object (hash-map->alist #[object '%%write-registry]))
-  (reset-write-registry! object))
-
-(define-method (update! (subspace <subspace>))
-  (for-each update! #[subspace 'objects]))
-
 (define-class <passage> (<subspace>)
+  (plane #:init-value (make <plane> #:normal #f32(1 0 0) #:displacement 0.0)
+	 #:allocation #:class)
   (left-portal #:init-value #f #;type #;<portal>)
   (right-portal #:init-value #f #;type #;<portal>))
 
 (define-method (signature (passage <passage>))
   (append (next-method) 
 	  (map (lambda(slot)(list slot #[passage slot]))
-	       (class-specific-slot-names (class-of passage)))))
+ 	       '(left-portal right-portal))))
 
 (define-class <portal> (<network-object> <3d-shape>)
   (shape #:init-keyword #:shape #:init-value 
@@ -100,39 +95,106 @@
 	  (else
 	   (throw 'invalid-portal-structure)))))
 
-#|(define* (objects-visible-from space #:key (except #;portals '()) (range +inf.0))
-  (cond ((<= range 0)
-	 '())
-	((is-a? space <passage>)
-	 (let ((left-portal #[space 'left-portal])
-	       (right-portal #[space 'right-portal]))
-	   (let ((exceptions (union except (list left-portal right-portal))))
-	     (append 
-	      #[space 'objects]
-	      (if (in? left-portal except)
-		  '()
-		  (objects-visible-from 
-		   #[left-portal 'context] #:range (1- range)
-		   #:except exceptions))
-	      (if (in? right-portal except)
-		  '()
-		  (objects-visible-from 
-		   #[right-portal 'context] #:range (1- range)
-		   #:except exceptions))))))
-	((is-a? space <subspace>)
-	 (let* ((objects #[space 'objects])
-		(portals (difference 
-			  (filter (\ is-a? _ <portal>) objects)
-			  except))
-		(exceptions (append except portals)))
-	   (append objects (append-map 
-			    (lambda (portal)
-			      (objects-visible-from #[portal 'passage]
-						    #:range (1- range)
-						    #:except exceptions))
-			    portals))))
-	(else
-	 (throw 'invalid-argument))))|#
+(define-class <proxy> ()
+  (original #:init-keyword #:original))
+
+(define-method (slot-ref (proxy <proxy>) slot-name)
+  (if (in? slot-name (class-slot-names (class-of proxy)))
+      (next-method)
+      (slot-ref #[proxy 'original] slot-name)))
+
+(define-method (slot-set! (proxy <proxy>) slot-name value)
+  (if (in? slot-name (class-slot-names (class-of proxy)))
+      (next-method)
+      (slot-set! #[proxy 'original] slot-name value)))
+
+(define-class <3d-proxy> (<proxy>)
+  (context #:init-value #f)
+  (translation #:init-value #f32(0 0 0)) ; vector
+  (rotation #:init-value '(1.0 . #f32(0 0 0)))
+  (position #:allocation #:virtual
+	    #:slot-ref (lambda(my)
+			 (+ #[my : 'original : 'position] #[my 'translation]))
+	    #:slot-set! (lambda(my vector)
+			  (let ((q #[my 'rotation]))
+			    (set! #[my : 'original : 'position]
+				  (im (* (~ q) (quaternion 0.0 vector) q))))))
+  ;; the keywords the class is meant to be
+  ;; initialized with:
+  ;;   #:of <3d-proxy> (the original object that we refer to)
+  ;;   #:through <portal>
+  ;;   #:into <subspace> (the destination subspace)
+  )
+
+
+(define-method (initialize (this <3d-proxy>) args)
+  (next-method)
+  (let-keywords args
+      #t
+      ((of #;<3d-shape> #f) 
+       (into #;<subspace> #f) 
+       (through #;<portal> #f))
+    (if (not (and (is-a? of <3d-shape>) 
+		  (is-a? into <subspace>) 
+		  (is-a? through <portal>)))
+	(throw 'invalid-argument #:of of #:into into #:through through))
+    (set! #[this 'original] of)
+    (let ((plane #[through 'shape]))
+      (if (not (is-a? plane <plane>))
+	  (throw 'invalid-portal through "#[portal 'shape] is not a <plane>"))
+      (set! #[this 'rotation] 
+	    (rotation-quaternion #[plane 'normal]
+				 #[into : 'plane : 'normal]))
+      (set! #[this 'translation]
+	    (- (* #[plane 'normal] #[plane 'displacement]))))))
+
+; (make <3d-proxy> #:of object #:into subspace #:through portal)
+
+(define-generic colliding-objects)
+
+(define-method (colliding-objects (subspace <subspace>))
+  (filter-map (match-lambda ((x y)
+			     (<= (distance x y) 0.0)))
+	      (all-pairs #[subspace 'objects])))
+
+(define-method (colliding-objects (passage <passage>))
+  (let ((neighbours 
+	 (append (map (\ make <3d-proxy> #:of _ #:into passage 
+		       #:through #[passage 'left-portal])
+		      #[passage : 'left-portal : 'context : 'objects])
+		 (map (\ make <3d-proxy> #:of _ #:into passage 
+		       #:through #[passage 'right-portal])
+		      #[passage : 'right-portal : 'context : 'objects]))))
+    (append (next-method)
+	    (filter-map (match-lambda ((x y)
+				       (<= (distance x y) 0.0)))
+			(cart (filter (\ not (is-a? _ <portal>))
+				      #[passage 'objects]) 
+			      neigbours)))))
+
+
+(define-generic handle-collision!!)
+
+(define-method (handle-collision!! (a <network-object>) (b <network-object>))
+  (<< "undefined collision handler "
+      (class-name (class-of a))" "
+      (class-name (class-of b))))
+
+(define-method (handle-collision!! (a <portal>) (b <portal>))
+  (noop))
+
+(define-method (handle-collision!! (object <network-object>) (portal <portal>))
+  (move! object #[portal 'passage]))
+
+(define-generic update!)
+
+(define-method (update! (object <network-object>))
+  (<< "updating " object (hash-map->alist #[object '%%write-registry]))
+  (reset-write-registry! object))
+
+(define-method (update! (subspace <subspace>))
+  (for-each update! #[subspace 'objects])
+  #;(map (\ apply handle-collision!! _)  (colliding-objects #;in subspace)))
 
 (define* (subspaces-visible-from space #:key (except #;portals '())(range +inf.0))
   (cond ((<= range 0)
