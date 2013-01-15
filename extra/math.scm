@@ -2,7 +2,7 @@
   :use-module (ice-9 optargs)
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-17)
-  :use-module (oop goops)
+  :use-module ((oop goops) #:hide (slot-ref slot-set!))
   :use-module (extra common)
   :use-module (extra ref)
   :use-module ((rnrs) :version (6))  

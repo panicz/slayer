@@ -31,32 +31,22 @@
 	    remote
 	    GATE
 
-	    signature
-
-	    <call-before-slot-set!>
 	    register-transaction
-	    <unique-id>
-
-	    *object-registry*
-	    <registered-object>
-	    <register-write-access>
-	    remove!
 
 	    <network-object>
 
 	    state-of
 	    network-slot-value
 	    network-state-of
-	    modified?
+
 	    modified-state-of
-	    reset-write-registry!
 
 	    
 	    )
   #:export-syntax (define-protocol-generator 
 		    protocol-add! 
 		    protocol-remove!
-
+		    
 		    literal-command
 		    command-request
 		    chain-request
@@ -69,39 +59,6 @@
 
 (define <protocol> <hashtable>)
 
-(define-class <call-before-slot-set!> ())
-
-(define-generic before-slot-set!)
-
-(define-method (before-slot-set! (object <call-before-slot-set!>) slot-name value)
-  ;(<< "calling `before-slot-set!` on " object " with " slot-name ", " value)
-  (noop))
-
-(define-method (slot-set! (object <call-before-slot-set!>) slot-name value)
-  (before-slot-set! object slot-name value)
-  (next-method))
-
-(define-class <unique-id> ()
-  (id #:init-thunk (lambda()(gensym "domain")) #:init-keyword #:id))
-
-#;(define*-class <unique-id> (<register-write-access>)
-  (id #:init-thunk (lambda()(gensym "domain")) #:allow-override #t
-      #:on-write (lambda(this name value)
-		   (hash-set! #[this '%%write-registry] name value))))
-
-(define-generic signature)
-
-(define-method (signature (object <unique-id>))
-  (list (class-name (class-of object)) (slot-ref object 'id)))
-
-(define-method (display (object <unique-id>) port)
-  (display (signature object) port))
-
-(define-method (write (object <unique-id>) port)
-  (write (signature object) port))
-
-(define *object-registry* #[])
-
 #;(define-class <registered-object> (<unique-id>)
   (id #:allocation #:virtual
       #:slot-ref (lambda (this) #[this '%id])
@@ -110,57 +67,6 @@
 		    (if #[*object-registry* id] (throw 'id-already-exists))
 		    (set! #[this '%id] id)
 		    (set! #[*object-registry* id] this))))
-
-(define-class <registered-object> (<unique-id> <call-before-slot-set!>))
-
-(define-method (before-slot-set! (object <registered-object>) slot-name value)
-  ;;(<< `(SETTING SLOT ,slot-name OF ,object TO ,value))
-  (cond ((equal? slot-name 'id)
-	 (hash-remove! *object-registry* #[object 'id])
-	 (if #[*object-registry* value] (throw 'id-already-exists))
-	 (set! #[*object-registry* value] object)))
-  (next-method))
-
-(define-method (initialize (this <registered-object>) args)
-  (next-method)
-  #;(if (in? (class-name (class-of this)) '(<subspace> <passage>))
-      (<< `(ADDING OBJECT ,this TO *object-registry*)))
-  (set! #[*object-registry* #[this 'id]] this))
-
-(define-generic remove!)
-
-(define-method (remove! (object <registered-object>))
-  (hash-remove! #[object 'registry] #[object 'id]))
-
-(define-class <register-write-access> (<call-before-slot-set!>)
-  (%%write-registry #:init-thunk make-hash-table))
-
-(define-generic write-register-slots)
-
-(define-method (write-register-slots (object <register-write-access>))
-  (let ((peer-layer (find (lambda(layer)(in? <register-write-access> layer))
-			   (superclass-layers 
-			    (filter (lambda (class)
-				      (in? <register-write-access>
-					   (class-ancestors class)))
-				    (class-direct-supers (class-of object)))))))
-    (difference (class-slot-names (class-of object))
-		(append-map class-slot-names peer-layer))))
-
-(define-method (before-slot-set! (object <register-write-access>) slot-name value)
-  (and-let* ((slot-names (write-register-slots object))
-	     ((in? slot-name slot-names)))
-    ;;(<< "REMEMBERING " slot-name)
-    (set! #[object : '%%write-registry : slot-name] #t))
-  (next-method))
-
-
-(define-method (modified? (object <register-write-access>))
-  (not (hash-empty? #[object '%%write-registry])))
-
-(define-method (reset-write-registry! (object <register-write-access>))
-  (for-each (\ hash-remove! #[object '%%write-registry] _) 
-	    (hash-keys #[object '%%write-registry])))
 
 (define-class <proto-network-object> (<registered-object>)
   (owners #:init-value #f #:init-keyword #:owners)

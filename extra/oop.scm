@@ -1,9 +1,14 @@
 (define-module (extra oop)
-  #:use-module (oop goops)
+
+  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
+  #:use-module (extra ref)
   #:use-module (ice-9 match)
   #:use-module (extra common)
+
+  #:use-module (extra hset)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-2)
+
   #:export (
 	    class-tree-append-map-down
 	    class-tree-append-map-up
@@ -13,11 +18,22 @@
 	    class-slot-names
 	    class-specific-slot-names
 	    make*
+	    <write-and-display-signature>
+	    signature
+
+	    <call-before-slot-set!>
+	    <unique-id>
+
+	    *object-registry*
+	    <registered-object>
+	    <register-write-access>
+	    remove!
+
+	    modified?
+	    reset-write-registry!
 	    ))
 
 ;; this module is barely used
-
-(use-modules (oop goops))
 
 (define (class-tree-append-map-down f root)
   "class-tree-append-map-down returns a flat list containing the result of application of f to the class object in the root, appended with the list of all its descendants, appended with the list of all their descenants' descentants and so on. f should always return a list."
@@ -72,6 +88,100 @@
 	 `((,(class-name class) ,class))
 	 '()))
    root))
+
+(define-class <write-and-display-signature> ())
+
+(define-generic signature)
+
+(define-method (signature (object <write-and-display-signature>))
+  `(signature of ,(class-name (class-of object)) should be overloaded!))
+
+(define-generic display)
+
+(define-method (display (object <write-and-display-signature>) port)
+  (display (signature object) port))
+
+(define-generic write)
+
+(define-method (write (object <write-and-display-signature>) port)
+  (write (signature object) port))
+
+(define-class <call-before-slot-set!> ())
+
+(define-generic before-slot-set!)
+
+(define-method (before-slot-set! (object <call-before-slot-set!>) slot-name value)
+  ;(<< "calling `before-slot-set!` on " object " with " slot-name ", " value)
+  (noop))
+
+(define-method (slot-set! (object <call-before-slot-set!>) slot-name value)
+  (before-slot-set! object slot-name value)
+  (next-method))
+
+(define-class <unique-id> (<write-and-display-signature>)
+  (id #:init-thunk (lambda()(gensym "domain")) #:init-keyword #:id))
+
+#;(define*-class <unique-id> (<register-write-access>)
+  (id #:init-thunk (lambda()(gensym "domain")) #:allow-override #t
+      #:on-write (lambda(this name value)
+		   (hash-set! #[this '%%write-registry] name value))))
+
+(define-method (signature (object <unique-id>))
+  (list (class-name (class-of object)) (slot-ref object 'id)))
+
+(define *object-registry* #[])
+
+
+(define-class <registered-object> (<unique-id> <call-before-slot-set!>))
+
+(define-method (before-slot-set! (object <registered-object>) slot-name value)
+  ;;(<< `(SETTING SLOT ,slot-name OF ,object TO ,value))
+  (cond ((equal? slot-name 'id)
+	 (hash-remove! *object-registry* #[object 'id])
+	 (if #[*object-registry* value] (throw 'id-already-exists))
+	 (set! #[*object-registry* value] object)))
+  (next-method))
+
+(define-method (initialize (this <registered-object>) args)
+  (next-method)
+  #;(if (in? (class-name (class-of this)) '(<subspace> <passage>))
+      (<< `(ADDING OBJECT ,this TO *object-registry*)))
+  (set! #[*object-registry* #[this 'id]] this))
+
+(define-generic remove!)
+
+(define-method (remove! (object <registered-object>))
+  (hash-remove! #[object 'registry] #[object 'id]))
+
+(define-class <register-write-access> (<call-before-slot-set!>)
+  (%%write-registry #:init-thunk make-hash-table))
+
+(define-generic write-register-slots)
+
+(define-method (write-register-slots (object <register-write-access>))
+  (let ((peer-layer (find (lambda(layer)(in? <register-write-access> layer))
+			   (superclass-layers 
+			    (filter (lambda (class)
+				      (in? <register-write-access>
+					   (class-ancestors class)))
+				    (class-direct-supers (class-of object)))))))
+    (difference (class-slot-names (class-of object))
+		(append-map class-slot-names peer-layer))))
+
+(define-method (before-slot-set! (object <register-write-access>) slot-name value)
+  (and-let* ((slot-names (write-register-slots object))
+	     ((in? slot-name slot-names)))
+    ;;(<< "REMEMBERING " slot-name)
+    (set! #[object : '%%write-registry : slot-name] #t))
+  (next-method))
+
+
+(define-method (modified? (object <register-write-access>))
+  (not (hash-empty? #[object '%%write-registry])))
+
+(define-method (reset-write-registry! (object <register-write-access>))
+  (for-each (\ hash-remove! #[object '%%write-registry] _) 
+	    (hash-keys #[object '%%write-registry])))
 
 (define-macro (define*-class <class-name> supers . slots)
   (define keywords* '(#:init-keyword))

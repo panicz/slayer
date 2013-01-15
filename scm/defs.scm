@@ -1,7 +1,7 @@
 (display "loading defs.scm...\n")
 (set! %load-path (append '("./" "../")  %load-path))
 
-(use-modules (oop goops)
+(use-modules ((oop goops) #:hide (slot-ref slot-set!))
 	     (srfi srfi-1) 
 	     (srfi srfi-2)
 	     (srfi srfi-4)

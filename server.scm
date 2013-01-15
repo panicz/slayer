@@ -10,6 +10,7 @@
  (ice-9 session)
  (system base compile) (system syntax)
  (extra ref) (extra common) (extra network) (extra function) (extra hset)
+ (extra oop)
  (extra subspace)
  ((rnrs) :version (6)))
 
@@ -174,8 +175,8 @@
 	  (lambda (sock addr proto)
 	    (if (in? addr *observers*)
 		(begin
-		  (<< *modifications*)
-		  (set! *modifications* '())
+		  (<<"MODIFICATIONS: "*modifications*)
+		  ;;(set! *modifications* '())
 		  (let ((owned-objects (#[proto 'owned-objects])))
 		    (for actor in owned-objects
 			 (for object in (filter modified? 

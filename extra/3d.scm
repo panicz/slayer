@@ -1,5 +1,5 @@
 (define-module (extra 3d)
-  :use-module (oop goops)
+  :use-module ((oop goops) #:hide (slot-ref slot-set!))
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-2)
   :use-module (srfi srfi-11)

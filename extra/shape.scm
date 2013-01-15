@@ -1,5 +1,5 @@
 (define-module (extra shape)
-  :use-module (oop goops)
+  :use-module ((oop goops) #:hide (slot-ref slot-set!))
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-2)
   :use-module (srfi srfi-11)
@@ -19,22 +19,6 @@
    ;<complex-shape>
    distance
    nearest-points))
-
-(set! %load-path (append (list "." "..")  %load-path))
-
-(use-modules 
- (oop goops)
-   (srfi srfi-1)
-   (srfi srfi-2)
-   (srfi srfi-11)
-   (ice-9 optargs)
-   (ice-9 match)
-   (extra ref)
-   (extra common)
-   (extra math)
-   (extra oop)
-   ;((rnrs) :version (6))
-)
 
 (define-syntax define-symmetric-method
   (syntax-rules ()

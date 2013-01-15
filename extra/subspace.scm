@@ -13,7 +13,7 @@
   :use-module (extra network)
   :use-module (extra 3d)
   :use-module (extra shape)
-  :use-module ((rnrs) :version (6))
+  ;:use-module ((rnrs) :version (6))
   :export (<subspace>
 	   <portal>
 	   <passage>
@@ -38,6 +38,18 @@
   (subject #:init-keyword #:of)
   (source #:init-value #f #:init-keyword #:from)
   (destination #:init-value #f #:init-keyword #:to))
+
+(define-method (write (modification <modification>) port)
+  (write (list (class-name (class-of modification))
+	       #:of #[modification 'subject]
+	       #:from #[modification 'source]
+	       #:to #[modification 'destination]) port))
+
+(define-method (display (modification <modification>) port)
+  (display (list (class-name (class-of modification))
+	       #:of #[modification 'subject]
+	       #:from #[modification 'source]
+	       #:to #[modification 'destination]) port))
 
 (define *modifications* '())
 
