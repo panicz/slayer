@@ -34,28 +34,23 @@
 (define-class <subspace> (<registered-object>)
   (objects #:init-value '()))
 
-(define-class <modification> ()
+(define-class <modification> (<write-and-display-signature>)
   (subject #:init-keyword #:of)
   (source #:init-value #f #:init-keyword #:from)
   (destination #:init-value #f #:init-keyword #:to))
 
-(define-method (write (modification <modification>) port)
-  (write (list (class-name (class-of modification))
-	       #:of #[modification 'subject]
-	       #:from #[modification 'source]
-	       #:to #[modification 'destination]) port))
-
-(define-method (display (modification <modification>) port)
-  (display (list (class-name (class-of modification))
-	       #:of #[modification 'subject]
-	       #:from #[modification 'source]
-	       #:to #[modification 'destination]) port))
+(define-method (signature (modification <modification>))
+  (list (class-name (class-of modification))
+	#:of #[modification 'subject]
+	#:from #[modification 'source]
+	#:to #[modification 'destination]))
 
 (define *modifications* '())
 
 (define-generic add!)
 
 (define-method (add! (object <network-object>) #;to (space <subspace>))
+  (<< "ADDING "object" TO "space)
   (push! *modifications* 
 	 (make <modification> #:of object #:to space))
   (push! #[space 'objects] object)
