@@ -70,6 +70,8 @@
 
 (define asref (make-procedure-with-setter assoc-ref assoc-set!))
 
+(define lsref (make-procedure-with-setter list-ref list-set!))
+
 (define fref (make-procedure-with-setter fluid-ref fluid-set!))
 
 (define aref (make-procedure-with-setter 
@@ -92,6 +94,9 @@
 
 (define-method (ref (string <string>) key)
   (stref string key))
+
+(define-method (ref (list <list>) (key <integer>))
+  (lsref list key))
 
 (define-method (ref (list <list>) key)
   (asref list key))
