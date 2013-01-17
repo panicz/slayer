@@ -200,6 +200,10 @@
        else)))
   (transform-command xarg form))
 
+;; the chain-request macro is implemented only partially, only
+;; to support currently needed cases -- so the 'requested' clause
+;; can only appear at the least nested level
+
 (define-macro (chain-request gate commands)
   (match commands
     ((last-command)
@@ -473,6 +477,7 @@
 		     (register-protocol <procedure>)
 		     (update-world <procedure> #;obj->obj)
 		     (broadcast <procedure> #;sock,addr,pr->?)
+		     (reset <procedure>)
 		     (period <seconds>))
   (let ((ticks (seconds->ticks period)))
     (lambda ()
@@ -481,4 +486,5 @@
       (update-world)
       (for-each (match-lambda ((address . protocol)
 			       (broadcast socket address protocol)))
-		(hash-map->list cons clients)))))
+		(hash-map->list cons clients))
+      (reset))))
