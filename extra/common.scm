@@ -6,12 +6,20 @@
   #:use-module (ice-9 regex)
   #:use-module (ice-9 syncase)
   #:use-module (system base compile)
-  #:use-module ((rnrs) #:version (6))
+
+  #:use-module ((rnrs) :version (6) 
+		:select (make-bytevector 
+			 utf8->string string->utf8 
+			 bytevector-fill!)
+		)
+
+  ;;  #:use-module ((rnrs) #:version (6))
   #:export (
 	    expand 
 	    ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy hash-size
 	    union intersection difference adjoin
+	    unique
 	    map-n
 	    for-each-n
 	    atom?
@@ -40,15 +48,52 @@
 	    remove-keyword-args
 	    array-size
 	    random-array
+	    read-string write-string
 	    with-output-to-utf8
 	    <<
 	    )
+  #:re-export (;; srfi-1
+	       iota
+	       proper-list? dotted-list? null-list? not-pair?
+	       first second third fourth fifth sixth seventh eighth ninth tenth
+	       car+cdr take drop take-right drop-right split-at last
+	       concatenate zip unzip1 unzip2 unzip3 unzip4 unzip5
+	       fold fold-right pair-fold reduce reduce-right unfold unfold-right
+	       append-map filter-map partition remove remove! find find-tail
+	       take-while drop-while span break any every list-index
+	       delete delete! delete-duplicates delete-duplicates!
+	       lset<= lset= lset-adjoin lset-union lset-intersection
+	       lset-difference lset-xor lset-diff+intersection
+	       ;; srfi-2, srfi-11
+	       and-let* let-values let*-values
+	       ;; ice-9 match
+	       match match-let match-let* match-lambda match-lambda*
+	       ;; ice-9 regex
+	       string-match match:substring regexp-substitute
+	       regexp-substitute/global
+	       make-bytevector 
+	       utf8->string string->utf8 
+	       bytevector-fill!
+	       )
   #:export-syntax (\ for if*
 		   safely export-types
 		   transform! increase! decrease! multiply!
 		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define (write-string object)
+  (with-output-to-string (lambda()(write object))))
+
+(define (read-string string)
+  (with-input-from-string string read))
+
+(read-string (write-string '(1 a 2 b 3 c 4 d)))
+
+(define (unique lst)
+  (let ((result (make-hash-table)))
+    (for-each (lambda(item)(hash-set! result item #t)) lst)
+    (hash-map->list (lambda(k v)k) result)))
 
 (define* (insert new l condition 
 		 #:key (prefix '()) (right-bound +inf.0))
@@ -186,12 +231,13 @@
 
 (define (<< . messages)
   (if #t
-      (with-output-to-port (current-error-port)
+      (with-output-to-port (current-error-port) ;(current-error-port)
 	(lambda ()
 	  (for message in messages
 	       (display message))
-	  (newline)))))
-  
+	  (newline)
+	  (flush-all-ports)))))
+
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
 
@@ -214,7 +260,6 @@
    (array-type first)
    (length (array-dimensions first))
    (apply append (map array->list (cons first rest)))))
-
 
 (define (list->uniform-vector type list)
   (list->typed-array type 1 list))
@@ -391,11 +436,11 @@
 (define (?or . predicates)
   (lambda(x) (any (lambda(p)(p x)) predicates)))
 
-(define (map-n n fn lst . out)                    
-   (if (< (length lst) n)
-     out
-     (apply map-n n fn (drop lst n) 
-	    (append out (list (apply fn (take lst n)))))))
+(define (map-n n fn l . lists) 
+  (if (any (lambda(l)(< (length l) n)) (cons l lists))
+      '()
+      (cons (apply fn (append-map (lambda(l)(take l n)) (cons l lists)))
+	    (apply map-n n fn (map (lambda(l)(drop l n)) (cons l lists))))))
 
 (define (for-each-n n fn lst)
   (if (<= n (length lst))
