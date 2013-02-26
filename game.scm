@@ -1,6 +1,13 @@
 (use-modules (extra math) (extra 3d) (extra shape) 
 	     (extra network) (extra subspace))
 
+(define-syntax define-symmetric-method
+  (syntax-rules ()
+    ((_ (name arg1 arg2) body ...)
+     (begin
+       (define-method (name arg1 arg2) body ...)
+       (define-method (name arg2 arg1) body ...)))))
+
 (define *world* #[])
 
 (define *subspaces* 
@@ -8,7 +15,6 @@
 
 (define (update-world!)
   (for-each update! *subspaces*)
-
   #;(detect collision: here we may call (move! object #[portal 'passage])))
 
 (define-class <player> (<network-object> <3d-mesh>) 
@@ -18,6 +24,16 @@
   (velocity #:init-thunk 
 	    (\ random-array #:type 'f32 #:range 0.1 3))
   (angular-velocity #:init-value #f32(0 0 0)))
+
+(define-class <floor> (<network-object> <3d-mesh>)
+  (shape #:init-value (make <plane> #:normal #f32(0 0 1) 
+			    #:displacement -20.0)))
+
+(define-method (handle-collision!! (player-a <player>) (player-b <player>))
+  (<< "KA-BOOM!"))
+
+(define-symmetric-method (handle-collision!! (player <player>) (floor <floor>))
+  (<<"BADUM-TSS!"))
 
 (define-method (jump! (p <player>))
   (increase! #[p 'position] #(0 1 0)))
