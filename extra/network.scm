@@ -1,10 +1,4 @@
 (define-module (extra network)
-  #:use-module (srfi srfi-1)
-  #:use-module (srfi srfi-2)
-  #:use-module (srfi srfi-11)
-  #:use-module (ice-9 match)
-  #:use-module (ice-9 regex)
-  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
 
   #:use-module (extra ref)
   #:use-module (extra common)
@@ -39,6 +33,7 @@
 	    network-slot-value
 	    network-state-of
 
+	    network-modified-state-of
 	    modified-state-of
 
 	    
@@ -117,6 +112,15 @@
 
 (define-method (modified-state-of (object <network-object>))
   (modified-state-of object #t))
+
+(define-method (network-modified-state-of (object <network-object>) 
+					  (owner <boolean>))
+  (map (match-lambda((slot-name value)
+		     (list slot-name (network-slot-value value))))
+       (modified-state-of object owner)))
+
+(define-method (network-modified-state-of (object <network-object>))
+  (network-modified-state-of object #t))
 
 (define (resolve-address string)
   (let-values (((address port) (match (string-split string #\:)
@@ -325,8 +329,13 @@
     (set! #[transaction 'finalize] callback)
     (try-finalize-transaction transactions id)))
 
+#;((<passage> domain572 
+	    (left-portal (<portal> domain573)) 
+	    (right-portal (<portal> domain574))))
+
 (define (set-slots! client objects id . slots)
   (or (and-let* ((object #[objects id]))
+	
 	(for (name value) in slots
 	     (if (equal? name 'context)
 		 (<< `(setting context to ,value)))
@@ -431,27 +440,24 @@
 	(begin 
 	  (<< `(unknown type ,type)))))
 
-  (define (subspaces-becomes-visible! . subspace-ids)
+  (define (subspaces-become-visible! . subspaces)
     ;; zapytujemy o szczegoly dotyczace podprzestrzeni
-    
-    ...)
-  
-  (define (subspace-no-logner-visible! . subspace-ids)
-    ;; usuwamy podprzeszczenie z listy
-    ...)
+    (<< "UNTESTED: subspaces-become-visible!")
+    (map (\ apply #[make-client-protocol 'add-subspace!] _) subspaces))
 
-  (define (new-object! subspace-id id . slots)
-    ...)
+  (define (subspaces-no-logner-visible! . subspaces)
+    ;; usuwamy podprzeszczenie z listy
+    (<< "UNIMPLEMENTED: subspaces-no-longer-visible!"))
 
   (define (remove-object! id)
-    ...)
+    (remove! #[objects id])
+    (hash-remove! objects id))
   
-  (define (move-object! source-id dest-id)
-    ...)
+  (define (move-object! id dest-id)
+    (move! #[objects id] #[subspaces dest-id]))
 
   #;(define (remove! id)
     (hash-remove! objects id))
-  
 
   (define (transaction id order data)
     (let ((transaction (or #[transactions id]
