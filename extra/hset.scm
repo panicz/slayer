@@ -1,8 +1,7 @@
 (define-module (extra hset)
-  #:use-module (srfi srfi-1)
-  #:use-module (ice-9 match)
   #:use-module (extra ref)
   #:use-module (extra common)
+  #:use-module (extra oop)
   #:export (hset 
 	    list->hset hset->list
 	    hset<= hset=
@@ -13,6 +12,23 @@
 	    hash=
 	    hash-empty?
 	    ))
+
+#|
+(define-class <set> (<write-and-display-signature>)
+  (data #:init-thunk make-hash-table #:init-keyword #:data))
+
+(define-method (signature (set <set>))
+  `(set: ,@(hash-keys #[set 'data])))
+
+(define-method (add! (set <set>) element)
+  (set! #[set :  'data : element] #t))
+
+(define (list->set l)
+  (make <set> #:data (list->hset l)))
+
+(define-macro (set: . elements)
+  (list->set elements))
+|#
 
 (define (list->hset l)
   (let ((result #[]))
@@ -27,6 +43,9 @@
   (filter-map (match-lambda ((key . value)
 			     (and value key))) 
 	      (hash-map->list cons hset)))
+
+(define-macro (hset: . elements)
+  (list->hset elements))
 
 (define (hset<= . args)
   (match args

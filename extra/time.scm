@@ -1,5 +1,5 @@
 (define-module (extra time)
-  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
+  #:use-module (extra oop)
   #:export (
 	    pass-ticks-left
 	    seconds->ticks ticks->seconds

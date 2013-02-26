@@ -1,12 +1,10 @@
 (define-module (extra 3d)
-  :use-module ((oop goops) #:hide (slot-ref slot-set!))
-  :use-module (srfi srfi-1)
-  :use-module (srfi srfi-2)
-  :use-module (srfi srfi-11)
-  :use-module (ice-9 match)
-  :use-module (extra ref)
-  :use-module (extra math)
   :use-module (extra common)
+  :use-module (extra ref)
+  :use-module (extra oop)
+  :use-module (extra math)
+  :use-module (extra shape)
+  ;;:duplicates (warn merge-generics); replace warn-override-core warn last)
   :export (
 	   <3d> 
 	   <3d-cam> 
@@ -17,17 +15,37 @@
 	   generate-capsule
 	   hemisphere
 	   generate-open-cylinder
-	   ))
+	   )
+  :re-export (distance)
+  )
+
+(define-syntax define-symmetric-method
+  (syntax-rules ()
+    ((_ (name arg1 arg2) body ...)
+     (begin
+       (define-method (name arg1 arg2) body ...)
+       (define-method (name arg2 arg1) body ...)))))
 
 (define-class <3d> ()
   (position #:init-value #f32(0 0 0))
   (orientation #:init-value '(0 . #f32(1 0 0))))
 
+(define-method (distance (a <3d>) (b <3d>))
+  (distance #[a 'position] #[b 'position]))
+
 (define-class <3d-cam> (<3d>)
   (fovy #:init-value 70.0))
 
 (define-class <3d-shape> (<3d>)
-  (shape #:init-value '()))
+  (shape #:init-value (make <sphere>)))
+
+(define-method (distance (a <3d-shape>) (b <3d-shape>))
+  (distance (translated (rotated #[a 'shape] #[a 'orientation]) #[a 'position])
+	    (translated (rotated #[b 'shape] #[b 'orientation]) #[b 'position])))
+
+(define-symmetric-method (distance (a <3d>) (b <3d-shape>))
+  (distance #[a 'position] (translated (rotated #[b 'shape] #[b 'orientation])
+				       #[b 'position])))
 
 (define-class <3d-mesh> (<3d-shape>)
   (mesh #:init-value '() 

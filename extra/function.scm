@@ -1,7 +1,4 @@
 (define-module (extra function)
-  #:use-module (srfi srfi-1)
-  #:use-module (ice-9 match)
-  #:use-module (srfi srfi-11)
   #:use-module (extra common)
   #:export (free-variables procedure-args)
   #:export-syntax (proc))
