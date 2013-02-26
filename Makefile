@@ -1,6 +1,6 @@
 CC = gcc
 CXX = g++
-CFLAGS = -Wall -pg `sdl-config --cflags` `guile-config compile` -DUSE_OPENGL -DUSE_NETWORK -lGL -lGLU # -DUSE_EVENT_HANDLER
+CFLAGS = -Wall `sdl-config --cflags` `guile-config compile` -DUSE_OPENGL -DUSE_NETWORK -lGL -lGLU # -DUSE_EVENT_HANDLER -pg 
 LIBS = `guile-config link` `sdl-config --libs` -lSDL_image -lSDL_ttf -lc -lGL -lGLU # -lSDL_net -lSDL_mixer -pg
 OBJCOPY = objcopy
 
