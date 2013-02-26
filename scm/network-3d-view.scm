@@ -2,10 +2,6 @@
 
 (use-modules (extra network))
 
-;; the chain-request macro is implemented only partially, only
-;; to support currently needed cases -- so the 'requested' clause
-;; can only appear at the least nested level
-
 (define-method (initialize (this <network-client>) args)
   (next-method)
   (let-keywords args 
@@ -94,7 +90,7 @@
 	       (let ((data (substring (utf8->string buffer) 0 nread)))
 		 ; strange: writing to (current-error-port) causes some strange
 		 ; error at some point, so we write to the default port
-		 (display `(received ,nread bytes: ,data))(newline)(force-output)
+		 (<< `(received ,nread bytes: ,data));(newline)(force-output)
 		 (generate-userevent 
 		  code 
 		  data
