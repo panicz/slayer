@@ -2,9 +2,10 @@
   :use-module (ice-9 optargs)
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-17)
-  :use-module ((oop goops) #:hide (slot-ref slot-set!))
   :use-module (extra common)
   :use-module (extra ref)
+  :use-module (extra oop)
+  :duplicates (merge-generics);; replace warn-override-core warn first)
   :use-module ((rnrs) :version (6))  
   :export (eye transpose reciprocal
 	   rows columns row column
@@ -29,7 +30,7 @@
 
 (define TOLERANCE (make-fluid 0.0001))
 
-(define <point> <top>) 
+(define <point> <uvec>) 
 
 (define <generalized-vector> <top>)
 
