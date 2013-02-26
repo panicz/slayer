@@ -1,18 +1,11 @@
 #!/usr/bin/guile -s
 !#
-(set! %load-path (append (list "." "..")  %load-path))
 
 (use-modules 
- ((oop goops) #:hide (slot-ref slot-set!))
- (srfi srfi-1) (srfi srfi-2) (srfi srfi-11)
- (ice-9 match) (ice-9 format) (ice-9 optargs) 
- (ice-9 pretty-print) (ice-9 local-eval) (ice-9 regex)
- (ice-9 session)
- (system base compile) (system syntax)
  (extra ref) (extra common) (extra network) (extra function) (extra hset)
  (extra oop)
  (extra subspace)
- ((rnrs) :version (6)))
+ #;((rnrs) :version (6)))
 
 (define *users* #[])
 
@@ -164,6 +157,102 @@
 	  (delete username *logged-users*)))
   #;(define-protocol-generator (kutasa-protocol connection)))
 
+#;(for ($ <modification> 
+	(= 'subject subject) 
+	(= 'source (? (\ is-a? _1 <subspace>) source)) 
+	(= 'destination destination))
+     in *modifications*)
+
+
+"trzeba teraz określić reguły, w oparciu o które informujemy
+klientów o modyfikacjach. generalnie istnieja dwie mozliwosci: po pierwsze,
+może być tak, że jakiś nowy potal pojawi się w polu widzenia,
+
+1. kiedy wywołać subspaces-become-visible! ?
+- kiedy w polu widzenia pojawi sie nowy portal.
+
+2. kiedy wywołać subspaces-no-longer-visible! ?
+- kiedy jakis portal zniknie z pola widzenia
+
+3. kiedy wywołać new-object! ?
+- jeżeli jakiś obiekt pojawi się w widzianym sektorze
+
+4. kiedy wywołać remove-object! ?
+- jeżeli jakiś obiekt zniknie z widzianego sektora
+
+5. kiedy wywołać move-object! ?
+- jeżeli jakiś obiekt zostanie przemieszczony z jednego
+widzianego sektora do innego
+
+A co jeżeli to posiadany przez nas obiekt zostaje przemieszczony?
+OCH, ZGROZA! TYLKO NIE TO ;]
+"
+
+(define (respond sock addr proto)
+  (and-let* (((in? addr *observers*))
+	     (owned-objects (#[proto 'owned-objects]))
+	     (visible-subspaces (apply union
+				       (map subspaces-visible-to owned-objects)))
+	     (visible-objects (unique (append-map #[_ 'objects]
+						  visible-subspaces)))
+	     (modified-objects (filter modified? visible-objects)))
+    (let-values (((own-changes other-changes) (partition (\ in? _ owned-objects)
+							 *modifications*)))
+      (let* ((prior-subspaces (filter-map #[_ 'source] own-changes))
+	     (new-subspaces (filter-map #[_ 'destination] own-changes))
+	     (formerly-visible-subspaces
+	      (difference (apply union 
+				 (map subspaces-visible-from prior-subspaces))
+			  visible-subspaces))
+	     (newly-visible-subspaces
+	      (difference (apply union
+				 (map subspaces-visible-from new-subspaces))
+			  visible-subspaces)))
+	(if (not (null? formerly-visible-subspaces))
+	    (remote sock addr 
+		    `(subspaces-no-longer-visible! ,@formerly-visible-subspaces)))
+	(if (not (null? newly-visible-subspaces))
+	    (remote sock addr
+		    `(subspaces-become-visible! ,@newly-visible-subspaces))))
+      (for (subject source target) in (map slot-values other-changes)
+	   (cond ((is-a? subject <portal>)
+		  (<<"OMG! a portal moved! I never thought it's that possible!"))
+		 (else
+		  (let ((target-visible
+			 (and target (in? target visible-subspaces)))
+			(source-visible
+			 (and source (in? source visible-subspaces))))
+		    (cond
+		     ((and source-visible target-visible)
+		      (remote sock addr `(move-object! ,#[subject 'id] ,target)))
+		     (source-visible
+		      (remote sock addr `(remove-object! ,#[subject 'id])))
+		     (target-visible
+		      (remote sock addr `(add! ,(class-name (class-of subject))
+				 ,#[subject 'id]
+				 ,@(network-state-of subject)
+				 )))
+		     (else 
+		      (<< "NOT sending modification of "subject" to "addr))))
+		  ))))
+    #;(for i in (iota (length *modifications*))
+    (<<"MODIFICATION "i" " #[*modifications* i]))
+    (for object in modified-objects
+	 (let ((message 
+		(with-output-to-utf8
+		 (\ display 
+		  `(set-slots! 
+		    ,#[object 'id]
+		    ,@(network-modified-state-of
+		       object
+		       (in? object owned-objects)))))))
+	   (sendto sock message addr)
+	   (begin
+	     (display `(sending
+			,(utf8->string message)))
+	     (newline))
+	   ))))
+
 (let ((socket (socket PF_INET SOCK_DGRAM 0)))
   (bind socket AF_INET INADDR_ANY 41337)
   (let ((server-cycle 
@@ -172,30 +261,8 @@
 	  #[]
 	  kutasa-protocol
 	  update-world!
-	  (lambda (sock addr proto)
-	    (if (in? addr *observers*)
-		(begin
-		  (<<"MODIFICATIONS: "*modifications*)
-		  ;;(set! *modifications* '())
-		  (let ((owned-objects (#[proto 'owned-objects])))
-		    (for actor in owned-objects
-			 (for object in (filter modified? 
-						(objects-visible-to actor))
-					;(display object)(newline)
-			      (let ((message 
-				     (with-output-to-utf8
-				      (\ display 
-				       `(set-slots! 
-					 ,#[object 'id]
-					 ,@(modified-state-of
-					    object
-					    (in? object 
-						 owned-objects)))))))
-				(sendto sock message addr)
-				(begin
-				  (display `(sending
-					     ,(utf8->string message)))
-				  (newline))
-				)))))))
-	    1.0)))
+	  respond
+	  (lambda()
+	    (set! *modifications* '()))
+	  1.0)))
     (while #t (server-cycle))))
