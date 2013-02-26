@@ -1,14 +1,10 @@
 (define-module (extra shape)
-  :use-module ((oop goops) #:hide (slot-ref slot-set!))
-  :use-module (srfi srfi-1)
-  :use-module (srfi srfi-2)
-  :use-module (srfi srfi-11)
-  :use-module (ice-9 optargs)
-  :use-module (ice-9 match)
+  :use-module (ice-9 pretty-print)
   :use-module (extra ref)
   :use-module (extra common)
   :use-module (extra math)
   :use-module (extra oop)
+  :duplicates (merge-generics replace warn-override-core warn last)
   :export 
   (<basic-shape>
    <plane>
@@ -18,7 +14,10 @@
    <capsule>
    ;<complex-shape>
    distance
-   nearest-points))
+   nearest-points
+   rotated
+   translated
+   ))
 
 (define-syntax define-symmetric-method
   (syntax-rules ()
@@ -35,21 +34,65 @@
 (define-method (write (shape <basic-shape>) port)
   (write (list (class-name (class-of shape))) port))
 
+(define-generic translated)
+
+(define-generic rotated)
+
+(define-method (rotated (vector <point>) (rotation <quaternion>))
+  (im (* rotation (quaternion 0.0 vector) (~ rotation))))
+
 (define-class <plane> (<basic-shape>)
   (normal #:init-value #f32(0 0 1) #:init-keyword #:normal) ; vector
   (displacement #:init-value 0.0 #:init-keyword #:displacement)) ; scalar
+
+(define-method (translated (plane <plane>) (vector <point>))
+  (let ((normal #[plane 'normal]))
+    (make <plane> #:normal normal
+	  #:displacement (+ #[plane 'displacement] (* vector normal)))))
+
+(define-method (rotated (plane <plane>) (rotation <quaternion>))
+  (make <plane> #:normal (rotated #[plane 'normal] rotation)
+	#:displacement #[plane 'displacement]))
 
 (define-class <sphere> (<basic-shape>)
   (position #:init-value #f32(0 0 0) #:init-keyword #:position)
   (radius #:init-value 1 #:init-keyword #:radius))
 
+(define-method (translated (sphere <sphere>) (vector <point>))
+  (make <sphere> #:position (+ #[sphere 'position] vector)
+	#:radius #[sphere 'radius]))
+
+(define-method (rotated (sphere <sphere>) (rotation <quaternion>))
+  (deep-clone sphere))
+
 (define-class <line> (<basic-shape>)
   (direction #:init-value #f32(1 0 0) #:init-keyword #:direction); vector
   (displacement #:init-value #f32(0 0 0) #:init-keyword #:displacement)) ; vector
 
+(define-method (translated (line <line>) (vector <point>))
+  (make <line> #:direction #[line 'direction]
+	#:displacement (+ #[line 'displacement] vector)))
+
+(define-method (rotated (line <line>) (rotation <quaternion>))
+  (make <line> #:direction (rotated #[line 'direction] rotation)
+	#:displacement #[line 'displacement]))
+
 (define-class <segment> (<basic-shape>)
   (a #:init-value #f32(1 -1 0) #:init-keyword #:a)
   (b #:init-value #f32(-1 1 0) #:init-keyword #:b))
+
+(define-method (translated (segment <segment>) (vector <point>))
+  (make <segment> #:a (+ #[segment 'a] vector)
+	#:b (+ #[segment 'b] vector)))
+
+(define-method (rotated (segment <segment>) (rotation <quaternion>))
+  (let ((a #[segment 'a]) (b #[segment 'b]))
+    (let* ((l (line a b))
+	   (a* (unproject-from l a))
+	   (b* (unproject-from l b))
+	   (l* (rotated l)))
+      (make <segment> #:a (project-onto l a*)
+	    #:b (project-onto l b*)))))
 
 (define-class <capsule> (<segment>)
   (radius #:init-value 1.0 #:init-keyword #:radius))
@@ -65,6 +108,26 @@
 
 (define-method (line (s <segment>))
   (line #[s 'a] #[s 'b]))
+
+(define-method (translated (capsule <capsule>) (vector <point>))
+  (make <capsule> #:a (+ #[capsule 'a] vector)
+	#:b (+ #[capsule 'b] vector)
+	#:radius #[capsule 'radius]))
+
+(define-method (project-onto (l <line>) (x <real>)) ;-> <vector>
+  (+ (* x #[l 'direction]) #[l 'displacement]))
+
+(define-method (unproject-from (l <line>) (v <point>)) ;-> <real>
+  (* #[l 'direction] (- v #[l 'displacement])))
+
+(define-method (rotated (capsule <capsule>) (rotation <quaternion>))
+  (let ((a #[capsule 'a]) (b #[capsule 'b]))
+    (let* ((l (line a b))
+	   (a* (unproject-from l a))
+	   (b* (unproject-from l b))
+	   (l* (rotated l)))
+      (make <capsule> #:a (project-onto l a*)
+	    #:b (project-onto l b*) #:radius #[capsule 'radius]))))
 
 (define-method (line (p1 <plane>) (p2 <plane>))
   (let* ((direction 
@@ -93,12 +156,6 @@
     (make <plane>  
       #:normal (* normal 1/norm) 
       #:displacement (* distance 1/norm))))
-
-(define-method (project-onto (l <line>) (x <real>))
-  (+ (* x #[l 'direction]) #[l 'displacement]))
-
-(define-method (unproject-from (l <line>) (v <point>))
-  (* #[l 'direction] (- v #[l 'displacement])))
 
 (define-method (nearest-points (l1 <line>) (l2 <line>))
   (let* ((ldot (* #[l1 'direction] #[l2 'direction]))
@@ -137,6 +194,15 @@
 
 ;(distance: <shape> <shape> -> <real>)
 (define-generic distance)
+
+(define-method (distance a b)
+  (pretty-print 
+   (zip (class-slot-names (class-of distance)) (slot-values distance)))
+  (<< "a: " (map class-name (class-ancestors (class-of a))))
+  (<< "b: " (map class-name (class-ancestors (class-of b))))
+  (<<"distance between "(class-name (class-of a))
+     " and "(class-name (class-of b))" not implemented")
+  +inf.0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;      1        2        3        4        5        6 
