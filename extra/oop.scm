@@ -1,4 +1,5 @@
 (define-module (extra oop)
+  #:duplicates (merge-generics);; replace warn-override-core warn first)
   #:use-module ((oop goops) #:select 
 		(
 		 define-class define-method define-generic
@@ -178,8 +179,6 @@
 
 (define-method (initialize (this <registered-object>) args)
   (next-method)
-  #;(if (in? (class-name (class-of this)) '(<subspace> <passage>))
-      (<< `(ADDING OBJECT ,this TO *object-registry*)))
   (set! #[*object-registry* #[this 'id]] this))
 
 (define-generic remove!)

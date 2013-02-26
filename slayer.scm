@@ -1,8 +1,5 @@
 (keydn 'esc (function()(quit)))
 
-#;(define-method (signature (subspace <subspace>))
-  (format #t "#<~a ~a>" (class-name (class-of subspace)) #[subspace 'id]))
-
 (set-display-procedure! 
  (lambda()
    (catch #t (\ draw *stage*)
@@ -23,12 +20,10 @@
 (define 3d-object #f)
 (define 3d-camera #f)
 
-(load "game.scm")
-
 (if (defined? '<3d-view>)
     (begin 
       (set! 3d-object (make <3d-mesh>))
-      (let ((view (make <3d-view> #:x 50 #:y 50 #:w 260 #:h 400)))
+      (let ((view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400)))
 	(add-child! *stage* view)
 	(set! #[view 'click]
 	      (function (x y)
@@ -63,44 +58,6 @@
 		   (display "dragging with anchor unset (strange?)\n")))))
 	(set! 3d-camera #[view 'camera])
 	(add-object! view 3d-object))))
-
-(if (defined? '<network-3d-view>)
-    (begin
-      (let ((gv (make <network-3d-view> #:x 320 #:y 50 
-		      #:w 260 #:h 400 
-		      #:address "127.0.0.1:41337"
-		      #:types (export-types <player> <portal> <subspace> <passage>)
-		      
-		      )))
-	(keydn 'l (\ for-each (\ << (car _1) ': (class-name (class-of (cdr _1)))
-			       #[(cdr _1) 'id])
-		   (hash-map->alist 
-		    (#[gv : 'protocol : 'subspaces ]))))
-
-	(keydn 'o (\ for-each (\ << (car _1) 
-			       ': (class-name (class-of (cdr _1)))
-			       #[(cdr _1) 'id])
-		   (hash-map->alist *object-registry*)))
-
-	(keydn 'p (\ for-each (\ << (car _1) 
-			       ': (class-name (class-of (cdr _1)))
-			       #[(cdr _1) 'id])
-		   (filter (\ is-a? (cdr _) <subspace>) 
-					 (hash-map->alist *object-registry*))))
-
-	#;(with-fluids ((GATE gv))
-	  (request '(owned-objects)
-		   (lambda (owned-objects)
-		     (<< `(owned objects: ,owned-objects))
-		     (match owned-objects
-		       ((('<player> id) _ ...)
-			(keydn 'space (\ remote gv `(jump)))
-			(keydn 'f1 (\ remote gv `(turn 5)))
-			(keydn 'lshift (\ remote gv `(crouch)))
-			(keydn 'lalt (\ << "LEFT ALT"))
-			)))))
-	(add-child! *stage* gv))
-      ))
 
 (add-child! *stage* (make-text-area))
 
