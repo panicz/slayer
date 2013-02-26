@@ -1,0 +1,456 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language polish
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language polish
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+The Architecture of GNU Object Oriented Subspace Engine
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+GNU Object Oriented Subspace Engine, or GOOSE, is a fairly simple piece
+ of software that helps to describe artificial worlds and interactions between
+ their objects -- in particular, it provides a framework for research in
+ artificial intelligence and robot programming.
+\end_layout
+
+\begin_layout Standard
+The aim of this text is twofold: to describe (and thus clarify) the architecture
+ of GOOSE, and to guide along its source code.
+ Concurrently, the text attempts to provide an instance of Donald Knuth's
+ concept of literate programming.
+\end_layout
+
+\begin_layout Standard
+The reader who is looking for a manual of GOOSE should look elsewhere --
+ this book is intended for the readers who wish to understand how GOOSE
+ is designed and implemented.
+\end_layout
+
+\begin_layout Subsection
+Preliminaries
+\end_layout
+
+\begin_layout Standard
+Although the architecture itself does not depend on the actual implementation,
+ certain practical decisions, like the choice of the programming language,
+ had some influence on various architectural details.
+\end_layout
+
+\begin_layout Standard
+The implementation of GOOSE uses two languages/environments.
+ The first one is C and UNIX, because C is a wide-spread and commonly known
+ language, for which many libraries are available.
+ Only a tiny core of a part of GOOSE (called SLAYER) is implemented in C,
+ interfacing it with SDL and OpenGL libraries.
+ The second is the implementation of the language Scheme provided by GUILE,
+ which is the official language for extensions of the GNU project.
+\end_layout
+
+\begin_layout Subsubsection
+The Scheme programming language
+\end_layout
+
+\begin_layout Standard
+The choice of the Scheme, a flavour of LISP programming language, was dictated
+ by its expressive power and easiness with which abstract concepts may be
+ formed in it.
+ Although the language isn't commonly known nor used, LISP is the only language
+ that I know which doesn't bind programmer's hands with cumbersome syntax,
+ in spite of the first impression it may give to the programmer.
+\end_layout
+
+\begin_layout Standard
+Among LISP variants, Scheme has a reputation of being particularly clean
+ and simple.
+ The simplicity of its semantics causes it to be very popular among hobbyst-impl
+ementators, which results in plurality of implementations.
+ Although the core of the language is well-defined and commonly agreed upon,
+ and specified in subsequent documents known as Revised
+\begin_inset Formula $^{n}$
+\end_inset
+
+ Reports on algorithmic language Scheme (or 
+\begin_inset Formula $R^{n}RS$
+\end_inset
+
+, for short)
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+where 
+\begin_inset Formula $n=\{2,3,...\}$
+\end_inset
+
+.
+ Currently, the 
+\begin_inset Formula $R^{7}RS$
+\end_inset
+
+ standard is being developed, and 
+\begin_inset Formula $R^{5}RS$
+\end_inset
+
+ standard is most widespread.
+ New standards don't appear particularly frequently.
+\end_layout
+
+\end_inset
+
+, the actual implementations provide various extensions which are usually
+ incompatibile with one another
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+This statement is not entirely true.
+ There is an SLIB project, which aims to deliver 
+\begin_inset Quotes pld
+\end_inset
+
+a platform independent framework for using packages of Scheme procedures
+ and syntax
+\begin_inset Quotes prd
+\end_inset
+
+.
+ However, it was not until 
+\begin_inset Formula $R^{6}RS$
+\end_inset
+
+ that the Scheme module system has been standardized.
+\end_layout
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The simplicity also causes Scheme to be modified, since it is particularly
+ easy to write meta-circular interpreter
+\begin_inset Foot
+status collapsed
+
+\begin_layout Plain Layout
+i.e.
+ an interpreter implemented in the language that the interpreter implements
+\end_layout
+
+\end_inset
+
+ of the Scheme language.
+ Therefore there are many variants of Scheme with slighlty changed semantics.
+ The most notable were presented in the classical textbook 
+\emph on
+Structure and Interpretation of Computer Programs
+\emph default
+, and those are known as 
+\emph on
+lazy evaluator
+\emph default
+ and 
+\emph on
+non-deterministic evaluator
+\emph default
+.
+ However, it is possible to come up with new evaluators or semi-evaluators
+ that allow to apply the known notation to certain more sophisticated problems.
+ In this book, a semi-evaluator for network communication will be presented.
+\end_layout
+
+\begin_layout Standard
+One of the most exceptional properties of LISP programming languages is
+ their homoiconity: the main data types processed by LISP systems are lists
+ and symbols (actually, the name 
+\emph on
+LISP
+\emph default
+ stands for LISt Processing, and the language itself was introduced in the
+ classical paper by John McCarthy titled 
+\emph on
+Recursive Functions of Symbolic Expressions and Their Computation by Machine
+\emph default
+).
+\end_layout
+
+\begin_layout Standard
+Therefore, except the ease of creation of meta-circular interpreter, LISP
+ systems allow to use 
+\emph on
+macros
+\emph default
+, which are programs that operate on those lists of symbols before they
+ are actually evaluated.
+ This means that it is particularly easy to create programs that, for instance,
+ generate code.
+\end_layout
+
+\begin_layout Standard
+The presence of macros allows to implement one of the most elementary rules
+ in the practice of good programming, namely: 
+\emph on
+don't repeat yourself
+\emph default
+.
+ In most programming languages, this rule can apply only to a limited extent:
+ one can capture the similarity of certain actions by extracting it using
+ the notion of procedure/function/subroutine.
+ The resulting source code is smaller and easier to maintain, because conceptual
+ change requires less modifications.
+ However, if there is a similarity in the definitions of certain subroutines,
+ one can rarely extract that similarity -- it's usually impossible or at
+ least cumbersome in non-LISP languages.
+ In very simple cases it can be achieved using tools like the C preprocessor,
+ but the flexibility of that tool is very limited.
+ On the other hand, it is easily achievable using the LISP macros.
+\end_layout
+
+\begin_layout Standard
+This doesn't exploit all possible uses of LISP macros.
+ In the course of this book some practical examples will be shown.(define
+\end_layout
+
+\begin_layout Standard
+Another nice feature of LISP languages, which has been neglected to some
+ extent, is the notion of printed representation of objects.
+ There is a subset of objects whose printed representation is identical
+ with the syntax used for their creation.
+ This subset includes booleans, strings, numbers and keywords.
+ In terms of evaluation, these are objects that evaluate to themselves.
+\end_layout
+
+\begin_layout Standard
+Another category consists of lists and symbols: those are objects that belong
+ to the fixed space of the 
+\family typewriter
+read
+\family default
+ procedure, i.e.
+ if 
+\family typewriter
+x
+\family default
+ is either an object, whose printed representation is identical with 2the
+ syntax used for its creation, or a symbol, or a list of such objects, then
+ 
+\family typewriter
+(equal? x (read-string (write-string x)))
+\family default
+.
+\end_layout
+
+\begin_layout Subsubsection
+Drawbacks of Scheme and GUILE
+\end_layout
+
+\begin_layout Standard
+Although Scheme has many advantages, it isn't as mature system as one could
+ expect from its age.
+ Its design is deliberately kept simple, and it progresses really slowly.
+ There are many extensions to the language which make programmer's life
+ easier, but they frequently spoil the original spirit of simplicity.
+\end_layout
+
+\begin_layout Standard
+GUILE, the implementation of Scheme chosen for GOOSE, offers a few extensions
+ to which the above rule applies.
+ In spite of that fact, it is also lacking certain features that are commonly
+ found in other modern systems:
+\end_layout
+
+\begin_layout Itemize
+bad support for data types other than lists.
+ Although there are vectors/arrays, accessing them is extremely inconvinient:
+ while in many programming languages like C and Python array access is easily
+ done using the 
+\family typewriter
+[]
+\family default
+ operator, Scheme programmers have to use 
+\family typewriter
+vector-ref
+\family default
+ and 
+\family typewriter
+vector-set!
+\family default
+ procedures to access and modify vectors.
+ This gets particularly clumsy when vectors of vectors are considered.
+ With hash-tables the situation is even worse, because in case of vectors,
+ there's at least a printable representation available.
+ However, even hash-tables aren't supported by the standard.
+ There are usually no data types like dictionaries or sets, and instead
+ of having one general inferable type that behaves differently in differet
+ situations, there is a multitude of functions that perform the same operation
+ on different data types (e.g.
+ instead of having one 
+\family typewriter
+map
+\family default
+ and one 
+\family typewriter
+for-each
+\family default
+ function procedure, there are variants like 
+\family typewriter
+vector-for-each
+\family default
+ or 
+\family typewriter
+string-map
+\family default
+ that operate onf vectors and strings, respectively)
+\end_layout
+
+\begin_layout Itemize
+no standard type system.
+ Having a sophisticated type system not only allows the programmer to convey
+ more information in the source code and infer about the program in an easier
+ manner.
+ Introducing a compile-time type checking is a good way of assuring that
+ the program contains no errors (or at least no type errors).
+\end_layout
+
+\begin_layout Itemize
+introducing sophisticated extensions causes the language to become more
+ complicated and less managable.
+ Using such extensions results in less portable and less general source
+ code.
+\end_layout
+
+\begin_layout Standard
+Those drawbacks are hoped to be resolved in the future.
+ Some of them were taken care of temporarily: the type system has been partially
+ adapted from GUILE's GOOPS object oriented programmboing system, which
+ introduces the notion of classes and multi-method dispatch.
+ The system itself, however, had its own disadvantages, which were handled
+ by providing an object system atop of GOOPS.
+\end_layout
+
+\begin_layout Standard
+The problem with access to arrays, hash tables and object members has been
+ resolved using the 
+\family typewriter
+read-hash-extend
+\family default
+ GUILE mechanism.
+ Instead of writing, for instance, 
+\family typewriter
+(vector-ref vector index)
+\family default
+ or 
+\family typewriter
+(hash-set! hash key value)
+\family default
+, one can simply write 
+\family typewriter
+#[vector index]
+\family default
+ or 
+\family typewriter
+(set! #[hash key] value)
+\family default
+.
+ Furthermore, references can be chained within the 
+\family typewriter
+#[
+\family default
+ ...
+ 
+\family typewriter
+]
+\family default
+ reader syntax using the 
+\family typewriter
+:
+\family default
+ symbol: instead of writing 
+\family typewriter
+(vector-ref (slot-ref object slot) index)
+\family default
+, or 
+\family typewriter
+#[#[object slot] index]
+\family default
+, one can avoid nesting by writing 
+\family typewriter
+#[object : slot : index]
+\family default
+.
+ This is analogous to method chaining in more traditional object oriented
+ programming languages.
+\end_layout
+
+\begin_layout Standard
+The implementation of described mechanism can be found in 
+\family typewriter
+(extra ref)
+\family default
+ module.
+\end_layout
+
+\end_body
+\end_document
