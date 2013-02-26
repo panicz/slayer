@@ -1,13 +1,24 @@
 (define-module (extra oop)
-
-  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
+  #:use-module ((oop goops) #:select 
+		(
+		 define-class define-method define-generic
+		 ensure-generic
+		 is-a? slot-bound?
+		 make make-class
+		 class-of class-name
+		 <top> <class> <generic>
+		 <real> <number> <integer> <complex>
+		 <uvec> <vector> <array> <list> <pair> <null>
+		 <file-input-output-port> <hashtable> <boolean>
+		 <procedure>
+		 class-slots class-direct-supers class-direct-subclasses
+		 deep-clone shallow-clone
+		 
+		))
   #:use-module (extra ref)
-  #:use-module (ice-9 match)
   #:use-module (extra common)
 
   #:use-module (extra hset)
-  #:use-module (srfi srfi-1)
-  #:use-module (srfi srfi-2)
 
   #:export (
 	    class-tree-append-map-down
@@ -16,6 +27,7 @@
 	    class-names+classes
 	    superclass-layers
 	    class-slot-names
+	    slot-values
 	    class-specific-slot-names
 	    make*
 	    <write-and-display-signature>
@@ -27,11 +39,30 @@
 	    *object-registry*
 	    <registered-object>
 	    <register-write-access>
-	    remove!
 
 	    modified?
 	    reset-write-registry!
-	    ))
+	    )
+  #:re-export (
+	       remove!
+	       define-class 
+	       define-method define-generic
+	       ensure-generic
+	       is-a? slot-bound?
+	       make make-class
+	       class-of class-name
+	       <top> <class> <generic>
+	       <real> <number> <integer> <complex>
+	       <uvec> <vector> <array> <list> <pair> <null>
+	       <file-input-output-port> <hashtable> <boolean>
+	       <procedure>
+	       class-slots class-direct-supers class-direct-subclasses
+	       deep-clone shallow-clone
+	       
+	       slot-ref ;; these are generics from (extra ref),
+	       slot-set! ;; not built-ins from (oop goops)
+	       )
+  )
 
 ;; this module is barely used
 
@@ -51,6 +82,9 @@
 
 (define (class-slot-names class)
   (map first (class-slots class)))
+
+(define (slot-values instance)
+  (map #[instance _] (class-slot-names (class-of instance))))
 
 (define (class-specific-slot-names class)
   (difference (class-slot-names class)
