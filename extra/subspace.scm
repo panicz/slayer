@@ -1,35 +1,43 @@
 (define-module (extra subspace)
-  :use-module (srfi srfi-1)
-  :use-module (srfi srfi-2)
-  :use-module (srfi srfi-11)
-  :use-module ((oop goops) #:hide (slot-ref slot-set!))
-  :use-module (ice-9 match)
+  #:use-module ((oop goops) #:hide (slot-ref slot-set!))
   :use-module (ice-9 optargs)
-  :use-module (ice-9 regex)
   :use-module (extra ref)
   :use-module (extra common)
   :use-module (extra hset)
   :use-module (extra oop)
   :use-module (extra network)
-  :use-module (extra 3d)
   :use-module (extra shape)
-  ;:use-module ((rnrs) :version (6))
+  :use-module (extra 3d)
+  :use-module (extra math)
+  :duplicates (merge-generics);; replace warn-override-core warn last)
+  :use-module ((rnrs) :version (6) :hide (map for-each))
   :export (<subspace>
 	   <portal>
 	   <passage>
+	   <proxy> <3d-proxy>
+
 	   *modifications*
 
 	   objects-visible-to
 	   subspaces-visible-from
+	   subspaces-visible-to
 	   objects-visible-from
 
 	   ;network-slot-value
 
 	   colliding-objects
-	   
 	   update!
 	   add!
-	   other-side))
+	   other-side)
+  :re-export (distance remove!)
+  )
+
+(define-syntax define-symmetric-method
+  (syntax-rules ()
+    ((_ (name arg1 arg2) body ...)
+     (begin
+       (define-method (name arg1 arg2) body ...)
+       (define-method (name arg2 arg1) body ...)))))
 
 (define-class <subspace> (<registered-object>)
   (objects #:init-value '()))
@@ -53,7 +61,8 @@
   (<< "ADDING "object" TO "space)
   (push! *modifications* 
 	 (make <modification> #:of object #:to space))
-  (push! #[space 'objects] object)
+  (if (not (in? object #[space 'objects]))
+      (push! #[space 'objects] object))
   (set! #[object 'context] space))
 
 (define-generic remove!)
@@ -63,7 +72,7 @@
 	 (make <modification> #:of object #:from #[object 'context]))
   (and-let* ((context #[object 'context])
 	     ((is-a? context <subspace>)))
-    (delete! object #[context 'objects]))
+    ((@ (srfi srfi-1) delete!) object #[context 'objects]))
   (next-method))
 
 (define-generic move!)
@@ -74,7 +83,7 @@
 	       #:to destination))
   (and-let* ((context #[object 'context])
 	     ((is-a? context <subspace>)))
-    (delete! object #[context 'objects]))
+    ((@ (srfi srfi-1) delete!) object #[context 'objects]))
   (add! object destination))
 
 (define-class <passage> (<subspace>)
@@ -123,9 +132,8 @@
 	    #:slot-ref (lambda(my)
 			 (+ #[my : 'original : 'position] #[my 'translation]))
 	    #:slot-set! (lambda(my vector)
-			  (let ((q #[my 'rotation]))
-			    (set! #[my : 'original : 'position]
-				  (im (* (~ q) (quaternion 0.0 vector) q))))))
+			  (set! #[my : 'original : 'position]
+				(rotated vector (~ #[my 'rotation])))))
   ;; the keywords the class is meant to be
   ;; initialized with:
   ;;   #:of <3d-proxy> (the original object that we refer to)
@@ -133,6 +141,13 @@
   ;;   #:into <subspace> (the destination subspace)
   )
 
+(define-symmetric-method (distance (a <3d-proxy>) (b <3d-shape>))
+  (distance (translated (rotated #[a 'shape] #[a 'orientation]) #[a 'position])
+	    (translated (rotated #[b 'shape] #[b 'orientation]) #[b 'position])))
+
+(define-symmetric-method (distance (a <3d>) (b <3d-proxy>))
+  (distance #[a 'position] (translated (rotated #[b 'shape] #[b 'orientation])
+				       #[b 'position])))
 
 (define-method (initialize (this <3d-proxy>) args)
   (next-method)
@@ -159,10 +174,12 @@
 
 (define-generic colliding-objects)
 
+
 (define-method (colliding-objects (subspace <subspace>))
-  (filter-map (match-lambda ((x y)
-			     (<= (distance x y) 0.0)))
-	      (all-pairs #[subspace 'objects])))
+  (<< "OBJECTS: "#[subspace 'objects])
+  (filter (match-lambda ((x y)
+			 (<= (distance x y) 0.0)))
+	  (all-pairs #[subspace 'objects])))
 
 (define-method (colliding-objects (passage <passage>))
   (let ((neighbours 
@@ -173,24 +190,28 @@
 		       #:through #[passage 'right-portal])
 		      #[passage : 'right-portal : 'context : 'objects]))))
     (append (next-method)
-	    (filter-map (match-lambda ((x y)
-				       (<= (distance x y) 0.0)))
-			(cart (filter (\ not (is-a? _ <portal>))
-				      #[passage 'objects]) 
-			      neigbours)))))
+	    (filter (match-lambda ((x y)
+				   (<= (distance x y) 0.0)))
+		    (cart (filter (\ not (is-a? _ <portal>))
+				  #[passage 'objects]) 
+			  neighbours)))))
 
 
 (define-generic handle-collision!!)
 
-(define-method (handle-collision!! (a <network-object>) (b <network-object>))
+(define-method (handle-collision!! a b)
   (<< "undefined collision handler "
       (class-name (class-of a))" "
       (class-name (class-of b))))
 
+(define-symmetric-method (handle-collision!! (object <top>) (proxy <3d-proxy>))
+  (handle-collision!! object #[proxy 'original]))
+
 (define-method (handle-collision!! (a <portal>) (b <portal>))
   (noop))
 
-(define-method (handle-collision!! (object <network-object>) (portal <portal>))
+(define-symmetric-method (handle-collision!! (object <network-object>)
+					     (portal <portal>))
   (move! object #[portal 'passage]))
 
 (define-generic update!)
@@ -201,7 +222,9 @@
 
 (define-method (update! (subspace <subspace>))
   (for-each update! #[subspace 'objects])
-  #;(map (\ apply handle-collision!! _)  (colliding-objects #;in subspace)))
+  (<<"COLLIDING OBJECTS: " (colliding-objects #;in subspace))
+  (map (\ apply handle-collision!! _)  (colliding-objects #;in subspace))
+  )
 
 (define* (subspaces-visible-from space #:key (except #;portals '())(range +inf.0))
   (cond ((<= range 0)
@@ -234,16 +257,22 @@
 					    #:except exceptions))
 		  portals))))))
 
+(define* (subspaces-visible-to <network-object> #:key (range +inf.0))
+  (let ((context #[<network-object> 'context]))
+    (if (is-a? context <subspace>)
+	(subspaces-visible-from context #:range range)
+	(throw 'invalid-context context 'of <network-object>))))
+
 (define* (objects-visible-from space #:key (range +inf.0))
   (let ((objects (append-map 
 		  #[_ 'objects] 
 		  (subspaces-visible-from space #:range range))))
     (<< objects)
-    objects))
+    objects))  
 
-(define-method (objects-visible-to (object <network-object>))
-  (let ((context #[object 'context]))
+(define* (objects-visible-to <network-object> #:key (range +inf.0))
+  (let ((context #[<network-object> 'context]))
     (if (is-a? context <subspace>)
-	(objects-visible-from context)
-	(list object))))
+	(objects-visible-from context #:range range)
+	(list <network-object>))))
 
