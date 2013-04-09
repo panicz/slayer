@@ -156,18 +156,19 @@
 		  (unread-char char port)
 		  (loop (cons (read port) exp))))))))))
 
-(define (read-hash-n char port)
-  (let loop ((n (list char)) (char (read-char port)))
-    (if (char-numeric? char)
-	(loop (cons char n) (read-char port))
-	(begin
-	  (unread-char char port)
-	  (let loop ((n (string->number (list->string (reverse n))))
-		     (result (list (read port))))
-	    (if (= n 0)
-		(reverse result)
-		(loop (1- n) (cons (read port) result))))))))
 
-(for-each (lambda(c)
-	    (read-hash-extend c read-hash-n))
-	  (map (lambda(i)(integer->char (+ i (char->integer #\0)))) (iota 10)))
+;; (define (read-hash-n char port)
+;;   (let loop ((n (list char)) (char (read-char port)))
+;;     (if (char-numeric? char)
+;; 	(loop (cons char n) (read-char port))
+;; 	(begin
+;; 	  (unread-char char port)
+;; 	  (let loop ((n (string->number (list->string (reverse n))))
+;; 		     (result (list (read port))))
+;; 	    (if (= n 0)
+;; 		(reverse result)
+;; 		(loop (1- n) (cons (read port) result))))))))
+
+;; (for-each (lambda(c)
+;; 	    (read-hash-extend c read-hash-n))
+;; 	  (map (lambda(i)(integer->char (+ i (char->integer #\0)))) (iota 10)))
