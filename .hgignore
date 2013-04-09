@@ -3,6 +3,8 @@ syntax: glob
 \#*
 .\#*
 *.o
+*.so
 *~
 slayer
 foo/*
+
