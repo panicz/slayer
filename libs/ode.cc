@@ -14,7 +14,6 @@ enum ODE_TYPES {
   ODE_TYPES = 6
 };
 
-
 static char const *ode_types[] = {
   "world",
   "space",
@@ -26,15 +25,6 @@ static char const *ode_types[] = {
 
 static SCM s_f32;
 static SCM s_f64;
-
-static SCM
-create_world() {
-  SCM smob;
-  dWorldID id = dWorldCreate();
-  SCM_NEWSMOB(smob, ode_tag, id);
-  SCM_SET_SMOB_FLAGS(smob, WORLD);
-  return smob;
-}
 
 #if defined(dSINGLE)
 # define ARRAY_TYPE s_f32
@@ -121,7 +111,6 @@ DEF_SCM_TO_DVECTOR(4);
   
  */
 
-
 #define DEF_SCM_FROM_DMATRIX(n)					\
   static inline SCM						\
   scm_from_dMatrix##n(dMatrix##n m) {				\
@@ -191,16 +180,106 @@ DEF_SCM_TO_DMATRIX(4);
 
 #undef DEF_SCM_FROM_DMATRIX
 
-static void
-export_symbols() {
-#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
-  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
-  scm_c_export(name,NULL);
 
-  EXPORT_PROCEDURE("create-world", 0, 0, 0, create_world);
-
-#undef EXPORT_PROCEDURE
+static SCM
+create_world() {
+  SCM smob;
+  dWorldID id = dWorldCreate();
+  SCM_NEWSMOB(smob, ode_tag, id);
+  SCM_SET_SMOB_FLAGS(smob, WORLD);
+  return smob;
 }
+
+
+static SCM
+set_world_gravity_x(SCM world, SCM gravity) {  
+  unsigned short type = SCM_SMOB_FLAGS(world);
+  if(type != WORLD) {
+    WARN("function called on a non-world");
+    return SCM_UNSPECIFIED;
+  }
+  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+
+  dVector3 g;
+  scm_to_dVector3(gravity, &g);
+  OUT("Setting world gravity to [%f, %f, %f]", g[0], g[1], g[2]);
+  dWorldSetGravity(w, g[0], g[1], g[2]);
+
+  scm_remember_upto_here_1(world);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+get_world_gravity(SCM world) {
+  unsigned short type = SCM_SMOB_FLAGS(world);
+  if(type != WORLD) {
+    WARN("function called on a non-world");
+    return SCM_UNSPECIFIED;
+  }
+  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+  dVector3 g;
+  dWorldGetGravity(w, g);
+  scm_remember_upto_here_1(world);
+  return scm_from_dVector3(g);
+}
+
+#define DEF_WORLD_GETSET_FUNC(name, orig, convert, back, cast)		\
+  static SCM								\
+  set_world_##name##_x(SCM world, SCM param) {				\
+    unsigned short type = SCM_SMOB_FLAGS(world);			\
+    if(type != WORLD) {							\
+      WARN("function called on a non-world");				\
+      return SCM_BOOL_F;						\
+    }									\
+    dWorldID w = (dWorldID) SCM_SMOB_DATA(world);			\
+    dWorldSet##orig(w, (cast) convert(param));				\
+    scm_remember_upto_here_1(world);					\
+    return SCM_UNSPECIFIED;						\
+  }									\
+									\
+  static SCM								\
+  get_world_##name(SCM world) {						\
+    unsigned short type = SCM_SMOB_FLAGS(world);			\
+    if(type != WORLD) {							\
+      WARN("function called on a non-world");				\
+      return SCM_BOOL_F;						\
+    }									\
+    dWorldID w = (dWorldID) SCM_SMOB_DATA(world);			\
+    scm_remember_upto_here_1(world);					\
+    return back(dWorldGet##orig(w));					\
+  }
+
+
+DEF_WORLD_GETSET_FUNC(erp, ERP, scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(cfm, CFM, scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(auto_disable_flag, AutoDisableFlag, scm_to_bool, 
+		      scm_from_bool, int);
+DEF_WORLD_GETSET_FUNC(auto_disable_linear_threshold, AutoDisableLinearThreshold,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(auto_disable_angular_threshold, AutoDisableAngularThreshold,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(auto_disable_steps, AutoDisableSteps,
+		      scm_to_int, scm_from_int, int);
+DEF_WORLD_GETSET_FUNC(auto_disable_time, AutoDisableTime,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(quick_step_iterations, QuickStepNumIterations,
+		      scm_to_int, scm_from_int, int);
+DEF_WORLD_GETSET_FUNC(quick_step_relaxation, QuickStepW,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(linear_damping, LinearDamping,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(angular_damping, AngularDamping,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(linear_damping_threshold, LinearDampingThreshold,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(angular_damping_threshold, AngularDampingThreshold,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(max_angular_speed, MaxAngularSpeed,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(contact_max_correcting_velocity, ContactMaxCorrectingVel,
+		      scm_to_double, scm_from_double, dReal);
+DEF_WORLD_GETSET_FUNC(contact_surface_layer, ContactSurfaceLayer,
+		      scm_to_double, scm_from_double, dReal);
 
 static size_t
 free_ode(SCM smob) {
@@ -231,6 +310,41 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
   
   scm_remember_upto_here_1(ode);
   return 1;
+}
+
+static void
+export_symbols() {
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
+
+#define EXPORT_WORLD_GETSET_FUNC(name, cname) \
+  EXPORT_PROCEDURE("set-world-" name "!", 2, 0, 0, set_world_##cname##_x);\
+  EXPORT_PROCEDURE("get-world-" name, 1, 0, 0, get_world_##cname); 
+
+  EXPORT_PROCEDURE("create-world", 0, 0, 0, create_world);
+  EXPORT_WORLD_GETSET_FUNC("gravity", gravity);
+  EXPORT_WORLD_GETSET_FUNC("erp", erp);
+  EXPORT_WORLD_GETSET_FUNC("cfm", cfm);
+  EXPORT_WORLD_GETSET_FUNC("auto-disable-flag", auto_disable_flag);
+  EXPORT_WORLD_GETSET_FUNC("auto-disable-linear-threshold", 
+			   auto_disable_linear_threshold);
+  EXPORT_WORLD_GETSET_FUNC("auto-disable-angular-threshold", 
+			   auto_disable_angular_threshold);
+  EXPORT_WORLD_GETSET_FUNC("auto-disable-steps", auto_disable_steps);
+  EXPORT_WORLD_GETSET_FUNC("auto-disable-time", auto_disable_time);
+  EXPORT_WORLD_GETSET_FUNC("quick-step-iterations", quick_step_iterations);
+  EXPORT_WORLD_GETSET_FUNC("quick-step-relaxation", quick_step_relaxation);
+  EXPORT_WORLD_GETSET_FUNC("linear-damping", linear_damping);
+  EXPORT_WORLD_GETSET_FUNC("angular-damping", angular_damping);
+  EXPORT_WORLD_GETSET_FUNC("linear-damping-threshold", linear_damping_threshold);
+  EXPORT_WORLD_GETSET_FUNC("angular-damping-threshold", angular_damping_threshold);
+  EXPORT_WORLD_GETSET_FUNC("contact-max-correcting-velocity", 
+			   contact_max_correcting_velocity);
+  EXPORT_WORLD_GETSET_FUNC("contact-surface-layer", contact_surface_layer);
+
+#undef EXPORT_WORLD_GETSET_FUNC
+#undef EXPORT_PROCEDURE
 }
 
 extern "C" void
