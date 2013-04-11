@@ -36,7 +36,7 @@ libraries:
 	cd libs && make
 
 clean:
-	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~ *.go scm/*.go extra/*.go libs/*.so
+	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~ *.go scm/*.go extra/*.go libs/*.so libs/*~
 
 again:
 	make clean
