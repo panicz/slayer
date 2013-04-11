@@ -4,10 +4,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
-#include <SDL.h>
 
 
-#define now() SDL_GetTicks()
+#define now() 0
 #define OUT(msg, ...) fprintf(stderr, msg "\n", ## __VA_ARGS__ )
 #define OUT_(msg, ...) fprintf(stderr, msg, ## __VA_ARGS__ )
 #define STR(x) # x
@@ -17,7 +16,7 @@
     OUT("[ %09d ] %s/%s,%d: "STR(expr)" (%d ticks)",now(),__FILE__,__FUNCTION__,__LINE__,time);})
 
 #define FATAL(msg, ...) do { fprintf(stderr, "FATAL ERROR: " msg "\n", ## __VA_ARGS__ ); exit(0); } while(0)
-#define NELEMS(array) (sizeof(array)/sizeof array[0])
+#define NELEMS(a) ((int)(sizeof(a)/sizeof(a[0])))
 #define WARN(msg, ...) fprintf(stderr, "[ %09d ] %s/%s: " msg "\n", now(), __FILE__, __FUNCTION__, ## __VA_ARGS__ )
 #define WARN_UPTO(n, msg, ...) \
   ({ void __fn__(const char *f) { \
@@ -27,13 +26,9 @@
 #define WARN_ONCE(msg, ...) WARN_UPTO(1, msg, ## __VA_ARGS__ )
 #define TOSTRING(x) STR(x)
 #define TRY(f) if((f) == -1) { perror(__FILE__ ", " TOSTRING(__LINE__)  " [" #f "]"); }
-#define TRY_SDL(f) if((f) == -1) { \
-    OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, STR(f),SDL_GetError()); }
-
 
 
 //do { } while(0)
-
 
 
 #endif /* UTILS_H */
