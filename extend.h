@@ -24,10 +24,8 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
     va_list args;						\
     scm_t_array_handle h;					\
     type value failval;						\
-    size_t rank;						\
-    int i;							\
     scm_t_array_dim *dims;					\
-    ssize_t index, pos = 0;					\
+    ssize_t i, rank, index, pos = 0;				\
     type const *elements;					\
     								\
     va_start(args, array);					\
@@ -87,10 +85,8 @@ DEFINE_ARRAY_GETTER(scm_c_array_c64_ref, double,,
   name(SCM array, type value, ...) {				\
     va_list args;						\
     scm_t_array_handle h;					\
-    size_t rank;						\
-    int i;							\
     scm_t_array_dim *dims;					\
-    ssize_t index, pos = 0;					\
+    ssize_t i, rank, index, pos = 0;				\
     type *elements;						\
     								\
     va_start(args, value);					\
