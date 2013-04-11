@@ -64,30 +64,31 @@ DEF_SCM_FROM_DVECTOR(4);
 
 #undef SCM_FROM_DVECTOR
 
+
 #define DEF_SCM_TO_DVECTOR(n)					\
   static inline void						\
   scm_to_dVector##n(SCM V, dVector##n *v) {			\
     scm_t_array_handle h;					\
-    if (scm_array_p(V, SCM_UNSPECIFIED)) {			\
+    if (scm_is_array(V)) {					\
       scm_array_get_handle(V, &h);				\
-      if(scm_typed_array_p(V, s_f32)) {				\
-	float *elements						\
-	  = (float *) scm_array_handle_uniform_elements(&h);	\
+      if(scm_is_typed_array(V, s_f32)) {			\
+	float const *elements					\
+	  = scm_array_handle_f32_elements(&h);			\
 	for(int i = 0; i < n; ++i) {				\
-	  *v[i] = (dReal) elements[i];				\
+	  (*v)[i] = elements[i];				\
 	}							\
       }								\
-      else if(scm_typed_array_p(V, s_f64)) {			\
-	double *elements					\
-	  = (double *) scm_array_handle_uniform_elements(&h);	\
+      else if(scm_is_typed_array(V, s_f64)) {			\
+	double const *elements					\
+	  = scm_array_handle_f64_elements(&h);			\
 	for(int i = 0; i < n; ++i) {				\
-	  *v[i] = (dReal) elements[i];				\
+	  (*v)[i] =  elements[i];				\
 	}							\
       }								\
       else {							\
 	SCM *elements = (SCM *) scm_array_handle_elements(&h);	\
 	for(int i = 0; i < n; ++i) {				\
-	  *v[i] = (dReal) scm_to_double(elements[i]);		\
+	  (*v)[i] = (dReal) scm_to_double(elements[i]);		\
 	}							\
       }								\
       scm_array_handle_release(&h);				\
@@ -120,6 +121,7 @@ DEF_SCM_TO_DVECTOR(4);
   
  */
 
+
 #define DEF_SCM_FROM_DMATRIX(n)					\
   static inline SCM						\
   scm_from_dMatrix##n(dMatrix##n m) {				\
@@ -129,7 +131,7 @@ DEF_SCM_TO_DVECTOR(4);
     scm_t_array_handle h;					\
     scm_array_get_handle(M, &h);				\
     dReal *elements						\
-    =(dReal *)scm_array_handle_uniform_writable_elements(&h);	\
+      =(dReal *)scm_array_handle_uniform_writable_elements(&h);	\
     for(int i = 0; i < n; ++i) {				\
       for(int j = 0; j < n; ++j) {				\
 	elements[n*i+j] = m[4*i+j];				\
@@ -144,44 +146,50 @@ DEF_SCM_FROM_DMATRIX(4);
 
 #undef DEF_SCM_FROM_DMATRIX
 
-static inline void
-scm_to_dMatrix3(SCM M, dMatrix3 *m) {
-  scm_t_array_handle h;
-  if (scm_array_p(M, SCM_UNSPECIFIED)) {
-    scm_array_get_handle(M, &h);
-    if(scm_typed_array_p(M, s_f32)) {
-      float *elements
-	= (float *) scm_array_handle_uniform_elements(&h);
-      for(int i = 0; i < 3; ++i) {
-	for(int j = 0; j < 3; ++j) {
-	  *m[4*i+j] = (dReal) elements[3*i+j];
-	}
-      }
-    }
-    else if(scm_typed_array_p(M, s_f64)) {
-      double *elements
-	= (double *) scm_array_handle_uniform_elements(&h);
-      for(int i = 0; i < 3; ++i) {
-	for(int j = 0; j < 3; ++j) {
-	  *m[4*i+j] = (dReal) elements[3*i+j];
-	}
-      }
-    }
-    else {
-      SCM *elements = (SCM *) scm_array_handle_elements(&h);
-      for(int i = 0; i < 3; ++i) {
-	for(int j = 0; j < 3; ++j) {
-	  *m[4*i+j] = (dReal) scm_to_double(elements[3*i+j]);
-	}
-      }
-    }
-    scm_array_handle_release(&h);
+#define DEF_SCM_TO_DMATRIX(n) \
+  static inline void						\
+  scm_to_dMatrix##n(SCM M, dMatrix##n *m) {			\
+    scm_t_array_handle h;					\
+    if (scm_is_array(M)) {					\
+      scm_array_get_handle(M, &h);				\
+      if (scm_is_typed_array(M, s_f32)) {			\
+	float const *elements					\
+	  = scm_array_handle_f32_elements(&h);			\
+	for(int i = 0; i < n; ++i) {				\
+	  for(int j = 0; j < n; ++j) {				\
+	    (*m)[4*i+j] = (dReal) elements[n*i+j];		\
+	  }							\
+	}							\
+      }								\
+      else if(scm_is_typed_array(M, s_f64)) {			\
+	double const *elements					\
+	  = scm_array_handle_f64_elements(&h);			\
+	for(int i = 0; i < n; ++i) {				\
+	  for(int j = 0; j < n; ++j) {				\
+	    (*m)[4*i+j] = (dReal) elements[n*i+j];		\
+	  }							\
+	}							\
+      }								\
+      else {							\
+	SCM *elements = (SCM *) scm_array_handle_elements(&h);	\
+	for(int i = 0; i < n; ++i) {				\
+	  for(int j = 0; j < n; ++j) {				\
+	    (*m)[4*i+j]						\
+	      = (dReal) scm_to_double(elements[n*i+j]);		\
+	  }							\
+	}							\
+      }								\
+      scm_array_handle_release(&h);				\
+    }								\
+    else {							\
+      WARN("Unable to convert SCM to dMatrix"#n);		\
+    }								\
   }
-  else {
-    WARN("Unable to convert SCM to dMatrix");
-  }
-}
 
+DEF_SCM_TO_DMATRIX(3);
+DEF_SCM_TO_DMATRIX(4);
+
+#undef DEF_SCM_FROM_DMATRIX
 
 static void
 export_symbols() {
