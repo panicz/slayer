@@ -93,7 +93,7 @@ DEFINE_ARRAY_GETTER(scm_c_array_c64_ref, double,,
     ssize_t index, pos = 0;					\
     type *elements;						\
     								\
-    va_start(args, array);					\
+    va_start(args, value);					\
     scm_array_get_handle(array, &h);				\
     								\
     rank = scm_array_handle_rank(&h);				\
