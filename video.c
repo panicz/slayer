@@ -102,6 +102,9 @@ video_refresh_screen() {
   flip_screen();
 }
 
+#define TRY_SDL(f) if((f) == -1) { \
+    OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, STR(f),SDL_GetError()); }
+
 void
 video_init(Uint16 w, Uint16 h, int mode) {
 
