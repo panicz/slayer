@@ -22,6 +22,7 @@ static char const *ode_types[] = {
   "joint-group",
   "geom"
 };
+/*************************** MATRICES AND VECTORS ***************************/
 
 static SCM s_f32;
 static SCM s_f64;
@@ -47,7 +48,6 @@ static SCM s_f64;
     scm_array_handle_release(&h);					\
     return V;								\
   } 
-
 
 DEF_SCM_FROM_DVECTOR(3);
 DEF_SCM_FROM_DVECTOR(4);
@@ -180,6 +180,7 @@ DEF_SCM_TO_DMATRIX(4);
 
 #undef DEF_SCM_FROM_DMATRIX
 
+/********************************* WORLD ************************************/
 
 static SCM
 create_world() {
@@ -190,19 +191,17 @@ create_world() {
   return smob;
 }
 
-
 static SCM
 set_world_gravity_x(SCM world, SCM gravity) {  
-  unsigned short type = SCM_SMOB_FLAGS(world);
-  if(type != WORLD) {
+  if(SCM_SMOB_FLAGS(world) != WORLD) {
     WARN("function called on a non-world");
-    return SCM_UNSPECIFIED;
+    return SCM_BOOL_F;
   }
   dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
 
   dVector3 g;
   scm_to_dVector3(gravity, &g);
-  OUT("Setting world gravity to [%f, %f, %f]", g[0], g[1], g[2]);
+  //OUT("Setting world gravity to [%f, %f, %f]", g[0], g[1], g[2]);
   dWorldSetGravity(w, g[0], g[1], g[2]);
 
   scm_remember_upto_here_1(world);
@@ -211,10 +210,9 @@ set_world_gravity_x(SCM world, SCM gravity) {
 
 static SCM
 get_world_gravity(SCM world) {
-  unsigned short type = SCM_SMOB_FLAGS(world);
-  if(type != WORLD) {
+  if(SCM_SMOB_FLAGS(world) != WORLD) {
     WARN("function called on a non-world");
-    return SCM_UNSPECIFIED;
+    return SCM_BOOL_F;
   }
   dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
   dVector3 g;
@@ -226,8 +224,7 @@ get_world_gravity(SCM world) {
 #define DEF_WORLD_GETSET_FUNC(name, orig, convert, back, cast)		\
   static SCM								\
   set_world_##name##_x(SCM world, SCM param) {				\
-    unsigned short type = SCM_SMOB_FLAGS(world);			\
-    if(type != WORLD) {							\
+    if(SCM_SMOB_FLAGS(world) != WORLD) {				\
       WARN("function called on a non-world");				\
       return SCM_BOOL_F;						\
     }									\
@@ -239,8 +236,7 @@ get_world_gravity(SCM world) {
 									\
   static SCM								\
   get_world_##name(SCM world) {						\
-    unsigned short type = SCM_SMOB_FLAGS(world);			\
-    if(type != WORLD) {							\
+    if(SCM_SMOB_FLAGS(world) != WORLD) {				\
       WARN("function called on a non-world");				\
       return SCM_BOOL_F;						\
     }									\
@@ -248,7 +244,6 @@ get_world_gravity(SCM world) {
     scm_remember_upto_here_1(world);					\
     return back(dWorldGet##orig(w));					\
   }
-
 
 DEF_WORLD_GETSET_FUNC(erp, ERP, scm_to_double, scm_from_double, dReal);
 DEF_WORLD_GETSET_FUNC(cfm, CFM, scm_to_double, scm_from_double, dReal);
@@ -281,12 +276,82 @@ DEF_WORLD_GETSET_FUNC(contact_max_correcting_velocity, ContactMaxCorrectingVel,
 DEF_WORLD_GETSET_FUNC(contact_surface_layer, ContactSurfaceLayer,
 		      scm_to_double, scm_from_double, dReal);
 
+static SCM
+world_step_x(SCM world, SCM stepsize) {
+  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+  dReal step = ((stepsize == SCM_UNDEFINED) 
+		? 0.001 
+		: scm_to_double(stepsize));
+  dWorldStep(w, step);
+  scm_remember_upto_here_1(world);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+quick_step_x(SCM world, SCM stepsize) {
+  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+  dReal step = ((stepsize == SCM_UNDEFINED) 
+		? 0.001 
+		: scm_to_double(stepsize));
+  dWorldQuickStep(w, step);
+  scm_remember_upto_here_1(world);
+  return SCM_UNSPECIFIED;
+}
+
+/********************************* BODY *************************************/
+
+static SCM
+create_body(SCM world) {
+  if(SCM_SMOB_FLAGS(world) != WORLD) {
+    WARN("function called on a non-world");
+    return SCM_BOOL_F;
+  }
+  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+  dBodyID id = dBodyCreate(w);
+  SCM smob;
+  SCM_NEWSMOB(smob, ode_tag, id);
+  SCM_SET_SMOB_FLAGS(smob, BODY);
+  return smob;
+}
+
+static SCM
+set_body_position_x(SCM body, SCM position) {
+  if(SCM_SMOB_FLAGS(body) != BODY) {
+    WARN("function called on a non-body");
+    return SCM_BOOL_F;
+  }  
+  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  dVector3 p;
+  scm_to_dVector3(position, &p);
+  OUT("setting body position to [%f %f %f]", p[0], p[1], p[2]);
+  dBodySetPosition(b, p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+get_body_position(SCM body) {
+  if(SCM_SMOB_FLAGS(body) != BODY) {
+    WARN("function called on a non-body");
+    return SCM_BOOL_F;
+  }
+  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  dReal const *v = dBodyGetPosition(b);
+  OUT("body position is [%f %f %f]", v[0], v[1], v[2]);
+  return scm_from_dVector3((dReal *) v);
+}
+
+/******************************* GENERAL ************************************/
+
 static size_t
 free_ode(SCM smob) {
   unsigned short type = SCM_SMOB_FLAGS(smob);
   if(type == WORLD) {
     dWorldID id = (dWorldID) SCM_SMOB_DATA(smob);
     dWorldDestroy(id);
+  }
+  else if(type == BODY) {
+    dBodyID id = (dBodyID) SCM_SMOB_DATA(smob);
+    dBodyDestroy(id);
   }
   else {
     WARN("Unimplemented ODE destructor");
@@ -318,6 +383,7 @@ export_symbols() {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
 
+  /*** WORLD ***/
 #define EXPORT_WORLD_GETSET_FUNC(name, cname) \
   EXPORT_PROCEDURE("set-world-" name "!", 2, 0, 0, set_world_##cname##_x);\
   EXPORT_PROCEDURE("get-world-" name, 1, 0, 0, get_world_##cname); 
@@ -343,7 +409,17 @@ export_symbols() {
 			   contact_max_correcting_velocity);
   EXPORT_WORLD_GETSET_FUNC("contact-surface-layer", contact_surface_layer);
 
-#undef EXPORT_WORLD_GETSET_FUNC
+  EXPORT_PROCEDURE("world-step!", 1, 1, 0, world_step_x);
+  EXPORT_PROCEDURE("quick-step!", 1, 1, 0, quick_step_x);
+
+#undef EXPORT_WORLD_GETSET_FUNC  
+
+  /*** BODY ***/
+
+  EXPORT_PROCEDURE("create-body", 1, 0, 0, create_body);
+  EXPORT_PROCEDURE("set-body-position!", 2, 0, 0, set_body_position_x);
+  EXPORT_PROCEDURE("get-body-position", 1, 0, 0, get_body_position);
+
 #undef EXPORT_PROCEDURE
 }
 
