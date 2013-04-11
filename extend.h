@@ -18,6 +18,130 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
   return nelems;
 }
 
+#define DEFINE_ARRAY_GETTER(name, type, failval, getter)	\
+  static inline type						\
+  name(SCM array, ...) {					\
+    va_list args;						\
+    scm_t_array_handle h;					\
+    type value failval;						\
+    size_t rank;						\
+    int i;							\
+    scm_t_array_dim *dims;					\
+    ssize_t index, pos = 0;					\
+    type const *elements;					\
+    								\
+    va_start(args, array);					\
+    scm_array_get_handle(array, &h);				\
+    								\
+    rank = scm_array_handle_rank(&h);				\
+    dims = scm_array_handle_dims(&h);				\
+    								\
+    for(i = 0; i < rank; ++i) {					\
+      index = va_arg(args, ssize_t);				\
+      if (index < dims[i].lbnd || index > dims[i].ubnd) {	\
+	goto end;						\
+      }								\
+      pos += (index - dims[i].lbnd) * dims[i].inc;		\
+    }								\
+    elements = getter(&h);					\
+    value = elements[pos];					\
+    								\
+  end:								\
+    va_end(args);						\
+    scm_array_handle_release(&h);				\
+    return value;						\
+  }
+
+DEFINE_ARRAY_GETTER(scm_c_array_ref, SCM, = SCM_UNSPECIFIED,
+		    scm_array_handle_elements);
+
+DEFINE_ARRAY_GETTER(scm_c_array_u8_ref, scm_t_uint8,,
+		    scm_array_handle_u8_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_s8_ref, scm_t_int8,,
+		    scm_array_handle_s8_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_u16_ref, scm_t_uint16,,
+		    scm_array_handle_u16_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_s16_ref, scm_t_int16,,
+		    scm_array_handle_s16_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_u32_ref, scm_t_uint32,,
+		    scm_array_handle_u32_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_s32_ref, scm_t_int32,,
+		    scm_array_handle_s32_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_u64_ref, scm_t_uint64,,
+		    scm_array_handle_u64_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_s64_ref, scm_t_int64,,
+		    scm_array_handle_s64_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_f32_ref, float,,
+		    scm_array_handle_f32_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_f64_ref, double,,
+		    scm_array_handle_f64_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_c32_ref, float,,
+		    scm_array_handle_c32_elements);
+DEFINE_ARRAY_GETTER(scm_c_array_c64_ref, double,,
+		    scm_array_handle_c64_elements);
+
+#undef DEFINE_ARRAY_GETTER
+
+#define DEFINE_ARRAY_SETTER(name, type, getter)	\
+  static inline type						\
+  name(SCM array, type value, ...) {				\
+    va_list args;						\
+    scm_t_array_handle h;					\
+    size_t rank;						\
+    int i;							\
+    scm_t_array_dim *dims;					\
+    ssize_t index, pos = 0;					\
+    type *elements;						\
+    								\
+    va_start(args, array);					\
+    scm_array_get_handle(array, &h);				\
+    								\
+    rank = scm_array_handle_rank(&h);				\
+    dims = scm_array_handle_dims(&h);				\
+    								\
+    for(i = 0; i < rank; ++i) {					\
+      index = va_arg(args, ssize_t);				\
+      if (index < dims[i].lbnd || index > dims[i].ubnd) {	\
+	goto end;						\
+      }								\
+      pos += (index - dims[i].lbnd) * dims[i].inc;		\
+    }								\
+    elements = getter(&h);					\
+    elements[pos] = value;					\
+    								\
+  end:								\
+    va_end(args);						\
+    scm_array_handle_release(&h);				\
+    return value;						\
+  }
+
+DEFINE_ARRAY_SETTER(scm_c_array_set_x, SCM,
+		    scm_array_handle_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_u8_set_x, scm_t_uint8,
+		    scm_array_handle_u8_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_s8_set_x, scm_t_int8,
+		    scm_array_handle_s8_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_u16_set_x, scm_t_uint16,
+		    scm_array_handle_u16_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_s16_set_x, scm_t_int16,
+		    scm_array_handle_s16_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_u32_set_x, scm_t_uint32,
+		    scm_array_handle_u32_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_s32_set_x, scm_t_int32,
+		    scm_array_handle_s32_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_u64_set_x, scm_t_uint64,
+		    scm_array_handle_u64_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_s64_set_x, scm_t_int64,
+		    scm_array_handle_s64_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_f32_set_x, float,
+		    scm_array_handle_f32_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_f64_set_x, double,
+		    scm_array_handle_f64_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_c32_set_x, float,
+		    scm_array_handle_c32_writable_elements);
+DEFINE_ARRAY_SETTER(scm_c_array_c64_set_x, double,
+		    scm_array_handle_c64_writable_elements);
+
 static inline float
 scm_to_float(SCM number) {
   return (float) scm_to_double(number);
