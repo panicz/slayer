@@ -316,6 +316,13 @@ create_body(SCM world) {
   }							\
   dBodyID c_var = (dBodyID) SCM_SMOB_DATA(scm_var)
 
+#define MASS_CONDITIONAL_ASSIGN(scm_var, c_var)		\
+  if(SCM_SMOB_FLAGS(scm_var) != MASS) {			\
+    WARN("function called on a non-mass");		\
+    return SCM_BOOL_F;					\
+  }							\
+  dMass *c_var = (dMass *) SCM_SMOB_DATA(scm_var)
+
 
 #define DEF_BODY_GETSETV3_FUNC(name, orig)	\
   static SCM					\
@@ -337,14 +344,14 @@ create_body(SCM world) {
 DEF_BODY_GETSETV3_FUNC(position, Position);
 DEF_BODY_GETSETV3_FUNC(linear_velocity, LinearVel);
 DEF_BODY_GETSETV3_FUNC(angular_velocity, AngularVel);
+DEF_BODY_GETSETV3_FUNC(force, Force);
+DEF_BODY_GETSETV3_FUNC(torque, Torque);
+
+#undef DEF_BODY_GETSETV3_FUNC
 
 static SCM
 set_body_rotation_x(SCM body, SCM rotation) {
-  if(SCM_SMOB_FLAGS(body) != BODY) {
-    WARN("function called on a non-body");
-    return SCM_BOOL_F;
-  }  
-  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  BODY_CONDITIONAL_ASSIGN(body, b);
   dMatrix3 M;
   scm_to_dMatrix3(rotation, &M);
   dBodySetRotation(b, M);
@@ -353,22 +360,14 @@ set_body_rotation_x(SCM body, SCM rotation) {
 
 static SCM
 get_body_rotation(SCM body) {
-  if(SCM_SMOB_FLAGS(body) != BODY) {
-    WARN("function called on a non-body");
-    return SCM_BOOL_F;
-  }  
-  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  BODY_CONDITIONAL_ASSIGN(body, b);
   dReal const *v = dBodyGetRotation(b);
   return scm_from_dMatrix3((dReal *) v);
 }
 
 static SCM
 set_body_quaternion_x(SCM body, SCM quaternion) {
-  if(SCM_SMOB_FLAGS(body) != BODY) {
-    WARN("function called on a non-body");
-    return SCM_BOOL_F;
-  }  
-  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  BODY_CONDITIONAL_ASSIGN(body, b);
   dVector4 q;
   scm_to_dVector4(quaternion, &q);
   dBodySetQuaternion(b, q);
@@ -376,18 +375,205 @@ set_body_quaternion_x(SCM body, SCM quaternion) {
 }
 
 static SCM
+create_mass(SCM mass, SCM center, SCM inertia) {
+  dMass *m = new dMass;
+  SCM smob;
+  m->mass = (dReal) scm_to_double(mass);
+  scm_to_dVector3(center, &m->c);
+  scm_to_dMatrix3(inertia, &m->I);
+  SCM_NEWSMOB(smob, ode_tag, m);
+  SCM_SET_SMOB_FLAGS(smob, MASS);
+  return smob;
+}
+
+static SCM
 get_body_quaternion(SCM body) {
-  if(SCM_SMOB_FLAGS(body) != BODY) {
-    WARN("function called on a non-body");
-    return SCM_BOOL_F;
-  }  
-  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  BODY_CONDITIONAL_ASSIGN(body, b);
   dReal const *v = dBodyGetQuaternion(b);
   return scm_from_dVector4((dReal *) v);
 }
 
+static SCM
+set_body_mass_x(SCM body, SCM mass) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  MASS_CONDITIONAL_ASSIGN(mass, m);
+  dBodySetMass(b, m);
+  return SCM_UNSPECIFIED;
+}
 
-#undef DEF_BODY_GETSETV3_FUNC
+static SCM
+get_body_mass(SCM body) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  SCM smob;
+  dMass *m = new dMass;
+  dBodyGetMass(b, m);
+  SCM_NEWSMOB(smob, ode_tag, m);
+  SCM_SET_SMOB_FLAGS(smob, MASS);
+  return smob;
+}
+
+static SCM
+add_body_force_x(SCM body, SCM force) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f;
+  scm_to_dVector3(force, &f);
+  dBodyAddForce(b, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_force_x(SCM body, SCM force) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f;
+  scm_to_dVector3(force, &f);
+  dBodyAddRelForce(b, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_force_at_position_x(SCM body, SCM force, SCM position) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f, p;
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(position, &p);
+  dBodyAddForceAtPos(b, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_force_at_relative_position_x(SCM body, SCM force, SCM position) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f, p;
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(position, &p);
+  dBodyAddForceAtRelPos(b, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_force_at_position_x(SCM body, SCM force, SCM position) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f, p;
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(position, &p);
+  dBodyAddRelForceAtPos(b, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_force_at_relative_position_x(SCM body, SCM force, SCM pos) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f, p;
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(pos, &p);
+  dBodyAddRelForceAtRelPos(b, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_torque_x(SCM body, SCM torque) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f;
+  scm_to_dVector3(torque, &f);
+  dBodyAddTorque(b, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_torque_x(SCM body, SCM torque) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dVector3 f;
+  scm_to_dVector3(torque, &f);
+  dBodyAddRelTorque(b, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+#define DEF_BODY_VECTOR_CONVERSION(name, conversion)	\
+  static SCM						\
+  name(SCM body, SCM V) {				\
+    BODY_CONDITIONAL_ASSIGN(body, b);			\
+    dVector3 v, w;					\
+    scm_to_dVector3(V, &v);				\
+    conversion(b, v[0], v[1], v[2], w);			\
+    return scm_from_dVector3(w);			\
+  }
+
+DEF_BODY_VECTOR_CONVERSION(global_to_local_position, dBodyGetPosRelPoint);
+DEF_BODY_VECTOR_CONVERSION(local_to_global_position, dBodyGetRelPointPos);
+DEF_BODY_VECTOR_CONVERSION(global_to_local_velocity, dBodyGetPointVel);
+DEF_BODY_VECTOR_CONVERSION(local_to_global_velocity, dBodyGetRelPointVel);
+DEF_BODY_VECTOR_CONVERSION(body_vector_to_world, dBodyVectorToWorld);
+DEF_BODY_VECTOR_CONVERSION(world_vector_to_body, dBodyVectorFromWorld);
+
+#undef DEF_BODY_VECTOR_CONVERSION
+
+static SCM
+enable_body_x(SCM body) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dBodyEnable(b);
+  return SCM_UNSPECIFIED;
+}
+
+
+static SCM
+disable_body_x(SCM body) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  dBodyDisable(b);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+enabled_body_p(SCM body) {
+  BODY_CONDITIONAL_ASSIGN(body, b);
+  return scm_from_bool(dBodyIsEnabled(b));
+}
+
+#define DEF_BODY_GETSET_FUNC(name, orig, convert, back, cast)		\
+  static SCM								\
+  set_body_##name##_x(SCM body, SCM param) {				\
+    BODY_CONDITIONAL_ASSIGN(body, b);					\
+    dBodySet##orig(b, (cast) convert(param));				\
+    scm_remember_upto_here_1(body);					\
+    return SCM_UNSPECIFIED;						\
+  }									\
+									\
+  static SCM								\
+  get_body_##name(SCM body) {						\
+    BODY_CONDITIONAL_ASSIGN(body, b);					\
+    scm_remember_upto_here_1(body);					\
+    return back(dBodyGet##orig(b));					\
+  }
+
+DEF_BODY_GETSET_FUNC(auto_disable_flag, AutoDisableFlag, scm_to_bool, 
+		     scm_from_bool, int);
+DEF_BODY_GETSET_FUNC(auto_disable_linear_threshold, AutoDisableLinearThreshold,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(auto_disable_angular_threshold, AutoDisableAngularThreshold,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(auto_disable_steps, AutoDisableSteps,
+		     scm_to_int, scm_from_int, int);
+DEF_BODY_GETSET_FUNC(auto_disable_time, AutoDisableTime,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(auto_disable_average_samples_count, 
+		     AutoDisableAverageSamplesCount,
+		     scm_to_uint, scm_from_uint, unsigned int);
+DEF_BODY_GETSET_FUNC(linear_damping, LinearDamping,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(angular_damping, AngularDamping,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(linear_damping_threshold, LinearDampingThreshold,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(angular_damping_threshold, AngularDampingThreshold,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(max_angular_speed, MaxAngularSpeed,
+		     scm_to_double, scm_from_double, dReal);
+DEF_BODY_GETSET_FUNC(finite_rotation_mode, FiniteRotationMode,
+		     scm_to_int, scm_from_int, int);
+DEF_BODY_GETSET_FUNC(gravity_mode, GravityMode,
+		     scm_to_int, scm_from_int, int);
+
+
+
 #undef BODY_CONDITIONAL_ASSIGN
 
 /******************************* GENERAL ************************************/
@@ -403,10 +589,13 @@ free_ode(SCM smob) {
     dBodyID id = (dBodyID) SCM_SMOB_DATA(smob);
     dBodyDestroy(id);
   }
+  else if(type == MASS) {
+    dMass *m = (dMass *) SCM_SMOB_DATA(smob);
+    delete m;
+  }
   else {
     WARN("Unimplemented ODE destructor");
   }
-
   return 0;
 }
 
@@ -466,8 +655,10 @@ export_symbols() {
   EXPORT_WORLD_GETSET_FUNC("quick-step-relaxation", quick_step_relaxation);
   EXPORT_WORLD_GETSET_FUNC("linear-damping", linear_damping);
   EXPORT_WORLD_GETSET_FUNC("angular-damping", angular_damping);
-  EXPORT_WORLD_GETSET_FUNC("linear-damping-threshold", linear_damping_threshold);
-  EXPORT_WORLD_GETSET_FUNC("angular-damping-threshold", angular_damping_threshold);
+  EXPORT_WORLD_GETSET_FUNC("linear-damping-threshold", 
+			   linear_damping_threshold);
+  EXPORT_WORLD_GETSET_FUNC("angular-damping-threshold", 
+			   angular_damping_threshold);
   EXPORT_WORLD_GETSET_FUNC("max-angular-speed", max_angular_speed);
   EXPORT_WORLD_GETSET_FUNC("contact-max-correcting-velocity", 
 			   contact_max_correcting_velocity);
@@ -481,6 +672,7 @@ export_symbols() {
   /*** BODY ***/
 
   EXPORT_PROCEDURE("create-body", 1, 0, 0, create_body);
+  EXPORT_PROCEDURE("create-mass", 3, 0, 0, create_mass);
 #define EXPORT_BODY_GETSET_FUNC(name, cname) \
   EXPORT_PROCEDURE("set-body-" name "!", 2, 0, 0, set_body_##cname##_x);\
   EXPORT_PROCEDURE("get-body-" name, 1, 0, 0, get_body_##cname); 
@@ -490,6 +682,53 @@ export_symbols() {
   EXPORT_BODY_GETSET_FUNC("quaternion", quaternion);
   EXPORT_BODY_GETSET_FUNC("linear-velocity", linear_velocity);
   EXPORT_BODY_GETSET_FUNC("angular-velocity", angular_velocity);
+  EXPORT_BODY_GETSET_FUNC("mass", mass);
+  EXPORT_BODY_GETSET_FUNC("force", force);
+  EXPORT_BODY_GETSET_FUNC("torque", torque);
+
+  EXPORT_PROCEDURE("add-body-force!", 2, 0, 0, add_body_force_x);
+  EXPORT_PROCEDURE("add-body-local-force!", 2, 0, 0, add_body_local_force_x);
+  EXPORT_PROCEDURE("add-body-force-at-position!", 3, 0, 0, 
+		   add_body_force_at_position_x);
+  EXPORT_PROCEDURE("add-body-force-at-relative-position!", 3, 0, 0, 
+		   add_body_force_at_relative_position_x);
+  EXPORT_PROCEDURE("add-body-local-force-at-position!", 3, 0, 0, 
+		   add_body_local_force_at_position_x);
+  EXPORT_PROCEDURE("add-body-local-force-at-relative-position!", 3, 0, 0, 
+		   add_body_local_force_at_relative_position_x);
+  EXPORT_PROCEDURE("add-body-torque!", 2, 0, 0, add_body_torque_x);
+  EXPORT_PROCEDURE("add-body-local-torque!", 2, 0, 0, add_body_local_torque_x);
+
+  EXPORT_PROCEDURE("global->local/position", 2, 0, 0, global_to_local_position);
+  EXPORT_PROCEDURE("local->global/position", 2, 0, 0, local_to_global_position);
+  EXPORT_PROCEDURE("global->local/velocity", 2, 0, 0, global_to_local_velocity);
+  EXPORT_PROCEDURE("local->global/velocity", 2, 0, 0, local_to_global_velocity);
+  EXPORT_PROCEDURE("body-vector->world", 2, 0, 0, body_vector_to_world);
+  EXPORT_PROCEDURE("world-vector->body", 2, 0, 0, world_vector_to_body);
+
+  EXPORT_PROCEDURE("enable-body!", 1, 0, 0, enable_body_x);
+  EXPORT_PROCEDURE("disable-body!", 1, 0, 0, disable_body_x);
+  EXPORT_PROCEDURE("enabled-body?", 1, 0, 0, enabled_body_p);
+
+  EXPORT_BODY_GETSET_FUNC("auto-disable-flag", auto_disable_flag);
+  EXPORT_BODY_GETSET_FUNC("auto-disable-linear-threshold", 
+			   auto_disable_linear_threshold);
+  EXPORT_BODY_GETSET_FUNC("auto-disable-angular-threshold", 
+			   auto_disable_angular_threshold);
+  EXPORT_BODY_GETSET_FUNC("auto-disable-steps", auto_disable_steps);
+  EXPORT_BODY_GETSET_FUNC("auto-disable-time", auto_disable_time);
+  EXPORT_BODY_GETSET_FUNC("auto-disable-average-samples-count", 
+			  auto_disable_average_samples_count);
+  EXPORT_BODY_GETSET_FUNC("linear-damping", linear_damping);
+  EXPORT_BODY_GETSET_FUNC("angular-damping", angular_damping);
+  EXPORT_BODY_GETSET_FUNC("linear-damping-threshold", 
+			  linear_damping_threshold);
+  EXPORT_BODY_GETSET_FUNC("angular-damping-threshold", 
+			  angular_damping_threshold);
+  EXPORT_BODY_GETSET_FUNC("max-angular-speed", max_angular_speed);
+  EXPORT_BODY_GETSET_FUNC("finite-rotation-mode", finite_rotation_mode);
+  EXPORT_BODY_GETSET_FUNC("gravity-mode", gravity_mode);
+
 
 #undef EXPORT_BODY_GETSET_FUNC
 
