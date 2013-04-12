@@ -11,7 +11,8 @@ enum ODE_TYPES {
   JOINT = 3,
   JOINT_GROUP = 4,
   GEOM = 5,
-  ODE_TYPES = 6
+  MASS = 6,
+  ODE_TYPES = 7
 };
 
 static char const *ode_types[] = {
@@ -20,8 +21,10 @@ static char const *ode_types[] = {
   "body",
   "joint",
   "joint-group",
-  "geom"
+  "geom",
+  "mass"
 };
+
 /*************************** MATRICES AND VECTORS ***************************/
 
 static SCM s_f32;
@@ -35,7 +38,7 @@ static SCM s_f64;
 
 #define DEF_SCM_FROM_DVECTOR(n)						\
   static inline SCM							\
-  scm_from_dVector##n(dVector##n v) {					\
+  scm_from_dVector##n(const dVector##n v) {				\
     SCM V = scm_make_typed_array(ARRAY_TYPE, SCM_UNSPECIFIED,		\
 				 scm_list_1(scm_from_int(n)));		\
     scm_t_array_handle h;						\
@@ -53,7 +56,6 @@ DEF_SCM_FROM_DVECTOR(3);
 DEF_SCM_FROM_DVECTOR(4);
 
 #undef SCM_FROM_DVECTOR
-
 
 #define DEF_SCM_TO_DVECTOR(n)					\
   static inline void						\
@@ -191,17 +193,19 @@ create_world() {
   return smob;
 }
 
+#define WORLD_CONDITIONAL_ASSIGN(scm_var, c_var)	\
+  if(SCM_SMOB_FLAGS(scm_var) != WORLD) {		\
+    WARN("function called on a non-world");		\
+    return SCM_BOOL_F;					\
+  }							\
+  dWorldID c_var = (dWorldID) SCM_SMOB_DATA(scm_var)
+
 static SCM
-set_world_gravity_x(SCM world, SCM gravity) {  
-  if(SCM_SMOB_FLAGS(world) != WORLD) {
-    WARN("function called on a non-world");
-    return SCM_BOOL_F;
-  }
-  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+set_world_gravity_x(SCM world, SCM gravity) {
+  WORLD_CONDITIONAL_ASSIGN(world, w);
 
   dVector3 g;
   scm_to_dVector3(gravity, &g);
-  //OUT("Setting world gravity to [%f, %f, %f]", g[0], g[1], g[2]);
   dWorldSetGravity(w, g[0], g[1], g[2]);
 
   scm_remember_upto_here_1(world);
@@ -210,11 +214,7 @@ set_world_gravity_x(SCM world, SCM gravity) {
 
 static SCM
 get_world_gravity(SCM world) {
-  if(SCM_SMOB_FLAGS(world) != WORLD) {
-    WARN("function called on a non-world");
-    return SCM_BOOL_F;
-  }
-  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+  WORLD_CONDITIONAL_ASSIGN(world, w);
   dVector3 g;
   dWorldGetGravity(w, g);
   scm_remember_upto_here_1(world);
@@ -224,11 +224,7 @@ get_world_gravity(SCM world) {
 #define DEF_WORLD_GETSET_FUNC(name, orig, convert, back, cast)		\
   static SCM								\
   set_world_##name##_x(SCM world, SCM param) {				\
-    if(SCM_SMOB_FLAGS(world) != WORLD) {				\
-      WARN("function called on a non-world");				\
-      return SCM_BOOL_F;						\
-    }									\
-    dWorldID w = (dWorldID) SCM_SMOB_DATA(world);			\
+    WORLD_CONDITIONAL_ASSIGN(world, w);					\
     dWorldSet##orig(w, (cast) convert(param));				\
     scm_remember_upto_here_1(world);					\
     return SCM_UNSPECIFIED;						\
@@ -236,11 +232,7 @@ get_world_gravity(SCM world) {
 									\
   static SCM								\
   get_world_##name(SCM world) {						\
-    if(SCM_SMOB_FLAGS(world) != WORLD) {				\
-      WARN("function called on a non-world");				\
-      return SCM_BOOL_F;						\
-    }									\
-    dWorldID w = (dWorldID) SCM_SMOB_DATA(world);			\
+    WORLD_CONDITIONAL_ASSIGN(world, w);					\
     scm_remember_upto_here_1(world);					\
     return back(dWorldGet##orig(w));					\
   }
@@ -298,6 +290,9 @@ quick_step_x(SCM world, SCM stepsize) {
   return SCM_UNSPECIFIED;
 }
 
+#undef DEF_WORLD_GETSET_FUNC
+#undef WORLD_CONDITIONAL_ASSIGN
+
 /********************************* BODY *************************************/
 
 static SCM
@@ -314,31 +309,86 @@ create_body(SCM world) {
   return smob;
 }
 
+#define BODY_CONDITIONAL_ASSIGN(scm_var, c_var)		\
+  if(SCM_SMOB_FLAGS(scm_var) != BODY) {			\
+    WARN("function called on a non-body");		\
+    return SCM_BOOL_F;					\
+  }							\
+  dBodyID c_var = (dBodyID) SCM_SMOB_DATA(scm_var)
+
+
+#define DEF_BODY_GETSETV3_FUNC(name, orig)	\
+  static SCM					\
+  set_body_##name##_x(SCM body, SCM V) {	\
+    BODY_CONDITIONAL_ASSIGN(body, b);		\
+    dVector3 v;					\
+    scm_to_dVector3(V, &v);			\
+    dBodySet##orig(b, v[0], v[1], v[2]);	\
+    return SCM_UNSPECIFIED;			\
+  }						\
+						\
+  static SCM					\
+  get_body_##name(SCM body) {			\
+    BODY_CONDITIONAL_ASSIGN(body, b);		\
+    dReal const *v = dBodyGet##orig(b);		\
+    return scm_from_dVector3((dReal *) v);	\
+  }
+  
+DEF_BODY_GETSETV3_FUNC(position, Position);
+DEF_BODY_GETSETV3_FUNC(linear_velocity, LinearVel);
+DEF_BODY_GETSETV3_FUNC(angular_velocity, AngularVel);
+
 static SCM
-set_body_position_x(SCM body, SCM position) {
+set_body_rotation_x(SCM body, SCM rotation) {
   if(SCM_SMOB_FLAGS(body) != BODY) {
     WARN("function called on a non-body");
     return SCM_BOOL_F;
   }  
   dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
-  dVector3 p;
-  scm_to_dVector3(position, &p);
-  OUT("setting body position to [%f %f %f]", p[0], p[1], p[2]);
-  dBodySetPosition(b, p[0], p[1], p[2]);
+  dMatrix3 M;
+  scm_to_dMatrix3(rotation, &M);
+  dBodySetRotation(b, M);
   return SCM_UNSPECIFIED;
 }
 
 static SCM
-get_body_position(SCM body) {
+get_body_rotation(SCM body) {
   if(SCM_SMOB_FLAGS(body) != BODY) {
     WARN("function called on a non-body");
     return SCM_BOOL_F;
-  }
+  }  
   dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
-  dReal const *v = dBodyGetPosition(b);
-  OUT("body position is [%f %f %f]", v[0], v[1], v[2]);
-  return scm_from_dVector3((dReal *) v);
+  dReal const *v = dBodyGetRotation(b);
+  return scm_from_dMatrix3((dReal *) v);
 }
+
+static SCM
+set_body_quaternion_x(SCM body, SCM quaternion) {
+  if(SCM_SMOB_FLAGS(body) != BODY) {
+    WARN("function called on a non-body");
+    return SCM_BOOL_F;
+  }  
+  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  dVector4 q;
+  scm_to_dVector4(quaternion, &q);
+  dBodySetQuaternion(b, q);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+get_body_quaternion(SCM body) {
+  if(SCM_SMOB_FLAGS(body) != BODY) {
+    WARN("function called on a non-body");
+    return SCM_BOOL_F;
+  }  
+  dBodyID b = (dBodyID) SCM_SMOB_DATA(body);
+  dReal const *v = dBodyGetQuaternion(b);
+  return scm_from_dVector4((dReal *) v);
+}
+
+
+#undef DEF_BODY_GETSETV3_FUNC
+#undef BODY_CONDITIONAL_ASSIGN
 
 /******************************* GENERAL ************************************/
 
@@ -362,12 +412,25 @@ free_ode(SCM smob) {
 
 static int
 print_ode(SCM ode, SCM port, scm_print_state *pstate) {
-  void *data = (void *) SCM_SMOB_DATA(ode);
   unsigned short type = SCM_SMOB_FLAGS(ode);
   if(type < ODE_TYPES) {
     scm_puts("#<ode-", port);
     scm_puts(ode_types[type], port);
-    scm_puts(" (implement detailed info for specific types)>", port);
+    char * string;
+    if(type == WORLD) {
+      //dWorldID w = (dWorldID) SCM_SMOB_DATA(ode);
+
+    }
+    else if(type == BODY) {
+      dBodyID b = (dBodyID) SCM_SMOB_DATA(ode);
+      dReal const *r = dBodyGetPosition(b);
+      dReal const *q = dBodyGetQuaternion(b);
+      asprintf(&string, " (%.2f %.2f %.2f)@(%.2f %.2f %.2f %.2f)", 
+	       r[0], r[1], r[2], q[0], q[1], q[2], q[3]);
+      scm_puts(string, port);
+      free(string);
+    }
+    scm_puts(">", port);
   }
   else {
     scm_throw(symbol("unknown-ode-type"), scm_list_1(scm_from_uint16(type)));
@@ -405,6 +468,7 @@ export_symbols() {
   EXPORT_WORLD_GETSET_FUNC("angular-damping", angular_damping);
   EXPORT_WORLD_GETSET_FUNC("linear-damping-threshold", linear_damping_threshold);
   EXPORT_WORLD_GETSET_FUNC("angular-damping-threshold", angular_damping_threshold);
+  EXPORT_WORLD_GETSET_FUNC("max-angular-speed", max_angular_speed);
   EXPORT_WORLD_GETSET_FUNC("contact-max-correcting-velocity", 
 			   contact_max_correcting_velocity);
   EXPORT_WORLD_GETSET_FUNC("contact-surface-layer", contact_surface_layer);
@@ -417,8 +481,18 @@ export_symbols() {
   /*** BODY ***/
 
   EXPORT_PROCEDURE("create-body", 1, 0, 0, create_body);
-  EXPORT_PROCEDURE("set-body-position!", 2, 0, 0, set_body_position_x);
-  EXPORT_PROCEDURE("get-body-position", 1, 0, 0, get_body_position);
+#define EXPORT_BODY_GETSET_FUNC(name, cname) \
+  EXPORT_PROCEDURE("set-body-" name "!", 2, 0, 0, set_body_##cname##_x);\
+  EXPORT_PROCEDURE("get-body-" name, 1, 0, 0, get_body_##cname); 
+
+  EXPORT_BODY_GETSET_FUNC("position", position);
+  EXPORT_BODY_GETSET_FUNC("rotation", rotation);
+  EXPORT_BODY_GETSET_FUNC("quaternion", quaternion);
+  EXPORT_BODY_GETSET_FUNC("linear-velocity", linear_velocity);
+  EXPORT_BODY_GETSET_FUNC("angular-velocity", angular_velocity);
+
+#undef EXPORT_BODY_GETSET_FUNC
+
 
 #undef EXPORT_PROCEDURE
 }
@@ -431,4 +505,5 @@ ode_init() {
   scm_set_smob_free(ode_tag, free_ode);
   scm_set_smob_print(ode_tag, print_ode);
   export_symbols();
+  dInitODE();
 }
