@@ -6,4 +6,4 @@ LIBODE = `pkg-config --libs ode`
 all: libguile-ode.so
 
 libguile-ode.so: ode.cc
-	$(CXX) $(CFLAGS) -shared -Wl,-soname,$@ -o $@ -fPIC $< $(LIBODE)
+	$(CXX) $(CFLAGS) -Wall -shared -Wl,-soname,$@ -o $@ -fPIC $< $(LIBODE)
