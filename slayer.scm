@@ -2,7 +2,9 @@
 	     (slayer video)
 	     (slayer image)
 	     (slayer)
-	     (widgets widgets)
+	     (widgets base)
+	     (widgets bitmap)
+	     (widgets text-area)
 	     (widgets 3d-view)
 	     (oop goops)
 	     (extra ref)
@@ -26,7 +28,6 @@
 (define ku (load-image "./art/ku.png"))
 
 (add-child! *stage* (make-image ku 75 25))
-
 (add-child! *stage* (make-text-area))
 
 (keydn 'mouse1 
