@@ -1,5 +1,3 @@
-(display "loading defs.scm...\n")
-
 (use-modules ((oop goops) #:hide (slot-ref slot-set!))
 	     (srfi srfi-4)
 	     (srfi srfi-4 gnu)
@@ -47,10 +45,6 @@
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
-
-(define (shout obj)
-  (display (string-append (with-output-to-string (lambda()(display obj))) "\n") (current-error-port))
-  obj)
 
 (define *soft-port-sources* (make-hash-table))
 
@@ -218,5 +212,3 @@
       (pretty-print `(mousemove ,(procedure-source* (mousemove-binding))))
       (pretty-print `(define *stage* ,(complete-source *stage*))))))
 
-
-(display "loaded defs.scm\n")

@@ -16,19 +16,12 @@ endif
 
 all: slayer libraries
 
-scm/defs.o:	scm/defs.scm
-	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
-scm/widgets.o:	scm/widgets.scm
-	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
-scm/3d-view.o:	scm/3d-view.scm
-	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
-
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
 .cc.o:
 	$(CXX) $(CFLAGS) -c $< -o $@
 
-OBJECTS = input.o slayer.o symbols.o video.o file.o widgets.o image.o font.o scm/defs.o scm/widgets.o scm/3d-view.o 3d.o
+OBJECTS = input.o slayer.o symbols.o video.o file.o image.o font.o 3d.o
 
 slayer:	$(OBJECTS)
 	$(CXX) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)

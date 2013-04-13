@@ -1,6 +1,7 @@
 #include "input.h"
 #include "utils.h"
 #include "symbols.h"
+#include "video.h"
 
 SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
 SCM *userevent_handlers = NULL;
@@ -48,6 +49,29 @@ unsupported_event(SDL_Event *e) {
 static SCM 
 activeevent_handler(SDL_Event *e) {
   WARN_UPTO(3, "SDL_ACTIVEEVENT (%i) not supported", e->type);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM resize_procedure;
+static SCM 
+set_resize_procedure_x(SCM procedure) {
+  if(is_scm_procedure(procedure)) {
+    resize_procedure = procedure;
+  }
+  else {
+    WARN("trying to set a non-procedure as the resize procedure!");
+  }
+  return SCM_UNSPECIFIED;
+}
+
+static SCM 
+videoresize_handler(SDL_Event *e) {
+  screen = SDL_SetVideoMode(e->resize.w, e->resize.h, 
+			    screen->format->BitsPerPixel, screen->flags);
+  scm_call_2(resize_procedure, scm_from_int(e->resize.w), 
+	     scm_from_int(e->resize.h));
+  WARN_ONCE("FOR SCREEN RESIZE ON WINDOWS/OPENGL, REFER TO %s",
+	    "http://www.bytehazard.com/code/sdlres.html");
   return SCM_UNSPECIFIED;
 }
 
@@ -168,10 +192,8 @@ build_keymap() {
   int i, max = 0;
   
   scancodes = evalf("(make-hash-table %i)", SDLK_LAST + SDL_NBUTTONS); 
-
   scm_gc_protect_object(scancodes);
-
-  scm_c_define("*scancodes*", scancodes);
+  // exported in export_symbols
     
   for(i = 0; i < NELEMS(keymap); ++i) { 
     scm_hash_set_x(scancodes, 
@@ -183,7 +205,7 @@ build_keymap() {
 
   key_names = scm_c_make_vector(max+1, SCM_BOOL_F);
   scm_gc_protect_object(key_names);
-  scm_c_define("*key-names*", key_names);
+  // exported in export_symbols
   
   for(i = 0; i < NELEMS(keymap); ++i) {
     scm_c_vector_set_x(key_names, keymap[i].value, 
@@ -285,11 +307,17 @@ mousemove_binding(SCM type) {
   return mousemove;
 }
 
-static inline void 
-export_functions() {
+static SCM input_widget;
+static SCM
+set_input_widget_x(widget) {
+  input_widget = widget;
+}
+
+static void 
+export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc);\
-  scm_c_export(name,NULL);
+  scm_c_export(name,NULL)
 
   EXPORT_PROCEDURE("handle-input", 0, 0, 0, input_handle_events);
   EXPORT_PROCEDURE("grab-input", 0, 1, 0, input_grab);
@@ -302,8 +330,18 @@ export_functions() {
   EXPORT_PROCEDURE("get-ticks", 0, 0, 0, get_ticks);
   EXPORT_PROCEDURE("generate-userevent", 0, 3, 0, generate_userevent);
   EXPORT_PROCEDURE("register-userevent", 1, 0, 0, register_userevent);
+  EXPORT_PROCEDURE("set-resize-procedure!", 1, 0, 0, set_resize_procedure_x);
+  EXPORT_PROCEDURE("set-input-widget!", 1, 0, 0, set_input_widget_x);
 
 #undef EXPORT_PROCEDURE
+#define EXPORT_OBJECT(name, c_name) \
+  scm_c_define(name, c_name); \
+  scm_c_export(name, NULL)
+
+  EXPORT_OBJECT("*scancodes*", scancodes);
+  EXPORT_OBJECT("*key-names*", key_names);  
+#undef EXPORT_OBJECT
+
 }
 
 
@@ -319,6 +357,7 @@ input_init() {
   for(i = 0; i < SDL_NUMEVENTS; ++i) 
     event_handler[i] = unsupported_event;
   event_handler[SDL_ACTIVEEVENT] = activeevent_handler;
+  event_handler[SDL_VIDEORESIZE] = videoresize_handler;
   event_handler[SDL_KEYDOWN] = keydown_handler;
   event_handler[SDL_KEYUP] = keyup_handler;
   event_handler[SDL_MOUSEBUTTONDOWN] = mousepressed_handler;
@@ -328,28 +367,19 @@ input_init() {
   event_handler[SDL_USEREVENT] = userevent_handler;
 
   build_keymap();
-  export_functions();
+  scm_c_define_module("slayer input", export_symbols, NULL);
+  resize_procedure = eval("noop");
 
   input_mode_direct();
 }
 
-// goose_internal_api powinno definiować kilka trybów
-// obsługi zdarzeń
 void (*handle_events)(SDL_Event *e);
 
-// pytanie: czy tworząc konsolę chcielibyśmy móc używać kilku rodzajów powłoki?
-// czy dałoby się to zrobić tak, żeby móc linkować programy napisane pod bibliotekę
-// curses z naszą konsolą?
 SCM 
 input_handle_events() {
   SDL_Event event;
-  SCM c, input_widget;
+  SCM c;
 
-  /*
-  while(SDL_PollEvent(&event))
-    (*event_handler[event.type])(&event);
-  */
-  
   if(SDL_WaitEvent(NULL)) {
     int i = 0;
     while(SDL_PollEvent(&event)) {
@@ -363,15 +393,18 @@ input_handle_events() {
 
 	case SDL_KEYDOWN:
 
-	  if(isgraph(event.key.keysym.unicode) || event.key.keysym.unicode  == ' ') {
+	  if(isgraph(event.key.keysym.unicode)
+	     || event.key.keysym.unicode  == ' ') {
 	    c = scm_integer_to_char(scm_from_int16(event.key.keysym.unicode));
 	    scm_write_char(c, scm_current_output_port());
 	    scm_force_output(scm_current_output_port());
 	  } else {
-	    input_widget = eval("*input-widget*");
 	    if(indeed(input_widget)) {
+	      /*
 	      SCM special_keys = eval("(slot-ref *input-widget* 'special-keys)");
-	      scm_apply_0(scm_c_vector_ref(special_keys, event.key.keysym.sym), SCM_EOL);
+	      scm_apply_0(scm_c_vector_ref(special_keys, event.key.keysym.sym), 
+			  SCM_EOL);
+	      */
 	    }
 	  }
 	  //putchar(event.key.keysym.unicode);

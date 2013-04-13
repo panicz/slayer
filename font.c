@@ -109,7 +109,7 @@ font_line_skip(SCM font) {
 }
 
 static void 
-export_functions() {
+export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
@@ -128,5 +128,5 @@ font_init() {
   font_tag = scm_make_smob_type("font", sizeof(TTF_Font *));
   scm_set_smob_free(font_tag, free_font);
   scm_set_smob_print(font_tag, print_font);  
-  export_functions();
+  scm_c_define_module("slayer font", export_symbols, NULL);
 }

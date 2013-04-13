@@ -1,4 +1,37 @@
-(display "loading widgets.scm\n")
+(define-module (widgets widgets)
+  #:use-module (oop goops)
+  #:use-module (extra ref)
+  #:use-module (extra common)
+  #:use-module (slayer font)
+  #:use-module (slayer video)
+  #:use-module (slayer input)
+  #:use-module (slayer image)
+  #:use-module (slayer)
+  
+  #:export (
+	    update! 
+	    draw 
+	    area 
+	    absolute-area
+	    in-area?
+	    add-child! 
+	    remove-child!
+	    ancestors
+	    widget-nested-find
+	    
+	    make-button
+	    make-container
+	    make-image
+
+	    <widget>
+	    <extended-widget>
+	    <bitmap>
+	    <text-area>
+	    move-cursor!
+	    delete-char!
+	    make-text-area
+	    input-text!
+	    ))
 
 (define-generic update!)
 (define-generic draw)
@@ -87,11 +120,11 @@
 			#:w (or w (image-width normal))
 			#:h (or h (image-height normal)))))
       (set! #[ button 'mouse-over ] 
-	    (function e (set! #[ button 'image ] over )))
+	    (lambda e (set! #[ button 'image ] over )))
       (set! #[ button 'mouse-out ] 
-	    (function e (set! #[ button 'image ] normal )))
+	    (lambda e (set! #[ button 'image ] normal )))
       (set! #[ button 'click ] 
-	    (function e (set! #[ button 'image ] clicked )))
+	    (lambda e (set! #[ button 'image ] clicked )))
       (set! #[ button 'unclick ] #[ button 'mouse-over ])
       (set! #[ button 'drag ] noop)
       button)))
@@ -99,7 +132,7 @@
 (define* (make-container #:key x y (name "menu") (content '()))
   (let ((container (make <widget>))
 	(label (make-button #:text name)))
-    (set! #[label 'drag] (function (x y xrel yrel)		 
+    (set! #[label 'drag] (lambda (x y xrel yrel)		 
 			   (increase! #[ container 'x ] xrel)
 			   (increase! #[ container 'y ] yrel)))
     (for child in (append content `(,label))
@@ -118,14 +151,14 @@
 		     #:w (image-width image) 
 		     #:h (image-height image))))
     (set! #[ image 'drag ]
-	  (function (x y xrel yrel)		 
+	  (lambda (x y xrel yrel)		 
 	    (increase! #[ image 'x ] xrel)
 	    (increase! #[ image 'y ] yrel)))
     #;(set! #[ image 'mouse-over ]
-	  (function (x y xrel yrel)
+	  (lambda (x y xrel yrel)
 	    (format #t "now mouse is over ~s\n" image)))
     #;(set! #[ image 'mouse-out ]
-	  (function (x y xrel yrel)
+	  (lambda (x y xrel yrel)
 	    (format #t "mouse is no longer over ~s\n" image)))
     image))
 
@@ -136,11 +169,11 @@
 (define-class <text-area> (<widget>)
   (lines #:init-value '#(""))
   (special-keys #:init-thunk 
-		(function()
+		(lambda()
 		  (make-vector (vector-length *key-names*) noop)))
   ;(cursor-position #:init-value '(0 0))
   (font #:init-value *default-font* #:init-keyword #:font)
-  (port #:init-value *stdio*)
+  (port #:init-value (current-input-port))
   #;(visible-cols #:init-keyword #:visible-cols)
   #;(visible-lines #:init-keyword #:visible-lines)
   #;(rendered-lines #:init-thunk make-hash-table))
@@ -207,7 +240,7 @@
 
 (define* (make-text-area #:key (text "hi! :)\n") (x 0)(y 0))
   (let* ((t (make <text-area>))
-	 (put-string (function(s)
+	 (put-string (lambda(s)
 		       (let ((p #[ t 'port ]))
 			 (let ((row (port-line p))
 			       (col (port-column p)))
@@ -218,25 +251,25 @@
 				    s
 				    (substring line col)))))))))
     (set! #[t 'lines] (list->vector (string-split text #\newline)))
-    (set! #[t 'port] (make-soft-port*
+    (set! #[t 'port] (make-soft-port
 		      (vector
-		       (function(c) 
+		       (lambda(c) 
 			 (put-string (list->string (list c))))
 		       put-string
-		       (function()
+		       (lambda()
 			 (for-each display 
 				   (vector->list #[t 'lines])))
 		       #f
 		       #f) "w"))
-  (let* ((set-key! (function (key action)
+  (let* ((set-key! (lambda (key action)
 		     (set! #[#[t 'special-keys] #[*scancodes* key]] 
 			   action))))
-    (set-key! "esc" (function()
+    (set-key! "esc" (lambda()
 		      (set-current-output-port *stdout*)
 		      (input-mode 'direct)))
     (set-key! 
      "return"
-     (function ()
+     (lambda ()
        (let ((line #[#[t 'lines] (port-line #[t 'port])])
 	     (line-number (port-line #[ t 'port ]))
 	     (lines (vector->list #[ t 'lines ]))
@@ -252,7 +285,7 @@
 			 1)))))
     (set-key! 
      "left" 
-     (function()
+     (lambda()
        (let ((line (port-line #[ t 'port ]))
 	     (column (port-column #[ t 'port ])))
 	 (if (and (= column 0)
@@ -265,7 +298,7 @@
 	     (move-cursor! t -1 0)))))
     (set-key! 
      "right" 
-     (function()
+     (lambda()
        (let ((line (port-line #[ t 'port ]))
 	     (column (port-column #[ t 'port ])))
 	 (if (and (= column (string-length 
@@ -278,11 +311,11 @@
 	      1)
 	     ;;else
 	     (move-cursor! t 1 0)))))
-    (set-key! "up" (function()(move-cursor! t 0 -1)))
-    (set-key! "down" (function()(move-cursor! t 0 1)))
+    (set-key! "up" (lambda()(move-cursor! t 0 -1)))
+    (set-key! "down" (lambda()(move-cursor! t 0 1)))
     (set-key! 
      "f1" 
-     (function()
+     (lambda()
        (let* ((lines (vector->list #[ t 'lines ]))
 	      (line (port-line #[ t 'port ]))
 	      (column (port-column #[ t 'port ]))
@@ -298,7 +331,7 @@
 	 (display (eval-string last-sexp) *stdout*))))
     (set-key! 
      "backspace" 
-     (function()
+     (lambda()
        (let ((p #[ t 'port ])
 	     (lines #[ t 'lines ]))
 	 (if (= (port-column p) 0)
@@ -323,7 +356,7 @@
 	       (move-cursor! t -1 0))))))
     (set-key! 
      "delete" 
-     (function()
+     (lambda()
        (let* ((p #[ t 'port ])
 	      (lines #[ t 'lines ]))
 	 (if (= (port-column p) 
@@ -345,13 +378,12 @@
 	       (delete-char! t (+ (port-column p) 1) (port-line p)) 
 	       (move-cursor! t 0 0)))))))
   (set! #[t 'click]
-	(function e
+	(lambda e
 	  (set-current-output-port #[ t 'port ])
-	  (set! *input-widget* t)
+	  (set-input-widget! t)
 	  (input-mode 'typing)))
   (set! #[t 'x] x)
   (set! #[t 'y] y)
   t))
 
 (define-generic input-text!)
-(display "loaded widgets.scm\n")

@@ -6,7 +6,6 @@
 #include "input.h"
 #include "file.h"
 #include "font.h"
-#include "widgets.h"
 #include "utils.h"
 #include "symbols.h"
 
@@ -65,7 +64,7 @@ scm_catch_handler(void *data, SCM key, SCM args) {
   return SCM_UNSPECIFIED;
 }
 
-static SCM exit_procedure = (SCM) scm_noop;
+static SCM exit_procedure;
 static SCM 
 set_exit_procedure_x(SCM procedure) {
   if(is_scm_procedure(procedure)) {
@@ -80,7 +79,6 @@ set_exit_procedure_x(SCM procedure) {
 static void 
 finish(int status, char *filename) {
   scm_call_1(exit_procedure, scm_from_locale_string(filename));
-  //evalf("(save \"%s\")", filename);
   SDL_Quit();
 }
 
@@ -93,7 +91,7 @@ typedef struct {
 } init_t;
 
 static void
-export_symbols() {
+export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc)	    \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
@@ -106,14 +104,15 @@ export_symbols() {
 static void 
 init(init_t *arg) {
 
+  set_exit_procedure_x(eval("noop"));
   symbols_init();
-  export_symbols();
-  video_init(arg->w, arg->h, arg->video_mode);
   
+  scm_c_define_module("slayer", export_symbols, NULL);
+  video_init(arg->w, arg->h, arg->video_mode);
+
   image_init();
   input_init();
   font_init();
-  LOGTIME(widgets_init(arg->w, arg->h));
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
@@ -125,16 +124,15 @@ init(init_t *arg) {
   }
 
   if (file_empty(arg->infile)) {
-    if (!file_write(arg->infile, "(keydn 'esc quit)\n"
-		    "(set-display-procedure! noop)\n"
-		    "(define *input-widget* #f)\n")) {
+    if (!file_write(arg->infile, 
+		    "(use-modules (slayer) (slayer input) (slayer video))\n"
+		    "(keydn 'esc quit)\n")) {
       FATAL("Unable to write to spec file ``%s''", arg->infile);
     }
   }
 
   LOGTIME(file_eval(arg->infile));
-  on_exit((void (*)(int, void *)) finish, arg->outfile);  
-
+  on_exit((void (*)(int, void *)) finish, arg->outfile);
 }
 
 static void *
@@ -200,13 +198,14 @@ main(int argc, char *argv[]) {
     }
   }
  
-
 #ifdef NDEBUG
   setenv("GUILE_WARN_DEPRECATED", "no", 1);
 #else
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
   setenv("GUILE_LOAD_PATH", ".", 1);
+  setenv("LTDL_LIBRARY_PATH", "./libs", 1);
+  setenv("LC_ALL", "C", 1); // discard locale
 
   if (!arg.infile) {
     arg.infile = 

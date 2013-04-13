@@ -2,7 +2,6 @@
 #include "video.h"
 #include "extend.h"
 #include "utils.h"
-#include "widgets.h"
 
 #ifdef USE_OPENGL
 #include "3d.h"
@@ -67,7 +66,7 @@ flip_screen() {
   return SCM_UNSPECIFIED;
 }
 
-static SCM display_procedure = (SCM) scm_noop;
+static SCM display_procedure;
 static SCM
 set_display_procedure_x(SCM procedure) {
   if(is_scm_procedure(procedure)) {
@@ -79,14 +78,31 @@ set_display_procedure_x(SCM procedure) {
   return SCM_UNSPECIFIED;
 }
 
+static inline SCM
+screen_width() {
+  return scm_from_int(screen->w);
+}
+
+static inline SCM
+screen_height() {
+  return scm_from_int(screen->h);
+}
+
+static SCM
+screen_size() {
+  return scm_list_2(screen_width(), screen_height());
+}
 
 static void 
-export_symbols() {
+export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
 
   EXPORT_PROCEDURE("set-caption!", 1, 0, 0, set_caption); 
+  EXPORT_PROCEDURE("screen-width", 0, 0, 0, screen_width); 
+  EXPORT_PROCEDURE("screen-height", 0, 0, 0, screen_height); 
+  EXPORT_PROCEDURE("screen-size", 0, 0, 0, screen_size); 
   EXPORT_PROCEDURE("clear-screen", 0, 0, 0, clear_screen);
   EXPORT_PROCEDURE("wipe-screen", 0, 0, 0, wipe_screen);
   EXPORT_PROCEDURE("flip-screen", 0, 0, 0, flip_screen);
@@ -103,7 +119,8 @@ video_refresh_screen() {
 }
 
 #define TRY_SDL(f) if((f) == -1) { \
-    OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, STR(f),SDL_GetError()); }
+    OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, \
+	STR(f),SDL_GetError()); }
 
 void
 video_init(Uint16 w, Uint16 h, int mode) {
@@ -120,6 +137,7 @@ video_init(Uint16 w, Uint16 h, int mode) {
     init_3d(w, h);
 #endif
   }
+  set_display_procedure_x(eval("noop"));
 
-  export_symbols();
+  scm_c_define_module("slayer video", export_symbols, NULL);
 }

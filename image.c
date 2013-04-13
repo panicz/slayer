@@ -101,10 +101,12 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
     BytesPerPixel = scm_from_int(4);
   }
 
-  SDL_Surface *image = sdl_surface(scm_to_int(w), scm_to_int(h), scm_to_int(BytesPerPixel));
+  SDL_Surface *image 
+    = sdl_surface(scm_to_int(w), scm_to_int(h), scm_to_int(BytesPerPixel));
   if(color != SCM_UNDEFINED) {
     SDL_Color c = sdl_color(scm_to_uint(color));
-    SDL_FillRect(image, NULL, SDL_MapRGBA(image->format, c.r, c.g, c.b, 0xff-c.unused));
+    SDL_FillRect(image, NULL, 
+		 SDL_MapRGBA(image->format, c.r, c.g, c.b, 0xff-c.unused));
   }
   SCM_NEWSMOB(smob, image_tag, image);
   return smob;
@@ -181,7 +183,6 @@ init_bytesPerPixel() {
 
 SCM 
 array_to_image(SCM array) {
-  //WARN("TODO: assuming 32-bit pixels (this should be taken from array type)");
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
   if (scm_array_handle_rank(&handle) != 2) {
@@ -202,7 +203,8 @@ array_to_image(SCM array) {
   int w = abs(dims[0].ubnd - dims[0].lbnd) + 1;
   int h = abs(dims[1].ubnd - dims[1].lbnd) + 1;
 
-  SCM image_smob = rectangle(scm_from_int(w), scm_from_int(h), SCM_UNDEFINED, scm_from_int(BytesPerPixel));
+  SCM image_smob = rectangle(scm_from_int(w), scm_from_int(h), 
+			     SCM_UNDEFINED, scm_from_int(BytesPerPixel));
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
 
   void *data = scm_array_handle_uniform_writable_elements(&handle);
@@ -215,7 +217,7 @@ array_to_image(SCM array) {
 #undef NOT_SUPPORTED
 
 static void 
-export_symbols() {
+export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
@@ -238,5 +240,5 @@ image_init() {
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
   init_bytesPerPixel();
-  export_symbols();
+  scm_c_define_module("slayer image", export_symbols, NULL);
 }
