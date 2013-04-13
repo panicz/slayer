@@ -12,7 +12,9 @@ enum ODE_TYPES {
   JOINT_GROUP = 4,
   GEOM = 5,
   MASS = 6,
-  ODE_TYPES = 7
+  ODE_TYPES = 7,
+  ODE_TYPE_MASK = 0b1111,
+  ODE_TYPE_SHIFT = 0
 };
 
 static char const *ode_types[] = {
@@ -24,6 +26,42 @@ static char const *ode_types[] = {
   "geom",
   "mass"
 };
+
+enum JOINT_TYPES {
+  BALL = 0,
+  HINGE = 1,
+  SLIDER = 2,
+  CONTACT = 3, 
+  UNIVERSAL = 4,
+  HINGE2 = 5,
+  PR = 6,
+  PU = 7,
+  PISTON = 8,
+  FIXED = 9,
+  AMOTOR = 10,
+  LMOTOR = 11,
+  PLANE2D = 12,
+  JOINT_TYPES = 13,
+  JOINT_TYPE_MASK = 0b11110000,
+  JOINT_TYPE_SHIFT = 4
+};
+
+static char const *joint_types[] = {
+  "ball",
+  "hinge",
+  "slider",
+  "contact",
+  "universal",
+  "hinge2",
+  "PR",
+  "PU",
+  "piston",
+  "fixed",
+  "amotor",
+  "lmotor",
+  "plane2d"
+};
+
 
 /*************************** MATRICES AND VECTORS ***************************/
 
@@ -193,11 +231,13 @@ create_world() {
   return smob;
 }
 
-#define WORLD_CONDITIONAL_ASSIGN(scm_var, c_var)	\
-  if(SCM_SMOB_FLAGS(scm_var) != WORLD) {		\
-    WARN("function called on a non-world");		\
-    return SCM_BOOL_F;					\
-  }							\
+#define WORLD_CONDITIONAL_ASSIGN(scm_var, c_var)			\
+  scm_assert_smob_type(ode_tag, scm_var);				\
+  if(((SCM_SMOB_FLAGS(scm_var) & ODE_TYPE_MASK)	>> ODE_TYPE_SHIFT)	\
+     != WORLD) {							\
+    WARN("function called on a non-world");				\
+    return SCM_BOOL_F;							\
+  }									\
   dWorldID c_var = (dWorldID) SCM_SMOB_DATA(scm_var)
 
 static SCM
@@ -291,36 +331,36 @@ quick_step_x(SCM world, SCM stepsize) {
 }
 
 #undef DEF_WORLD_GETSET_FUNC
-#undef WORLD_CONDITIONAL_ASSIGN
 
 /********************************* BODY *************************************/
 
 static SCM
 create_body(SCM world) {
-  if(SCM_SMOB_FLAGS(world) != WORLD) {
-    WARN("function called on a non-world");
-    return SCM_BOOL_F;
-  }
-  dWorldID w = (dWorldID) SCM_SMOB_DATA(world);
+  WORLD_CONDITIONAL_ASSIGN(world, w);
   dBodyID id = dBodyCreate(w);
   SCM smob;
   SCM_NEWSMOB(smob, ode_tag, id);
   SCM_SET_SMOB_FLAGS(smob, BODY);
+  scm_gc_protect_object(smob);
   return smob;
 }
 
-#define BODY_CONDITIONAL_ASSIGN(scm_var, c_var)		\
-  if(SCM_SMOB_FLAGS(scm_var) != BODY) {			\
-    WARN("function called on a non-body");		\
-    return SCM_BOOL_F;					\
-  }							\
+#define BODY_CONDITIONAL_ASSIGN(scm_var, c_var)				\
+  scm_assert_smob_type(ode_tag, scm_var);				\
+  if(((SCM_SMOB_FLAGS(scm_var) & ODE_TYPE_MASK)	>> ODE_TYPE_SHIFT)	\
+     != BODY) {								\
+    WARN("function called on a non-body");				\
+    return SCM_BOOL_F;							\
+  }									\
   dBodyID c_var = (dBodyID) SCM_SMOB_DATA(scm_var)
 
-#define MASS_CONDITIONAL_ASSIGN(scm_var, c_var)		\
-  if(SCM_SMOB_FLAGS(scm_var) != MASS) {			\
-    WARN("function called on a non-mass");		\
-    return SCM_BOOL_F;					\
-  }							\
+#define MASS_CONDITIONAL_ASSIGN(scm_var, c_var)				\
+  scm_assert_smob_type(ode_tag, scm_var);				\
+  if(((SCM_SMOB_FLAGS(scm_var) & ODE_TYPE_MASK) >> ODE_TYPE_SHIFT)	\
+     != MASS) {								\
+    WARN("function called on a non-mass");				\
+    return SCM_BOOL_F;							\
+  }									\
   dMass *c_var = (dMass *) SCM_SMOB_DATA(scm_var)
 
 
@@ -439,7 +479,6 @@ add_body_force_at_position_x(SCM body, SCM force, SCM position) {
   dBodyAddForceAtPos(b, f[0], f[1], f[2], p[0], p[1], p[2]);
   return SCM_UNSPECIFIED;
 }
-
 static SCM
 add_body_force_at_relative_position_x(SCM body, SCM force, SCM position) {
   BODY_CONDITIONAL_ASSIGN(body, b);
@@ -514,7 +553,6 @@ enable_body_x(SCM body) {
   return SCM_UNSPECIFIED;
 }
 
-
 static SCM
 disable_body_x(SCM body) {
   BODY_CONDITIONAL_ASSIGN(body, b);
@@ -572,26 +610,107 @@ DEF_BODY_GETSET_FUNC(finite_rotation_mode, FiniteRotationMode,
 DEF_BODY_GETSET_FUNC(gravity_mode, GravityMode,
 		     scm_to_int, scm_from_int, int);
 
+#undef BODY_GETSET_FUNC
 
+/******************************* JOINTS *************************************/
 
+#define JOINT_GROUP_CONDITIONAL_ASSIGN(scm_var, c_var)			\
+  scm_assert_smob_type(ode_tag, scm_var);				\
+  if(((SCM_SMOB_FLAGS(scm_var) & ODE_TYPE_MASK) >> ODE_TYPE_SHIFT)	\
+     != JOINT_GROUP) {							\
+    WARN("function called on something that isn't a joint group");	\
+    return SCM_BOOL_F;							\
+  }									\
+  dJointGroupID c_var = (dJointGroupID) SCM_SMOB_DATA(scm_var)
+
+#define JOINT_CONDITIONAL_ASSIGN(scm_var, c_var)			\
+  scm_assert_smob_type(ode_tag, scm_var);				\
+  if(((SCM_SMOB_FLAGS(scm_var) & ODE_TYPE_MASK) >> ODE_TYPE_SHIFT)	\
+     != JOINT) {							\
+    WARN("function called on a non-joint");				\
+    return SCM_BOOL_F;							\
+  }									\
+  dJointID c_var = (dJointID) SCM_SMOB_DATA(scm_var)
+
+static SCM
+create_joint_group() {
+  dJointGroupID jg = dJointGroupCreate(0);
+  SCM smob;
+  SCM_NEWSMOB(smob, ode_tag, jg);
+  SCM_SET_SMOB_FLAGS(smob, JOINT_GROUP);
+  return smob;
+}
+
+#define DEF_CREATE_JOINT(type, Type, TYPE)				\
+  static SCM								\
+  create_##type##_joint(SCM world, SCM group) {				\
+    WORLD_CONDITIONAL_ASSIGN(world, w);					\
+    JOINT_GROUP_CONDITIONAL_ASSIGN(group, jg);				\
+    dJointID j = dJointCreate##Type(w, jg);				\
+    SCM smob;								\
+    SCM_NEWSMOB(smob, ode_tag, j);					\
+    SCM_SET_SMOB_FLAGS(smob, JOINT | (TYPE << JOINT_TYPE_SHIFT));	\
+    return smob;							\
+  }
+
+DEF_CREATE_JOINT(ball, Ball, BALL);
+DEF_CREATE_JOINT(hinge, Hinge, HINGE);
+DEF_CREATE_JOINT(slider, Slider, SLIDER);
+DEF_CREATE_JOINT(universal, Universal, UNIVERSAL);
+DEF_CREATE_JOINT(hinge2, Hinge2, HINGE2);
+DEF_CREATE_JOINT(PR, PR, PR);
+DEF_CREATE_JOINT(PU, PU, PU);
+DEF_CREATE_JOINT(piston, Piston, PISTON);
+DEF_CREATE_JOINT(fixed, Fixed, FIXED);
+DEF_CREATE_JOINT(amotor, AMotor, AMOTOR);
+DEF_CREATE_JOINT(lmotor, LMotor, LMOTOR);
+DEF_CREATE_JOINT(plane2d, Plane2D, PLANE2D);
+
+#undef DEF_CREATE_JOINT
+
+#undef WORLD_CONDITIONAL_ASSIGN
 #undef BODY_CONDITIONAL_ASSIGN
+#undef MASS_CONDITIONAL_ASSIGN
+#undef JOINT_GROUP_CONDITIONAL_ASSIGN
+#undef JOINT_CONDITIONAL_ASSIGN
 
 /******************************* GENERAL ************************************/
+// It is a big question: how should the memory be managed?
+// Firstly, we have a world which points to various objects. If the world
+// is no longer available to any variable, it should be garbage-collected.
+// What about the bodies? We know, that they all belong to the world -- therefore
+// garbage collector has no right to delete it, unless it was explicitely deleted
+// by the user.
+// 
+
+#warning "MEMORY MANAGEMENT ISN'T YET SUPPORTED (ALL OBJECTS ARE PERSISTENT)"
 
 static size_t
 free_ode(SCM smob) {
   unsigned short type = SCM_SMOB_FLAGS(smob);
   if(type == WORLD) {
     dWorldID id = (dWorldID) SCM_SMOB_DATA(smob);
-    dWorldDestroy(id);
+    OUT("Attempting to release world");
+    OUT("%i, %i", sizeof(SCM), sizeof(void *));
+    //dWorldDestroy(id);
   }
   else if(type == BODY) {
     dBodyID id = (dBodyID) SCM_SMOB_DATA(smob);
-    dBodyDestroy(id);
+    OUT("Attempting to release body");
+    //dBodyDestroy(id);
   }
   else if(type == MASS) {
     dMass *m = (dMass *) SCM_SMOB_DATA(smob);
-    delete m;
+    OUT("Attempting to release mass");
+    //delete m;
+  }
+  else if(type == JOINT_GROUP) {
+    dJointGroupID jg = (dJointGroupID) SCM_SMOB_DATA(smob);
+    OUT("Attempting to release joint group");
+    //dJointGroupDestroy(jg);
+  }
+  else if(type == JOINT) {
+    OUT("Attempting to release joint");
   }
   else {
     WARN("Unimplemented ODE destructor");
@@ -601,7 +720,7 @@ free_ode(SCM smob) {
 
 static int
 print_ode(SCM ode, SCM port, scm_print_state *pstate) {
-  unsigned short type = SCM_SMOB_FLAGS(ode);
+  unsigned short type = ((SCM_SMOB_FLAGS(ode) & ODE_TYPE_MASK) >> ODE_TYPE_SHIFT);
   if(type < ODE_TYPES) {
     scm_puts("#<ode-", port);
     scm_puts(ode_types[type], port);
@@ -619,6 +738,14 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
       scm_puts(string, port);
       free(string);
     }
+    else if(type == JOINT) {
+      unsigned short joint_type 
+	= ((SCM_SMOB_FLAGS(ode) & JOINT_TYPE_MASK) >> JOINT_TYPE_SHIFT);
+      scm_puts(" ", port);
+      scm_puts(joint_types[joint_type], port);
+
+    }
+
     scm_puts(">", port);
   }
   else {
@@ -729,9 +856,25 @@ export_symbols() {
   EXPORT_BODY_GETSET_FUNC("finite-rotation-mode", finite_rotation_mode);
   EXPORT_BODY_GETSET_FUNC("gravity-mode", gravity_mode);
 
-
 #undef EXPORT_BODY_GETSET_FUNC
+  /*** JOINTS ***/
+  EXPORT_PROCEDURE("create-joint-group", 0, 0, 0, create_joint_group);
 
+#define EXPORT_JOINT_CONSTRUCTOR(name)		\
+  EXPORT_PROCEDURE("create-" # name "-joint", 2, 0, 0, create_##name##_joint)
+
+  EXPORT_JOINT_CONSTRUCTOR(ball);
+  EXPORT_JOINT_CONSTRUCTOR(hinge);
+  EXPORT_JOINT_CONSTRUCTOR(slider);
+  EXPORT_JOINT_CONSTRUCTOR(universal);
+  EXPORT_JOINT_CONSTRUCTOR(hinge2);
+  EXPORT_JOINT_CONSTRUCTOR(PR);
+  EXPORT_JOINT_CONSTRUCTOR(PU);
+  EXPORT_JOINT_CONSTRUCTOR(piston);
+  EXPORT_JOINT_CONSTRUCTOR(fixed);
+  EXPORT_JOINT_CONSTRUCTOR(amotor);
+  EXPORT_JOINT_CONSTRUCTOR(lmotor);
+  EXPORT_JOINT_CONSTRUCTOR(plane2d);
 
 #undef EXPORT_PROCEDURE
 }
