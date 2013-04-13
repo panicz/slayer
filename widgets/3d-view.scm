@@ -1,6 +1,6 @@
 (define-module (widgets 3d-view)
   #:use-module (oop goops)
-  #:use-module (widgets widgets)
+  #:use-module (widgets base)
   #:use-module (extra common)
   #:use-module (extra math)
   #:use-module (extra ref)
