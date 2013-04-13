@@ -29,7 +29,7 @@ libraries:
 	cd libs && make
 
 clean:
-	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~ *.go scm/*.go extra/*.go libs/*.so libs/*~
+	rm -f slayer *.o *~ widgets/*.go widgets/*~ extra/*~ *.go extra/*.go libs/*.so libs/*~
 
 again:
 	make clean
