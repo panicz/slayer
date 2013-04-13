@@ -205,7 +205,7 @@ main(int argc, char *argv[]) {
 #endif
   setenv("GUILE_LOAD_PATH", ".", 1);
   setenv("LTDL_LIBRARY_PATH", "./libs", 1);
-  setenv("LC_ALL", "C", 1); // discard locale
+  setenv("LC_ALL", "C.UTF8", 1); // discard locale
 
   if (!arg.infile) {
     arg.infile = 

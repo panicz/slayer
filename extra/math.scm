@@ -4,7 +4,7 @@
   :use-module (srfi srfi-17)
   :use-module (extra common)
   :use-module (extra ref)
-  :use-module (extra oop)
+  :use-module (oop goops)
   :duplicates (merge-generics);; replace warn-override-core warn first)
   :use-module ((rnrs) :version (6))  
   :export (eye transpose reciprocal
@@ -18,7 +18,6 @@
 	   sgn
 	   pi/4 pi/2 pi 2pi π/4 π/2 π 2π e
 	   deg->rad rad->deg
-	   ;+ - * 
 	   multiply add subtract divide
 	   <point>
 	   <generalized-vector>

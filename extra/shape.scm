@@ -1,18 +1,18 @@
 (define-module (extra shape)
-  :use-module (ice-9 pretty-print)
-  :use-module (extra ref)
-  :use-module (extra common)
-  :use-module (extra math)
-  :use-module (extra oop)
-  :duplicates (merge-generics replace warn-override-core warn last)
-  :export 
+  #:use-module (ice-9 pretty-print)
+  #:use-module (extra ref)
+  #:use-module (extra common)
+  #:use-module (extra math)
+  #:use-module (extra oop)
+  #:duplicates (merge-generics replace warn-override-core warn last)
+  #:export 
   (<basic-shape>
    <plane>
    <line>
    <sphere>
    <segment>
    <capsule>
-   ;<complex-shape>
+   ;;<complex-shape>
    distance
    nearest-points
    rotated

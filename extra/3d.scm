@@ -1,9 +1,9 @@
 (define-module (extra 3d)
   :use-module (extra common)
   :use-module (extra ref)
-  :use-module (extra oop)
+  :use-module (oop goops)
   :use-module (extra math)
-  :use-module (extra shape)
+  ;;:use-module (extra shape)
   ;;:duplicates (warn merge-generics); replace warn-override-core warn last)
   :export (
 	   <3d> 
@@ -16,7 +16,7 @@
 	   hemisphere
 	   generate-open-cylinder
 	   )
-  :re-export (distance)
+  ;;:re-export (distance)
   )
 
 (define-syntax define-symmetric-method
@@ -36,23 +36,16 @@
 (define-class <3d-cam> (<3d>)
   (fovy #:init-value 70.0))
 
+
 (define-class <3d-shape> (<3d>)
-  (shape #:init-value (make <sphere>)))
-
-(define-method (distance (a <3d-shape>) (b <3d-shape>))
-  (distance (translated (rotated #[a 'shape] #[a 'orientation]) #[a 'position])
-	    (translated (rotated #[b 'shape] #[b 'orientation]) #[b 'position])))
-
-(define-symmetric-method (distance (a <3d>) (b <3d-shape>))
-  (distance #[a 'position] (translated (rotated #[b 'shape] #[b 'orientation])
-				       #[b 'position])))
+  (shape #:init-value '()))
 
 (define-class <3d-mesh> (<3d-shape>)
-  (mesh #:init-value '() 
+  (mesh #:init-value '()
 	#;(\ with-input-from-file "3d/cube.3d" read)))
 
 (define* (generate-circle #:key (radius 1.0) (points 20))
-  (let ((slice (/ 2π points)))
+  (let ((slice (/ 2pi points)))
     (let loop ((vertices '())
 	       (i 0))
       (if (< i points)

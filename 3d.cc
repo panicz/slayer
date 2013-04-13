@@ -264,7 +264,7 @@ draw_faces_x(SCM type, SCM array) {
 }
 
 static void
-export_symbols() {
+export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
@@ -312,7 +312,7 @@ init_3d(Uint16 w, Uint16 h) {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glEnable(GL_BLEND);
 
-  export_symbols();
+  scm_c_define_module("slayer 3d", export_symbols, NULL);
 }
 
 

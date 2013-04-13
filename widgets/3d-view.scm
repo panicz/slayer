@@ -1,5 +1,12 @@
-(use-modules (extra math)
-	     (extra 3d))
+(define-module (widgets 3d-view)
+  #:use-module (oop goops)
+  #:use-module (widgets widgets)
+  #:use-module (extra common)
+  #:use-module (extra math)
+  #:use-module (extra ref)
+  #:use-module (extra 3d)
+  #:use-module (slayer 3d)
+  #:export (<3d-view> add-object!))
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
@@ -53,5 +60,3 @@
 
 (define-method (add-object! (view <3d-view>) (object <3d>))
   (set! #[view 'objects] (cons object #[view 'objects])))
-
-(display "loaded 3d.scm\n")
