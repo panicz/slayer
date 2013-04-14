@@ -196,7 +196,7 @@
   (syntax-rules (in ..)
     ((_ x in first .. last body ...)
      (for-each (lambda(x) body ...) 
-	       (iota (1+ (- last first)) first)))
+	       (iota (1+ (floor (- last first))) first)))
     ((_ x in list body ...)
      (for-each (match-lambda (x body ...)
 		 (else (throw 'invalid-for-clause else))) list))))
