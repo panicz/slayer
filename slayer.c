@@ -209,13 +209,13 @@ main(int argc, char *argv[]) {
 
   if (!arg.infile) {
     arg.infile = 
-      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.infile, "%s" SLAYER_SUFFIX, argv[0]);
   }
 
   if (!arg.outfile) {
     arg.outfile = 
-      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
 
