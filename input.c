@@ -311,6 +311,7 @@ static SCM input_widget;
 static SCM
 set_input_widget_x(widget) {
   input_widget = widget;
+  return SCM_UNSPECIFIED;
 }
 
 static void 
