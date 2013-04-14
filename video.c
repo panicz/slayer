@@ -139,5 +139,5 @@ video_init(Uint16 w, Uint16 h, int mode) {
   }
   set_display_procedure_x(eval("noop"));
 
-  scm_c_define_module("slayer video", export_symbols, NULL);
+  scm_c_define_module("slayer", export_symbols, NULL);
 }

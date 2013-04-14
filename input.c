@@ -368,7 +368,7 @@ input_init() {
   event_handler[SDL_USEREVENT] = userevent_handler;
 
   build_keymap();
-  scm_c_define_module("slayer input", export_symbols, NULL);
+  scm_c_define_module("slayer", export_symbols, NULL);
   resize_procedure = eval("noop");
 
   input_mode_direct();

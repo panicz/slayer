@@ -3,8 +3,6 @@
   #:use-module (extra ref)
   #:use-module (extra common)
   #:use-module (slayer)
-  #:use-module (slayer video)
-  #:use-module (slayer input)
   #:export (
 	    update!
 	    draw

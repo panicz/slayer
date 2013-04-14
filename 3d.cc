@@ -188,8 +188,8 @@ init_GLtypes() {
       goto end;						\
     }							\
     if (scm_array_handle_rank(&handle) != 2) {		\
-      WARN("invalid array dimension, setting to %i",	\
-	   dflt);					\
+      WARN("invalid array dimension, setting  "		\
+	   "coordinate size to default (%i)", dflt);	\
       size = dflt;					\
       goto assign;					\
     }							\

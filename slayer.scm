@@ -1,6 +1,4 @@
-(use-modules (slayer input)
-	     (slayer video)
-	     (slayer image)
+(use-modules (slayer image)
 	     (slayer)
 	     (widgets base)
 	     (widgets bitmap)

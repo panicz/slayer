@@ -17,7 +17,7 @@
 	(generate-capsule)
 	#;(generate-hemisphere #:radius 0.2)
 	#;(generate-circle #:radius 0.2)
-	#;(with-input-from-file "3d/cube.3d" read)))
+	#;(with-input-from-file "3d/basket.3d" read)))
 
 (define (draw-mesh mesh)
   (match mesh
@@ -27,6 +27,8 @@
 		 (set-vertices-array! array))
 		(('colors (? array? array))
 		 (set-colors-array! array))
+		(('normals (? array? array))
+		 (set-normal-array! array))
 		(('faces . faces)
 		 (for-each (match-lambda 
 			    ((type array)
