@@ -125,7 +125,7 @@ init(init_t *arg) {
 
   if (file_empty(arg->infile)) {
     if (!file_write(arg->infile, 
-		    "(use-modules (slayer) (slayer input) (slayer video))\n"
+		    "(use-modules (slayer))\n"
 		    "(keydn 'esc quit)\n")) {
       FATAL("Unable to write to spec file ``%s''", arg->infile);
     }

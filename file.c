@@ -50,11 +50,3 @@ file_create(const char *filename) {
   close(fd);
   return 1;
 }
-
-
-
-
-
-
-
-
