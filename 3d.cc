@@ -169,41 +169,50 @@ init_GLtypes() {
 #undef SET_TYPE
 }
 
-#define DEF_SET_GL_ARRAY(objects, proc, cls)	\
-static SCM \
-set_##objects##_array_x(SCM array) { \
-  glEnableClientState(cls); \
-  if (!scm_is_array(array)) { \
-    WARN("argument is not an array"); \
-    return SCM_UNSPECIFIED; \
-  } \
-  scm_t_array_handle handle; \
-  scm_t_array_dim *dims; \
-  const void *data; \
-  GLint size; \
-  scm_array_get_handle(array, &handle); \
-  int type = GLtypes[handle.element_type]; \
-  if (type == NOT_SUPPORTED) { \
-    WARN("unsupported array type"); \
-    goto end; \
-  } \
-  if (scm_array_handle_rank(&handle) != 2) { \
-    WARN("invalid array dimension"); \
-    goto end; \
-  } \
-  dims = scm_array_handle_dims(&handle); \
-  size = abs(dims[1].ubnd - dims[1].lbnd) + 1; \
-  data = scm_array_handle_uniform_elements(&handle); \
-  proc(size, (GLenum) type, 0, data); \
- end: \
-  scm_array_handle_release(&handle); \
-  return SCM_UNSPECIFIED; \
-}
+#define DEF_SET_GL_ARRAY(objects, proc, cls, dflt)	\
+  static SCM						\
+  set_##objects##_array_x(SCM array) {			\
+    glEnableClientState(cls);				\
+    if (!scm_is_array(array)) {				\
+      WARN("argument is not an array");			\
+      return SCM_UNSPECIFIED;				\
+    }							\
+    scm_t_array_handle handle;				\
+    scm_t_array_dim *dims;				\
+    const void *data;					\
+    GLint size;						\
+    scm_array_get_handle(array, &handle);		\
+    int type = GLtypes[handle.element_type];		\
+    if (type == NOT_SUPPORTED) {			\
+      WARN("unsupported array type");			\
+      goto end;						\
+    }							\
+    if (scm_array_handle_rank(&handle) != 2) {		\
+      WARN("invalid array dimension, setting to %i",	\
+	   dflt);					\
+      size = dflt;					\
+      goto assign;					\
+    }							\
+    dims = scm_array_handle_dims(&handle);		\
+    size = abs(dims[1].ubnd - dims[1].lbnd) + 1;	\
+  assign:						\
+    data = scm_array_handle_uniform_elements(&handle);	\
+    proc(size, (GLenum) type, 0, data);			\
+  end:							\
+    scm_array_handle_release(&handle);			\
+    return SCM_UNSPECIFIED;				\
+  }
 
-DEF_SET_GL_ARRAY(vertices, glVertexPointer, GL_VERTEX_ARRAY);
-DEF_SET_GL_ARRAY(colors, glColorPointer, GL_COLOR_ARRAY);
+DEF_SET_GL_ARRAY(vertices, glVertexPointer, GL_VERTEX_ARRAY, 3);
+DEF_SET_GL_ARRAY(colors, glColorPointer, GL_COLOR_ARRAY, 3);
 DEF_SET_GL_ARRAY(texture_coords, glTexCoordPointer, 
-		 GL_TEXTURE_COORD_ARRAY);
+		 GL_TEXTURE_COORD_ARRAY, 3);
+
+static inline void
+_glNormalPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer) {
+  return glNormalPointer(type, stride, pointer);
+}
+DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3);
 
 #undef DEF_SET_GL_ARRAY
 #undef NOT_SUPPORTED
@@ -283,6 +292,9 @@ export_symbols(void *unused) {
 		   set_vertices_array_x);
   EXPORT_PROCEDURE("set-colors-array!", 1, 0, 0, 
 		      set_colors_array_x);
+  EXPORT_PROCEDURE("set-normal-array!", 1, 0, 0, 
+		   set_normal_array_x);
+
   EXPORT_PROCEDURE("set-texture-coords-array!", 1, 0, 0, 
 		      set_texture_coords_array_x);
   EXPORT_PROCEDURE("draw-faces!", 2, 0, 0, draw_faces_x);
