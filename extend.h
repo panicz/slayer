@@ -172,8 +172,9 @@ static inline char *
 as_c_string(SCM object) {
   SCM port = scm_open_output_string();
   scm_display(object, port);
-  return scm_to_utf8_string(scm_get_output_string(port));
-  
+  SCM string = scm_get_output_string(port);
+  scm_close_port(port);
+  return scm_to_utf8_string(string);
 }
 
 static inline SCM 
