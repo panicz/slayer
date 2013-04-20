@@ -55,6 +55,7 @@ typedef struct body_t {
   dGeomID geom;
 } body_t;
 
+
 typedef struct rig_t {
   sim_t *parent;
   unordered_map<SCM, int, hash<SCM>, scm_eq> id;
@@ -91,11 +92,9 @@ static unordered_map<SCM, body_t *(*)(sim_t *, rig_t *)> body_maker;
 #define BODY_CONDITIONAL_ASSIGN(scm_var, c_var)		\
   MDEF_CONDITIONAL_ASSIGN(BODY, scm_var, body_t *, c_var)
 
-
 #define SET_SMOB_TYPE(type, smob, c_var)	\
   SCM_NEWSMOB(smob, ode_tag, c_var);		\
   SCM_SET_SMOB_FLAGS(smob, type)
-
 
 #define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, ...)	\
   static body_t *							\
@@ -115,6 +114,7 @@ static unordered_map<SCM, body_t *(*)(sim_t *, rig_t *)> body_maker;
 DEF_MAKE_SOME_BODY(ZILCH, DONT, plane, Plane, 0, 0, 1, 0);
 DEF_MAKE_BODY(cylinder, Cylinder, 0.5, 1.0);
 DEF_MAKE_BODY(box, Box, 1, 1, 1);
+DEF_MAKE_BODY(sphere, Sphere, 0.5);
 
 #undef DEF_MAKE_BODY
 
@@ -127,7 +127,7 @@ init_body_maker() {
   SET_BODY_MAKER(box);
   SET_BODY_MAKER(cylinder);
   SET_BODY_MAKER(plane);
-
+  SET_BODY_MAKER(sphere);
 
 
 }
