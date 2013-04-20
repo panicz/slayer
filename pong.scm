@@ -16,6 +16,8 @@
 (define ball-vx #f)
 (define ball-vy #f)
 
+(seed->random-state (vector-ref (times) 0))
+
 (define (reset-ball!)
   (set! ball-x (/ board-width 2))
   (set! ball-y (/ board-height 2))
@@ -92,7 +94,7 @@
 (let ((redraw (register-userevent noop))
       (exit (register-userevent quit)))
   (call-with-new-thread
-   (lambda()
+   (lambda ()
      (while #t
        (increase! ball-x ball-vx)
        (increase! ball-y ball-vy)
@@ -103,10 +105,10 @@
 	   (multiply! ball-vy -1))
        (if (or (and (= ball-x (1- paddle-b-x))
 		    (> ball-vx 0)
-		    (<= paddle-b-y ball-y (+ paddle-b-y (1- paddle-b-size))))
+		    (<= paddle-b-y ball-y (+ paddle-b-y paddle-b-size)))
 	       (and (= ball-x (1+ paddle-a-x))
 		    (< ball-vx 0)
-		    (<= paddle-a-y ball-y (+ paddle-a-y (1- paddle-a-size)))))
+		    (<= paddle-a-y ball-y (+ paddle-a-y paddle-a-size))))
 	   (multiply! ball-vx -1))
        (if (> ball-x board-width)
 	   (begin
@@ -120,7 +122,7 @@
 	       (> points-b 9))
 	   (generate-userevent exit)) ;; inform main thread to exit
        (generate-userevent redraw) ;; force a redraw
-       (usleep 50000)))))
+       (usleep 30000)))))
 
 (keydn 'a (lambda()(decrease! paddle-a-v 1)))
 (keyup 'a (lambda()(increase! paddle-a-v 1)))
