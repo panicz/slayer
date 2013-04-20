@@ -174,7 +174,9 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
   body_maker_map_t::iterator maker = body_maker.find(s_type);
   
   if(maker == body_maker.end()) {
-    WARN("body type not implemented");
+    char *type = as_c_string(s_type);
+    WARN("body type not %s implemented", type);
+    free(type);
     goto end;
   }
 
@@ -182,7 +184,7 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
   body->parent = rig;
   SET_SMOB_TYPE(BODY, smob, body);
 
-  if(!GIVEN(s_type)) {
+  if(!GIVEN(s_name)) {
     goto end;
   }
   
