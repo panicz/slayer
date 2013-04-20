@@ -71,6 +71,9 @@ typedef struct sim_t {
 typedef unordered_map <SCM, body_t *(*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
 body_maker_map_t;
 
+typedef unordered_map <SCM, dJointID (*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
+joint_maker_map_t;
+
 typedef unordered_map <pair<SCM, int>, void (*)(body_t *, SCM), 
   hash<pair<SCM,int> >, pair_scm_int_eq> body_property_setter_map_t;
 

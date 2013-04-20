@@ -3,10 +3,10 @@
 // (make-simulation)
 // (make-rig simulation)
 // (make-body sim rig type name) ??
-
 // (set-body-property! body (name <string>) value)
 // (body-property body property-name)
-// (make-joint type)
+
+// (make-joint sim rig type)
 // (body-named- name rig)
 // (set-joint-property! joint (property-name <string>) value)
 // (joint-property property-name joint)
@@ -19,6 +19,8 @@ body_maker_map_t body_maker;
 body_property_setter_map_t body_property_setter;
 body_property_getter_map_t body_property_getter;
 
+joint_maker_map_t joint_maker;
+
 // based on ode/collision.h enum, lines 880-902
 char const *class_name[] = {
   "sphere", "box", "capsule", "cylinder", "plane",
@@ -29,6 +31,7 @@ char const *class_name[] = {
 };
 
 #include "body.cc"
+//#include "joint.cc"
 
 static void 
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
@@ -40,6 +43,39 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     sim->contacts.push_back(r);
   }
+}
+
+static SCM
+make_joint(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim);
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig);
+  ASSERT_SCM_TYPE(symbol, s_type, 3);
+  dJointID joint;
+  SCM smob = SCM_UNSPECIFIED;
+
+  joint_maker_map_t::iterator maker = joint_maker.find(s_type);
+  
+  if(maker == joint_maker.end()) {
+    char *type = as_c_string(s_type);
+    WARN("joint type %s not implemented", type);
+    free(type);
+    goto end;
+  }
+
+  joint = (maker->second)(sim, rig);
+  SET_SMOB_TYPE(JOINT, smob, joint);
+
+  if(!GIVEN(s_name)) {
+    goto end;
+  }
+  
+  ASSERT_SCM_TYPE(symbol, s_name, 4);
+  rig->id[gc_protected(s_name)] = rig->joints.size()-1;
+
+ end:
+  scm_remember_upto_here_2(x_sim, x_rig);
+  scm_remember_upto_here_2(s_type, s_name);
+  return smob;
 }
 
 static SCM
@@ -89,6 +125,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("simulation-step!", 1, 0, 0, simulation_step);
 
   EXPORT_PROCEDURE("make-body", 2, 2, 0, make_body);
+  EXPORT_PROCEDURE("make-joint", 3, 0, 0, make_joint);
 
   EXPORT_PROCEDURE("set-body-property!", 3, 0, 0, set_body_property_x);
   EXPORT_PROCEDURE("body-property", 2, 0, 0, body_property);
