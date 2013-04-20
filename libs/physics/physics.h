@@ -14,6 +14,9 @@
 
 using namespace std;
 
+extern SCM s_f32;
+extern SCM s_f64;
+
 struct scm_eq : binary_function<SCM, SCM, bool> {
   bool operator() (const SCM& x, const SCM& y) const {
     return (bool) scm_is_eq(x,y);
@@ -69,8 +72,10 @@ typedef unordered_map <SCM, body_t *(*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
 body_maker_map_t;
 
 typedef unordered_map <pair<SCM, int>, void (*)(body_t *, SCM), 
-			 hash<pair<SCM,int> >, pair_scm_int_eq>
-body_property_assigner_map_t;
+  hash<pair<SCM,int> >, pair_scm_int_eq> body_property_setter_map_t;
+
+typedef unordered_map <pair<SCM, int>, SCM (*)(body_t *), 
+  hash<pair<SCM,int> >, pair_scm_int_eq> body_property_getter_map_t;
 
 
 #define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var)		\
@@ -94,5 +99,156 @@ body_property_assigner_map_t;
   SCM_NEWSMOB(smob, ode_tag, c_var);		\
   SCM_SET_SMOB_FLAGS(smob, type)
 
+#if defined(dSINGLE)
+# define ARRAY_TYPE s_f32
+#else
+# define ARRAY_TYPE s_f64
+#endif
+
+#define DEF_SCM_FROM_DVECTOR(n)						\
+  static inline SCM							\
+  scm_from_dVector##n(const dVector##n v) {				\
+    SCM V = scm_make_typed_array(ARRAY_TYPE, SCM_UNSPECIFIED,		\
+				 scm_list_1(scm_from_int(n)));		\
+    scm_t_array_handle h;						\
+    scm_array_get_handle(V, &h);					\
+    dReal *elements							\
+      = (dReal *) scm_array_handle_uniform_writable_elements(&h);	\
+    for(int i = 0; i < n; ++i) {					\
+      elements[i] = v[i];						\
+    }									\
+    scm_array_handle_release(&h);					\
+    return V;								\
+  } 
+
+DEF_SCM_FROM_DVECTOR(3);
+DEF_SCM_FROM_DVECTOR(4);
+
+#undef SCM_FROM_DVECTOR
+
+#define DEF_SCM_TO_DVECTOR(n)					\
+  static inline void						\
+  scm_to_dVector##n(SCM V, dVector##n *v) {			\
+    scm_t_array_handle h;					\
+    if (scm_is_array(V)) {					\
+      scm_array_get_handle(V, &h);				\
+      if(scm_is_typed_array(V, s_f32)) {			\
+	float const *elements					\
+	  = scm_array_handle_f32_elements(&h);			\
+	for(int i = 0; i < n; ++i) {				\
+	  (*v)[i] = elements[i];				\
+	}							\
+      }								\
+      else if(scm_is_typed_array(V, s_f64)) {			\
+	double const *elements					\
+	  = scm_array_handle_f64_elements(&h);			\
+	for(int i = 0; i < n; ++i) {				\
+	  (*v)[i] =  elements[i];				\
+	}							\
+      }								\
+      else {							\
+	SCM *elements = (SCM *) scm_array_handle_elements(&h);	\
+	for(int i = 0; i < n; ++i) {				\
+	  (*v)[i] = (dReal) scm_to_double(elements[i]);		\
+	}							\
+      }								\
+      scm_array_handle_release(&h);				\
+    }								\
+    else {							\
+      WARN("Unable to convert SCM to dVector"#n);	       	\
+    }								\
+  }
+
+DEF_SCM_TO_DVECTOR(3);
+DEF_SCM_TO_DVECTOR(4);
+#undef SCM_TO_DVECTOR
+
+/*
+  ODE's matrices are such that:
+  for 4x4: B11 = B[0], B12 = B[1], ..., B14 = B[3],
+           B21 = B[4], ... , B24 = B[7],
+	   ...
+	   B41 = B[12], ...,  B44 = B[15],
+  or, more generally, Bij = B[(i-1)*4+(j-1)],
+  
+  for 3x3 there's a quirk, as 3x3 matrices are
+  actually 3x4, because 3-dimensional vectors are
+  actually 4-dimensional, so 
+  m3x3 = [x1 y1 z1 w1 x2 y2 z2 w2 x3 y3 z3 w3], or
+  so again Bij = [B(i-1)*4+(j-1)]
+  
+  Guile is more interactive than C++, so we'd like to
+  use its uniform arrays
+  
+ */
+
+#define DEF_SCM_FROM_DMATRIX(n)					\
+  static inline SCM						\
+  scm_from_dMatrix##n(dMatrix##n m) {				\
+    SCM M = scm_make_typed_array(ARRAY_TYPE, SCM_UNSPECIFIED,	\
+				 scm_list_2(scm_from_int(n),	\
+					    scm_from_int(n)));	\
+    scm_t_array_handle h;					\
+    scm_array_get_handle(M, &h);				\
+    dReal *elements						\
+      =(dReal *)scm_array_handle_uniform_writable_elements(&h);	\
+    for(int i = 0; i < n; ++i) {				\
+      for(int j = 0; j < n; ++j) {				\
+	elements[n*i+j] = m[4*i+j];				\
+      }								\
+    }								\
+    scm_array_handle_release(&h);				\
+    return M;							\
+  }
+
+DEF_SCM_FROM_DMATRIX(3);
+DEF_SCM_FROM_DMATRIX(4);
+
+#undef DEF_SCM_FROM_DMATRIX
+
+#define DEF_SCM_TO_DMATRIX(n) \
+  static inline void						\
+  scm_to_dMatrix##n(SCM M, dMatrix##n *m) {			\
+    scm_t_array_handle h;					\
+    if (scm_is_array(M)) {					\
+      scm_array_get_handle(M, &h);				\
+      if (scm_is_typed_array(M, s_f32)) {			\
+	float const *elements					\
+	  = scm_array_handle_f32_elements(&h);			\
+	for(int i = 0; i < n; ++i) {				\
+	  for(int j = 0; j < n; ++j) {				\
+	    (*m)[4*i+j] = (dReal) elements[n*i+j];		\
+	  }							\
+	}							\
+      }								\
+      else if(scm_is_typed_array(M, s_f64)) {			\
+	double const *elements					\
+	  = scm_array_handle_f64_elements(&h);			\
+	for(int i = 0; i < n; ++i) {				\
+	  for(int j = 0; j < n; ++j) {				\
+	    (*m)[4*i+j] = (dReal) elements[n*i+j];		\
+	  }							\
+	}							\
+      }								\
+      else {							\
+	SCM *elements = (SCM *) scm_array_handle_elements(&h);	\
+	for(int i = 0; i < n; ++i) {				\
+	  for(int j = 0; j < n; ++j) {				\
+	    (*m)[4*i+j]						\
+	      = (dReal) scm_to_double(elements[n*i+j]);		\
+	  }							\
+	}							\
+      }								\
+      scm_array_handle_release(&h);				\
+    }								\
+    else {							\
+      WARN("Unable to convert SCM to dMatrix"#n);		\
+    }								\
+  }
+
+DEF_SCM_TO_DMATRIX(3);
+DEF_SCM_TO_DMATRIX(4);
+
+#undef DEF_SCM_FROM_DMATRIX
 
 #endif // _PHYSICS_H 
