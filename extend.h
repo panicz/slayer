@@ -18,6 +18,16 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
   return nelems;
 }
 
+#define GIVEN(scm) (!SCM_UNBNDP(scm))
+
+#define ZILCH(val, ...) NULL
+#define DONT(val, ...) do {} while(0)
+
+
+#define ASSERT_SCM_TYPE(type, var, pos)					\
+  SCM_ASSERT_TYPE(scm_is_##type(var), var, pos, __FUNCTION__, # type)
+
+
 #define DEFINE_ARRAY_GETTER(name, type, failval, getter)	\
   static inline type						\
   name(SCM array, ...) {					\
@@ -162,7 +172,7 @@ static inline char *
 as_c_string(SCM object) {
   SCM port = scm_open_output_string();
   scm_display(object, port);
-  return scm_to_locale_string(scm_get_output_string(port));
+  return scm_to_utf8_string(scm_get_output_string(port));
   
 }
 
@@ -189,7 +199,7 @@ evalf(const char *fmt, ...) {
 
 static inline SCM 
 symbol(const char *str) {
-  return scm_from_locale_symbol(str);
+  return scm_from_utf8_symbol(str);
 }
 
 static inline SCM 
@@ -255,12 +265,17 @@ is_scm_pair(SCM s) {
 static inline void 
 release_scm(SCM s) {
   scm_gc_unprotect_object(s);
-  s = SCM_UNSPECIFIED;
 }
 
 static inline void 
 hold_scm(SCM s) {
   scm_gc_protect_object(s);
+}
+
+static inline SCM
+gc_protected(SCM s) {
+  scm_gc_protect_object(s);
+  return s;
 }
 
 #endif /* EXTEND_H */
