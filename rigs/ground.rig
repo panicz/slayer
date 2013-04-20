@@ -1,0 +1,3 @@
+(rig ground
+ (bodies
+  (plane #:normal #(0 0 1))))
