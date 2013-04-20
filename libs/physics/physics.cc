@@ -6,18 +6,26 @@
 
 // (set-body-property! body (name <string>) value)
 // (body-property body property-name)
-// (add-body! rig body #:optional name)
 // (make-joint type)
 // (body-named- name rig)
 // (set-joint-property! joint (property-name <string>) value)
 // (joint-property property-name joint)
-// (add-rig! rig simulation)
 
 // MODULE'S GLOBALS
 scm_t_bits ode_tag;
 static SCM s_f32;
 static SCM s_f64;
-static unordered_map<SCM, body_t *(*)(sim_t *, rig_t *)> body_maker;
+body_maker_map_t body_maker;
+body_property_assigner_map_t body_property_assigner;
+
+// based on ode/collision.h enum, lines 880-902
+char const *class_name[] = {
+  "sphere", "box", "capsule", "cylinder", "plane",
+  "ray", "convex", "transform", "trimesh", "height-field",
+  "simple-space", "hash-space", "sweep-n-prune-space",
+  "quad-tree-space", "user-class-1", "user-class-2",
+  "user-class-3", "user-class-4"
+};
 
 #define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, ...)	\
   static body_t *							\
@@ -31,7 +39,7 @@ static unordered_map<SCM, body_t *(*)(sim_t *, rig_t *)> body_maker;
     return body;							\
   }
 
-#define DEF_MAKE_BODY(shape, Shape, ...)	\
+#define DEF_MAKE_BODY(shape, Shape, ...)				\
   DEF_MAKE_SOME_BODY(dBodyCreate, dGeomSetBody, shape, Shape, ## __VA_ARGS__)
 
 DEF_MAKE_SOME_BODY(ZILCH, DONT, plane, Plane, 0, 0, 1, 0);
@@ -40,22 +48,29 @@ DEF_MAKE_BODY(box, Box, 1, 1, 1);
 DEF_MAKE_BODY(sphere, Sphere, 0.5);
 
 #undef DEF_MAKE_BODY
+#undef DEF_MAKE_SOME_BODY
 
-#define SET_BODY_MAKER(shape)					\
-  body_maker[gc_protected(symbol(# shape))] = make_##shape
- 
 static void
 init_body_maker() {
+#define SET_BODY_MAKER(shape)					\
+  body_maker[gc_protected(symbol(# shape))] = make_##shape
 
   SET_BODY_MAKER(box);
   SET_BODY_MAKER(cylinder);
   SET_BODY_MAKER(plane);
   SET_BODY_MAKER(sphere);
 
+#undef SET_BODY_MAKER
+}
+
+static void
+init_body_property_assigner() {
+
+
 }
 
 static SCM
-make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name){
+make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim);
   RIG_CONDITIONAL_ASSIGN(x_rig, rig);
   body_t *body;
@@ -65,14 +80,13 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name){
   }
   ASSERT_SCM_TYPE(symbol, s_type, 3);
 
-  unordered_map<SCM, body_t *(*)(sim_t *, rig_t *)>::iterator maker
-    = body_maker.find(s_type);
+  body_maker_map_t::iterator maker = body_maker.find(s_type);
   
   if(maker == body_maker.end()) {
     WARN("body type not implemented");
     goto end;
   }
-  
+
   body = (maker->second)(sim, rig);
   body->parent = rig;
   SET_SMOB_TYPE(BODY, smob, body);
@@ -90,6 +104,29 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name){
   return smob;
 }
 
+static SCM
+set_body_property_x(SCM x_body, SCM s_prop, SCM s_value) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body);
+  ASSERT_SCM_TYPE(symbol, s_prop, 2);
+
+  body_property_assigner_map_t::iterator assigner 
+    = body_property_assigner.find(make_pair(s_prop, dGeomGetClass(body->geom)));
+
+  if(assigner == body_property_assigner.end()) {
+    char *prop = as_c_string(s_prop);
+    WARN("body property `%s` not implemented", prop);
+    free(prop);
+    goto end;
+  }
+  
+  assigner->second(body, s_value);
+
+ end:
+  scm_remember_upto_here_2(s_prop, s_value);
+  scm_remember_upto_here_1(x_body);
+  return SCM_UNSPECIFIED;
+}
+
 static void 
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
   sim_t *sim = (sim_t *) s;
@@ -103,7 +140,7 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
 }
 
 static SCM
-make_simulation() {
+make_simulation_() {
   SCM smob;
   sim_t *sim = new sim_t;
   sim->world = dWorldCreate();
@@ -144,11 +181,13 @@ export_symbols(void *unused) {
   DEFINE_PROCEDURE(name,required,optional,rest,proc);		\
   scm_c_export(name,NULL);
 
-  EXPORT_PROCEDURE("make-simulation-", 0, 0, 0, make_simulation);
+  EXPORT_PROCEDURE("make-simulation-", 0, 0, 0, make_simulation_);
   EXPORT_PROCEDURE("make-rig", 1, 0, 0, make_rig);
   EXPORT_PROCEDURE("simulation-step!", 1, 0, 0, simulation_step);
 
   EXPORT_PROCEDURE("make-body", 2, 2, 0, make_body);
+
+  EXPORT_PROCEDURE("set-body-property!", 3, 0, 0, set_body_property_x);
   
   //EXPORT_PROCEDURE("make-rig", 0, 0, 0, scm_make_rig);
 
@@ -171,7 +210,7 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 
   if(type == SIM) {
     sim_t *sim = (sim_t *) SCM_SMOB_DATA(ode);
-    PRINT("#<simulation %p (dt %f)>", (void *) sim, sim->dt);
+    PRINT("#<simulation %p (dt %.2f)>", (void *) sim, sim->dt);
   }
   else if(type == RIG) {
     rig_t *rig = (rig_t *) SCM_SMOB_DATA(ode);
@@ -180,7 +219,14 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
   }
   else if(type == BODY) {
     body_t *body = (body_t *) SCM_SMOB_DATA(ode);
-    PRINT("#<body %p shape mass>", (void *) body);
+    dReal mass = INFINITY;
+    if(body->body) {
+      dMass m;
+      dBodyGetMass(body->body, &m);
+      mass = m.mass;
+    }
+    PRINT("#<body %p %s %.2f>", (void *) body, 
+	  class_name[dGeomGetClass(body->geom)], mass);
   }
 
   scm_remember_upto_here_1(ode);
@@ -197,6 +243,7 @@ free_ode(SCM smob) {
 extern "C" void 
 init() {
   init_body_maker();
+  init_body_property_assigner();
 
   s_f32 = gc_protected(symbol("f32"));
   s_f64 = gc_protected(symbol("f64"));

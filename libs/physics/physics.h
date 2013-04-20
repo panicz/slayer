@@ -8,14 +8,22 @@
 #include <algorithm>
 #include <unordered_map>
 #include <tuple>
+#include <cmath>
 #include "utils.h"
 #include "extend.h"
 
 using namespace std;
 
-struct scm_eq : binary_function<SCM,SCM,bool> {
-  bool operator() (const SCM& x, const SCM& y) const
-  {return (bool) scm_is_eq(x,y);}
+struct scm_eq : binary_function<SCM, SCM, bool> {
+  bool operator() (const SCM& x, const SCM& y) const {
+    return (bool) scm_is_eq(x,y);
+  }
+};
+
+struct pair_scm_int_eq : binary_function<pair<SCM, int>, pair<SCM, int>, bool> {
+  bool operator() (const pair<SCM, int>& x, const pair<SCM, int>& y) const {
+    return (bool) (x.second == y.second) && scm_is_eq(x.first, y.first);
+  }
 };
 
 #define MAX_CONTACTS 12
@@ -56,6 +64,14 @@ typedef struct sim_t {
   list<dJointID> contacts;
   dReal dt;
 } sim_t;
+
+typedef unordered_map <SCM, body_t *(*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
+body_maker_map_t;
+
+typedef unordered_map <pair<SCM, int>, void (*)(body_t *, SCM), 
+			 hash<pair<SCM,int> >, pair_scm_int_eq>
+body_property_assigner_map_t;
+
 
 #define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var)		\
   scm_assert_smob_type(ode_tag, scm_var);				\
