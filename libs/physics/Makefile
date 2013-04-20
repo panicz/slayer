@@ -5,7 +5,7 @@ LIBODE = `pkg-config --libs ode`
 
 all: physics.so
 
-physics.so: physics.cc physics.h
+physics.so: physics.cc physics.h body.cc
 	$(CXX) $(CFLAGS) -shared -Wl,-soname,$@ -o $@ -fPIC physics.cc $(LIBODE)
 clean:
 	rm -f *.so *~

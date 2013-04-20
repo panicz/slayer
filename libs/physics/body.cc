@@ -50,6 +50,39 @@ box_dimensions_getter(body_t *body) {
 }
 
 static void
+sphere_radius_setter(body_t *body, SCM value) {
+  ASSERT_SCM_TYPE(real, value, 2);
+  dGeomSphereSetRadius(body->geom, scm_to_double(value));
+  scm_remember_upto_here_1(value);
+}
+
+static SCM
+sphere_radius_getter(body_t *body) {
+  return scm_from_double(dGeomSphereGetRadius(body->geom));
+}
+
+static void
+position_setter(body_t *body, SCM value) {
+  if(!(body->body)) {
+    WARN("function called on void body");
+    return;
+  }
+  dVector3 v;
+  scm_to_dVector3(value, &v);
+  dBodySetPosition(body->body, v[0], v[1], v[2]);
+}
+
+static SCM
+position_getter(body_t *body) {
+  if(!(body->body)) {
+    WARN("function called on void body");
+    return SCM_UNSPECIFIED;;
+  }
+  dReal const *v = dBodyGetPosition(body->body);
+  return scm_from_dVector3(v);
+}
+
+static void
 mass_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   if(!(body->body)) {
@@ -73,6 +106,38 @@ mass_getter(body_t *body) {
 }
 
 static void
+cylinder_height_setter(body_t *body, SCM value) {
+  ASSERT_SCM_TYPE(real, value, 2);
+  dReal radius, height;
+  dGeomCylinderGetParams(body->geom, &radius, &height);
+  dGeomCylinderSetParams(body->geom, radius, scm_to_double(value));
+  scm_remember_upto_here_1(value);
+}
+
+static SCM
+cylinder_height_getter(body_t *body) {
+  dReal radius, height;
+  dGeomCylinderGetParams(body->geom, &radius, &height);
+  return scm_from_double(height);
+}
+
+static void
+cylinder_radius_setter(body_t *body, SCM value) {
+  ASSERT_SCM_TYPE(real, value, 2);
+  dReal radius, height;
+  dGeomCylinderGetParams(body->geom, &radius, &height);
+  dGeomCylinderSetParams(body->geom, scm_to_double(value), height);
+  scm_remember_upto_here_1(value);
+}
+
+static SCM
+cylinder_radius_getter(body_t *body) {
+  dReal radius, height;
+  dGeomCylinderGetParams(body->geom, &radius, &height);
+  return scm_from_double(radius);
+}
+
+static void
 init_body_property_accessors() {
   pair<SCM, int> index;
 #define SET_BODY_ACCESSORS(ode_type, prefix, property)			\
@@ -81,10 +146,14 @@ init_body_property_accessors() {
   body_property_getter[index] = prefix##property##_getter
 
   SET_BODY_ACCESSORS(dBoxClass, box_, dimensions);
+  SET_BODY_ACCESSORS(dCylinderClass, cylinder_, height);
+  SET_BODY_ACCESSORS(dCylinderClass, cylinder_, radius);
+  SET_BODY_ACCESSORS(dSphereClass, sphere_, radius);
   
   for(int i = 0; i < dFirstSpaceClass; ++i) {
     //if placable
     SET_BODY_ACCESSORS(i,, mass);
+    SET_BODY_ACCESSORS(i,, position);
     //endif
   }
 
