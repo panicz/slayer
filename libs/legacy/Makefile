@@ -7,3 +7,5 @@ all: libguile-ode.so
 
 libguile-ode.so: ode.cc
 	$(CXX) $(CFLAGS) -shared -Wl,-soname,$@ -o $@ -fPIC $< $(LIBODE)
+clean:
+	rm -f *.so *~

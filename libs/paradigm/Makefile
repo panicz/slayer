@@ -7,3 +7,5 @@ all: sim
 
 sim: sim.cc
 	$(CXX) $(CFLAGS) -o $@ $< $(LIBODE)
+clean:
+	rm -f *.so *~

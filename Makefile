@@ -30,6 +30,7 @@ libraries:
 
 clean:
 	rm -f slayer *.o *~ widgets/*.go widgets/*~ extra/*~ *.go extra/*.go libs/*.so libs/*~
+	cd libs && make clean
 
 again:
 	make clean
