@@ -42,33 +42,33 @@ init_body_maker() {
 }
 
 static void
-box_dimensions_setter(body_t *body, SCM value) {
+body_box_dimensions_setter(body_t *body, SCM value) {
   dVector3 v;
   scm_to_dVector3(value, &v);
   dGeomBoxSetLengths(body->geom, v[0], v[1], v[2]);
 }
 
 static SCM
-box_dimensions_getter(body_t *body) {
+body_box_dimensions_getter(body_t *body) {
   dVector3 v;
   dGeomBoxGetLengths(body->geom, v);
   return scm_from_dVector3(v);
 }
 
 static void
-sphere_radius_setter(body_t *body, SCM value) {
+body_sphere_radius_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   dGeomSphereSetRadius(body->geom, scm_to_double(value));
   scm_remember_upto_here_1(value);
 }
 
 static SCM
-sphere_radius_getter(body_t *body) {
+body_sphere_radius_getter(body_t *body) {
   return scm_from_double(dGeomSphereGetRadius(body->geom));
 }
 
 static void
-position_setter(body_t *body, SCM value) {
+body_position_setter(body_t *body, SCM value) {
   if(!(body->body)) {
     WARN("function called on void body");
     return;
@@ -79,7 +79,7 @@ position_setter(body_t *body, SCM value) {
 }
 
 static SCM
-position_getter(body_t *body) {
+body_position_getter(body_t *body) {
   if(!(body->body)) {
     WARN("function called on void body");
     return SCM_UNSPECIFIED;;
@@ -89,7 +89,7 @@ position_getter(body_t *body) {
 }
 
 static void
-mass_setter(body_t *body, SCM value) {
+body_mass_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   if(!(body->body)) {
     WARN("function called on void body");
@@ -102,7 +102,7 @@ mass_setter(body_t *body, SCM value) {
 }
 
 static SCM
-mass_getter(body_t *body) {
+body_mass_getter(body_t *body) {
   if(!(body->body)) {
     return scm_from_double(INFINITY);
   }
@@ -112,7 +112,7 @@ mass_getter(body_t *body) {
 }
 
 static void
-cylinder_height_setter(body_t *body, SCM value) {
+body_cylinder_height_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   dReal radius, height;
   dGeomCylinderGetParams(body->geom, &radius, &height);
@@ -121,14 +121,14 @@ cylinder_height_setter(body_t *body, SCM value) {
 }
 
 static SCM
-cylinder_height_getter(body_t *body) {
+body_cylinder_height_getter(body_t *body) {
   dReal radius, height;
   dGeomCylinderGetParams(body->geom, &radius, &height);
   return scm_from_double(height);
 }
 
 static void
-cylinder_radius_setter(body_t *body, SCM value) {
+body_cylinder_radius_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   dReal radius, height;
   dGeomCylinderGetParams(body->geom, &radius, &height);
@@ -137,7 +137,7 @@ cylinder_radius_setter(body_t *body, SCM value) {
 }
 
 static SCM
-cylinder_radius_getter(body_t *body) {
+body_cylinder_radius_getter(body_t *body) {
   dReal radius, height;
   dGeomCylinderGetParams(body->geom, &radius, &height);
   return scm_from_double(radius);
@@ -148,8 +148,8 @@ init_body_property_accessors() {
   pair<SCM, int> index;
 #define SET_BODY_ACCESSORS(ode_type, prefix, property)			\
   index = make_pair(gc_protected(symbol(# property)), ode_type);	\
-  body_property_setter[index] = prefix##property##_setter;		\
-  body_property_getter[index] = prefix##property##_getter
+  body_property_setter[index] = body_##prefix##property##_setter;	\
+  body_property_getter[index] = body_##prefix##property##_getter
 
   SET_BODY_ACCESSORS(dBoxClass, box_, dimensions);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, height);
