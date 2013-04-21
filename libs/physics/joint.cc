@@ -103,6 +103,90 @@ joint_body2_getter(dJointID joint) {
   return SCM_BOOL_F;
 }
 
+#define DEF_JOINT_VECTOR_SETTER(property_name, PropertyName)	\
+  static void							\
+  joint_##property_name##_setter(dJointID joint, SCM value) {	\
+    dVector3 v;							\
+    scm_to_dVector3(value, &v);					\
+    dJointSet##PropertyName(joint, v[0], v[1], v[2]);		\
+    scm_remember_upto_here_1(value);				\
+  }
+
+#define DEF_JOINT_VECTOR_GETTER(property_name, PropertyName)	\
+  static SCM							\
+  joint_##property_name##_getter(dJointID joint) {		\
+    dVector3 v;							\
+    dJointGet##PropertyName(joint, v);				\
+    return scm_from_dVector3(v);				\
+  }
+
+#define DEF_JOINT_VECTOR_ACCESSORS(property_name, PropertyName)	\
+  DEF_JOINT_VECTOR_SETTER(property_name, PropertyName)		\
+  DEF_JOINT_VECTOR_GETTER(property_name, PropertyName)
+
+DEF_JOINT_VECTOR_ACCESSORS(hinge_anchor, HingeAnchor);
+DEF_JOINT_VECTOR_ACCESSORS(hinge_axis, HingeAxis);
+
+DEF_JOINT_VECTOR_ACCESSORS(slider_axis, SliderAxis);
+
+DEF_JOINT_VECTOR_ACCESSORS(universal_anchor, UniversalAnchor);
+DEF_JOINT_VECTOR_ACCESSORS(universal_axis1, UniversalAxis1);
+DEF_JOINT_VECTOR_ACCESSORS(universal_axis2, UniversalAxis2);
+
+DEF_JOINT_VECTOR_ACCESSORS(hinge2_anchor, Hinge2Anchor);
+DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis1, Hinge2Axis1);
+DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
+
+#undef DEF_JOINT_VECTOR_ACCESSORS
+#undef DEF_JOINT_VECTOR_GETTER
+#undef DEF_JOINT_VECTOR_SETTER
+
+#define DEF_JOINT_REAL_GETTER(property_name, PropertyName)	\
+  static SCM							\
+  joint_##property_name##_getter(dJointID joint) {		\
+    return scm_from_double(dJointGet##PropertyName(joint));	\
+  }
+
+
+#undef DEF_JOINT_REAL_GETTER
+
+#define DEF_JOINT_PARAM_SETTER(type, Type, name, Name)			\
+  static void								\
+  joint_##type##_##name##_setter(dJointID joint, SCM value) {		\
+    dJointSet##Type##Param(joint, Name, (dReal) scm_to_double(value));	\
+  }
+
+#define DEF_JOINT_PARAM_GETTER(type, Type, name, Name)			\
+  static SCM								\
+  joint_##type##_##name##_getter(dJointID joint) {			\
+    return scm_from_double((dReal) dJointGet##Type##Param(joint, Name)); \
+  }
+
+#define DEF_JOINT_PARAM_ACCESSOR(type, Type, name, Name)	\
+  DEF_JOINT_PARAM_GETTER(type, Type, name, Name)		\
+  DEF_JOINT_PARAM_SETTER(type, Type, name, Name)
+
+#define DEF_ALL_JOINT_PARAM_ACCESSORS(type, Type)			\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, suspension_erp, dParamSuspensionERP) \
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, suspension_cfm, dParamSuspensionCFM) \
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, velocity, dParamVel)		\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, max_force, dParamFMax)		\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, lo_stop, dParamLoStop)		\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, hi_stop, dParamHiStop)		\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, fudge_factor, dParamFudgeFactor)	\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, bounce, dParamBounce)		\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, cfm, dParamCFM)			\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, stop_erp, dParamStopERP)		\
+  DEF_JOINT_PARAM_ACCESSOR(type, Type, stop_cfm, dParamStopCFM)
+
+DEF_ALL_JOINT_PARAM_ACCESSORS(hinge2, Hinge2);
+
+
+#undef DEF_ALL_JOINT_PARAM_ACCESSORS
+#undef DEF_JOINT_PARAM_SETTER
+#undef DEF_JOINT_PARAM_GETTER
+#undef DEF_JOINT_PARAM_ACCESSOR
+
 static void
 init_joint_property_accessors() {
   pair<SCM, int> index;
@@ -112,10 +196,50 @@ init_joint_property_accessors() {
   joint_property_getter[index] = joint_##prefix##property##_getter
 
 #define SET_JOINT_ACCESSORS(ode_type, prefix, property)			\
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix, property, # property))
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix, property, # property)
 
-  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2,, body1, "body-1");
-  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2,, body2, "body-2");
+  SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, anchor);
+  SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, axis);
+
+  SET_JOINT_ACCESSORS(dJointTypeSlider, slider_, axis);
+
+  SET_JOINT_ACCESSORS(dJointTypeUniversal, universal_, anchor);
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeUniversal, universal_, axis1, "axis-1");
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeUniversal, universal_, axis2, "axis-2");
+
+  SET_JOINT_ACCESSORS(dJointTypeHinge2, hinge2_, anchor);
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, axis1, "axis-1");
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, axis2, "axis-2");
+
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, suspension_erp,
+			    "suspension-erp");
+
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, suspension_cfm,
+			    "suspension-cfm");
+  
+#define SET_ALL_JOINT_PARAM_ACCESSORS(ode_type, prefix)			\
+  SET_JOINT_NAMED_ACCESSORS(ode_type,prefix##_,suspension_erp,"suspension-erp"); \
+  SET_JOINT_NAMED_ACCESSORS(ode_type,prefix##_,suspension_cfm,"suspension-cfm"); \
+  SET_JOINT_ACCESSORS(ode_type, prefix##_, velocity);			\
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, max_force, "max-force"); \
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, lo_stop, "lo-stop");	\
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, hi_stop, "hi-stop");	\
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, fudge_factor, "fudge-factor"); \
+  SET_JOINT_ACCESSORS(ode_type, prefix##_, bounce);			\
+  SET_JOINT_ACCESSORS(ode_type, prefix##_, cfm);			\
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, stop_erp, "stop-erp");	\
+  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, stop_cfm, "stop-cfm");
+  
+
+  SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeHinge2, hinge2);
+
+
+#undef SET_ALL_JOINT_PARAM_ACCESSORS
+
+  for(int i = 0; i <= dJointTypePiston; ++i) {
+    SET_JOINT_NAMED_ACCESSORS(i,, body1, "body-1");
+    SET_JOINT_NAMED_ACCESSORS(i,, body2, "body-2");
+  }
 
 #undef SET_JOINT_ACCESSORS
 #undef SET_JOINT_NAMED_ACCESSORS
