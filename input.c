@@ -309,7 +309,7 @@ mousemove_binding(SCM type) {
 
 static SCM input_widget;
 static SCM
-set_input_widget_x(widget) {
+set_input_widget_x(SCM widget) {
   input_widget = widget;
   return SCM_UNSPECIFIED;
 }
