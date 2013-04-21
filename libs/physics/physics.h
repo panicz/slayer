@@ -29,6 +29,17 @@ struct pair_scm_int_eq : binary_function<pair<SCM, int>, pair<SCM, int>, bool> {
   }
 };
 
+// hash function borrowed from boost, according to
+// http://stackoverflow.com/questions/738054/hash-function-for-a-pair-of-long-long
+struct hash_pair_scm_int : unary_function<pair<SCM, int>, size_t> {
+  size_t operator()(const pair<SCM, int>& p) const {
+    hash<SCM> first_hash;
+    hash<int> second_hash;
+    size_t seed = second_hash(p.second);
+    return first_hash(p.first) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+  }
+};
+
 #define MAX_CONTACTS 12
 
 enum {
@@ -57,6 +68,7 @@ typedef struct rig_t {
   vector<body_t *> bodies;
   vector<dJointID> joints;
   dSpaceID space;
+  dJointGroupID group;
 } rig_t;
 
 typedef struct sim_t {
@@ -69,34 +81,40 @@ typedef struct sim_t {
 } sim_t;
 
 typedef unordered_map <SCM, body_t *(*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
-body_maker_map_t;
-
-typedef unordered_map <SCM, dJointID (*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
-joint_maker_map_t;
+  body_maker_map_t;
 
 typedef unordered_map <pair<SCM, int>, void (*)(body_t *, SCM), 
-  hash<pair<SCM,int> >, pair_scm_int_eq> body_property_setter_map_t;
+  hash_pair_scm_int, pair_scm_int_eq> body_property_setter_map_t;
 
 typedef unordered_map <pair<SCM, int>, SCM (*)(body_t *), 
-  hash<pair<SCM,int> >, pair_scm_int_eq> body_property_getter_map_t;
+  hash_pair_scm_int, pair_scm_int_eq> body_property_getter_map_t;
+
+typedef unordered_map <SCM, dJointID (*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
+  joint_maker_map_t;
+
+typedef unordered_map <pair<SCM, int>, void (*)(dJointID, SCM),
+  hash_pair_scm_int, pair_scm_int_eq> joint_property_setter_map_t;
+
+typedef unordered_map <pair<SCM, int>, SCM (*)(dJointID),
+  hash_pair_scm_int, pair_scm_int_eq> joint_property_getter_map_t;
 
 
-#define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var)		\
+#define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var, d_val)	\
   scm_assert_smob_type(ode_tag, scm_var);				\
   if(SCM_SMOB_FLAGS(scm_var) != TYPE) {					\
     WARN("FUNCTION CALLED ON A NON-" # TYPE);				\
-    return SCM_BOOL_F;							\
+    return d_val;							\
   }									\
   c_type c_var = (c_type) SCM_SMOB_DATA(scm_var)
 
-#define SIM_CONDITIONAL_ASSIGN(scm_var, c_var)		\
-  MDEF_CONDITIONAL_ASSIGN(SIM, scm_var, sim_t *, c_var)
+#define SIM_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)		\
+  MDEF_CONDITIONAL_ASSIGN(SIM, scm_var, sim_t *, c_var, d_val)
 
-#define RIG_CONDITIONAL_ASSIGN(scm_var, c_var)		\
-  MDEF_CONDITIONAL_ASSIGN(RIG, scm_var, rig_t *, c_var)
+#define RIG_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)		\
+  MDEF_CONDITIONAL_ASSIGN(RIG, scm_var, rig_t *, c_var, d_val)
 
-#define BODY_CONDITIONAL_ASSIGN(scm_var, c_var)		\
-  MDEF_CONDITIONAL_ASSIGN(BODY, scm_var, body_t *, c_var)
+#define BODY_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
+  MDEF_CONDITIONAL_ASSIGN(BODY, scm_var, body_t *, c_var, d_val)
 
 #define SET_SMOB_TYPE(type, smob, c_var)	\
   SCM_NEWSMOB(smob, ode_tag, c_var);		\

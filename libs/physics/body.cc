@@ -1,3 +1,6 @@
+static body_maker_map_t body_maker;
+static body_property_setter_map_t body_property_setter;
+static body_property_getter_map_t body_property_getter;
 
 #define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, ...)	\
   static body_t *							\
@@ -6,6 +9,9 @@
     body->body = create_body(sim->world);				\
     body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
     set_body(body->geom, body->body);					\
+    if(body->body) {							\
+      dBodySetData(body->body, (void *) body);				\
+    }									\
     rig->bodies.push_back(body);					\
     body->id = rig->bodies.size();					\
     return body;							\
@@ -162,8 +168,8 @@ init_body_property_accessors() {
 
 static SCM
 make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim);
-  RIG_CONDITIONAL_ASSIGN(x_rig, rig);
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
   body_t *body;
   SCM smob = SCM_UNSPECIFIED;
   if(!GIVEN(s_type)) {
@@ -199,7 +205,7 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
 
 static SCM
 set_body_property_x(SCM x_body, SCM s_prop, SCM s_value) {
-  BODY_CONDITIONAL_ASSIGN(x_body, body);
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_prop, 2);
   int cl = dGeomGetClass(body->geom);
 
@@ -222,7 +228,7 @@ set_body_property_x(SCM x_body, SCM s_prop, SCM s_value) {
 
 static SCM
 body_property(SCM x_body, SCM s_prop) {
-  BODY_CONDITIONAL_ASSIGN(x_body, body);
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_prop, 2);
   int cl = dGeomGetClass(body->geom); 
 

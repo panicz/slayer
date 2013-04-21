@@ -11,18 +11,12 @@
 // (set-joint-property! joint (property-name <string>) value)
 // (joint-property property-name joint)
 
-// MODULE'S GLOBALS
 scm_t_bits ode_tag;
 SCM s_f32;
 SCM s_f64;
-body_maker_map_t body_maker;
-body_property_setter_map_t body_property_setter;
-body_property_getter_map_t body_property_getter;
 
-joint_maker_map_t joint_maker;
-
-// based on ode/collision.h enum, lines 880-902
-char const *class_name[] = {
+// based on src/ode/collision.h enum, lines 880-902
+static char const *class_name[] = {
   "sphere", "box", "capsule", "cylinder", "plane",
   "ray", "convex", "transform", "trimesh", "height-field",
   "simple-space", "hash-space", "sweep-n-prune-space",
@@ -30,8 +24,15 @@ char const *class_name[] = {
   "user-class-3", "user-class-4"
 };
 
+// based on include/ode/common.h dJointType enum, lines 251-267
+static char const *joint_type_name[] = {
+  "unknown", "ball", "hinge", "slider", "contact",
+  "universal", "hinge-2", "fixed", "null", "angular-motor",
+  "linear-motor", "plane-2d", "PR", "PU", "piston"
+};
+
 #include "body.cc"
-//#include "joint.cc"
+#include "joint.cc"
 
 static void 
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
@@ -43,39 +44,6 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     sim->contacts.push_back(r);
   }
-}
-
-static SCM
-make_joint(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim);
-  RIG_CONDITIONAL_ASSIGN(x_rig, rig);
-  ASSERT_SCM_TYPE(symbol, s_type, 3);
-  dJointID joint;
-  SCM smob = SCM_UNSPECIFIED;
-
-  joint_maker_map_t::iterator maker = joint_maker.find(s_type);
-  
-  if(maker == joint_maker.end()) {
-    char *type = as_c_string(s_type);
-    WARN("joint type %s not implemented", type);
-    free(type);
-    goto end;
-  }
-
-  joint = (maker->second)(sim, rig);
-  SET_SMOB_TYPE(JOINT, smob, joint);
-
-  if(!GIVEN(s_name)) {
-    goto end;
-  }
-  
-  ASSERT_SCM_TYPE(symbol, s_name, 4);
-  rig->id[gc_protected(s_name)] = rig->joints.size()-1;
-
- end:
-  scm_remember_upto_here_2(x_sim, x_rig);
-  scm_remember_upto_here_2(s_type, s_name);
-  return smob;
 }
 
 static SCM
@@ -93,10 +61,11 @@ make_simulation_() {
 static SCM
 make_rig(SCM x_sim) {
   SCM smob;
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim);
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   rig_t *rig = new rig_t;
   rig->space = dSimpleSpaceCreate(sim->space);
   rig->parent = sim;
+  rig->group = dJointGroupCreate(0);
   SET_SMOB_TYPE(RIG, smob, rig);
   scm_remember_upto_here_1(x_sim);
   return smob;
@@ -104,7 +73,7 @@ make_rig(SCM x_sim) {
 
 static SCM
 simulation_step(SCM x_sim) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim);
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   dJointGroupEmpty(sim->contact_group);
   dSpaceCollide(sim->space, sim, &on_potential_collision);
   dWorldStep(sim->world, sim->dt);
@@ -125,12 +94,10 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("simulation-step!", 1, 0, 0, simulation_step);
 
   EXPORT_PROCEDURE("make-body", 2, 2, 0, make_body);
-  EXPORT_PROCEDURE("make-joint", 3, 0, 0, make_joint);
-
   EXPORT_PROCEDURE("set-body-property!", 3, 0, 0, set_body_property_x);
   EXPORT_PROCEDURE("body-property", 2, 0, 0, body_property);
-  
-  //EXPORT_PROCEDURE("make-rig", 0, 0, 0, scm_make_rig);
+
+  EXPORT_PROCEDURE("make-joint", 3, 0, 0, make_joint);
 
 #undef EXPORT_PROCEDURE
 #undef DEFINE_PROCEDURE
@@ -169,6 +136,10 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
     PRINT("#<body %p %s %.2f>", (void *) body, 
 	  class_name[dGeomGetClass(body->geom)], mass);
   }
+  else if(type == JOINT) {
+    dJointID joint = (dJointID) SCM_SMOB_DATA(ode);
+    PRINT("#<joint %p %s>", (void *) joint, joint_type_name[dJointGetType(joint)]);
+  }
 
   scm_remember_upto_here_1(ode);
 #undef PRINT
@@ -185,6 +156,9 @@ extern "C" void
 init() {
   init_body_maker();
   init_body_property_accessors();
+  
+  init_joint_maker();
+  init_joint_property_accessors();
 
   s_f32 = gc_protected(symbol("f32"));
   s_f64 = gc_protected(symbol("f64"));
