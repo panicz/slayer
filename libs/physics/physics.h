@@ -62,9 +62,12 @@ typedef struct body_t {
   dGeomID geom;
 } body_t;
 
+typedef unordered_map<SCM, int, hash<SCM>, scm_eq> 
+  symbol_index_map_t;
+
 typedef struct rig_t {
   sim_t *parent;
-  unordered_map<SCM, int, hash<SCM>, scm_eq> id;
+  symbol_index_map_t id;
   vector<body_t *> bodies;
   vector<dJointID> joints;
   dSpaceID space;
@@ -78,6 +81,7 @@ typedef struct sim_t {
   dJointGroupID contact_group;
   list<dJointID> contacts;
   dReal dt;
+  //SCM defs;
 } sim_t;
 
 typedef unordered_map <SCM, body_t *(*)(sim_t *, rig_t *), hash<SCM>, scm_eq>
@@ -115,6 +119,10 @@ typedef unordered_map <pair<SCM, int>, SCM (*)(dJointID),
 
 #define BODY_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
   MDEF_CONDITIONAL_ASSIGN(BODY, scm_var, body_t *, c_var, d_val)
+
+#define JOINT_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
+  MDEF_CONDITIONAL_ASSIGN(JOINT, scm_var, dJointID, c_var, d_val)
+
 
 #define SET_SMOB_TYPE(type, smob, c_var)	\
   SCM_NEWSMOB(smob, ode_tag, c_var);		\

@@ -3,20 +3,18 @@
   #:export-syntax (define-rigs-for-sim))
 
 ;;(load-extension "physics" "init")
+
 (define-syntax-rule (define-rigs-for sim (name rig) ...)
   (let* ((name (make-rig-for sim rig)) ...)
     (name-rig! sim (quote name) name) ...))
 
 (use-modules (extra common))
 
-(define* (body-property property-name #:key of)
-  (body-property- property-name of))
-
-(define (body-named body #:key from)
+(define* (body-named body #:key from)
   (body-named- body from))
 
-(define (make-rig-for sim rig)
-  (match rig
+(define (make-rig-for sim rig-def)
+  (match rig-def
     (; STRUCTURE
      ('rig
       ('bodies

@@ -179,8 +179,11 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
   DEF_JOINT_PARAM_ACCESSOR(type, Type, stop_erp, dParamStopERP)		\
   DEF_JOINT_PARAM_ACCESSOR(type, Type, stop_cfm, dParamStopCFM)
 
+DEF_ALL_JOINT_PARAM_ACCESSORS(hinge, Hinge);
 DEF_ALL_JOINT_PARAM_ACCESSORS(hinge2, Hinge2);
-
+DEF_ALL_JOINT_PARAM_ACCESSORS(slider, Slider);
+DEF_ALL_JOINT_PARAM_ACCESSORS(universal, Universal);
+DEF_ALL_JOINT_PARAM_ACCESSORS(angular_motor, AMotor);
 
 #undef DEF_ALL_JOINT_PARAM_ACCESSORS
 #undef DEF_JOINT_PARAM_SETTER
@@ -230,9 +233,11 @@ init_joint_property_accessors() {
   SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, stop_erp, "stop-erp");	\
   SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, stop_cfm, "stop-cfm");
   
-
+  SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeHinge, hinge);
   SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeHinge2, hinge2);
-
+  SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeSlider, slider);
+  SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeUniversal, universal);
+  SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeAMotor, angular_motor);
 
 #undef SET_ALL_JOINT_PARAM_ACCESSORS
 
@@ -243,4 +248,57 @@ init_joint_property_accessors() {
 
 #undef SET_JOINT_ACCESSORS
 #undef SET_JOINT_NAMED_ACCESSORS
+}
+
+
+static SCM
+set_joint_property_x(SCM x_joint, SCM s_prop, SCM s_value) {
+  JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_prop, 2);
+  int cl = dJointGetType(joint);
+
+  joint_property_setter_map_t::iterator setter 
+    = joint_property_setter.find(make_pair(s_prop, cl));
+
+  if(setter == joint_property_setter.end()) {
+    char *prop = as_c_string(s_prop);
+    WARN("joint property `%s` not implemented for %s", prop, 
+	 joint_type_name[cl]);
+    free(prop);
+    goto end;
+  }  
+  (setter->second)(joint, s_value);
+
+ end:
+  scm_remember_upto_here_2(s_prop, s_value);
+  scm_remember_upto_here_1(x_joint);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+joint_property(SCM x_joint, SCM s_prop) {
+  JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_prop, 2);
+  int cl = dJointGetType(joint); 
+
+  joint_property_getter_map_t::iterator getter
+    = joint_property_getter.find(make_pair(s_prop, cl));
+
+  if(getter == joint_property_getter.end()) {
+    char *prop = as_c_string(s_prop);
+    WARN("joint property `%s` not implemented for %s", prop, 
+	 joint_type_name[cl]);
+    free(prop);
+    return SCM_UNSPECIFIED;
+  }
+
+  scm_remember_upto_here_2(x_joint, s_prop);
+  return (getter->second)(joint);
+}
+
+
+static SCM
+joint_type(SCM x_joint) {
+  JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
+  return symbol(joint_type_name[dJointGetType(joint)]);
 }

@@ -204,6 +204,23 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
 }
 
 static SCM
+body_named_(SCM s_name, SCM x_rig) {
+  ASSERT_SCM_TYPE(symbol, s_name, 1);
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
+  SCM smob;
+  symbol_index_map_t::iterator id = rig->id.find(s_name);
+  if(id == rig->id.end()) {
+    char *name = as_c_string(s_name);
+    WARN("no body named '%s' found in rig %p", name, rig);
+    free(name);
+    return SCM_BOOL_F;
+  }
+  SET_SMOB_TYPE(BODY, smob, rig->bodies[id->second]);
+  return smob;
+}
+
+
+static SCM
 set_body_property_x(SCM x_body, SCM s_prop, SCM s_value) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_prop, 2);
@@ -244,4 +261,10 @@ body_property(SCM x_body, SCM s_prop) {
 
   scm_remember_upto_here_2(x_body, s_prop);
   return (getter->second)(body);
+}
+
+static SCM
+body_type(SCM x_body) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  return symbol(class_name[dGeomGetClass(body->geom)]);
 }

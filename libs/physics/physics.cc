@@ -54,6 +54,7 @@ make_simulation_() {
   sim->space = dHashSpaceCreate(0);
   sim->contact_group = dJointGroupCreate(0);
   sim->dt = 0.01;  
+  //sim->defs = SCM_BOOL_F;
   SET_SMOB_TYPE(SIM, smob, sim);
   return smob;
 }
@@ -96,12 +97,28 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("make-body", 2, 2, 0, make_body);
   EXPORT_PROCEDURE("set-body-property!", 3, 0, 0, set_body_property_x);
   EXPORT_PROCEDURE("body-property", 2, 0, 0, body_property);
+  EXPORT_PROCEDURE("body-type", 1, 0, 0, body_type);
+  EXPORT_PROCEDURE("body-named-", 2, 0, 0, body_named_);
 
   EXPORT_PROCEDURE("make-joint", 3, 0, 0, make_joint);
+  EXPORT_PROCEDURE("set-joint-property!", 3, 0, 0, set_joint_property_x);
+  EXPORT_PROCEDURE("joint-property", 2, 0, 0, joint_property);
+  EXPORT_PROCEDURE("joint-type", 1, 0, 0, joint_type);
 
 #undef EXPORT_PROCEDURE
 #undef DEFINE_PROCEDURE
 }
+
+/*
+static SCM
+mark_ode(SCM ode_smob) {
+  if(SCM_SMOB_FLAGS(ode_smob) == SIM) {
+    sim_t *sim = (sim_t *) SCM_SMOB_DATA(ode_smob);
+    return sim->defs;
+  }
+  return SCM_BOOL_F;
+}
+*/
 
 static int
 print_ode(SCM ode, SCM port, scm_print_state *pstate) {
@@ -148,7 +165,7 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 
 static size_t
 free_ode(SCM smob) {
-  OUT("Attempting to release smob, but that just isn't implemented!");
+  OUT("Attempting to release ode smob, but that just isn't implemented!");
   return 0;
 }
 
@@ -169,7 +186,8 @@ init() {
   ode_tag = scm_make_smob_type("ode", sizeof(void *));
   scm_set_smob_free(ode_tag, free_ode);
   scm_set_smob_print(ode_tag, print_ode);
-
+  //scm_set_smob_mark(ode_tag, mark_ode);
+  
   dInitODE();
   dAllocateODEDataForThread(dAllocateMaskAll);
 }
