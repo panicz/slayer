@@ -66,6 +66,7 @@ make_rig(SCM x_sim) {
   rig_t *rig = new rig_t;
   rig->space = dSimpleSpaceCreate(sim->space);
   rig->parent = sim;
+  sim->rigs.push_back(rig);
   rig->group = dJointGroupCreate(0);
   SET_SMOB_TYPE(RIG, smob, rig);
   scm_remember_upto_here_1(x_sim);
@@ -94,13 +95,13 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("make-rig", 1, 0, 0, make_rig);
   EXPORT_PROCEDURE("simulation-step!", 1, 0, 0, simulation_step);
 
-  EXPORT_PROCEDURE("make-body", 2, 2, 0, make_body);
+  EXPORT_PROCEDURE("make-body", 1, 2, 0, make_body);
   EXPORT_PROCEDURE("set-body-property!", 3, 0, 0, set_body_property_x);
   EXPORT_PROCEDURE("body-property", 2, 0, 0, body_property);
   EXPORT_PROCEDURE("body-type", 1, 0, 0, body_type);
   EXPORT_PROCEDURE("body-named-", 2, 0, 0, body_named_);
 
-  EXPORT_PROCEDURE("make-joint", 3, 0, 0, make_joint);
+  EXPORT_PROCEDURE("make-joint", 2, 0, 0, make_joint);
   EXPORT_PROCEDURE("set-joint-property!", 3, 0, 0, set_joint_property_x);
   EXPORT_PROCEDURE("joint-property", 2, 0, 0, joint_property);
   EXPORT_PROCEDURE("joint-type", 1, 0, 0, joint_type);
@@ -135,7 +136,8 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 
   if(type == SIM) {
     sim_t *sim = (sim_t *) SCM_SMOB_DATA(ode);
-    PRINT("#<simulation %p (dt %.2f)>", (void *) sim, sim->dt);
+    PRINT("#<simulation %p (dt %.2f) (%i rigs)>", (void *) sim, sim->dt,
+	  (int) sim->rigs.size());
   }
   else if(type == RIG) {
     rig_t *rig = (rig_t *) SCM_SMOB_DATA(ode);

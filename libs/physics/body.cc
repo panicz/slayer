@@ -4,9 +4,9 @@ static body_property_getter_map_t body_property_getter;
 
 #define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, ...)	\
   static body_t *							\
-  make_##shape(sim_t *sim, rig_t *rig) {				\
+  make_##shape(rig_t *rig) {						\
     body_t *body = new body_t;						\
-    body->body = create_body(sim->world);				\
+    body->body = create_body(rig->parent->world);			\
     body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
     set_body(body->geom, body->body);					\
     if(body->body) {							\
@@ -167,8 +167,7 @@ init_body_property_accessors() {
 }
 
 static SCM
-make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+make_body(SCM x_rig, SCM s_type, SCM s_name) {
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
   body_t *body;
   SCM smob = SCM_UNSPECIFIED;
@@ -186,7 +185,7 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
     goto end;
   }
 
-  body = (maker->second)(sim, rig);
+  body = (maker->second)(rig);
   body->parent = rig;
   SET_SMOB_TYPE(BODY, smob, body);
 
@@ -198,7 +197,7 @@ make_body(SCM x_sim, SCM x_rig, SCM s_type, SCM s_name) {
   rig->id[gc_protected(s_name)] = body->id;
 
  end:
-  scm_remember_upto_here_2(x_sim, x_rig);
+  scm_remember_upto_here_1(x_rig);
   scm_remember_upto_here_2(s_type, s_name);
   return smob;
 }

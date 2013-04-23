@@ -5,8 +5,8 @@ static joint_property_getter_map_t joint_property_getter;
 
 #define DEF_MAKE_JOINT(type, Type)				\
   static dJointID						\
-  make_##type(sim_t *sim, rig_t *rig) {				\
-    return dJointCreate##Type(sim->world, rig->group);		\
+  make_##type(rig_t *rig) {					\
+    return dJointCreate##Type(rig->parent->world, rig->group);	\
   }
 
 DEF_MAKE_JOINT(ball, Ball);
@@ -40,8 +40,7 @@ init_joint_maker() {
 }
 
 static SCM
-make_joint(SCM x_sim, SCM x_rig, SCM s_type) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+make_joint(SCM x_rig, SCM s_type) {
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_type, 3);
   dJointID joint;
@@ -56,12 +55,11 @@ make_joint(SCM x_sim, SCM x_rig, SCM s_type) {
     goto end;
   }
 
-  joint = (maker->second)(sim, rig);
+  joint = (maker->second)(rig);
   SET_SMOB_TYPE(JOINT, smob, joint);
   
  end:
-  scm_remember_upto_here_2(x_sim, x_rig);
-  scm_remember_upto_here_1(s_type);
+  scm_remember_upto_here_2(s_type, x_rig);
   return smob;
 }
 
