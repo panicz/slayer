@@ -47,20 +47,19 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
 }
 
 static SCM
-make_simulation_() {
+primitive_make_simulation() {
   SCM smob;
   sim_t *sim = new sim_t;
   sim->world = dWorldCreate();
   sim->space = dHashSpaceCreate(0);
   sim->contact_group = dJointGroupCreate(0);
   sim->dt = 0.01;  
-  //sim->defs = SCM_BOOL_F;
   SET_SMOB_TYPE(SIM, smob, sim);
   return smob;
 }
 
 static SCM
-make_rig(SCM x_sim) {
+primitive_make_rig(SCM x_sim) {
   SCM smob;
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   rig_t *rig = new rig_t;
@@ -82,6 +81,37 @@ simulation_step(SCM x_sim) {
   return SCM_UNSPECIFIED;
 }
 
+static SCM
+set_simulation_rig_maker_x(SCM x_sim, SCM s_rig_name, SCM f_rig_maker) {
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_rig_name, 2);
+  ASSERT_SCM_TYPE(procedure, f_rig_maker, 3);
+  general_scm_map_t::iterator rig_def = sim->rig_defs.find(s_rig_name);
+  if(rig_def == sim->rig_defs.end()) {
+    scm_gc_protect_object(s_rig_name);
+  }
+  else {
+    scm_gc_unprotect_object(rig_def->second);
+  }
+  sim->rig_defs[s_rig_name] = gc_protected(f_rig_maker);
+  
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+simulation_rig_maker(SCM x_sim, SCM s_rig_name) {
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_rig_name, 2);
+  general_scm_map_t::iterator rig_def = sim->rig_defs.find(s_rig_name);
+  if(rig_def == sim->rig_defs.end()) {
+    char *name = as_c_string(s_rig_name);
+    WARN("undefined rig: %s", name);
+    free(name);
+    return SCM_BOOL_F;
+  }
+  return rig_def->second;
+}
+
 static void
 export_symbols(void *unused) {
 #define DEFINE_PROCEDURE(name, required, optional, rest, proc)		\
@@ -91,15 +121,19 @@ export_symbols(void *unused) {
   DEFINE_PROCEDURE(name,required,optional,rest,proc);		\
   scm_c_export(name,NULL);
 
-  EXPORT_PROCEDURE("make-simulation-", 0, 0, 0, make_simulation_);
-  EXPORT_PROCEDURE("make-rig", 1, 0, 0, make_rig);
+  DEFINE_PROCEDURE("primitive-make-simulation", 0, 0, 0, 
+		   primitive_make_simulation);
+  DEFINE_PROCEDURE("primitive-make-rig", 1, 0, 0, primitive_make_rig);
   EXPORT_PROCEDURE("simulation-step!", 1, 0, 0, simulation_step);
+  EXPORT_PROCEDURE("set-simulation-rig-maker!", 3, 0, 0, 
+		   set_simulation_rig_maker_x);
+  EXPORT_PROCEDURE("simulation-rig-maker", 2, 0, 0, simulation_rig_maker);
 
-  EXPORT_PROCEDURE("make-body", 1, 2, 0, make_body);
-  EXPORT_PROCEDURE("set-body-property!", 3, 0, 0, set_body_property_x);
+  EXPORT_PROCEDURE("make-body", 3, 0, 0, make_body);
+  EXPORT_PROCEDURE("set-body-property!", 2, 1, 0, set_body_property_x);
   EXPORT_PROCEDURE("body-property", 2, 0, 0, body_property);
   EXPORT_PROCEDURE("body-type", 1, 0, 0, body_type);
-  EXPORT_PROCEDURE("body-named-", 2, 0, 0, body_named_);
+  DEFINE_PROCEDURE("body-named", 2, 0, 0, body_named);
 
   EXPORT_PROCEDURE("make-joint", 2, 0, 0, make_joint);
   EXPORT_PROCEDURE("set-joint-property!", 3, 0, 0, set_joint_property_x);
@@ -110,16 +144,18 @@ export_symbols(void *unused) {
 #undef DEFINE_PROCEDURE
 }
 
-/*
 static SCM
 mark_ode(SCM ode_smob) {
   if(SCM_SMOB_FLAGS(ode_smob) == SIM) {
     sim_t *sim = (sim_t *) SCM_SMOB_DATA(ode_smob);
-    return sim->defs;
+    general_scm_map_t::iterator r;
+    for(r = sim->rig_defs.begin(); r != sim->rig_defs.end(); ++r) {
+      scm_gc_mark(r->first);
+      scm_gc_mark(r->second);
+    }
   }
   return SCM_BOOL_F;
 }
-*/
 
 static int
 print_ode(SCM ode, SCM port, scm_print_state *pstate) {
@@ -156,8 +192,9 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 	  class_name[dGeomGetClass(body->geom)], mass);
   }
   else if(type == JOINT) {
-    dJointID joint = (dJointID) SCM_SMOB_DATA(ode);
-    PRINT("#<joint %p %s>", (void *) joint, joint_type_name[dJointGetType(joint)]);
+    joint_t *joint = (joint_t *) SCM_SMOB_DATA(ode);
+    PRINT("#<joint %p %s>", (void *) joint, 
+	  joint_type_name[dJointGetType(joint->joint)]);
   }
 
   scm_remember_upto_here_1(ode);
@@ -188,7 +225,7 @@ init() {
   ode_tag = scm_make_smob_type("ode", sizeof(void *));
   scm_set_smob_free(ode_tag, free_ode);
   scm_set_smob_print(ode_tag, print_ode);
-  //scm_set_smob_mark(ode_tag, mark_ode);
+  scm_set_smob_mark(ode_tag, mark_ode);
   
   dInitODE();
   dAllocateODEDataForThread(dAllocateMaskAll);

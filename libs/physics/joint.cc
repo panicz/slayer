@@ -42,8 +42,8 @@ init_joint_maker() {
 static SCM
 make_joint(SCM x_rig, SCM s_type) {
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
-  ASSERT_SCM_TYPE(symbol, s_type, 3);
-  dJointID joint;
+  ASSERT_SCM_TYPE(symbol, s_type, 2);
+  joint_t *joint = new joint_t;
   SCM smob = SCM_UNSPECIFIED;
 
   joint_maker_map_t::iterator maker = joint_maker.find(s_type);
@@ -52,27 +52,28 @@ make_joint(SCM x_rig, SCM s_type) {
     char *type = as_c_string(s_type);
     WARN("joint type %s not implemented", type);
     free(type);
-    goto end;
+    return SCM_UNSPECIFIED;
   }
 
-  joint = (maker->second)(rig);
+  joint->joint = (maker->second)(rig);
+  joint->body1_id = -1;
+  joint->body2_id = -1;
+  rig->joints.push_back(joint);
+
   SET_SMOB_TYPE(JOINT, smob, joint);
-  
- end:
-  scm_remember_upto_here_2(s_type, x_rig);
   return smob;
 }
 
 static void
-joint_body1_setter(dJointID joint, SCM value) {
-  BODY_CONDITIONAL_ASSIGN(value, body1,/*void*/);
-  dBodyID body2 = dJointGetBody(joint, 1);
-  dJointAttach(joint, body1->body, body2);
+joint_body1_setter(joint_t *joint, SCM value) {
+  BODY_CONDITIONAL_ASSIGN(value, body1,);
+  dBodyID body2 = dJointGetBody(joint->joint, 1);
+  dJointAttach(joint->joint, body1->body, body2);
 }
 
 static SCM
-joint_body1_getter(dJointID joint) {
-  dBodyID body = dJointGetBody(joint, 0);
+joint_body1_getter(joint_t * joint) {
+  dBodyID body = dJointGetBody(joint->joint, 0);
   if(body) {
     SCM smob;
     body_t *true_body = (body_t *) dBodyGetData(body);
@@ -83,15 +84,15 @@ joint_body1_getter(dJointID joint) {
 }
 
 static void
-joint_body2_setter(dJointID joint, SCM value) {
+joint_body2_setter(joint_t * joint, SCM value) {
   BODY_CONDITIONAL_ASSIGN(value, body2,/*void*/);
-  dBodyID body1 = dJointGetBody(joint, 0);
-  dJointAttach(joint, body1, body2->body);
+  dBodyID body1 = dJointGetBody(joint->joint, 0);
+  dJointAttach(joint->joint, body1, body2->body);
 }
 
 static SCM
-joint_body2_getter(dJointID joint) {
-  dBodyID body = dJointGetBody(joint, 1);
+joint_body2_getter(joint_t * joint) {
+  dBodyID body = dJointGetBody(joint->joint, 1);
   if(body) {
     SCM smob;
     body_t *true_body = (body_t *) dBodyGetData(body);
@@ -103,18 +104,18 @@ joint_body2_getter(dJointID joint) {
 
 #define DEF_JOINT_VECTOR_SETTER(property_name, PropertyName)	\
   static void							\
-  joint_##property_name##_setter(dJointID joint, SCM value) {	\
+  joint_##property_name##_setter(joint_t * joint, SCM value) {	\
     dVector3 v;							\
     scm_to_dVector3(value, &v);					\
-    dJointSet##PropertyName(joint, v[0], v[1], v[2]);		\
+    dJointSet##PropertyName(joint->joint, v[0], v[1], v[2]);	\
     scm_remember_upto_here_1(value);				\
   }
 
 #define DEF_JOINT_VECTOR_GETTER(property_name, PropertyName)	\
   static SCM							\
-  joint_##property_name##_getter(dJointID joint) {		\
+  joint_##property_name##_getter(joint_t * joint) {		\
     dVector3 v;							\
-    dJointGet##PropertyName(joint, v);				\
+    dJointGet##PropertyName(joint->joint, v);			\
     return scm_from_dVector3(v);				\
   }
 
@@ -139,10 +140,10 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
 #undef DEF_JOINT_VECTOR_GETTER
 #undef DEF_JOINT_VECTOR_SETTER
 
-#define DEF_JOINT_REAL_GETTER(property_name, PropertyName)	\
-  static SCM							\
-  joint_##property_name##_getter(dJointID joint) {		\
-    return scm_from_double(dJointGet##PropertyName(joint));	\
+#define DEF_JOINT_REAL_GETTER(property_name, PropertyName)		\
+  static SCM								\
+  joint_##property_name##_getter(joint_t * joint) {			\
+    return scm_from_double(dJointGet##PropertyName(joint->joint));	\
   }
 
 
@@ -150,14 +151,14 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
 
 #define DEF_JOINT_PARAM_SETTER(type, Type, name, Name)			\
   static void								\
-  joint_##type##_##name##_setter(dJointID joint, SCM value) {		\
-    dJointSet##Type##Param(joint, Name, (dReal) scm_to_double(value));	\
+  joint_##type##_##name##_setter(joint_t * joint, SCM value) {		\
+    dJointSet##Type##Param(joint->joint, Name, (dReal) scm_to_double(value)); \
   }
 
 #define DEF_JOINT_PARAM_GETTER(type, Type, name, Name)			\
   static SCM								\
-  joint_##type##_##name##_getter(dJointID joint) {			\
-    return scm_from_double((dReal) dJointGet##Type##Param(joint, Name)); \
+  joint_##type##_##name##_getter(joint_t * joint) {			\
+    return scm_from_double((dReal) dJointGet##Type##Param(joint->joint, Name)); \
   }
 
 #define DEF_JOINT_PARAM_ACCESSOR(type, Type, name, Name)	\
@@ -250,10 +251,10 @@ init_joint_property_accessors() {
 
 
 static SCM
-set_joint_property_x(SCM x_joint, SCM s_prop, SCM s_value) {
+set_joint_property_x(SCM x_joint, SCM s_prop, SCM value) {
   JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_prop, 2);
-  int cl = dJointGetType(joint);
+  int cl = dJointGetType(joint->joint);
 
   joint_property_setter_map_t::iterator setter 
     = joint_property_setter.find(make_pair(s_prop, cl));
@@ -263,13 +264,10 @@ set_joint_property_x(SCM x_joint, SCM s_prop, SCM s_value) {
     WARN("joint property `%s` not implemented for %s", prop, 
 	 joint_type_name[cl]);
     free(prop);
-    goto end;
+    return SCM_BOOL_F;
   }  
-  (setter->second)(joint, s_value);
+  (setter->second)(joint, value);
 
- end:
-  scm_remember_upto_here_2(s_prop, s_value);
-  scm_remember_upto_here_1(x_joint);
   return SCM_UNSPECIFIED;
 }
 
@@ -277,7 +275,7 @@ static SCM
 joint_property(SCM x_joint, SCM s_prop) {
   JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_prop, 2);
-  int cl = dJointGetType(joint); 
+  int cl = dJointGetType(joint->joint); 
 
   joint_property_getter_map_t::iterator getter
     = joint_property_getter.find(make_pair(s_prop, cl));
@@ -298,5 +296,5 @@ joint_property(SCM x_joint, SCM s_prop) {
 static SCM
 joint_type(SCM x_joint) {
   JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
-  return symbol(joint_type_name[dJointGetType(joint)]);
+  return symbol(joint_type_name[dJointGetType(joint->joint)]);
 }

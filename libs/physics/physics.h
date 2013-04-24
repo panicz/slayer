@@ -54,6 +54,13 @@ enum {
 struct body_t;
 struct rig_t;
 struct sim_t;
+struct joint_t;
+
+typedef struct joint_t {
+  dJointID joint;
+  int body1_id;
+  int body2_id;
+} joint_t;
 
 typedef struct body_t {
   rig_t *parent;
@@ -65,11 +72,14 @@ typedef struct body_t {
 typedef unordered_map<SCM, int, hash<SCM>, scm_eq> 
   symbol_index_map_t;
 
+typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> 
+  general_scm_map_t;
+
 typedef struct rig_t {
   sim_t *parent;
   symbol_index_map_t id;
   vector<body_t *> bodies;
-  vector<dJointID> joints;
+  vector<joint_t *> joints;
   dSpaceID space;
   dJointGroupID group;
 } rig_t;
@@ -81,28 +91,28 @@ typedef struct sim_t {
   dJointGroupID contact_group;
   list<dJointID> contacts;
   dReal dt;
-  //SCM defs;
+  general_scm_map_t rig_defs;
 } sim_t;
 
 typedef unordered_map <SCM, body_t *(*)(rig_t *), hash<SCM>, scm_eq>
   body_maker_map_t;
 
-typedef unordered_map <pair<SCM, int>, void (*)(body_t *, SCM), 
+typedef unordered_map <pair<SCM/*symbol*/, int>, void (*)(body_t *, SCM), 
   hash_pair_scm_int, pair_scm_int_eq> body_property_setter_map_t;
 
-typedef unordered_map <pair<SCM, int>, SCM (*)(body_t *), 
+typedef unordered_map <pair<SCM/*symbol*/, int>, SCM (*)(body_t *), 
   hash_pair_scm_int, pair_scm_int_eq> body_property_getter_map_t;
 
-typedef unordered_map <SCM, dJointID (*)(rig_t *), hash<SCM>, scm_eq>
+typedef unordered_map <SCM, dJointID(*)(rig_t *), hash<SCM>, scm_eq>
   joint_maker_map_t;
 
-typedef unordered_map <pair<SCM, int>, void (*)(dJointID, SCM),
+typedef unordered_map <pair<SCM, int>, void (*)(joint_t *, SCM),
   hash_pair_scm_int, pair_scm_int_eq> joint_property_setter_map_t;
 
-typedef unordered_map <pair<SCM, int>, SCM (*)(dJointID),
-  hash_pair_scm_int, pair_scm_int_eq> joint_property_getter_map_t;
+typedef unordered_map <pair<SCM, int>, SCM (*)(joint_t *),
+     hash_pair_scm_int, pair_scm_int_eq > joint_property_getter_map_t;
 
-
+							
 #define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var, d_val)	\
   scm_assert_smob_type(ode_tag, scm_var);				\
   if(SCM_SMOB_FLAGS(scm_var) != TYPE) {					\
@@ -121,7 +131,7 @@ typedef unordered_map <pair<SCM, int>, SCM (*)(dJointID),
   MDEF_CONDITIONAL_ASSIGN(BODY, scm_var, body_t *, c_var, d_val)
 
 #define JOINT_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
-  MDEF_CONDITIONAL_ASSIGN(JOINT, scm_var, dJointID, c_var, d_val)
+  MDEF_CONDITIONAL_ASSIGN(JOINT, scm_var, joint_t *, c_var, d_val)
 
 
 #define SET_SMOB_TYPE(type, smob, c_var)	\

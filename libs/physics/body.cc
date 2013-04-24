@@ -12,8 +12,8 @@ static body_property_getter_map_t body_property_getter;
     if(body->body) {							\
       dBodySetData(body->body, (void *) body);				\
     }									\
-    rig->bodies.push_back(body);					\
     body->id = rig->bodies.size();					\
+    rig->bodies.push_back(body);					\
     return body;							\
   }
 
@@ -169,12 +169,11 @@ init_body_property_accessors() {
 static SCM
 make_body(SCM x_rig, SCM s_type, SCM s_name) {
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_type, 2);
+  ASSERT_SCM_TYPE(symbol, s_name, 3);
+
   body_t *body;
   SCM smob = SCM_UNSPECIFIED;
-  if(!GIVEN(s_type)) {
-    WARN("default argument not supported (yet)");
-  }
-  ASSERT_SCM_TYPE(symbol, s_type, 3);
 
   body_maker_map_t::iterator maker = body_maker.find(s_type);
   
@@ -182,45 +181,42 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
     char *type = as_c_string(s_type);
     WARN("body type not %s implemented", type);
     free(type);
-    goto end;
+    return SCM_UNSPECIFIED;
   }
 
   body = (maker->second)(rig);
   body->parent = rig;
   SET_SMOB_TYPE(BODY, smob, body);
 
-  if(!GIVEN(s_name)) {
-    goto end;
-  }
-  
-  ASSERT_SCM_TYPE(symbol, s_name, 4);
   rig->id[gc_protected(s_name)] = body->id;
 
- end:
   scm_remember_upto_here_1(x_rig);
   scm_remember_upto_here_2(s_type, s_name);
   return smob;
 }
 
 static SCM
-body_named_(SCM s_name, SCM x_rig) {
+body_named(SCM s_name, SCM x_rig) {
   ASSERT_SCM_TYPE(symbol, s_name, 1);
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
   SCM smob;
+
   symbol_index_map_t::iterator id = rig->id.find(s_name);
+
   if(id == rig->id.end()) {
     char *name = as_c_string(s_name);
     WARN("no body named '%s' found in rig %p", name, rig);
     free(name);
     return SCM_BOOL_F;
   }
+
   SET_SMOB_TYPE(BODY, smob, rig->bodies[id->second]);
   return smob;
 }
 
 
 static SCM
-set_body_property_x(SCM x_body, SCM s_prop, SCM s_value) {
+set_body_property_x(SCM x_body, SCM s_prop, SCM value) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_prop, 2);
   int cl = dGeomGetClass(body->geom);
@@ -234,10 +230,10 @@ set_body_property_x(SCM x_body, SCM s_prop, SCM s_value) {
     free(prop);
     goto end;
   }  
-  (setter->second)(body, s_value);
+  (setter->second)(body, value);
 
  end:
-  scm_remember_upto_here_2(s_prop, s_value);
+  scm_remember_upto_here_2(s_prop, value);
   scm_remember_upto_here_1(x_body);
   return SCM_UNSPECIFIED;
 }
