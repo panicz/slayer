@@ -291,9 +291,16 @@ joint_property(SCM x_joint, SCM s_prop) {
   return (getter->second)(joint);
 }
 
-
 static SCM
 joint_type(SCM x_joint) {
   JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
   return symbol(joint_type_name[dJointGetType(joint->joint)]);
 }
+
+// to understand what's goint on here, see the definition of `export-symbols'
+// function in `physics.cc' file
+#define EXPORT_JOINT_PROCEDURES						\
+  EXPORT_PROC("make-joint", 2, 0, 0, make_joint);			\
+  EXPORT_PROC("set-joint-property!", 3, 0, 0, set_joint_property_x);	\
+  EXPORT_PROC("joint-property", 2, 0, 0, joint_property);		\
+  EXPORT_PROC("joint-type", 1, 0, 0, joint_type)

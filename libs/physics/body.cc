@@ -261,3 +261,13 @@ body_type(SCM x_body) {
   scm_remember_upto_here_1(x_body);
   return symbol(class_name[dGeomGetClass(body->geom)]);
 }
+
+
+// to understand what's goint on here, see the definition of `export-symbols'
+// function in `physics.cc' file
+#define EXPORT_BODY_PROCEDURES						\
+  EXPORT_PROC("make-body", 3, 0, 0, make_body);				\
+  EXPORT_PROC("set-body-property!", 2, 1, 0, set_body_property_x);	\
+  EXPORT_PROC("body-property", 2, 0, 0, body_property);			\
+  EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
+  DEFINE_PROC("body-named", 2, 0, 0, body_named)
