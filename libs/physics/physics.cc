@@ -132,11 +132,11 @@ free_ode(SCM smob) {
 
 extern "C" void 
 init() {
-  init_body_maker();
-  init_body_property_accessors();
-  
-  init_joint_maker();
-  init_joint_property_accessors();
+
+  INIT_SIM_MODULE;
+  INIT_RIG_MODULE;
+  INIT_BODY_MODULE;
+  INIT_JOINT_MODULE;
 
   s_f32 = gc_protected(symbol("f32"));
   s_f64 = gc_protected(symbol("f64"));

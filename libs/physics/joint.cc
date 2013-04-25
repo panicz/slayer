@@ -304,3 +304,7 @@ joint_type(SCM x_joint) {
   EXPORT_PROC("set-joint-property!", 3, 0, 0, set_joint_property_x);	\
   EXPORT_PROC("joint-property", 2, 0, 0, joint_property);		\
   EXPORT_PROC("joint-type", 1, 0, 0, joint_type)
+
+#define INIT_JOINT_MODULE			\
+  init_joint_maker();				\
+  init_joint_property_accessors()

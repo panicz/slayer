@@ -46,6 +46,7 @@ body_box_dimensions_setter(body_t *body, SCM value) {
   dVector3 v;
   scm_to_dVector3(value, &v);
   dGeomBoxSetLengths(body->geom, v[0], v[1], v[2]);
+  scm_remember_upto_here_1(value);
 }
 
 static SCM
@@ -225,11 +226,10 @@ set_body_property_x(SCM x_body, SCM s_prop, SCM value) {
     char *prop = as_c_string(s_prop);
     WARN("body property `%s` not implemented for %s", prop, class_name[cl]);
     free(prop);
-    goto end;
+    return SCM_BOOL_F;
   }  
   (setter->second)(body, value);
 
- end:
   scm_remember_upto_here_2(s_prop, value);
   scm_remember_upto_here_1(x_body);
   return SCM_UNSPECIFIED;
@@ -271,3 +271,7 @@ body_type(SCM x_body) {
   EXPORT_PROC("body-property", 2, 0, 0, body_property);			\
   EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
   DEFINE_PROC("body-named", 2, 0, 0, body_named)
+
+#define INIT_BODY_MODULE			\
+  init_body_maker();				\
+  init_body_property_accessors()

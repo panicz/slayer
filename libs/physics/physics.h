@@ -100,10 +100,10 @@ typedef struct sim_t {
 typedef unordered_map <SCM, body_t *(*)(rig_t *), hash<SCM>, scm_eq>
   body_maker_map_t;
 
-typedef unordered_map <pair<SCM/*symbol*/, int>, void (*)(body_t *, SCM), 
+typedef unordered_map <pair<SCM, int>, void (*)(body_t *, SCM), 
   hash_pair_scm_int, pair_scm_int_eq> body_property_setter_map_t;
 
-typedef unordered_map <pair<SCM/*symbol*/, int>, SCM (*)(body_t *), 
+typedef unordered_map <pair<SCM, int>, SCM (*)(body_t *), 
   hash_pair_scm_int, pair_scm_int_eq> body_property_getter_map_t;
 
 typedef unordered_map <SCM, dJointID(*)(rig_t *), hash<SCM>, scm_eq>
@@ -113,7 +113,13 @@ typedef unordered_map <pair<SCM, int>, void (*)(joint_t *, SCM),
   hash_pair_scm_int, pair_scm_int_eq> joint_property_setter_map_t;
 
 typedef unordered_map <pair<SCM, int>, SCM (*)(joint_t *),
-     hash_pair_scm_int, pair_scm_int_eq > joint_property_getter_map_t;
+  hash_pair_scm_int, pair_scm_int_eq > joint_property_getter_map_t;
+
+typedef unordered_map<SCM, void (*)(sim_t *, SCM), hash<SCM>, scm_eq>
+  sim_property_setter_map_t;
+
+typedef unordered_map<SCM, SCM (*)(sim_t *), hash<SCM>, scm_eq>
+  sim_property_getter_map_t;
 
 							
 #define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var, d_val)	\

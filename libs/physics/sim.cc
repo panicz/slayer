@@ -1,3 +1,6 @@
+sim_property_setter_map_t sim_property_setter;
+sim_property_getter_map_t sim_property_getter;
+
 static SCM
 primitive_make_simulation() {
   sim_t *sim = new sim_t;
@@ -61,6 +64,74 @@ simulation_rig_maker(SCM x_sim, SCM s_rig_name) {
   return rig_def->second;
 }
 
+static void
+simulation_gravity_setter(sim_t *sim, SCM value) {
+  dVector3 v;
+  scm_to_dVector3(value, &v);
+  dWorldSetGravity(sim->world, v[0], v[1], v[2]);
+}
+
+static SCM
+simulation_gravity_getter(sim_t *sim) {
+  dVector3 v;
+  dWorldGetGravity(sim->world, v);
+  return scm_from_dVector3(v);
+}
+
+static SCM
+set_simulation_property_x(SCM x_sim, SCM s_prop, SCM value) {
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_prop, 2);
+  
+  sim_property_setter_map_t::iterator setter 
+    = sim_property_setter.find(s_prop);
+
+  if(setter == sim_property_setter.end()) {
+    char *prop = as_c_string(s_prop);
+    WARN("simulation property `%s` not implemented", prop);
+    free(prop);
+    return SCM_BOOL_F;
+  }
+
+  (setter->second)(sim, value);
+
+  scm_remember_upto_here_2(s_prop, value);
+  scm_remember_upto_here_1(x_sim);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+simulation_property(SCM x_sim, SCM s_prop) {
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+  ASSERT_SCM_TYPE(symbol, s_prop, 2);
+
+  sim_property_getter_map_t::iterator getter
+    = sim_property_getter.find(s_prop);
+
+  if(getter == sim_property_getter.end()) {
+    char *prop = as_c_string(s_prop);
+    WARN("simulation property `%s` not implemented", prop);
+    free(prop);
+    return SCM_UNSPECIFIED;
+  }
+  scm_remember_upto_here_2(x_sim, s_prop);
+  return (getter->second)(sim);
+}
+
+static void
+init_sim_property_accessors() {
+  SCM name;
+#define SET_SIM_ACCESSORS(property)					\
+  name = gc_protected(symbol(# property));				\
+  sim_property_setter[name] = simulation_##property##_setter;		\
+  sim_property_getter[name] = simulation_##property##_getter
+  
+  SET_SIM_ACCESSORS(gravity);
+  
+#undef SET_SIM_ACCESSORS  
+}
+
+
 
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
@@ -69,4 +140,9 @@ simulation_rig_maker(SCM x_sim, SCM s_rig_name) {
   EXPORT_PROC("simulation-step!",1,0,0,simulation_step);		\
   EXPORT_PROC("set-simulation-rig-maker!",3,0,0,set_simulation_rig_maker_x); \
   EXPORT_PROC("simulation-rig-maker",2,0,0,simulation_rig_maker);	\
-  EXPORT_PROC("simulation-rigs",1,0,0,simulation_rigs)
+  EXPORT_PROC("simulation-rigs",1,0,0,simulation_rigs);			\
+  EXPORT_PROC("simulation-property",2,0,0,simulation_property);		\
+  EXPORT_PROC("set-simulation-property!",3,0,0,set_simulation_property_x)
+
+#define INIT_SIM_MODULE				\
+  init_sim_property_accessors()

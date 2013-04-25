@@ -28,3 +28,5 @@ rig_bodies(SCM x_rig) {
 #define EXPORT_RIG_PROCEDURES						\
   DEFINE_PROC("primitive-make-rig", 1, 0, 0, primitive_make_rig);	\
   EXPORT_PROC("rig-bodies", 1, 0, 0, rig_bodies)
+
+#define INIT_RIG_MODULE do {} while(0)
