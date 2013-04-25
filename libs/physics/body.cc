@@ -173,7 +173,6 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
   ASSERT_SCM_TYPE(symbol, s_name, 3);
 
   body_t *body;
-  SCM smob = SCM_UNSPECIFIED;
 
   body_maker_map_t::iterator maker = body_maker.find(s_type);
   
@@ -186,20 +185,19 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
 
   body = (maker->second)(rig);
   body->parent = rig;
-  SET_SMOB_TYPE(BODY, smob, body);
+  dBodySetData(body->body, body);
 
   rig->id[gc_protected(s_name)] = body->id;
 
   scm_remember_upto_here_1(x_rig);
-  scm_remember_upto_here_2(s_type, s_name);
-  return smob;
+  scm_remember_upto_here_2(s_type, s_name);  
+  return body_to_smob(body);
 }
 
 static SCM
 body_named(SCM s_name, SCM x_rig) {
   ASSERT_SCM_TYPE(symbol, s_name, 1);
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
-  SCM smob;
 
   symbol_index_map_t::iterator id = rig->id.find(s_name);
 
@@ -210,8 +208,7 @@ body_named(SCM s_name, SCM x_rig) {
     return SCM_BOOL_F;
   }
 
-  SET_SMOB_TYPE(BODY, smob, rig->bodies[id->second]);
-  return smob;
+  return body_to_smob(rig->bodies[id->second]);
 }
 
 
@@ -261,5 +258,6 @@ body_property(SCM x_body, SCM s_prop) {
 static SCM
 body_type(SCM x_body) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  scm_remember_upto_here_1(x_body);
   return symbol(class_name[dGeomGetClass(body->geom)]);
 }

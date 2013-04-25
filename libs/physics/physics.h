@@ -14,6 +14,7 @@
 
 using namespace std;
 
+extern scm_t_bits ode_tag;
 extern SCM s_f32;
 extern SCM s_f64;
 
@@ -135,10 +136,24 @@ typedef unordered_map <pair<SCM, int>, SCM (*)(joint_t *),
 #define JOINT_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
   MDEF_CONDITIONAL_ASSIGN(JOINT, scm_var, joint_t *, c_var, d_val)
 
-
 #define SET_SMOB_TYPE(type, smob, c_var)	\
   SCM_NEWSMOB(smob, ode_tag, c_var);		\
   SCM_SET_SMOB_FLAGS(smob, type)
+
+#define DEF_TYPE_TO_SMOB(TYPE, type)		\
+  static inline SCM				\
+  type##_to_smob(type##_t *object) {		\
+    SCM smob;					\
+    SET_SMOB_TYPE(TYPE, smob, object);		\
+    return smob;				\
+  }
+
+DEF_TYPE_TO_SMOB(BODY, body);
+DEF_TYPE_TO_SMOB(RIG, rig);
+DEF_TYPE_TO_SMOB(SIM, sim);
+DEF_TYPE_TO_SMOB(JOINT, joint);
+
+#undef TYPE_TO_SMOB
 
 #if defined(dSINGLE)
 # define ARRAY_TYPE s_f32

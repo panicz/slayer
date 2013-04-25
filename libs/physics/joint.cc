@@ -44,7 +44,6 @@ make_joint(SCM x_rig, SCM s_type) {
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_type, 2);
   joint_t *joint = new joint_t;
-  SCM smob = SCM_UNSPECIFIED;
 
   joint_maker_map_t::iterator maker = joint_maker.find(s_type);
   
@@ -61,8 +60,7 @@ make_joint(SCM x_rig, SCM s_type) {
   joint->parent = rig;
   rig->joints.push_back(joint);
 
-  SET_SMOB_TYPE(JOINT, smob, joint);
-  return smob;
+  return joint_to_smob(joint);
 }
 
 static void
@@ -79,10 +77,7 @@ static SCM
 joint_body1_getter(joint_t * joint) {
   dBodyID body = dJointGetBody(joint->joint, 0);
   if(body) {
-    SCM smob;
-    body_t *true_body = (body_t *) dBodyGetData(body);
-    SET_SMOB_TYPE(BODY, smob, true_body);
-    return smob;
+    return body_to_smob((body_t *) dBodyGetData(body));
   }
   return SCM_BOOL_F;
 }
@@ -101,10 +96,7 @@ static SCM
 joint_body2_getter(joint_t * joint) {
   dBodyID body = dJointGetBody(joint->joint, 1);
   if(body) {
-    SCM smob;
-    body_t *true_body = (body_t *) dBodyGetData(body);
-    SET_SMOB_TYPE(BODY, smob, true_body);
-    return smob;
+    return body_to_smob((body_t *) dBodyGetData(body));
   }
   return SCM_BOOL_F;
 }

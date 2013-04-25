@@ -88,6 +88,10 @@
 (make-rig sim 'buggy)
 
 (simulation-step! sim)
+(map (\ body-property _ 'position ) (rig-bodies (car (simulation-rigs sim))))
+
+
+(simulation-step! sim)
 
 (define r (primitive-make-rig sim))
 

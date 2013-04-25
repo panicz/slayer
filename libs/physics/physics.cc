@@ -48,28 +48,51 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
 
 static SCM
 primitive_make_simulation() {
-  SCM smob;
   sim_t *sim = new sim_t;
   sim->world = dWorldCreate();
   sim->space = dHashSpaceCreate(0);
   sim->contact_group = dJointGroupCreate(0);
   sim->dt = 0.01;  
-  SET_SMOB_TYPE(SIM, smob, sim);
-  return smob;
+  return sim_to_smob(sim);
 }
 
 static SCM
 primitive_make_rig(SCM x_sim) {
-  SCM smob;
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   rig_t *rig = new rig_t;
   rig->space = dSimpleSpaceCreate(sim->space);
   rig->parent = sim;
   sim->rigs.push_back(rig);
   rig->group = dJointGroupCreate(0);
-  SET_SMOB_TYPE(RIG, smob, rig);
   scm_remember_upto_here_1(x_sim);
-  return smob;
+  return rig_to_smob(rig);
+}
+
+
+static SCM
+simulation_rigs(SCM x_sim) {
+  SCM result = SCM_EOL;
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, result);
+  list<rig_t *>::iterator rig;
+  for(rig = sim->rigs.begin(); rig != sim->rigs.end(); ++rig) {
+    result = scm_cons(rig_to_smob(*rig), result);
+  }
+
+  scm_remember_upto_here_1(x_sim);
+  return result;
+}
+
+static SCM
+rig_bodies(SCM x_rig) {
+  SCM result = SCM_EOL;
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig, result);
+  vector<body_t *>::iterator body;
+  for(body = rig->bodies.begin(); body != rig->bodies.end(); ++body) {
+    result = scm_cons(body_to_smob(*body), result);
+  }
+
+  scm_remember_upto_here_1(x_rig);
+  return result;
 }
 
 static SCM
@@ -139,6 +162,9 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-joint-property!", 3, 0, 0, set_joint_property_x);
   EXPORT_PROCEDURE("joint-property", 2, 0, 0, joint_property);
   EXPORT_PROCEDURE("joint-type", 1, 0, 0, joint_type);
+
+  EXPORT_PROCEDURE("rig-bodies", 1, 0, 0, rig_bodies);
+  EXPORT_PROCEDURE("simulation-rigs", 1, 0, 0, simulation_rigs);
 
 #undef EXPORT_PROCEDURE
 #undef DEFINE_PROCEDURE
