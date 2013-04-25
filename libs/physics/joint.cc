@@ -58,6 +58,7 @@ make_joint(SCM x_rig, SCM s_type) {
   joint->joint = (maker->second)(rig);
   joint->body1_id = -1;
   joint->body2_id = -1;
+  joint->parent = rig;
   rig->joints.push_back(joint);
 
   SET_SMOB_TYPE(JOINT, smob, joint);
@@ -67,8 +68,11 @@ make_joint(SCM x_rig, SCM s_type) {
 static void
 joint_body1_setter(joint_t *joint, SCM value) {
   BODY_CONDITIONAL_ASSIGN(value, body1,);
-  dBodyID body2 = dJointGetBody(joint->joint, 1);
-  dJointAttach(joint->joint, body1->body, body2);
+  joint->body1_id = body1->id;
+  if (joint->body2_id > -1) {
+    body_t *body2 = joint->parent->bodies[joint->body2_id];
+    dJointAttach(joint->joint, body1->body, body2->body);
+  }
 }
 
 static SCM
@@ -85,9 +89,12 @@ joint_body1_getter(joint_t * joint) {
 
 static void
 joint_body2_setter(joint_t * joint, SCM value) {
-  BODY_CONDITIONAL_ASSIGN(value, body2,/*void*/);
-  dBodyID body1 = dJointGetBody(joint->joint, 0);
-  dJointAttach(joint->joint, body1, body2->body);
+  BODY_CONDITIONAL_ASSIGN(value, body2,);
+  joint->body2_id = body2->id;
+  if (joint->body1_id > -1) {
+    body_t *body1 = joint->parent->bodies[joint->body1_id];
+    dJointAttach(joint->joint, body1->body, body2->body);
+  }
 }
 
 static SCM

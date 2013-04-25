@@ -47,8 +47,9 @@ enum {
   RIG = 1,
   BODY = 2,
   JOINT = 3,
+  CONTACT = 4,
 
-  NTYPES = 4
+  NTYPES = 5
 };
 
 struct body_t;
@@ -57,6 +58,7 @@ struct sim_t;
 struct joint_t;
 
 typedef struct joint_t {
+  rig_t *parent;
   dJointID joint;
   int body1_id;
   int body2_id;

@@ -45,9 +45,9 @@
 			  (else 
 			   else)))))
 		 (for (property value) in (map-n 2 list props)
-		      (display `(set-joint-property! ,joint 
-						     ,(keyword->symbol property)
-						     ,(literal value))))))
+		      (set-joint-property! joint 
+					   (keyword->symbol property)
+					   (literal value)))))
 	  rig))))))
 
 (define (make-rig simulation name)
@@ -87,6 +87,8 @@
 
 (make-rig sim 'buggy)
 
+(simulation-step! sim)
+
 (define r (primitive-make-rig sim))
 
 (make-body r 'cylinder 'one)
@@ -95,7 +97,11 @@
 
 (define j (make-joint r 'hinge-2))
 
-(set-joint-property! j 'body-2 (body-named 'one r))
+(set-joint-property! j 'body-1 (body-named 'one r))
+
+(set-joint-property! j 'body-2 (body-named 'two r))
+
+(joint-property j 'body-1)
 
 (joint-property j 'body-2)
 
