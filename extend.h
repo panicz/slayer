@@ -27,7 +27,6 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
 #define ASSERT_SCM_TYPE(type, var, pos)					\
   SCM_ASSERT_TYPE(scm_is_##type(var), var, pos, __FUNCTION__, # type)
 
-
 #define DEFINE_ARRAY_GETTER(name, type, failval, getter)	\
   static inline type						\
   name(SCM array, ...) {					\
@@ -232,6 +231,10 @@ static inline int
 is_scm_procedure(SCM s) {
   return scm_is_true(scm_procedure_p(s));
 }
+
+#ifndef scm_is_procedure
+# define scm_is_procedure is_scm_procedure
+#endif
 
 static inline int 
 stands_for_scm_procedure(SCM s) {
