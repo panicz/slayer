@@ -203,8 +203,8 @@ main(int argc, char *argv[]) {
 #else
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
-  setenv("GUILE_LOAD_PATH", ".", 1);
-  setenv("LTDL_LIBRARY_PATH", "./libs", 1);
+  setenv("GUILE_LOAD_PATH", ".:./libs", 1);
+  setenv("LTDL_LIBRARY_PATH", ".:./libs", 1);
   setenv("LC_ALL", "C.UTF8", 1); // discard locale
 
   if (!arg.infile) {
