@@ -110,6 +110,27 @@ body_rotation_getter(body_t *body) {
   return SCM_UNSPECIFIED;
 }
 
+static SCM
+body_quaternion_getter(body_t *body) {
+  if(body->body) {
+    dReal const *Q = dBodyGetQuaternion(body->body);
+    return scm_from_dQuaternion(Q);
+  }
+  WARN("function called on a void body");
+  return SCM_UNSPECIFIED;
+}
+
+static void
+body_quaternion_setter(body_t *body, SCM value) {
+  if(body->body) { 
+    WARN("function called on void body");
+    return;
+  }
+  dQuaternion Q;
+  scm_to_dQuaternion(value, &Q);
+  dBodySetQuaternion(body->body, Q);
+}
+
 static void
 body_mass_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
@@ -183,6 +204,7 @@ init_body_property_accessors() {
     SET_BODY_ACCESSORS(i,, mass);
     SET_BODY_ACCESSORS(i,, position);
     SET_BODY_ACCESSORS(i,, rotation);
+    SET_BODY_ACCESSORS(i,, quaternion);
     //endif
   }
 

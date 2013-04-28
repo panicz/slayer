@@ -309,6 +309,36 @@ DEF_SCM_FROM_DMATRIX(4);
 DEF_SCM_TO_DMATRIX(3);
 DEF_SCM_TO_DMATRIX(4);
 
-#undef DEF_SCM_FROM_DMATRIX
+#undef DEF_SCM_TO_DMATRIX
+
+static inline void
+scm_to_dQuaternion(SCM Q, dQuaternion *q) {
+  if (scm_is_array(Q)) {
+    scm_to_dVector4(Q, ((dVector4 *) q));
+    return;
+  }
+  if (scm_is_pair(Q)) {
+    scm_to_dVector3(scm_car(Q), ((dVector3 *) q));
+    ((dReal *) q)[3] = (dReal) scm_to_double(scm_cdr(Q));
+    return;
+  }
+  WARN("Conversion to quaternion failed");
+}
+
+static inline SCM
+scm_from_dQuaternion(const dQuaternion q) {
+  SCM Q = scm_make_typed_array(ARRAY_TYPE, SCM_UNSPECIFIED,
+			       scm_list_1(scm_from_int(3)));
+  scm_t_array_handle h;
+  scm_array_get_handle(Q, &h);
+  dReal *elements
+    = (dReal *) scm_array_handle_uniform_writable_elements(&h);
+  for(int i = 0; i < 3; ++i) {
+    elements[i] = q[i];
+  }
+  scm_array_handle_release(&h);
+  return scm_cons(Q, scm_from_double((double) q[3]));
+}
+
 
 #endif // _PHYSICS_H 
