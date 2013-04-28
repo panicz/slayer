@@ -3,6 +3,7 @@ CXX = g++ -std=c++0x
 CFLAGS = `pkg-config --cflags guile-2.0 ode` -I. -I../.. -Wall -O3
 LIBODE = `pkg-config --libs ode`
 
+.PHONY:	clean
 all: physics.so
 
 physics.so: physics.cc physics.h body.cc joint.cc sim.cc rig.cc

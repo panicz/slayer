@@ -3,6 +3,7 @@ CXX = g++ -std=c++0x
 CFLAGS = `pkg-config --cflags guile-2.0 sdl ode` -I. -I../.. -Wall
 LIBODE = `pkg-config --libs ode`
 
+.PHONY:	clean
 all: sim
 
 sim: sim.cc

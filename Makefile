@@ -14,6 +14,7 @@ OBJ_BINARCH = i386
 OBJ_TARGET = elf32-i386
 endif
 
+.PHONY:	clean
 all: slayer libraries
 
 .c.o:
@@ -29,7 +30,7 @@ libraries:
 	cd libs && make
 
 clean:
-	rm -f slayer *.o *~ widgets/*.go widgets/*~ extra/*~ *.go extra/*.go libs/*.so libs/*~
+	rm -f slayer *.o *~ widgets/*.go widgets/*~ extra/*~ *.go extra/*.go
 	cd libs && make clean
 
 again:
