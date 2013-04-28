@@ -1,10 +1,31 @@
 (define-module (libs physics)
   #:use-module (extra common)
+  #:export (define-rig-for make-rig
+	     primitive-make-simulation
+	     simulation-step!
+	     set-simulation-rig-maker!
+	     simulation-rig-maker
+	     simulation-rigs
+	     simulation-property
+	     set-simulation-property!
+	     
+	     primitive-make-rig
+	     rig-bodies
+
+	     make-body
+	     set-body-property!
+	     body-property
+	     body-type
+	     body-named
+
+	     make-joint
+	     set-joint-property!
+	     joint-property
+	     joint-type
+	     )
   #:export-syntax (define-rigs-for-sim))
 
 (load-extension "physics" "init")
-
-(use-modules (extra common))
 
 (define-syntax define-rigs-for
   (syntax-rules ()
@@ -56,8 +77,7 @@
 	(rig-maker simulation)
 	(throw 'undefined-rig simulation name))))
 
-(define sim (primitive-make-simulation))
-
+#|
 (define-rigs-for sim
   ;;(ground (with-input-from-file "rigs/ground.scm" read))
   (buggy '(rig
@@ -85,10 +105,15 @@
 		     #:suspension-erp 0.4 
 		     #:suspension-cfm 0.8 #:lo-stop 0 #:hi-stop 0)))))
 
-(make-rig sim 'buggy)
 
+(make-rig sim 'buggy)
+(set-simulation-property! sim 'gravity #(0 0 0.98))
+
+(begin
 (simulation-step! sim)
+(map (\ body-property _ 'rotation ) (rig-bodies (car (simulation-rigs sim))))
 (map (\ body-property _ 'position ) (rig-bodies (car (simulation-rigs sim))))
+)
 
 
 (simulation-step! sim)
@@ -108,7 +133,7 @@
 (joint-property j 'body-1)
 
 (joint-property j 'body-2)
-
+|#
 
 #|
 (define (define-rig-for simulation rig-name rig-def)
