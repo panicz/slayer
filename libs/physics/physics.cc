@@ -126,7 +126,7 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 
 static size_t
 free_ode(SCM smob) {
-  OUT("Attempting to release ode smob, but that just isn't implemented!");
+  WARN_UPTO(7, "Attempting to release ode smob, but that just isn't implemented!");
   return 0;
 }
 
