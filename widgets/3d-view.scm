@@ -14,7 +14,9 @@
   (set! #[mesh 'mesh] 
 	#;(generate-open-cylinder #:base-points 6)
 	#;(hemisphere #:density 30)
-	(generate-capsule)
+	;(generate-cube)
+	(square-grid #:size 10.0 #:density 50)
+	;(generate-capsule #:height 0.0)
 	#;(generate-hemisphere #:radius 0.2)
 	#;(generate-circle #:radius 0.2)
 	#;(with-input-from-file "3d/basket.3d" read)))
@@ -25,6 +27,8 @@
      (for-each (match-lambda
 		(('vertices (? array? array))
 		 (set-vertices-array! array))
+		(('color color)
+		 (set-color! color))
 		(('colors (? array? array))
 		 (set-colors-array! array))
 		(('normals (? array? array))

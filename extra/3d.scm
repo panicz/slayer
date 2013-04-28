@@ -15,6 +15,10 @@
 	   generate-hemisphere
 	   generate-capsule
 	   generate-cube
+	   generate-mesh
+	   square-mesh
+	   rectangle-grid
+	   square-grid
 	   hemisphere
 	   generate-open-cylinder
 	   )
@@ -83,9 +87,9 @@
 (define (quads->quad-strip lst)
   (throw 'not-implemented))
 
-(define* (rectangle-mesh 
-	  #:key (width-start -1.0) (width-end 1.0) (width-points 10)
-	  (height-start -1.0) (height-end 1.0) (height-points 10))
+(define* (rectangle-mesh #:key (width-start -1.0) (width-end 1.0)
+			 (width-points 10) (height-start -1.0) 
+			 (height-end 1.0) (height-points 10))
   (let ((width (- width-end width-start))
 	(height (- height-end height-start))
 	(points (* width-points height-points)))
@@ -106,12 +110,38 @@
       `(mesh
 	(vertices
 	 ,(list->typed-array 'f32 2 mesh))
+	(color #f32(0 1 0))
 	(faces
-	 (quads ,(list->uniform-array faces)))))))
+	 (points ,(list->uniform-array faces)))))))
+
+(define* (rectangle-grid #:key (width-start -1.0) (width-end 1.0)
+			 (width-points 10) (height-start -1.0) 
+			 (height-end 1.0) (height-points 10))
+  (let ((w (- width-end width-start))
+	(h (- height-end height-start)))
+    (let ((ver (iota width-points width-start (/ w (1- width-points))))
+	  (hor (iota height-points height-start (/ h (1- height-points)))))
+      `(mesh
+	(vertices
+	 ,(list->uniform-array
+	   (append
+	    (append-map (lambda(x)`((,x ,height-start)(,x ,height-end))) ver)
+	    (append-map (lambda(y)`((,width-start ,y)(,width-end ,y))) hor))))
+	(color #f32(0 0.5 0))
+	(faces (lines ,(list->uniform-array 
+			(iota (* 2 (+ width-points height-points))))))))))
+
+(define* (square-grid #:key (size 1.0) (density 10))
+  (let ((start (exact->inexact(/ size -2)))
+	(end (exact->inexact (/ size 2))))
+    (rectangle-grid #:width-start start #:width-end end 
+		    #:width-points density
+		    #:height-start start #:height-end end 
+		    #:height-points density)))
 
 (define* (square-mesh #:key (size 1.0) (density 10))
-  (let ((start (/ size -2))
-	(end (/ size 2)))
+  (let ((start (exact->inexact (/ size -2)))
+	(end (exact->inexact (/ size 2))))
     (rectangle-mesh #:width-start start #:width-end end 
 		    #:width-points density
 		    #:height-start start #:height-end end 
