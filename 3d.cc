@@ -7,6 +7,9 @@
 
 extern "C" void glWindowPos2i (GLint x, GLint y);
 
+static SCM s_f32;
+static SCM s_f64;
+
 #define DEF_SCM_TO_V(n,t,ype) \
 static inline v##n##t \
 scm_to_v##n##t(SCM vector) { \
@@ -64,6 +67,42 @@ static SCM
 translate_view_x(SCM vector) {
   v3f v = scm_to_v3f(vector);
   glTranslatef(v.x, v.y, v.z);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+multiply_matrix_x(SCM M) {
+  scm_t_array_handle h;
+  if (scm_is_array(M)) {
+    scm_array_get_handle(M, &h);
+    size_t size = scm_array_handle_nelems(&h);
+    if (size < 16) {
+      WARN("Trying to multiply matrix by too few elements: %d", (int) size);
+      goto release;
+    }
+    if (scm_is_typed_array(M, s_f32)) {
+      float const *elements
+	= scm_array_handle_f32_elements(&h);
+      glMultMatrixf(elements); 
+    }
+    else if(scm_is_typed_array(M, s_f64)) {
+      double const *elements
+	= scm_array_handle_f64_elements(&h);
+      glMultMatrixd(elements);
+    }
+    else {
+      SCM *elements = (SCM *) scm_array_handle_elements(&h);
+      m4x4d matrix;
+      for(int i = 0; i < 4; ++i) {
+	for(int j = 0; j < 4; ++j) {
+	  matrix[j][i] = scm_to_double(elements[4*i+j]);
+	}
+      }
+      glMultMatrixd((double *) &matrix);
+    }
+  release:
+    scm_array_handle_release(&h);
+  }
   return SCM_UNSPECIFIED;
 }
 
@@ -378,6 +417,7 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
 
+  EXPORT_PROCEDURE("multiply-matrix!", 1, 0, 0, multiply_matrix_x);
   EXPORT_PROCEDURE("push-matrix!", 0, 0, 0, push_matrix_x);
   EXPORT_PROCEDURE("pop-matrix!", 0, 0, 0, pop_matrix_x);
   EXPORT_PROCEDURE("translate-view!", 1, 0, 0, translate_view_x);
@@ -408,6 +448,9 @@ init_3d(Uint16 w, Uint16 h) {
   init_GLtypes();
   init_GLnames();
   init_color_setters();
+
+  s_f32 = gc_protected(symbol("f32"));
+  s_f64 = gc_protected(symbol("f64"));
 
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   glEnable(GL_DEPTH_TEST);
