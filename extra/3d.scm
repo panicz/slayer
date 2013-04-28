@@ -11,13 +11,16 @@
 	   <3d-shape>
 	   <3d-mesh>
 	   generate-circle
+	   generate-wheel
 	   generate-hemisphere
 	   generate-capsule
+	   generate-cube
 	   hemisphere
 	   generate-open-cylinder
 	   )
   ;;:re-export (distance)
   )
+
 
 (define-syntax define-symmetric-method
   (syntax-rules ()
@@ -44,6 +47,8 @@
   (mesh #:init-value '()
 	#;(\ with-input-from-file "3d/cube.3d" read)))
 
+(use-modules (extra common) (extra math))
+
 (define* (generate-circle #:key (radius 1.0) (points 20))
   (let ((slice (/ 2pi points)))
     (let loop ((vertices '())
@@ -56,9 +61,21 @@
 			       vertices))
 		(faces (iota points)))
 	    `(mesh
-	      (vertices ,(list->typed-array 'f32 2 vertices))
+	      (vertices ,(list->uniform-array vertices))
 	      (faces (line-loop 
-		      ,(list->typed-array 'u8 1 faces)))))))))
+		      ,(list->uniform-array faces)))))))))
+
+(define* (generate-wheel #:key (radius 1.0) (points 20))
+  (match (generate-circle #:radius radius #:points points)
+    (('mesh
+      ('vertices vertices)
+      ('faces ('line-loop faces)))
+     (let ((vertices (array->list vertices))
+	   (faces (array->list faces)))
+       `(mesh
+	 (vertices ,(list->uniform-array (cons '(0 0) vertices)))
+	 (faces (triangle-fan ,(list->uniform-array 
+				(append faces (list points 1))))))))))
 
 (define (quad-strip->quads lst)
   (throw 'not-implemented))
@@ -184,6 +201,39 @@
 		      (iota (+ slices 3) 
 			    (* slices stacks) 
 			    -1)))))))))))
+
+(define* (generate-cube #:key (x 1.0) (y 1.0) (z 1.0))
+  (match-let* (((x y z) (map (\ * _ 0.5) (list x y z)))
+	       ((-x -y -z) (map - (list x y z))))
+    `(mesh
+      (vertices
+       ,(list->typed-array
+	 'f32 2
+	 `(( ,x  ,y  ,z)
+	   ( ,x  ,y ,-z)
+	   ( ,x ,-y  ,z)
+	   ( ,x ,-y ,-z)
+	   (,-x  ,y  ,z)
+	   (,-x  ,y ,-z)
+	   (,-x ,-y  ,z)
+	   (,-x ,-y ,-z))))
+      (colors
+       #2f32((0.5 0.7 0.2 1.0)
+	     (0.7 0.5 0.2 0.8)
+	     (0.2 0.7 0.5 0.7)
+	     (0.7 0.2 0.5 0.6)
+	     (0.5 0.2 0.7 0.5)
+	     (0.2 0.5 0.7 0.3)
+	     (0.7 0.7 0.2 0.2)
+	     (1.0 1.0 1.0 0.0)))
+      (faces
+       (quads 
+	#2u8((0 1 3 2)
+	     (0 2 6 4)
+	     (0 1 5 4)
+	     (7 6 4 5)
+	     (7 5 1 3)
+	     (7 6 2 3)))))))
 
 (define* (generate-sphere #:key (radius 1.0) (stacks 20) (points 20))
   (throw 'not-implemented))

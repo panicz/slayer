@@ -209,7 +209,7 @@ DEF_SET_GL_ARRAY(texture_coords, glTexCoordPointer,
 		 GL_TEXTURE_COORD_ARRAY, 3);
 
 static inline void
-_glNormalPointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer) {
+_glNormalPointer(GLint size,GLenum type,GLsizei stride,const GLvoid *pointer) {
   return glNormalPointer(type, stride, pointer);
 }
 DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3);
@@ -255,9 +255,9 @@ draw_faces_x(SCM type, SCM array) {
 
   size_t nelems = scm_array_handle_nelems(&handle);
   
-  char *name = as_c_string(type);
+  //char *name = as_c_string(type);
   //WARN("drawing %s (%d) with %d vertices", name, GET_VALUE(type), nelems);
-  free(name);
+  //free(name);
   const void *data 
     = scm_array_handle_uniform_writable_elements(&handle);
 
@@ -326,5 +326,3 @@ init_3d(Uint16 w, Uint16 h) {
 
   scm_c_define_module("slayer 3d", export_symbols, NULL);
 }
-
-

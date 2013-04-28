@@ -274,7 +274,7 @@
 		  'c32)
 		 ((let ((upper (apply max flat-list))
 			(lower (apply min flat-list)))
-		    (cond ((not (every integer? flat-list))
+		    (cond ((not (every exact? flat-list))
 			   'f32)
 			  ((< lower 0)
 			   (cond ((<= (- 1 (expt 2 7)) lower upper (expt 2 7))
@@ -568,3 +568,13 @@
 ;;    (else (collatz (+ (* 3 n) 1)))))
 
 ;; (every (lambda(x)(= x 1))(map collatz (iota 1000 1)))
+
+;; (define-syntax do
+;;   (syntax-rules (where while)
+;;     ((_ body ... (where bindings ...))
+;;      (let (bindings ...) 
+;;        body ...))
+;;     ((_ body ... (while condition))
+;;      (let loop ()
+;;        body  ... 
+;;        (if condition (loop))))))
