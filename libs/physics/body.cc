@@ -81,12 +81,33 @@ body_position_setter(body_t *body, SCM value) {
 
 static SCM
 body_position_getter(body_t *body) {
-  if(!(body->body)) {
-    WARN("function called on void body");
-    return SCM_UNSPECIFIED;;
+  if(body->body) {
+    dReal const *v = dBodyGetPosition(body->body);
+    return scm_from_dVector3(v);
   }
-  dReal const *v = dBodyGetPosition(body->body);
-  return scm_from_dVector3(v);
+  WARN("function called on void body");
+  return SCM_UNSPECIFIED;;
+}
+
+static void
+body_rotation_setter(body_t *body, SCM value) {
+  if(body->body) { 
+    WARN("function called on void body");
+    return;
+  }
+  dMatrix3 M;
+  scm_to_dMatrix3(value, &M);
+  dBodySetRotation(body->body, M);
+}
+
+static SCM
+body_rotation_getter(body_t *body) {
+  if(body->body) {
+    dReal const *M = dBodyGetRotation(body->body);
+    return scm_from_dMatrix3(M);
+  }
+  WARN("function called on a void body");
+  return SCM_UNSPECIFIED;
 }
 
 static void
@@ -161,6 +182,7 @@ init_body_property_accessors() {
     //if placable
     SET_BODY_ACCESSORS(i,, mass);
     SET_BODY_ACCESSORS(i,, position);
+    SET_BODY_ACCESSORS(i,, rotation);
     //endif
   }
 

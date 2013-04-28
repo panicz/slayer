@@ -24,7 +24,7 @@ struct scm_eq : binary_function<SCM, SCM, bool> {
   }
 };
 
-struct pair_scm_int_eq : binary_function<pair<SCM, int>, pair<SCM, int>, bool> {
+struct pair_scm_int_eq : binary_function<pair<SCM,int>,pair<SCM, int>,bool> {
   bool operator() (const pair<SCM, int>& x, const pair<SCM, int>& y) const {
     return (bool) (x.second == y.second) && scm_is_eq(x.first, y.first);
   }
@@ -72,11 +72,9 @@ typedef struct body_t {
   dGeomID geom;
 } body_t;
 
-typedef unordered_map<SCM, int, hash<SCM>, scm_eq> 
-  symbol_index_map_t;
+typedef unordered_map<SCM, int, hash<SCM>, scm_eq> symbol_index_map_t;
 
-typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> 
-  general_scm_map_t;
+typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> general_scm_map_t;
 
 typedef struct rig_t {
   sim_t *parent;
@@ -246,7 +244,7 @@ DEF_SCM_TO_DVECTOR(4);
 
 #define DEF_SCM_FROM_DMATRIX(n)					\
   static inline SCM						\
-  scm_from_dMatrix##n(dMatrix##n m) {				\
+  scm_from_dMatrix##n(const dMatrix##n m) {			\
     SCM M = scm_make_typed_array(ARRAY_TYPE, SCM_UNSPECIFIED,	\
 				 scm_list_2(scm_from_int(n),	\
 					    scm_from_int(n)));	\
