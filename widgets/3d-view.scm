@@ -6,7 +6,7 @@
   #:use-module (extra ref)
   #:use-module (extra 3d)
   #:use-module (slayer 3d)
-  #:export (<3d-view> add-object!))
+  #:export (<3d-view> add-object! draw-mesh))
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
@@ -66,3 +66,38 @@
 
 (define-method (add-object! (view <3d-view>) (object <3d>))
   (set! #[view 'objects] (cons object #[view 'objects])))
+
+(define-method (initialize (view <3d-view>) args)
+  (next-method)
+  (let ((camera #[view 'camera]))
+    (set! #[view 'click]
+	  (lambda (x y)
+	    (set! #[view : 'data : 'anchor] (list x y))
+	    (set! #[view : 'data : 'original-orientation]
+		  #[camera 'orientation])))
+    (set! #[view 'unclick]
+	  (lambda (x y)
+	    (hash-remove! #[view 'data] 'anchor)
+	    (hash-remove! #[view 'data] 'original-orientation)))
+    (set! #[view 'drag] 
+	  (lambda (x y dx dy)
+	    (match #[view : 'data : 'anchor]
+	      ((x0 y0)
+	       (let ((p #[view : 'data : 'original-orientation])
+		     (vx (- x x0))
+		     (vy (- y y0)))
+		 (let* ((axis (wedge3x3 
+			       (list->f32vector (list vx vy 0.0))
+			       #f32(0.0 0.0 1.0)))
+			(norm (norm axis))
+			(θ (exact->inexact 
+			    (/ norm (min #[view 'w] #[view 'h]))))
+			(q (quaternion (sin θ) 
+				       (* (cos θ)
+					  (* (/ 1 norm) axis)))))
+		   (if (> norm 0.1)
+		       (set! #[camera 'orientation] 
+			     (* (~ q) p q)))
+		   )))
+	      (else
+	       (display "dragging with anchor unset (strange?)\n")))))))

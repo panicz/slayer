@@ -16,6 +16,15 @@
 
 	    <widget>
 	    <extended-widget>
+	    
+	    *stage*
+	    *input-widget*
+	    *active-widget*
+	    *nearby-widget*
+	    select-widget-at
+	    unselect-widget-at
+	    right-click-widget-at
+	    drag-over-widget
 	    ))
 
 (define-generic update!)
@@ -87,3 +96,47 @@
 	    widget
 	    (let ((c (widget-nested-find condition w)))
 	      (if (not c) w c))))))
+
+(define *stage* (make <widget> #:w (screen-width) #:h (screen-height)))
+
+(define *input-widget* #f)
+(define *active-widget* *stage*)
+(define *nearby-widget* #f)
+(set-display-procedure! (\ draw *stage*))
+(set-resize-procedure! (lambda (w h)
+			 (set! #[*stage* 'w] w)
+			 (set! #[*stage* 'h] h)))
+(define (select-widget-at x y)
+  (and-let* ((w (widget-nested-find 
+		 (lambda(w)
+		   (in-area? (list x y)
+			     (absolute-area w)))
+		 *stage*)))
+    (set! *active-widget* w))
+  (if *active-widget* (#[ *active-widget* 'click ] x y)))
+
+
+(define (unselect-widget-at x y)
+  (if *active-widget* (#[ *active-widget* 'unclick ] x y))
+  (set! *active-widget* *stage*))
+
+(define (right-click-widget-at x y)
+  (and-let* ((w (widget-nested-find 
+		 (lambda(w)
+		   (in-area? (list x y)
+			     (absolute-area w)))
+		 *stage*)))
+    (#[ w 'right-click ] x y)))
+
+(define (drag-over-widget x y xrel yrel)
+   (let ((mouseover-widget 
+	  (widget-nested-find 
+	   (lambda (w) 
+	     (in-area? (list x y) (absolute-area w))) 
+	   *stage*)))
+     (if (and mouseover-widget (not (equal? mouseover-widget *nearby-widget*)))
+	 (begin
+	   (if *nearby-widget* (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
+	   (set! *nearby-widget* mouseover-widget)
+	   (#[ *nearby-widget* 'mouse-over ] x y xrel yrel)))
+     (#[ *active-widget* 'drag ] x y xrel yrel)))
