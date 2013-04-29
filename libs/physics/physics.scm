@@ -23,7 +23,7 @@
 	     joint-property
 	     joint-type
 	     )
-  #:export-syntax (define-rigs-for-sim))
+  #:export-syntax (define-rigs-for))
 
 (load-extension "physics" "init")
 

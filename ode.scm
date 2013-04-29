@@ -24,8 +24,14 @@
 
 (define *sim* (primitive-make-simulation))
 
+(define-rigs-for *sim*
+  (ground (with-input-from-file "rigs/ground.rig" read))
+  (buggy (with-input-from-file "rigs/car.rig" read)))
+
+(make-rig *sim* 'ground)
+(make-rig *sim* 'buggy)
+
 (add-child! *stage* (make <ode-view> #:x 10 #:y 10 
 			  #:w (- (screen-width) 10)
 			  #:h (- (screen-height) 10)
 			  #:simulation *sim*))
-

@@ -11,7 +11,7 @@
   #:use-module (slayer 3d)
   #:export (<ode-view>))
 
-(define-class <ode-view> (<widget>)
+(define-class <ode-view> (<extended-widget>)
   (camera #:init-thunk (lambda()(make <3d-cam>)))
   (simulation #:init-value #f #:init-keyword #:simulation))
 
@@ -28,8 +28,8 @@
     (rotate-view! #[ov : 'camera : 'orientation])
     (for rig in (simulation-rigs #[ov 'simulation])
 	 (for body in (rig-bodies rig)
-	      (let ((position (body-property 'position body))
-		    (rotation (body-property 'quaternion body)))
+	      (let ((position (body-property body 'position))
+		    (rotation (body-property body 'quaternion)))
 		;; i jeszcze shape jakos trzeba wydobitch
 		(push-matrix!)
 		(translate-view! position)

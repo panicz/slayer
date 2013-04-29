@@ -9,9 +9,6 @@ static body_property_getter_map_t body_property_getter;
     body->body = create_body(rig->parent->world);			\
     body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
     set_body(body->geom, body->body);					\
-    if(body->body) {							\
-      dBodySetData(body->body, (void *) body);				\
-    }									\
     body->id = rig->bodies.size();					\
     rig->bodies.push_back(body);					\
     return body;							\
@@ -68,10 +65,13 @@ body_sphere_radius_getter(body_t *body) {
   return scm_from_double(dGeomSphereGetRadius(body->geom));
 }
 
+static dVector3 null_dVector3 = {0.0, 0.0, 0.0, 0.0};
+static dQuaternion neutral_dQuaternion = {1.0, 0.0, 0.0, 0.0};
+
 static void
 body_position_setter(body_t *body, SCM value) {
   if(!(body->body)) {
-    WARN("function called on void body");
+    WARN_UPTO(3, "function called on void body");
     return;
   }
   dVector3 v;
@@ -85,14 +85,14 @@ body_position_getter(body_t *body) {
     dReal const *v = dBodyGetPosition(body->body);
     return scm_from_dVector3(v);
   }
-  WARN("function called on void body");
-  return SCM_UNSPECIFIED;;
+  WARN_UPTO(3, "function called on void body");
+  return scm_from_dVector3(null_dVector3);
 }
 
 static void
 body_rotation_setter(body_t *body, SCM value) {
   if(body->body) { 
-    WARN("function called on void body");
+    WARN_UPTO(3,"function called on void body");
     return;
   }
   dMatrix3 M;
@@ -106,7 +106,7 @@ body_rotation_getter(body_t *body) {
     dReal const *M = dBodyGetRotation(body->body);
     return scm_from_dMatrix3(M);
   }
-  WARN("function called on a void body");
+  WARN_UPTO(3, "function called on a void body");
   return SCM_UNSPECIFIED;
 }
 
@@ -116,14 +116,15 @@ body_quaternion_getter(body_t *body) {
     dReal const *Q = dBodyGetQuaternion(body->body);
     return scm_from_dQuaternion(Q);
   }
-  WARN("function called on a void body");
-  return SCM_UNSPECIFIED;
+  WARN_UPTO(3, "function called on a void body");
+  
+  return scm_from_dQuaternion(neutral_dQuaternion);
 }
 
 static void
 body_quaternion_setter(body_t *body, SCM value) {
   if(body->body) { 
-    WARN("function called on void body");
+    WARN_UPTO(3, "function called on void body");
     return;
   }
   dQuaternion Q;
@@ -135,7 +136,7 @@ static void
 body_mass_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   if(!(body->body)) {
-    WARN("function called on void body");
+    WARN_UPTO(3, "function called on void body");
     return;
   }
   dMass m;
@@ -230,7 +231,7 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
 
   body = (maker->second)(rig);
   body->parent = rig;
-  dBodySetData(body->body, body);
+  //dBodySetData(body->body, (void *) body);
 
   rig->id[gc_protected(s_name)] = body->id;
 
