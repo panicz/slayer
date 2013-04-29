@@ -11,27 +11,36 @@
 
 (keydn 'esc quit)
 
-(define *stage* (make <widget> #:w (screen-width) #:h (screen-height)))
-
-(define *input-widget* #f)
-(define *active-widget* *stage*)
-(define *nearby-widget* #f)
-
-(set-display-procedure! (\ draw *stage*))
-(set-resize-procedure! (lambda (w h)
-			 (set! #[*stage* 'w] w)
-			 (set! #[*stage* 'h] h)))
-
 (define *sim* (primitive-make-simulation))
 
 (define-rigs-for *sim*
   (ground (with-input-from-file "rigs/ground.rig" read))
   (buggy (with-input-from-file "rigs/car.rig" read)))
 
+(set-simulation-property! *sim* 'gravity #f32(0 0 -9.8))
+
 (make-rig *sim* 'ground)
 (make-rig *sim* 'buggy)
 
-(add-child! *stage* (make <ode-view> #:x 10 #:y 10 
-			  #:w (- (screen-width) 10)
-			  #:h (- (screen-height) 10)
-			  #:simulation *sim*))
+
+(define *view* 
+  (make <ode-view> #:x 10 #:y 10 
+	#:w (- (screen-width) 10)
+	#:h (- (screen-height) 10)
+	#:simulation *sim*))
+
+(add-child! *stage* *view*)
+
+(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
+
+(let ((redraw (register-userevent noop)))
+  (call-with-new-thread 
+   (lambda ()
+     (while #t
+       (simulation-step! *sim*)
+       (generate-userevent redraw)
+       (usleep 100000)))))
+
+
+(keydn "[" (lambda () (increase! #[*view* : 'camera : 'position] #f32(0 0 0.7))))
+(keydn "]" (lambda () (increase! #[*view* : 'camera : 'position] #f32(0 0 -0.7))))

@@ -19,6 +19,8 @@
   (camera #:init-thunk (\ make <3d-cam>))
   (simulation-step! #[ov 'simulation]))
 
+(define box (generate-cube))
+
 (define-method (draw (ov <ode-view>))
   (let ((original-viewport (current-viewport)))
     (set-viewport! #[ov 'x] #[ov 'y] #[ov 'w] #[ov 'h])
@@ -31,10 +33,11 @@
 	      (let ((position (body-property body 'position))
 		    (rotation (body-property body 'quaternion)))
 		;; i jeszcze shape jakos trzeba wydobitch
+		(display position)(newline)
 		(push-matrix!)
 		(translate-view! position)
 		(rotate-view! rotation)
-		;;(draw-mesh shape)
+		(draw-mesh box)
 		(pop-matrix!))))
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
