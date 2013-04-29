@@ -37,19 +37,18 @@ DEF_SCM_TO_V(4,d,ouble);
 static inline qtf
 scm_to_qtf(SCM pair) {
   qtf q;
-  q.s = scm_to_float(SCM_CAR(pair));
   q.v = scm_to_v3f(SCM_CDR(pair));
+  q.s = scm_to_float(SCM_CAR(pair));
   return q;
 }
 
 static inline qtd
 scm_to_qtd(SCM pair) {
   qtd q;
-  q.s = scm_to_double(SCM_CAR(pair));
   q.v = scm_to_v3d(SCM_CDR(pair));
+  q.s = scm_to_double(SCM_CAR(pair));
   return q;
 }
-
 
 static SCM
 push_matrix_x() {

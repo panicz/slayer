@@ -318,8 +318,8 @@ scm_to_dQuaternion(SCM Q, dQuaternion *q) {
     return;
   }
   if (scm_is_pair(Q)) {
-    scm_to_dVector3(scm_cdr(Q), ((dVector3 *) q));
-    ((dReal *) q)[3] = (dReal) scm_to_double(scm_car(Q));
+    scm_to_dVector3(scm_cdr(Q), ((dVector3 *) &q[1]));
+    ((dReal *) q)[0] = (dReal) scm_to_double(scm_car(Q));
     return;
   }
   WARN("Conversion to quaternion failed");
