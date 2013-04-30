@@ -134,8 +134,17 @@ void nearCallback (void *data, dGeomID o1, dGeomID o2)
   dWorldSetGravity(world, 0, 0, -9.8);
   //dWorldQuickStepNumIterations(world, 64);
 
+  const dReal *position;
+
   while(1) {
-    // motor
+    position = dBodyGetPosition (body[1]);
+    OUT("body1: %f, %f, %f",  position[0], position[1], position[2]);
+    position = dBodyGetPosition (body[2]);
+    //OUT("body2: %f, %f, %f", position[0], position[1], position[2]);
+    position = dBodyGetPosition (body[3]);
+    //OUT("body3: %f, %f, %f", position[0], position[1], position[2]);
+
+    // Motor
     dJointSetHinge2Param (joint[0],dParamVel2,-speed);
     dJointSetHinge2Param (joint[0],dParamFMax2,0.1);
 

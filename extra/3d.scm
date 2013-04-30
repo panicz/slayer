@@ -14,7 +14,7 @@
 	   generate-wheel
 	   generate-hemisphere
 	   generate-capsule
-	   generate-cube
+	   generate-box
 	   generate-mesh
 	   square-mesh
 	   rectangle-grid
@@ -232,7 +232,7 @@
 			    (* slices stacks) 
 			    -1)))))))))))
 
-(define* (generate-cube #:key (x 1.0) (y 1.0) (z 1.0))
+(define* (generate-box #:key (x 1.0) (y 1.0) (z 1.0))
   (match-let* (((x y z) (map (\ * _ 0.5) (list x y z)))
 	       ((-x -y -z) (map - (list x y z))))
     `(mesh

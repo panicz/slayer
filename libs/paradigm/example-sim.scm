@@ -1,3 +1,5 @@
+
+
 (let ((sim (make-simulation)))
   ;;(load-rigs #:for sim #:from "rigs/*.scm")
   (define-rigs-for sim
