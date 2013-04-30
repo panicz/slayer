@@ -44,7 +44,7 @@
 			  ('plane
 			   (square-grid))
 			  (else #f))))
-	      (hash-set! #[ov 'meshes] body mesh)))))
+	      (hash-set! #[ov 'meshes] (body-id body) mesh)))))
 
 (define-method (draw-objects (ov <ode-view>))
   (for rig in (simulation-rigs #[ov 'simulation])
@@ -56,5 +56,5 @@
 	      (push-matrix!)
 	      (translate-view! position)
 	      (rotate-view! rotation)
-	      (draw-mesh #[ov : 'meshes : body])
+	      (draw-mesh #[ov : 'meshes : (body-id body)])
 	      (pop-matrix!)))))

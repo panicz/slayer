@@ -307,6 +307,12 @@ body_type(SCM x_body) {
   return symbol(class_name[dGeomGetClass(body->geom)]);
 }
 
+static SCM
+body_id(SCM x_body) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  scm_remember_upto_here_1(x_body);
+  return scm_from_size_t((size_t) body);
+}
 
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
@@ -315,6 +321,7 @@ body_type(SCM x_body) {
   EXPORT_PROC("set-body-property!", 2, 1, 0, set_body_property_x);	\
   EXPORT_PROC("body-property", 2, 0, 0, body_property);			\
   EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
+  EXPORT_PROC("body-id", 1, 0, 0, body_id);				\
   DEFINE_PROC("body-named", 2, 0, 0, body_named)
 
 #define INIT_BODY_MODULE			\
