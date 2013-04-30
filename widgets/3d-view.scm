@@ -6,7 +6,7 @@
   #:use-module (extra ref)
   #:use-module (extra 3d)
   #:use-module (slayer 3d)
-  #:export (<3d-view> add-object! draw-mesh))
+  #:export (<3d-view> add-object! draw-mesh draw-objects))
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
@@ -53,6 +53,9 @@
   (camera #:init-thunk (lambda()(make <3d-cam>)))
   (objects #:init-value '()))
 
+(define-method (draw-objects (view <3d-view>))
+  (for-each draw #[view 'objects]))
+
 (define-method (draw (view <3d-view>))
   (let ((original-viewport (current-viewport)))
     (set-viewport! #[view 'x] #[view 'y] #[view 'w] #[view 'h])
@@ -60,7 +63,7 @@
     (perspective-projection! #[view : 'camera : 'fovy])
     (translate-view! #[view : 'camera : 'position])
     (rotate-view! #[view : 'camera : 'orientation])
-    (for-each draw #[view 'objects])
+    (draw-objects view)
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
 

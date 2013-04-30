@@ -11,33 +11,50 @@
   #:use-module (slayer 3d)
   #:export (<ode-view>))
 
-(define-class <ode-view> (<extended-widget>)
-  (camera #:init-thunk (lambda()(make <3d-cam>)))
+
+(use-modules (extra ref) (oop goops))
+
+(define-class <ode-view> (<3d-view>)
+  (meshes #:init-value #[] #:allocation #:class)
   (simulation #:init-value #f #:init-keyword #:simulation))
 
 (define-method (update! (ov <ode-view>))
   (camera #:init-thunk (\ make <3d-cam>))
   (simulation-step! #[ov 'simulation]))
 
-(define box (generate-cube))
+(define-method (initialize (ov <ode-view>) args)
+  (next-method)
+  (for rig in (simulation-rigs #[ov 'simulation])
+       (for body in (rig-bodies rig)
+	    (display (body-type body)) (newline)
+	    (and-let* ((mesh
+			(match (body-type body)
+			  ('box
+			   (let ((dims (body-property body 'dimensions)))
+			     (generate-box #:x #[dims 0] 
+					   #:y #[dims 1] #:z #[dims 2])))
+			  ('sphere
+			   (let ((radius (body-property body 'radius)))
+			     (generate-sphere #:radius radius)))
+			  ('cylinder
+			   (let ((radius (body-property body 'radius))
+				 (height (body-property body 'height)))
+			     (generate-open-cylinder #:radius radius
+						     #:height height)))
+			  ('plane
+			   (square-grid))
+			  (else #f))))
+	      (hash-set! #[ov 'meshes] body mesh)))))
 
-(define-method (draw (ov <ode-view>))
-  (let ((original-viewport (current-viewport)))
-    (set-viewport! #[ov 'x] #[ov 'y] #[ov 'w] #[ov 'h])
-    (push-matrix!)
-    (perspective-projection! #[ov : 'camera : 'fovy])
-    (translate-view! #[ov : 'camera : 'position])
-    (rotate-view! #[ov : 'camera : 'orientation])
-    (for rig in (simulation-rigs #[ov 'simulation])
-	 (for body in (rig-bodies rig)
-	      (let ((position (body-property body 'position))
-		    (rotation (body-property body 'quaternion)))
-		;; i jeszcze shape jakos trzeba wydobitch
-		(display position)(newline)
-		(push-matrix!)
-		(translate-view! position)
-		(rotate-view! rotation)
-		(draw-mesh box)
-		(pop-matrix!))))
-    (pop-matrix!)
-    (apply set-viewport! original-viewport)))
+(define-method (draw-objects (ov <ode-view>))
+  (for rig in (simulation-rigs #[ov 'simulation])
+       (for body in (rig-bodies rig)
+	    (let ((position (body-property body 'position))
+		  (rotation (body-property body 'quaternion)))
+	      ;; i jeszcze shape jakos trzeba wydobitch
+	      ;;(display position)(newline)
+	      (push-matrix!)
+	      (translate-view! position)
+	      (rotate-view! rotation)
+	      (draw-mesh #[ov : 'meshes : body])
+	      (pop-matrix!)))))
