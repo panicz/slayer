@@ -11,6 +11,11 @@
 
 (keydn 'esc quit)
 
+(keydn 'mouse1 select-widget-at)
+(keyup 'mouse1 unselect-widget-at)
+(keydn 'mouse2 right-click-widget-at)
+(mousemove drag-over-widget)
+
 (define *sim* (primitive-make-simulation))
 
 (define-rigs-for *sim*
@@ -21,7 +26,6 @@
 
 (make-rig *sim* 'ground)
 (make-rig *sim* 'buggy)
-
 
 (define *view* 
   (make <ode-view> #:x 10 #:y 10 
