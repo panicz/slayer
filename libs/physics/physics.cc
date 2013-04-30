@@ -37,6 +37,14 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
   dContact c[MAX_CONTACTS];
   int i, n = dCollide(a, b, MAX_CONTACTS, &c[0].geom, sizeof(dContact));
   for(i = 0; i < n; ++i) {
+    c[i].surface.mode = dContactSlip1 | dContactSlip2 |
+      dContactSoftERP | dContactSoftCFM | dContactApprox1;
+    c[i].surface.mu = dInfinity;
+    c[i].surface.slip1 = 0.1;
+    c[i].surface.slip2 = 0.1;
+    c[i].surface.soft_erp = 0.5;
+    c[i].surface.soft_cfm = 0.3;
+
     dJointID r = dJointCreateContact(sim->world, sim->contact_group, &c[i]);
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     sim->contacts.push_back(r);
