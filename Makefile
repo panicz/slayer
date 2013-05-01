@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -pg `sdl-config --cflags` `guile-config compile` # -DUSE_EVENT_HANDLER
-LIBS = `guile-config link` `sdl-config --libs` -lSDL_image -lSDL_ttf -lc # -lSDL_net -lSDL_mixer -pg
+CXX = g++
+CFLAGS = -Wall `pkg-config --cflags sdl guile-2.0` -DUSE_OPENGL -lGL -lGLU # -DUSE_EVENT_HANDLER -pg 
+LIBS = `pkg-config --libs sdl guile-2.0` -lSDL_image -lSDL_ttf -lc -lGL -lGLU # -lSDL_net -lSDL_mixer -pg
 OBJCOPY = objcopy
-
 
 ARCH := $(shell uname -m)
 
@@ -14,19 +14,25 @@ OBJ_BINARCH = i386
 OBJ_TARGET = elf32-i386
 endif
 
-
-all: slayer
-
-scm/widgets.o:	scm/widgets.scm
-	$(OBJCOPY) -I binary -O $(OBJ_TARGET) -B $(OBJ_BINARCH) $< $@
+.PHONY:	clean
+all: slayer libraries
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
+.cc.o:
+	$(CXX) $(CFLAGS) -c $< -o $@
 
-OBJECTS = input.o slayer.o video.o file.o timer.o widgets.o image.o font.o scm/widgets.o
+OBJECTS = input.o slayer.o symbols.o video.o file.o image.o font.o 3d.o
 
 slayer:	$(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
+	$(CXX) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)
+libraries:	
+	cd libs && make
 
 clean:
-	rm -f slayer *.o *~ scm/*.o scm/*~ extra/*~
+	rm -f slayer *.o *~ widgets/*.go widgets/*~ extra/*~ *.go extra/*.go
+	cd libs && make clean
+
+again:
+	make clean
+	make -j

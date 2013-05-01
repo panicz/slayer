@@ -1,0 +1,42 @@
+#!/usr/bin/guile \
+-e main -s
+!#
+(use-modules (ice-9 match) (srfi srfi-1))
+
+(define (->string object)
+  (with-output-to-string (lambda()(display object))))
+
+(define (->keyword object)
+  (symbol->keyword (string->symbol 
+		    (with-output-to-string 
+		      (lambda()(display object))))))
+
+(define* (search #:key (from '("./")) (in #f) (for #f))
+  (let* (($ string-append)
+	 (: string-join)
+	 (command
+	  ($"find "(first from)" "
+	    (if in  ($" -name "(: in" -or -name "))#;else"")
+	    (if for ($" | xargs grep -e "(: for" -e "))#;else""))))
+    (system command)))
+
+(define (parse-args args)
+  (define (or-group initial args)
+    (match args
+      ((data (or "or" 'or "OR") . rest)
+       (or-group (append initial `(,(->string data))) rest))
+      ((data . rest)
+       (append `(,(append initial `(,(->string data))))
+	       (parse-args rest)))))
+  (match args
+    ((specifier data (or "or" 'or "OR") . rest)
+     (cons (->keyword specifier) (or-group (list (->string data)) rest)))
+    ((specifier data . rest)
+     (append (list (->keyword specifier)
+		   (list (->string data)))
+	     (parse-args rest)))
+    (()
+     '())))
+
+(define (main args)
+  (apply search (parse-args (cdr args))))

@@ -1,0 +1,21 @@
+to execute:
+
+guile-2.0
+libsdl1.2
+libsdl-image1.2
+libsdl-ttf2.0
+libglu1-mesa
+
+to build:
+gcc
+make
+
+guile-2.0-dev
+libsdl1.2-dev
+libsdl-image1.2-dev
+libsdl-ttf2.0-dev
+libgl1-mesa-dev
+libglu1-mesa-dev
+
+to develop:
+mercurial

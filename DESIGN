@@ -1,0 +1,73 @@
+THE DESIGN OF GOOSE PROTOCOL:
+goose is a centralized network object system. it consists of
+client-side protocol and server-side protocol. The client-side
+protocol consists of the messages (functions) that can be send
+to client and that the client is supposed to support. Those
+messages are as follows (their name may differ in the actual
+implementation, but their semantics is the same)
+
+- add! <type> object-id -- an object with object-id becomes visible
+to the client
+- remove! object-id -- an object with object-id becomes invisible
+to the client
+- set-slots! object-id (slot-name value) ... - the object with
+object-id has given slot values
+
+On the server side, the situation gets much more complicated:
+the set of available functions (messages) is completely arbitrary
+and depends entirely on an application. By convention, there is
+a describe-protocol procedure, that sends the client all the procedures
+available to call.
+
+Additionally, there is also the owned-objects procedure, that
+returns the objects owned by a given user. This procedure is used
+not only by the client, but also by the server, so it must be
+available.
+
+server.scm uses:
+- extra/network.scm
+- extra/goose.scm
+- extra/3d.scm
+- game.scm
+
+What about the types of slots there are (supposed to be)?
+- certainly, there should be public slots (in the sense that
+they are visible to all clients whose objects see a given
+object)
+- also, there are are private slots (in the sense that they
+are visible only to the owner of the object)
+- furthermore, certain slots belong only to the client-side
+- and obviously, some other -- to the server side, and hence
+are not supposed to be broadcasted to the client
+
+The following supplement programs need to be done
+before the game can be finished:
+
+- a robot editor, that allows to join various
+shapes (adjusting their size and other parameters) 
+using specified joints, adjusting their parameters
+as well [perhaps you could think about using
+Russell Smith's ODE, instead of reinventing the
+wheel]
+
+- a pose editor, that allows to come up with
+new poses that could later be recalled by the
+actual code. such editor would enable to:
+- set certain joints in a given position
+- release constrains on another joints
+(so they can be either loosen or left as they
+were in a previous pose)
+- among other joints, there is the horizon
+that can be set accurately
+
+- a map editor
+
+a pose is a function of joints and time/energy
+that should be applied in order to get to a
+given pose
+
+(define-move (walk energy)
+  (pose 'stand-straight energy)
+  (pose 'left-leg-lift energy)
+  (pose 'left-leg-lean
+	

@@ -122,6 +122,8 @@ static struct scancode keymap[] = {
   { "scroll", SDLK_SCROLLOCK },
   { "lshift", SDLK_LSHIFT },
   { "rshift", SDLK_RSHIFT },
+  { "lctrl", SDLK_LCTRL },
+  { "rctrl", SDLK_RCTRL },
   { "lalt", SDLK_LALT },
   { "ralt", SDLK_RALT },
   { "lmeta", SDLK_LMETA },

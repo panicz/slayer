@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+
+<body>
+<div class="main">
+
+<h1>Changing SDL/OpenGL Display Resolution Without Application Restart</h1>
+
+<div class="seperator"></div>
+
+<b>Problem</b><br>
+<p>
+In many modern Windows games, the user will be forced (either manually or automatically) to
+restart his/her game when changing display resolution. The reason for this is often technical,
+but primarily programmer lazyness. Often it is more convenient to let the user restart the
+game/application than to code a mechanism that is rarely invoked. But those of us old enough to have
+played non-hardware accelerated games will recognise this to be a regression in functionality.
+</p>
+
+<p>
+For SDL-based OpenGL games and applications, changing the display resolution indeed
+proves somewhat problematic, but the solution is not as complex as some might have thought.
+</p>
+
+<p>Changing the display resolution in SDL done through the 
+function SDL_SetVideoMode() . This function creates a window and an OpenGL Rendering Context.
+Unfortunately, on Windows, the Rendering Context is tied to the window surface. Subsequent calls to
+SDL_SetVideoMode() will cause SDL to destroy the window and OpenGL context before re-creating it.
+If your game/application uses OpenGL to render the very graphics options menu, then the textures and
+shaders (as well as any VBOs, FBOs, display lists etc) used to render it will be invalid once the window re-appears.
+You'll be looking at a blank and/or corrupted screen, or worse, the application may crash.
+</p>
+
+<p>
+One option is to simply reload all the textures and shaders after the switch, but this will take up
+some time, especially if the  game has a complete level loaded with many textures, VBOs and shaders. If the
+player is trying different settings to see which give the best performance/quality, this waiting time will quickly become very annoying.
+</p>
+
+<p>
+Thankfully, there is a solution that automagically solves this.
+</p>
+
+<!--
+<p>
+SDL however exposes the both the window handle (HWND) OpenGL Rendering Context handle (HGLRC) through
+the SDL_GetWMInfo function. In theory we could hijack the context and through some Win32
+voodoo apply our changes, but of course that flies in the face of SDL purpose: cross-platform
+compatibility and OS abstraction. Afterall, we decided to use SDL for a reason...
+</p>
+-->
+
+<div class="seperator"></div>
+
+<b>Solution</b><br>
+
+<p>
+The solution is to create a second, temporary OpenGL context, to which we share the GL resources.
+On the Windows platform, there is the function wglShareLists() . Originally, this function was intended
+to allow CAD/CAM applications to render the same 'display lists' to different viewports/windows (with each their
+own GL context). As textures, geometry and shaders became 'objects' (resources) like display lists in later GL versions,
+they also inherited (by design) the same resource management behavior of display list sharing.<br>
+<br>
+
+The following code snipped details the operation:<br>
+<pre>
+int g_display_width = 800;
+int g_display_height = 600;
+int g_colorbits = 32;
+int g_depthbits = 16;
+int g_multisample = 8;
+bool g_vsync = true;
+bool g_fullscreen = true;
+bool g_resize = false;
+
+
+<span class="code-comment">// sets video mode</span>
+bool CApp::<span class="code-black">SetVideoMode()</span>
+{
+ <span class="code-comment">// framebuffer</span>
+ SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+ SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, g_depthbits);
+ 
+ <span class="code-comment">// v-sync</span>
+ if (g_vsync) {
+  SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 1);
+ } else {
+  SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, 0);
+ }
+ 
+ <span class="code-comment">// anti-aliasing</span>
+ if (g_multisample > 1) {
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, g_multisample);
+ } else {
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+ }
+ 
+ <span class="code-comment">// window flags</span>
+ int flags = 0;
+ if (g_fullscreen) flags |= SDL_FULLSCREEN;
+ if (g_resize)     flags |= SDL_RESIZABLE;
+ 
+ <span class="code-comment">// set video mode</span>
+ SDL_Surface *surface = SDL_SetVideoMode(g_display_width, g_display_height,
+                                         g_colorbits, SDL_OPENGL | flags );
+ if (!surface) {
+  PrintError(" Failed to set video mode: %s\n", SDL_GetError());
+  return false;
+ }
+ 
+ <span class="code-comment">// center window</span>
+ <span class="code-black">CenterWindow()</span>;
+ 
+ <span class="code-comment">// success</span>
+ return true;
+}
+
+
+<span class="code-comment">// changes display resolution at any time</span>
+bool CApp::<span class="code-black">ChangeVideoMode()</span>
+{
+ SDL_SysWMinfo info;
+ 
+ <span class="code-comment">// get window handle from SDL</span>
+ SDL_VERSION(&info.version);
+ if (SDL_GetWMInfo(&info) == -1) {
+  PrintError("SDL_GetWMInfo #1 failed\n");
+  return false;
+ }
+ 
+ <span class="code-comment">// get device context handle</span>
+ HDC tempDC = GetDC( info.window );
+ 
+ <span class="code-comment">// create temporary context</span>
+ HGLRC tempRC = wglCreateContext( tempDC );
+ if (tempRC == NULL) {
+  PrintError("wglCreateContext failed\n");
+  return false;
+ }
+ 
+ <span class="code-comment">// share resources to temporary context</span>
+ SetLastError(0);
+ if (!wglShareLists(info.hglrc, tempRC)) {
+  PrintError("wglShareLists #1 failed\n");
+  return false;
+ }
+ 
+ <span class="code-comment">// set video mode</span>
+ if (!<span class="code-black">SetVideoMode()</span>) return false;
+ 
+ <span class="code-comment">// previously used structure may possibly be invalid, to be sure we get it again</span>
+ SDL_VERSION(&info.version);
+ if (SDL_GetWMInfo(&info) == -1) {
+  PrintError("SDL_GetWMInfo #2 failed\n");
+  return false;
+ }
+ 
+ <span class="code-comment">// share resources to new SDL-created context</span>
+ if (!wglShareLists(tempRC, info.hglrc)) {
+  PrintError("wglShareLists #2 failed\n");
+  return false;
+ }
+ 
+ <span class="code-comment">// we no longer need our temporary context</span>
+ if (!wglDeleteContext(tempRC)) {
+  PrintError("wglDeleteContext failed\n");
+  return false;
+ }
+ 
+ <span class="code-comment">// success</span>
+ return true;
+}
+</pre>
+<p>
+SetVideoMode() should be called at application launch. It does the usual SDL initialization.
+</p>
+
+<p>
+ChangeVideoMode() can later be called at any time. ChangeVideoMode will in turn calls SetVideoMode(), but before doing so
+creates a temporary GL context, and shares the application's current resources with it.
+The OpenGL drivers will then <i>not</i> destroy those resources once SDL destroys it's own GL context.
+</p>
+
+<p>
+Once SDL has switched the display resolution and created a new window &amp; GL context, we share the resources back, and
+we finally destroy our temporary context, which we no longer need.<br>
+</p>
+
+<div class="seperator"></div>
+
+<b>Caveat</b><br>
+<p>
+While wglShareLists() shares resources between contexts, it does not restore or copy any OpenGL states over. So for example,
+if you call glEnable(GL_NORMALIZE) at application launch, you will need to call it again to restore the state in a new context. If your
+application relies a lot on 'lingering' states (e.g. to minimize redundant state changes) then you will need to be careful.
+</p>
+
+<p>
+Then there is a function named wglCopyContext() , which as it's name implies can copy the entire OpenGL context from one to another.
+Unfortunately, it turns out to be highly unreliable, considered deprecated and should be avoided.
+</p>
+
+<div class="seperator"></div>
+
+<b>Centering SDL Window</b><br>
+<p>
+For completeness sake, here is also a snippet of Windows-only code that centers the SDL window,
+when not running the application in full-screen mode.
+</p>
+
+<pre>
+<span class="code-comment">// centers window</span>
+void CApp::<span class="code-black">CenterWindow()</span>
+{
+ if (!g_fullscreen) return;
+ SDL_SysWMinfo info;
+ SDL_VERSION(&info.version);
+ if (SDL_GetWMInfo(&info) > 0) {
+  HWND hwnd = info.window;
+  int w = GetSystemMetrics(SM_CXSCREEN);
+  int h = GetSystemMetrics(SM_CYSCREEN);
+  RECT rc;
+  GetWindowRect(hwnd, &rc);
+  int x = (w - (rc.right - rc.left))/2;
+  int y = (h - (rc.bottom - rc.top))/2;
+  SetWindowPos(hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+ }
+}
+</pre>
+
+<div class="seperator"></div>
+
+<b>MSDN unreliable</b><br>
+<p>
+Along the way, I made the mistake to rely on the MSDN section that
+documents the functionality of wglShareLists() . For unknown reasons, a number of WGL related pages have been re-written to become garbled and ambigeous.
+So for carity: the first argument of wglShareLists is the <i>source</i> context, the second the <i>destination</i> context, not the other way around.
+</p>
+
+<p>Also, the claim that the Windows API function GetLastError() returns an error code containing further info
+when wglShareLists fails, is incorrect, or at least unreliable. During my tests it would consistently return an error code that does not conform
+to any Microsoft error number specifications, so it is pretty much useless for debugging.
+</p>
+
+<!--
+<p>
+Then there is also the claim that wglShareLists() only works with two identical pixel formats. This could mean that, specific to
+our usage, if the display depth or other framebuffer properties other than the width and height dimensions are changed, the function will fail.
+I have not been able to determine yet if this assertion holds true in all situations, but it appears that wglShareLists() succeeds
+fairly reliably when if the pixel formats vary.
+</p>
+-->
+
+<div class="seperator"></div>
+
+<b>Linux</b><br>
+<p>
+One final note: according to various sources, on Linux the SDL-owned OpenGL context is never destroyed (as it should), and
+as such no special measures need to be taken on Linux when switching display resolutions. It just works.
+</p>
+
+<div class="seperator"></div>
+
+<center>
+ Email: martijn AT bytehazard DOT com<br>
+ Page created: 2010-05-31
+</center>
+
+</div>
+</body>
+
+</html>

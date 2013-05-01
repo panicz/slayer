@@ -1,0 +1,5 @@
+(rig
+ (bodies
+  (ground (plane #:normal #(0 0 1))))
+ (joints))
+  

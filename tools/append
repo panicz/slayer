@@ -1,0 +1,4 @@
+#!/usr/bin/perl
+$file = shift @ARGV;
+$text = join " ", @ARGV;
+system "echo ".$text." >> ".$file;

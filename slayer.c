@@ -6,10 +6,12 @@
 #include "input.h"
 #include "file.h"
 #include "font.h"
-#include "widgets.h"
-#include "timer.h"
 #include "utils.h"
+#include "symbols.h"
 
+#ifdef USE_OPENGL
+#include "3d.h"
+#endif
 
 /*
   There is a set of widgets/modules, written either in C or
@@ -53,7 +55,8 @@
 //static widget *active_widget;
 
 
-SCM scm_catch_handler(void *data, SCM key, SCM args) {
+SCM 
+scm_catch_handler(void *data, SCM key, SCM args) {
   if (scm_is_eq(symbol("quit"), key)) {
     exit(0);
   }
@@ -61,8 +64,22 @@ SCM scm_catch_handler(void *data, SCM key, SCM args) {
   return SCM_UNSPECIFIED;
 }
 
-static void finish(int status, char *filename) {
-  evalf("(save \"%s\")", filename);
+static SCM exit_procedure;
+static SCM 
+set_exit_procedure_x(SCM procedure) {
+  if(is_scm_procedure(procedure)) {
+    exit_procedure = procedure;
+  }
+  else {
+    WARN("trying to set a non-procedure as the exit procedure!");
+  }
+  return SCM_UNSPECIFIED;
+}
+
+static void 
+finish(int status, char *filename) {
+  scm_call_1(exit_procedure, scm_from_locale_string(filename));
+  SDL_Quit();
 }
 
 typedef struct {
@@ -70,17 +87,32 @@ typedef struct {
   char *outfile;
   Uint16 w;
   Uint16 h;
+  int video_mode;
 } init_t;
 
+static void
+export_symbols(void *unused) {
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc)	    \
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+  scm_c_export(name,NULL);
+  
+  EXPORT_PROCEDURE("set-exit-procedure!", 1, 0, 0, 
+		   set_exit_procedure_x);
+#undef EXPORT_PROCEDURE
+}
 
-static void init(init_t *arg) {
+static void 
+init(init_t *arg) {
 
-  video_init(arg->w, arg->h);
+  set_exit_procedure_x(eval("noop"));
+  symbols_init();
+  
+  scm_c_define_module("slayer", export_symbols, NULL);
+  video_init(arg->w, arg->h, arg->video_mode);
+
   image_init();
   input_init();
   font_init();
-  timer_init();
-  widgets_init(arg->w, arg->h);
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
@@ -92,19 +124,20 @@ static void init(init_t *arg) {
   }
 
   if (file_empty(arg->infile)) {
-    if (!file_write(arg->infile, "(keydn 'esc (function (type state code name mod unicode) (quit)))")) {
+    if (!file_write(arg->infile, 
+		    "(use-modules (slayer))\n"
+		    "(keydn 'esc quit)\n")) {
       FATAL("Unable to write to spec file ``%s''", arg->infile);
     }
   }
 
-
-  file_eval(arg->infile);
-  on_exit((void (*)(int, void *)) finish, arg->outfile);  
+  LOGTIME(file_eval(arg->infile));
+  on_exit((void (*)(int, void *)) finish, arg->outfile);
 }
 
-static void *io(init_t *arg) {
+static void *
+io(init_t *arg) {
   init(arg);
-  
   while (1) {
     input_handle_events();
     video_refresh_screen();
@@ -114,35 +147,53 @@ static void *io(init_t *arg) {
 
 #define SLAYER_SUFFIX ".scm"
 
-int main(int argc, char *argv[]) {
+int 
+main(int argc, char *argv[]) {
 
   init_t arg = {
     .infile = NULL,
     .outfile = NULL,
     .w = 0,
-    .h = 0
+    .h = 0,
+    .video_mode = SDL_HWSURFACE | SDL_DOUBLEBUF
   };
   
   int opt;
-  while ((opt = getopt(argc, argv, "i:o:w:h:")) != -1) {
+  while ((opt = getopt(argc, argv, "i:o:w:h:rfe:")) != -1) {
     switch (opt) {
-    case 'i':
+    case 'i': // input file
       arg.infile = malloc(strlen(optarg) + 1);
       if (arg.infile) {
 	sprintf(arg.infile, "%s", optarg);
       }
       break;
-    case 'o':
+    case 'o': // output file
       arg.outfile = malloc(strlen(optarg) + 1);
       if (arg.outfile) {
 	sprintf(arg.outfile, "%s", optarg);
       }
       break;
-    case 'w':
+    case 'w': // screen width
       arg.w = atoi(optarg);
       break;
-    case 'h':
+    case 'h': // screen height
       arg.h = atoi(optarg);
+      break;
+    case 'e': // extensions (3d, net)
+      if(!strcmp(optarg, "3d")) {
+	arg.video_mode |= SDL_OPENGL;
+      } else {
+	WARN("unknown extension: %s", optarg);
+      }
+      break;
+    case 'r': // resizable
+      arg.video_mode |= SDL_RESIZABLE;
+      break;
+    case 'f':
+      arg.video_mode |= SDL_FULLSCREEN;
+      break;
+      
+    default:
       break;
     }
   }
@@ -152,16 +203,19 @@ int main(int argc, char *argv[]) {
 #else
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
+  setenv("GUILE_LOAD_PATH", ".:./libs", 1);
+  setenv("LTDL_LIBRARY_PATH", ".:./libs", 1);
+  setenv("LC_ALL", "C.UTF8", 1); // discard locale
 
   if (!arg.infile) {
     arg.infile = 
-      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.infile, "%s" SLAYER_SUFFIX, argv[0]);
   }
 
   if (!arg.outfile) {
     arg.outfile = 
-      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX));
+      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
 
