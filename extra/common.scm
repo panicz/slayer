@@ -5,6 +5,8 @@
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 syncase)
+  #:use-module (ice-9 pretty-print)
+  #:use-module (ice-9 format)
   #:use-module (system base compile)
 
   #:use-module ((rnrs) :version (6) 
@@ -74,6 +76,7 @@
 	       make-bytevector 
 	       utf8->string string->utf8 
 	       bytevector-fill!
+	       pretty-print format
 	       )
   #:export-syntax (\ for if*
 		   safely export-types
