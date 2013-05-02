@@ -202,26 +202,6 @@ symbol(const char *str) {
   return scm_from_utf8_symbol(str);
 }
 
-static inline SCM 
-funcall_0(const char *fname) {
-  return scm_apply_0(eval(fname), SCM_EOL);
-}
-
-static inline SCM 
-funcall_1(const char *fname, SCM arg1) {
-  return scm_apply_1(eval(fname), arg1, SCM_EOL);
-}
-
-static inline SCM 
-funcall_2(const char *fname, SCM arg1, SCM arg2) {
-  return scm_apply_2(eval(fname), arg1, arg2, SCM_EOL);
-}
-
-static inline SCM 
-funcall_3(const char *fname, SCM arg1, SCM arg2, SCM arg3) {
-  return scm_apply_3(eval(fname), arg1, arg2, arg3, SCM_EOL);
-}
-
 static inline int 
 is_scm_defined(SCM s) {
   return scm_is_true(scm_defined_p(s, SCM_UNDEFINED));
