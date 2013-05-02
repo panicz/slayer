@@ -398,7 +398,7 @@ Other body properties are usually constant over time:
 </li></ul>
 Conceptually each body has an x-y-z coordinate frame embedded in it, that moves
 and rotates with the body, as shown in figure 1.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/body.jpg"><br><br>
+	<img border="1" src="./ode_files/body.jpg"><br><br>
 	<b>Figure 1</b>: The body coordinate frame.
 	</center><p>The origin of this coordinate frame is the body's point of reference.
 Some values in ODE (vectors, matrices etc) are relative to the body
@@ -450,7 +450,7 @@ relative to each other.
 This relationship is called a <i>constraint</i> -- the words <i>joint</i> and
 <i>constraint</i> are often used interchangeably.
 Figure 2 shows three different constraint types.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/joints.jpg"><br><br>
+	<img border="1" src="./ode_files/joints.jpg"><br><br>
 	<b>Figure 2</b>: Three different constraint types.
 	</center><p>The first is a ball and socket joint that constraints the ``ball'' of one
 body to be in the same location as the ``socket'' of another body.
@@ -486,7 +486,7 @@ This ``joint error'' can happen in two ways:
 </li></ol>
 Figure 3 shows an example of error in a ball and socket
 joint (where the ball and socket do not line up).<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/ball-and-socket-bad.jpg"><br><br>
+	<img border="1" src="./ode_files/ball-and-socket-bad.jpg"><br><br>
 	<b>Figure 3</b>: An example of error in a ball and socket joint.
 	</center><p>There is a mechanism to reduce joint error: during each simulation step each
 joint applies a special force to bring its bodies back into correct alignment.
@@ -1213,7 +1213,7 @@ if they are already connected by non-contact joints then it may not be
 appropriate to add contacts, however it is okay to add more contact between-
 bodies that already have contacts.
 </a></div><h2 class="section2"><a name="sec_7_3_0">7.3. Joint parameter setting functions</a></h2><h3 class="section3"><a name="sec_7_3_1">7.3.1. Ball and Socket</a></h3>A ball and socket joint is shown in figure 4.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/ball-and-socket.jpg"><br><br>
+	<img border="1" src="./ode_files/ball-and-socket.jpg"><br><br>
 	<b>Figure 4</b>: A ball and socket joint.
 	</center><p><a name="func_dJointSetBallAnchor">
 </a></p><pre class="func1"><a name="func_dJointSetBallAnchor">void dJointSetBallAnchor (dJointID, dReal x, dReal y, dReal z);
@@ -1236,7 +1236,7 @@ perfectly satisfied, this function will return the same value
 as </a><a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dJointGetBallAnchor">dJointGetBallAnchor</a> to within roundoff errors.  <a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dJointGetBallAnchor2">dJointGetBallAnchor2</a>
 can be used, along with <a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dJointGetBallAnchor">dJointGetBallAnchor</a>, to see how far the joint has come apart.
 </div><h3 class="section3"><a name="sec_7_3_2">7.3.2. Hinge</a></h3>A hinge joint is shown in figure 5.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/hinge.jpg"><br><br>
+	<img border="1" src="./ode_files/hinge.jpg"><br><br>
 	<b>Figure 5</b>: A hinge joint.
 	</center><p><a name="func_dJointSetHingeAnchor">
 </a><a name="func_dJointSetHingeAxis">
@@ -1272,7 +1272,7 @@ the static environment.
 The angle will be between -pi..pi.<p>When the hinge anchor or axis is set, the current position of the attached
 bodies is examined and that position will be the zero angle.
 </p></a></div><h3 class="section3"><a name="sec_7_3_3">7.3.3. Slider</a></h3>A slider joint is shown in figure 6.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/slider.jpg"><br><br>
+	<img border="1" src="./ode_files/slider.jpg"><br><br>
 	<b>Figure 6</b>: A slider joint.
 	</center><p><a name="func_dJointSetSliderAxis">
 </a></p><pre class="func1"><a name="func_dJointSetSliderAxis">void dJointSetSliderAxis (dJointID, dReal x, dReal y, dReal z);
@@ -1291,7 +1291,7 @@ Get the slider linear position (i.e. the slider's ``extension'') and the time
 derivative of this value.<p>When the axis is set, the current position of the attached bodies is
 examined and that position will be the zero position.
 </p></a></div><h3 class="section3"><a name="sec_7_3_4">7.3.4. Universal</a></h3>A universal joint is shown in figure 7.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/universal.jpg"><br><br>
+	<img border="1" src="./ode_files/universal.jpg"><br><br>
 	<b>Figure 7</b>: A universal joint.
 	</center><p>A universal joint is like a ball and socket joint that constrains an
 extra degree of rotational freedom. Given axis 1 on body 1, and axis 2
@@ -1356,7 +1356,7 @@ The angle is measured between a body and the cross, or between the static enviro
 The angle will be between -pi..pi.<p>When the universal anchor or axis is set, the current position of the attached
 bodies is examined and that position will be the zero angle.
 </p></a></div><h3 class="section3"><a name="sec_7_3_5">7.3.5. Hinge-2</a></h3>A hinge-2 joint is shown in figure 8.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/hinge2.jpg"><br><br>
+	<img border="1" src="./ode_files/hinge2.jpg"><br><br>
 	<b>Figure 8</b>: A hinge-2 joint.
 	</center><p>The hinge-2 joint is the same as two hinges connected in series, with
 different hinge axes.
@@ -1417,7 +1417,7 @@ a single body.<p><a name="func_dJointSetFixed">
 Call this on the fixed joint after it has been attached to remember the
 current desired relative offset and desired relative rotation between the bodies.
 </a></div><h3 class="section3"><a name="sec_7_3_7">7.3.7. Contact</a></h3>A contact joint is shown in figure 9.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/contact.jpg"><br><br>
+	<img border="1" src="./ode_files/contact.jpg"><br><br>
 	<b>Figure 9</b>: A contact joint.
 	</center><p>The contact joint prevents body 1 and body 2 from inter-penetrating at the
 contact point.
@@ -1535,7 +1535,7 @@ In <span class="c">dAMotorEuler</span> mode, AMotor computes the <i>euler angles
 corresponding to the relative rotation, allowing euler angle torque motors
 and stops to be set.
 An AMotor joint with euler angles is shown in figure 10.</p><p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/amotor.jpg"><br><br>
+	<img border="1" src="./ode_files/amotor.jpg"><br><br>
 	<b>Figure 10</b>: An AMotor joint with euler angles.
 	</center><p>In this diagram, <i>a</i><sub>0</sub>, <i>a</i><sub>1</sub> and <i>a</i><sub>2</sub> are the three axes along
 which angular motion is controlled.
@@ -1793,7 +1793,7 @@ that sacrifices some accuracy for a big gain in speed and memory.
 To use it, you simply call <a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dWorldStepFast1">dWorldStepFast1</a> instead of
 <a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dWorldStep">dWorldStep</a>.</p><p>The chart in figure 11 illustrates this speed advantage over the standard
 <a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dWorldStep">dWorldStep</a> algorithm.</p><p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/sf-graph1.jpg"><br><br>
+	<img border="1" src="./ode_files/sf-graph1.jpg"><br><br>
 	<b>Figure 11</b>: Speed advantage of StepFast.
 	</center><p>The graph relates the number of Degrees Of Freedom (DOFs) removed from a
 system to the running time of the step. You may be able to tell that the
@@ -1804,7 +1804,7 @@ pile-up of cars, a pile of "ragdoll corpses", or a wall of bricks) the
 StepFast1 algorithm scales better than <a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dWorldStep">dWorldStep</a>. All this means that
 your application is more likely to keep a steady framerate, even in the
 worst case scenario.</p><p>The graph of DOFs removed to memory looks quite similar (see figure 12).</p><p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/sf-graph2.jpg"><br><br>
+	<img border="1" src="./ode_files/sf-graph2.jpg"><br><br>
 	<b>Figure 12</b>: Memory advantage of StepFast.
 	</center><p><a class="func" href="http://www.ode.org/ode-latest-userguide.html#func_dWorldStep">dWorldStep</a> requires memory proportional only to the square of the
 number of DOF's removed. StepFast1, though, is still linear, but it has
@@ -3393,7 +3393,7 @@ they roll from one geometry object to another, or when they receive
 multiple contact points, then you may need to use a different contact
 friction model. This section explains the problem and the solution.<h3 class="section3"><a name="sec_12_13_1">12.13.1. The Problem</a></h3>An example of such a system is shown in figure 13, which
 shows a ball that has just rolled down a ramp and touched the ground.<p></p><center>
-	<img border="1" src="./Open Dynamics Engine_files/rollingcontact.jpg"><br><br>
+	<img border="1" src="./ode_files/rollingcontact.jpg"><br><br>
 	<b>Figure 13</b>: A problem with rolling contact.
 	</center><p>Normally, the ball should continue rolling along the ground, towards
 the right. However, if ODE's default contact friction mode is being used
