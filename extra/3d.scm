@@ -233,8 +233,8 @@
 			    -1)))))))))))
 
 (define* (generate-box #:key (x 1.0) (y 1.0) (z 1.0))
-  (match-let* (((x y z) (map (\ * _ 0.5) (list x y z)))
-	       ((-x -y -z) (map - (list x y z))))
+  (match-let* (((x y z) (list x y z))
+	       ((-x -y -z) (list 0.0 0.0 0.0)))
     `(mesh
       (vertices
        ,(list->typed-array

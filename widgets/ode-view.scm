@@ -19,14 +19,12 @@
   (simulation #:init-value #f #:init-keyword #:simulation))
 
 (define-method (update! (ov <ode-view>))
-  (camera #:init-thunk (\ make <3d-cam>))
   (simulation-step! #[ov 'simulation]))
 
 (define-method (initialize (ov <ode-view>) args)
   (next-method)
   (for rig in (simulation-rigs #[ov 'simulation])
        (for body in (rig-bodies rig)
-	    (display (body-type body)) (newline)
 	    (and-let* ((mesh
 			(match (body-type body)
 			  ('box
@@ -42,7 +40,10 @@
 			     (generate-open-cylinder #:radius radius
 						     #:height height)))
 			  ('plane
-			   (square-grid))
+			   (let ((grid (transform-mesh-vertices
+					(match-lambda ((x y) (list x 0.0 y)))
+					(square-grid #:size 10.0 #:density 50))))
+			     grid))
 			  (else #f))))
 	      (hash-set! #[ov 'meshes] (body-id body) mesh)))))
 
