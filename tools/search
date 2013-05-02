@@ -17,7 +17,7 @@
 	 (command
 	  ($"find "(first from)" "
 	    (if in  ($" -name "(: in" -or -name "))#;else"")
-	    (if for ($" | xargs grep -e "(: for" -e "))#;else""))))
+	    (if for ($" -print0 | xargs -0 grep -e "(: for" -e "))#;else""))))
     (system command)))
 
 (define (parse-args args)
