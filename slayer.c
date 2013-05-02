@@ -57,10 +57,10 @@
 
 SCM 
 scm_catch_handler(void *data, SCM key, SCM args) {
-  if (scm_is_eq(symbol("quit"), key)) {
+  if (scm_is_eq(s_quit, key)) {
     exit(0);
   }
-  funcall_1("write", key);
+  scm_call_1(eval("write"), key);
   return SCM_UNSPECIFIED;
 }
 
@@ -103,10 +103,9 @@ export_symbols(void *unused) {
 
 static void 
 init(init_t *arg) {
-
-  set_exit_procedure_x(eval("noop"));
   symbols_init();
-  
+
+  exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
   video_init(arg->w, arg->h, arg->video_mode);
 

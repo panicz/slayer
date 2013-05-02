@@ -1,10 +1,13 @@
 #include "symbols.h"
 
+SCM noop;
+
 SCM s_u8;
 SCM s_u16;
 SCM s_u32;
 SCM s_u64;
 
+SCM s_quit;
 SCM s_typing;
 SCM s_direct;
 SCM s_unknown;
@@ -25,33 +28,33 @@ SCM s_middle;
 
 void
 symbols_init() {
-#define INIT_SYMBOL(var, val) \
-  var = symbol(val);\
-  hold_scm(var);
+  noop = gc_protected(eval("noop"));
 
-  INIT_SYMBOL(s_u8, "u8");
-  INIT_SYMBOL(s_u16, "u16");
-  INIT_SYMBOL(s_u32, "u32");
-  INIT_SYMBOL(s_u64, "u64");
+#define INIT_SYMBOL(name)			\
+  s_##name = gc_protected(symbol(# name));
 
-  INIT_SYMBOL(s_typing, "typing");
-  INIT_SYMBOL(s_direct, "direct");
-  INIT_SYMBOL(s_unknown, "unknown");
-  INIT_SYMBOL(s_mouse, "mouse");
-  INIT_SYMBOL(s_input, "input");
-  INIT_SYMBOL(s_active, "active");
-  INIT_SYMBOL(s_gain, "gain");
-  INIT_SYMBOL(s_loss, "loss");
-  INIT_SYMBOL(s_pressed, "pressed");
-  INIT_SYMBOL(s_released, "released");
-  INIT_SYMBOL(s_keyboard, "keyboard");
-  INIT_SYMBOL(s_mousemotion, "mousemotion");
-  INIT_SYMBOL(s_mousebutton, "mousebutton");
-  INIT_SYMBOL(s_left, "left");
-  INIT_SYMBOL(s_right, "right");
-  INIT_SYMBOL(s_middle, "middle");
+  INIT_SYMBOL(u8);
+  INIT_SYMBOL(u16);
+  INIT_SYMBOL(u32);
+  INIT_SYMBOL(u64);
 
+  INIT_SYMBOL(quit);
+  INIT_SYMBOL(typing);
+  INIT_SYMBOL(direct);
+  INIT_SYMBOL(unknown);
+  INIT_SYMBOL(mouse);
+  INIT_SYMBOL(input);
+  INIT_SYMBOL(active);
+  INIT_SYMBOL(gain);
+  INIT_SYMBOL(loss);
+  INIT_SYMBOL(pressed);
+  INIT_SYMBOL(released);
+  INIT_SYMBOL(keyboard);
+  INIT_SYMBOL(mousemotion);
+  INIT_SYMBOL(mousebutton);
+  INIT_SYMBOL(left);
+  INIT_SYMBOL(right);
+  INIT_SYMBOL(middle);
 
 #undef INIT_SYMBOL
-
 }

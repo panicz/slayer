@@ -2,11 +2,14 @@
 #define SYMBOLS_H
 #include "extend.h"
 
+extern SCM noop;
+
 extern SCM s_u8;
 extern SCM s_u16;
 extern SCM s_u32;
 extern SCM s_u64;
 
+extern SCM s_quit;
 extern SCM s_typing;
 extern SCM s_direct;
 extern SCM s_unknown;
