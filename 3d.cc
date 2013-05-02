@@ -258,6 +258,15 @@ DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3);
 #undef DEF_SET_GL_ARRAY
 #undef NOT_SUPPORTED
 
+static SCM
+reset_state_x() {
+  glDisableClientState(GL_VERTEX_ARRAY);
+  glDisableClientState(GL_COLOR_ARRAY);
+  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+  glDisableClientState(GL_NORMAL_ARRAY);
+  return SCM_UNSPECIFIED;
+}
+
 static SCM GLnames;
 static inline void
 init_GLnames() {
@@ -433,6 +442,7 @@ export_symbols(void *unused) {
 		      set_colors_array_x);
   EXPORT_PROCEDURE("set-normal-array!", 1, 0, 0, 
 		   set_normal_array_x);
+  EXPORT_PROCEDURE("reset-state!", 0, 0, 0, reset_state_x);
   EXPORT_PROCEDURE("set-color!", 1, 0, 0, set_color_x);
 
   EXPORT_PROCEDURE("set-texture-coords-array!", 1, 0, 0, 

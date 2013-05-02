@@ -6,7 +6,7 @@
   #:use-module (extra ref)
   #:use-module (extra 3d)
   #:use-module (slayer 3d)
-  #:export (<3d-view> add-object! draw-mesh draw-objects))
+  #:export (<3d-view> add-object! draw-mesh draw-objects transform-mesh-vertices))
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
@@ -38,9 +38,22 @@
 			    ((type array)
 			     (draw-faces! type array)))
 			   faces)))
-	       definition))
+	       definition)
+     (reset-state!))
     (else
      (display `(no-match ,else)))))
+
+(define (transform-mesh-vertices proc mesh)
+  (match mesh
+    (('mesh . definition)
+     `(mesh
+       ,@(map (match-lambda
+		  (('vertices vertices)
+		   `(vertices ,(list->uniform-array 
+				(map proc (array->list vertices)))))
+		(else
+		 else))
+	      definition)))))
 
 (define-method (draw (object <3d-mesh>))
   (push-matrix!)
