@@ -16,7 +16,11 @@
 
 	    <widget>
 	    <extended-widget>
-	    
+
+	    *stdout*
+	    *stdin*
+	    *stderr*
+
 	    *stage*
 	    *input-widget*
 	    *active-widget*
@@ -26,6 +30,10 @@
 	    right-click-widget-at
 	    drag-over-widget
 	    ))
+
+(define *stdout* (current-output-port))
+(define *stdin* (current-input-port))
+(define *stderr* (current-error-port))
 
 (define-generic update!)
 (define-generic draw)

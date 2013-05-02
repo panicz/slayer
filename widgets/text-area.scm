@@ -226,7 +226,8 @@
   (set! #[t 'click]
 	(lambda e
 	  (set-current-output-port #[ t 'port ])
-	  (set-input-widget! t)
+	  (set-typing-special! (lambda(scancode)
+				 (#[#[t 'special-keys] scancode])))
 	  (input-mode 'typing)))
   (set! #[t 'x] x)
   (set! #[t 'y] y)
