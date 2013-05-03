@@ -10,19 +10,21 @@ extern "C" void glWindowPos2i (GLint x, GLint y);
 static SCM s_f32;
 static SCM s_f64;
 
-#define DEF_SCM_TO_V(n,t,ype) \
-static inline v##n##t \
-scm_to_v##n##t(SCM vector) { \
-  int i; v##n##t v; \
-  if (scm_is_uniform_vector(vector)) \
-    for (i = 0; i < n; ++i) \
-      v[i] = scm_to_##t##ype(scm_uniform_vector_ref(vector, scm_from_int(i))); \
-  else if (scm_is_vector(vector)) \
-    for (i = 0; i < n; ++i) \
-      v[i] = scm_to_##t##ype(scm_c_vector_ref(vector, i)); \
-  else \
-    WARN("function called on a non-vector"); \
-  return v; \
+#define DEF_SCM_TO_V(n,t,ype)						\
+  static inline v##n##t							\
+  scm_to_v##n##t(SCM vector) {						\
+    int i; v##n##t v;							\
+    if (scm_is_uniform_vector(vector))					\
+      for (i = 0; i < n; ++i)						\
+	v[i] =								\
+	  scm_to_##t##ype(scm_uniform_vector_ref(vector,		\
+						 scm_from_int(i)));	\
+    else if (scm_is_vector(vector))					\
+      for (i = 0; i < n; ++i)						\
+	v[i] = scm_to_##t##ype(scm_c_vector_ref(vector, i));		\
+    else								\
+      WARN("function called on a non-vector");				\
+    return v;								\
 }
 
 DEF_SCM_TO_V(2,f,loat);
@@ -258,15 +260,6 @@ DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3);
 #undef DEF_SET_GL_ARRAY
 #undef NOT_SUPPORTED
 
-static SCM
-reset_state_x() {
-  glDisableClientState(GL_VERTEX_ARRAY);
-  glDisableClientState(GL_COLOR_ARRAY);
-  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-  glDisableClientState(GL_NORMAL_ARRAY);
-  return SCM_UNSPECIFIED;
-}
-
 static SCM GLnames;
 static inline void
 init_GLnames() {
@@ -286,8 +279,20 @@ init_GLnames() {
   SET_VALUE("quads", GL_QUADS);
   SET_VALUE("quad-strip", GL_QUAD_STRIP);
   SET_VALUE("polygon", GL_QUAD_STRIP);
+
+  SET_VALUE("vertex-array", GL_VERTEX_ARRAY);
+  SET_VALUE("color-array", GL_COLOR_ARRAY);
+  SET_VALUE("texture-coord-array", GL_TEXTURE_COORD_ARRAY);  
+  SET_VALUE("normal-array", GL_NORMAL_ARRAY);
   
 #undef SET_VALUE
+}
+
+static SCM
+disable_client_state_x(SCM state) {
+  ASSERT_SCM_TYPE(symbol, state, 1);
+  glDisableClientState(scm_to_int(scm_hash_ref(GLnames, state, SCM_BOOL_F)));
+  return SCM_UNSPECIFIED;
 }
 
 static void dont_set_color(const void *unused) { 
@@ -359,6 +364,7 @@ set_color_x(SCM value) {
 	break;
       }
     }
+
     switch(size) {
     case 3:
       if(exact) {
@@ -411,7 +417,6 @@ draw_faces_x(SCM type, SCM array) {
   glDrawElements(GET_VALUE(type), nelems, 
 		 GLtypes[handle.element_type], data);
 
-
   //OUT("glDrawElements(%d, %d, %d, %p", GET_VALUE(type), nelems, GLtypes[handle.element_type], data);
 
   scm_array_handle_release(&handle);
@@ -419,10 +424,16 @@ draw_faces_x(SCM type, SCM array) {
 #undef GET_VALUE
 }
 
+static SCM
+load_identity_x() {
+  glLoadIdentity();
+  return SCM_UNSPECIFIED;
+}
+
 static void
 export_symbols(void *unused) {
-#define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
-  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
+#define EXPORT_PROCEDURE(name, required, optional, rest, proc)		\
+  scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc);	\
   scm_c_export(name,NULL);
 
   EXPORT_PROCEDURE("multiply-matrix!", 1, 0, 0, multiply_matrix_x);
@@ -430,6 +441,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("pop-matrix!", 0, 0, 0, pop_matrix_x);
   EXPORT_PROCEDURE("translate-view!", 1, 0, 0, translate_view_x);
   EXPORT_PROCEDURE("rotate-view!", 1, 0, 0, rotate_view_x);
+  EXPORT_PROCEDURE("load-identity!", 0, 0, 0, load_identity_x);
   EXPORT_PROCEDURE("set-viewport!", 4, 0, 0, set_viewport_x);
   EXPORT_PROCEDURE("current-viewport", 0, 0, 0, current_viewport);
   EXPORT_PROCEDURE("perspective-projection!", 1, 3, 0, 
@@ -442,7 +454,7 @@ export_symbols(void *unused) {
 		      set_colors_array_x);
   EXPORT_PROCEDURE("set-normal-array!", 1, 0, 0, 
 		   set_normal_array_x);
-  EXPORT_PROCEDURE("reset-state!", 0, 0, 0, reset_state_x);
+  EXPORT_PROCEDURE("disable-client-state!", 1, 0, 0, disable_client_state_x);
   EXPORT_PROCEDURE("set-color!", 1, 0, 0, set_color_x);
 
   EXPORT_PROCEDURE("set-texture-coords-array!", 1, 0, 0, 

@@ -37,9 +37,21 @@
 		 (for-each (match-lambda 
 			    ((type array)
 			     (draw-faces! type array)))
-			   faces)))
+			   faces))
+		(('push-matrix!)
+		 (push-matrix!))
+		(('pop-matrix!)
+		 (pop-matrix!))
+		(('load-identity!)
+		 (load-identity!))
+		(('translate-view! (? array? vector))
+		 (translate-view! vector))
+		(('rotate-view! (? array? quaternion))
+		 (rotate-view! quaternion))
+		)
 	       definition)
-     (reset-state!))
+     (for-each disable-client-state! 
+	       '(vertex-array color-array normal-array texture-coord-array)))
     (else
      (display `(no-match ,else)))))
 
@@ -74,8 +86,10 @@
     (set-viewport! #[view 'x] #[view 'y] #[view 'w] #[view 'h])
     (push-matrix!)
     (perspective-projection! #[view : 'camera : 'fovy])
-    (translate-view! #[view : 'camera : 'position])
-    (rotate-view! #[view : 'camera : 'orientation])
+    (translate-view! #f32(0 0 -0.1))
+    (rotate-view! (~ #[view : 'camera : 'orientation]))
+    (translate-view! (- #[view : 'camera : 'position]))
+
     (draw-objects view)
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
@@ -83,37 +97,23 @@
 (define-method (add-object! (view <3d-view>) (object <3d>))
   (set! #[view 'objects] (cons object #[view 'objects])))
 
+(define X-SENSITIVITY (make-fluid 0.01))
+(define Y-SENSITIVITY (make-fluid -0.01))
+
+(define-method (turn (object <3d>) (x <number>) (y <number>))
+  (set! #[object 'orientation]
+	(normalized 
+	 (+ #[object 'orientation] 
+	    (* (quaternion 0.0 (* x #[X-SENSITIVITY] #f32(0 1 0)))
+	       #[object 'orientation])
+	    (normalized (+ #[object 'orientation]
+			   (* (quaternion 0.0 (* y #[Y-SENSITIVITY] #f32(1 0 0)))
+			      #[object 'orientation])))))))
+
 (define-method (initialize (view <3d-view>) args)
   (next-method)
   (let ((camera #[view 'camera]))
-    (set! #[view 'click]
-	  (lambda (x y)
-	    (set! #[view : 'data : 'anchor] (list x y))
-	    (set! #[view : 'data : 'original-orientation]
-		  #[camera 'orientation])))
-    (set! #[view 'unclick]
-	  (lambda (x y)
-	    (hash-remove! #[view 'data] 'anchor)
-	    (hash-remove! #[view 'data] 'original-orientation)))
-    (set! #[view 'drag] 
-	  (lambda (x y dx dy)
-	    (match #[view : 'data : 'anchor]
-	      ((x0 y0)
-	       (let ((p #[view : 'data : 'original-orientation])
-		     (vx (- x x0))
-		     (vy (- y y0)))
-		 (let* ((axis (wedge3x3 
-			       (list->f32vector (list vx vy 0.0))
-			       #f32(0.0 0.0 1.0)))
-			(norm (norm axis))
-			(θ (exact->inexact 
-			    (/ norm (min #[view 'w] #[view 'h]))))
-			(q (quaternion (sin θ) 
-				       (* (cos θ)
-					  (* (/ 1 norm) axis)))))
-		   (if (> norm 0.1)
-		       (set! #[camera 'orientation] 
-			     (* (~ q) p q)))
-		   )))
-	      (else
-	       (display "dragging with anchor unset (strange?)\n")))))))
+    (set! #[view 'drag] (lambda (x y dx dy)
+			  (turn #[view : 'camera] dx dy)))
+    ))
+
