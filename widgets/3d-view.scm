@@ -96,24 +96,3 @@
 
 (define-method (add-object! (view <3d-view>) (object <3d>))
   (set! #[view 'objects] (cons object #[view 'objects])))
-
-(define X-SENSITIVITY (make-fluid 0.01))
-(define Y-SENSITIVITY (make-fluid -0.01))
-
-(define-method (turn (object <3d>) (x <number>) (y <number>))
-  (set! #[object 'orientation]
-	(normalized 
-	 (+ #[object 'orientation] 
-	    (* (quaternion 0.0 (* x #[X-SENSITIVITY] #f32(0 1 0)))
-	       #[object 'orientation])
-	    (normalized (+ #[object 'orientation]
-			   (* (quaternion 0.0 (* y #[Y-SENSITIVITY] #f32(1 0 0)))
-			      #[object 'orientation])))))))
-
-(define-method (initialize (view <3d-view>) args)
-  (next-method)
-  (let ((camera #[view 'camera]))
-    (set! #[view 'drag] (lambda (x y dx dy)
-			  (turn #[view : 'camera] dx dy)))
-    ))
-
