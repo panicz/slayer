@@ -67,6 +67,9 @@
 	   (* (re q) (im p))
 	   (* (wedge3x3 (im p) (im q))))))
 
+(define (quaternion-add2 p q)
+  (quaternion (+ (re p) (re q)) (+ (im p) (im q))))
+
 (define pi/4 (atan 1))
 
 (define π/4 pi/4)
@@ -133,19 +136,24 @@
 (define (square v)
   (dot v v))
 
-(define (norm v)
+(define-method (norm v)
   (sqrt (square v)))
 
-(define (normalize! v)
+(define-method (normalize! v)
   (let ((lv (norm v)))
     (array-map! v (lambda(x)(/ x lv)) v)))
 
-(define (normalized v)
+(define-method (normalized v)
   (let ((lv (norm v))
 	(u (apply make-typed-array (array-type v) (if #f #f) 
 		  (array-dimensions v))))
     (array-map! u (lambda(x)(/ x lv)) v)
     u))
+
+(define-method (normalized (q <quaternion>))
+  (match-let* (((re . im) q)
+	       (1/norm (/ 1 (sqrt (+ (* re re) (* im im))))))
+    (quaternion (* 1/norm re) (* 1/norm im))))
 
 (define* (project source #:optional destination 
 		  #:key (onto destination)) ; project src onto dest
@@ -292,6 +300,9 @@
 
 (define-method (* (p <quaternion>) . rest)
   (fold (lambda(q p)(quaternion-multiply2 p q)) p rest))
+
+(define-method (+ (p <quaternion>) . rest)
+  (fold quaternion-add2 p rest))
 
 (define-generic ~)
 
