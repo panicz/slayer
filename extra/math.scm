@@ -11,7 +11,7 @@
 	   rows columns row column
 	   matrix->vector vector->matrix
 	   vectors->matrix
-	   dot norm square project
+	   dot norm square ; project
 	   normalize! normalized
 	   det3x3 inv3x3 wedge3x3 crossm3x3
 	   matrix-mul matrix-vector-mul
@@ -23,7 +23,7 @@
 	   <generalized-vector>
 	   <quaternion> 
 	   quaternion quaternion-real quaternion-imag re im ~
-	   rotation-quaternion
+	   rotation-quaternion rotate
 	   TOLERANCE
 	   ))
 
@@ -155,7 +155,9 @@
 	       (1/norm (/ 1 (sqrt (+ (* re re) (* im im))))))
     (quaternion (* 1/norm re) (* 1/norm im))))
 
-(define* (project source #:optional destination 
+;; it turned out that this procedure is implemented twice -- here
+;; and at the bottom (the 'projection procedure)
+#;(define* (project source #:optional destination 
 		  #:key (onto destination)) ; project src onto dest
   (let ((s (/ (dot source onto) (square onto))))
     (array-map (lambda(x)(* x s)) onto)))
@@ -336,6 +338,9 @@
     (if (< (* v v) #[TOLERANCE])
 	(random-array size)
 	v)))
+
+(define-method (rotate (v <uvec>) (q <quaternion>))
+  (im (* q (quaternion 0.0 v) (~ q))))
 
 (define (rotation-quaternion u w); This method is borrowed from Game
   (let ((u (normalized u)); Programming Gems vol.1 chapter 2.10
