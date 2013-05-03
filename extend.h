@@ -23,6 +23,13 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
 #define ZILCH(val, ...) NULL
 #define DONT(val, ...) do {} while(0)
 
+#define MDEF_CONDITIONAL_ASSIGN(TYPE,tag,scm_var,c_type,c_var,d_val)	\
+  scm_assert_smob_type(tag, scm_var);					\
+  if(SCM_SMOB_FLAGS(scm_var) != TYPE) {					\
+    WARN("FUNCTION CALLED ON A NON-" # TYPE);				\
+    return d_val;							\
+  }									\
+  c_type c_var = (c_type) SCM_SMOB_DATA(scm_var)
 
 #define ASSERT_SCM_TYPE(type, var, pos)					\
   SCM_ASSERT_TYPE(scm_is_##type(var), var, pos, __FUNCTION__, # type)

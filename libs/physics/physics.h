@@ -119,9 +119,8 @@ typedef unordered_map<SCM, void (*)(sim_t *, SCM), hash<SCM>, scm_eq>
 typedef unordered_map<SCM, SCM (*)(sim_t *), hash<SCM>, scm_eq>
   sim_property_getter_map_t;
 
-							
-#define MDEF_CONDITIONAL_ASSIGN(TYPE, scm_var, c_type, c_var, d_val)	\
-  scm_assert_smob_type(ode_tag, scm_var);				\
+#define MDEF_CONDITIONAL_ASSIGN(TYPE, tag, scm_var, c_type, c_var, d_val) \
+  scm_assert_smob_type(tag, scm_var);					\
   if(SCM_SMOB_FLAGS(scm_var) != TYPE) {					\
     WARN("FUNCTION CALLED ON A NON-" # TYPE);				\
     return d_val;							\
@@ -129,16 +128,16 @@ typedef unordered_map<SCM, SCM (*)(sim_t *), hash<SCM>, scm_eq>
   c_type c_var = (c_type) SCM_SMOB_DATA(scm_var)
 
 #define SIM_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)		\
-  MDEF_CONDITIONAL_ASSIGN(SIM, scm_var, sim_t *, c_var, d_val)
+  MDEF_CONDITIONAL_ASSIGN(SIM, ode_tag, scm_var, sim_t *, c_var, d_val)
 
 #define RIG_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)		\
-  MDEF_CONDITIONAL_ASSIGN(RIG, scm_var, rig_t *, c_var, d_val)
+  MDEF_CONDITIONAL_ASSIGN(RIG, ode_tag, scm_var, rig_t *, c_var, d_val)
 
 #define BODY_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
-  MDEF_CONDITIONAL_ASSIGN(BODY, scm_var, body_t *, c_var, d_val)
+  MDEF_CONDITIONAL_ASSIGN(BODY, ode_tag, scm_var, body_t *, c_var, d_val)
 
 #define JOINT_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
-  MDEF_CONDITIONAL_ASSIGN(JOINT, scm_var, joint_t *, c_var, d_val)
+  MDEF_CONDITIONAL_ASSIGN(JOINT, ode_tag, scm_var, joint_t *, c_var, d_val)
 
 #define SET_SMOB_TYPE(type, smob, c_var)	\
   SCM_NEWSMOB(smob, ode_tag, c_var);		\
