@@ -2,6 +2,7 @@
 #include <SDL/SDL.h>
 #include "extend.h"
 #include "video.h"
+#include "audio.h"
 #include "image.h"
 #include "input.h"
 #include "file.h"
@@ -12,48 +13,6 @@
 #ifdef USE_OPENGL
 #include "3d.h"
 #endif
-
-/*
-  There is a set of widgets/modules, written either in C or
-  in guile scheme, that can be loaded at runtime.
-  With each module, certain actions and states are associated.
-  Specifically, new processes can be spawn, input can be
-  retrieved and output can update the audiovisual information.
-  
-  The main progam runs the visual interpreter for a specified
-  configuration. The input/output model is event-driven, with
-  the possibility of synchronisation using the timer module.
-
-  With every widget, there is an editor associated.
-
-  The default widgets are: radio buttons, text field 
-  and checkbox, which corespond to certain data types
-  ('enum', string/number/symbol, boolean).
-
-  There is also a button (that generates events), text
-  area (whih can be used as a console) and canvas. By default, 
-  each module emits various signals or messages (like the "debug" 
-  signal that contains the information on what's going on)
-
-  Every singal invokes a sequence of scheme thunk calls
-  (event dispatchers) that were previously attached to it.
-
-  Generally, the philosophy is that evrything that can be
-  `clicked-in' can also be typed into the interpreter, and that
-  everything that is clicked can be remembered in the log as a
-  valid scheme code, and that the whole GUI is fully configurable
-  at runtime.
-
-  The order of implementation:
-  first, a gui console should be implemented.
-  afterwards, some buttons and simple widgets
-  finally, windows, threads, canvases and so on (as loadable modules)
-
- */
-
-//static widget *widgets[];
-//static widget *active_widget;
-
 
 SCM 
 scm_catch_handler(void *data, SCM key, SCM args) {
@@ -79,6 +38,12 @@ set_exit_procedure_x(SCM procedure) {
 static void 
 finish(int status, char *filename) {
   scm_call_1(exit_procedure, scm_from_locale_string(filename));
+
+  scm_gc();
+  audio_finish();
+  input_finish();
+  video_finish();
+
   SDL_Quit();
 }
 
@@ -108,9 +73,11 @@ init(init_t *arg) {
   exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
   video_init(arg->w, arg->h, arg->video_mode);
-
-  image_init();
   input_init();
+  audio_init();
+
+  // these calls should be moved to separate libraries
+  image_init();
   font_init();
 
   // if the file doesn't exist, create it, filling it with the
@@ -136,6 +103,11 @@ init(init_t *arg) {
 
 static void *
 io(init_t *arg) {
+  /* To see a world in a grain of sand,
+   * And a heaven in a wild flower,
+   * Hold infinity in the palm of your hand,
+   * And eternity in an hour.
+   */
   init(arg);
   while (1) {
     input_handle_events();
@@ -226,7 +198,8 @@ main(int argc, char *argv[]) {
     arg.h = 480;
   }
 
-  OUT("infile = %s, outfile = %s, w = %d, h = %d", arg.infile, arg.outfile, arg.w, arg.h);
+  OUT("infile = %s, outfile = %s, w = %d, h = %d", arg.infile, arg.outfile, 
+      arg.w, arg.h);
 
   scm_with_guile((void *(*)(void *))&io, &arg);
 

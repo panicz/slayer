@@ -1,7 +1,8 @@
-#include <SDL/SDL_image.h>
+#include "slayer.h"
 #include "video.h"
 #include "extend.h"
 #include "utils.h"
+#include "symbols.h"
 
 #ifdef USE_OPENGL
 #include "3d.h"
@@ -24,14 +25,11 @@ clear_screen() {
   if(video_mode & SDL_OPENGL) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SDL_GL_SwapBuffers();
+    return SCM_UNSPECIFIED;
   } 
-  else {
 #endif
-    SDL_FillRect(screen, NULL, 0);
-    SDL_Flip(screen);
-#ifdef USE_OPENGL
-  }
-#endif
+  SDL_FillRect(screen, NULL, 0);
+  SDL_Flip(screen);
   return SCM_UNSPECIFIED;
 }
 
@@ -40,14 +38,10 @@ wipe_screen() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-  }
-  else {
-#endif
-    SDL_FillRect(screen, NULL, 0);
-#ifdef USE_OPENGL
+    return SCM_UNSPECIFIED;
   }
 #endif
+  SDL_FillRect(screen, NULL, 0);
   return SCM_UNSPECIFIED;
 }
 
@@ -56,13 +50,10 @@ flip_screen() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     SDL_GL_SwapBuffers();
-  }
-  else {
-#endif
-    SDL_Flip(screen);
-#ifdef USE_OPENGL
+    return SCM_UNSPECIFIED;
   }
 #endif
+  SDL_Flip(screen);
   return SCM_UNSPECIFIED;
 }
 
@@ -118,9 +109,11 @@ video_refresh_screen() {
   flip_screen();
 }
 
-#define TRY_SDL(f) if((f) == -1) { \
-    OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, \
-	STR(f),SDL_GetError()); }
+
+void
+video_finish() {
+  SDL_QuitSubSystem(SDL_INIT_VIDEO);
+}
 
 void
 video_init(Uint16 w, Uint16 h, int mode) {
@@ -137,7 +130,7 @@ video_init(Uint16 w, Uint16 h, int mode) {
     init_3d(w, h);
 #endif
   }
-  set_display_procedure_x(eval("noop"));
+  display_procedure = noop;
 
   scm_c_define_module("slayer", export_symbols, NULL);
 }

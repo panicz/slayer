@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++
 CFLAGS = -Wall `pkg-config --cflags sdl guile-2.0` -DUSE_OPENGL -lGL -lGLU # -DUSE_EVENT_HANDLER -pg 
-LIBS = `pkg-config --libs sdl guile-2.0` -lSDL_image -lSDL_ttf -lc -lGL -lGLU # -lSDL_net -lSDL_mixer -pg
+LIBS = `pkg-config --libs sdl guile-2.0` -lSDL_image -lSDL_ttf -lc -lGL -lGLU -lSDL_mixer # -pg
 OBJCOPY = objcopy
 
 ARCH := $(shell uname -m)
@@ -22,7 +22,7 @@ all: slayer libraries
 .cc.o:
 	$(CXX) $(CFLAGS) -c $< -o $@
 
-OBJECTS = input.o slayer.o symbols.o video.o file.o image.o font.o 3d.o
+OBJECTS = input.o slayer.o symbols.o video.o file.o image.o font.o 3d.o audio.o
 
 slayer:	$(OBJECTS)
 	$(CXX) $(CFLAGS) -o $@ $(OBJECTS) $(LIBS)

@@ -358,6 +358,11 @@ export_symbols(void *unused) {
 #undef EXPORT_OBJECT
 }
 
+void
+input_finish() {
+  //
+}
+
 void 
 input_init() {
   int i;
