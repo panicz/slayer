@@ -4,6 +4,7 @@
   #:use-module (extra common)
   #:use-module (slayer)
   #:use-module (slayer image)
+  #:use-module (slayer font)
   #:use-module (widgets base)
   #:export (<bitmap>
 	    make-button

@@ -7,10 +7,7 @@
   #:use-module (slayer font)
   #:use-module (widgets base)
   #:export (<text-area>
-	    make-text-area
-	    *default-font*))
-
-(define *default-font* (load-font "./art/VeraMono.ttf" 12))
+	    make-text-area))
 
 (define-class <text-area> (<widget>)
   (lines #:init-value '#(""))
