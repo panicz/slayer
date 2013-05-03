@@ -20,7 +20,7 @@
 	   rectangle-grid
 	   square-grid
 	   hemisphere
-	   generate-open-cylinder
+	   generate-tube
 	   )
   ;;:re-export (distance)
   )
@@ -46,6 +46,7 @@
 
 (define-class <3d-shape> (<3d>)
   (shape #:init-value '()))
+
 
 (define-class <3d-mesh> (<3d-shape>)
   (mesh #:init-value '()
@@ -306,7 +307,7 @@
 		    (triangle-fan 
 		     ,(list->uniform-array bottom-fan)))))))
 
-(define* (generate-open-cylinder #:key (radius 0.5) (height 1.0)
+(define* (generate-tube #:key (radius 0.5) (height 1.0)
 				 (base-points 20))
   (match-let ((('mesh ('vertices circle-vertices) _ ...)
 	       (generate-circle #:radius radius 

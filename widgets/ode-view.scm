@@ -37,8 +37,8 @@
 			  ('cylinder
 			   (let ((radius (body-property body 'radius))
 				 (height (body-property body 'height)))
-			     (generate-open-cylinder #:radius radius
-						     #:height height)))
+			     (generate-tube #:radius radius
+					    #:height height)))
 			  ('plane
 			   (let ((grid (transform-mesh-vertices
 					(match-lambda ((x y) (list x 0.0 y)))
