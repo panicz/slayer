@@ -3,6 +3,7 @@
   #:use-module (extra ref)
   #:use-module (extra common)
   #:use-module (slayer)
+  #:use-module (slayer font)
   #:export (
 	    update!
 	    draw
@@ -29,11 +30,15 @@
 	    unselect-widget-at
 	    right-click-widget-at
 	    drag-over-widget
+
+	    *default-font*
 	    ))
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
+
+(define *default-font* (load-font "./art/VeraMono.ttf" 12))
 
 (define-generic update!)
 (define-generic draw)
@@ -148,3 +153,8 @@
 	   (set! *nearby-widget* mouseover-widget)
 	   (#[ *nearby-widget* 'mouse-over ] x y xrel yrel)))
      (#[ *active-widget* 'drag ] x y xrel yrel)))
+
+(keydn 'mouse1 select-widget-at)
+(keyup 'mouse1 unselect-widget-at)
+(keydn 'mouse2 right-click-widget-at)
+(mousemove drag-over-widget)
