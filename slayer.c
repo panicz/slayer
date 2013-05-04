@@ -1,18 +1,9 @@
 #include <unistd.h>
 #include <SDL/SDL.h>
-#include "extend.h"
+#include "slayer.h"
 #include "video.h"
-#include "audio.h"
-#include "image.h"
-#include "input.h"
-#include "file.h"
-#include "font.h"
-#include "utils.h"
 #include "symbols.h"
 
-#ifdef USE_OPENGL
-#include "3d.h"
-#endif
 
 SCM 
 scm_catch_handler(void *data, SCM key, SCM args) {
@@ -40,9 +31,9 @@ finish(int status, char *filename) {
   scm_call_1(exit_procedure, scm_from_locale_string(filename));
 
   scm_gc();
+#ifdef USE_SDL_MIXER
   audio_finish();
-  input_finish();
-  video_finish();
+#endif
 
   SDL_Quit();
 }
@@ -66,6 +57,23 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
+static void
+fake_audio(void *unused) {
+#define FAKE_PROCEDURE(name)					    \
+  scm_c_define_gsubr(name, 0, 0, 1,(scm_t_subr) scm_noop);	    \
+  scm_c_export(name, NULL);
+  
+  FAKE_PROCEDURE("load-sound");
+  FAKE_PROCEDURE("play-sound!");
+  FAKE_PROCEDURE("load-music");
+  FAKE_PROCEDURE("play-music!");
+  FAKE_PROCEDURE("pause-music!");
+  FAKE_PROCEDURE("resume-music!");
+
+#undef EXPORT_PROCEDURE
+}
+
+
 static void 
 init(init_t *arg) {
   symbols_init();
@@ -74,7 +82,11 @@ init(init_t *arg) {
   scm_c_define_module("slayer", export_symbols, NULL);
   video_init(arg->w, arg->h, arg->video_mode);
   input_init();
+#ifdef USE_SDL_MIXER
   audio_init();
+#else
+  scm_c_define_module("slayer", fake_audio, NULL);
+#endif
 
   // these calls should be moved to separate libraries
   image_init();

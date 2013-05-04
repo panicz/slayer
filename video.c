@@ -5,7 +5,6 @@
 #include "symbols.h"
 
 #ifdef USE_OPENGL
-#include "3d.h"
 int video_mode = 0;
 #endif
 
@@ -107,12 +106,6 @@ video_refresh_screen() {
   wipe_screen();
   scm_call_0(display_procedure);
   flip_screen();
-}
-
-
-void
-video_finish() {
-  SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
 void

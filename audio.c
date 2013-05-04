@@ -8,22 +8,25 @@
 scm_t_bits sound_tag;
 
 static Mix_Music *now_playing = NULL;
-static Mix_Chunk *used_channels[MIX_CHANNELS];
+static Mix_Chunk **used_channels;
+static int nchannels;
 
 struct list {
   void *data;
   struct list *next;
 };
 
-static inline
-struct list *cons(void *data, struct list *next) {
+static inline struct list *
+cons(void *data, struct list *next) {
   struct list *cell = malloc(sizeof(struct list));
   cell->data = data;
   cell->next = next;
   return cell;
 }
 
+// these are needed to sync with garbage collector
 static struct list *purge_music = NULL;
+static struct list *purge_sounds = NULL;
 
 enum {
   SOUND = 1,
@@ -51,6 +54,34 @@ music_finish() {
   
 }
 
+static void
+channel_finish(int channel) {
+  Mix_Chunk *sound = used_channels[channel];
+  used_channels[channel] = NULL;
+
+  int i;
+  for(i = 0; i < nchannels; ++i) {
+    if(used_channels[i] == sound) { // the sound is still being played on some
+      return;                       // channel, so it shall not be deleted
+    }
+  }
+  
+  struct list *p, *prev = NULL;
+  for(p = purge_sounds; p; p = p->next) {
+    if(((Mix_Chunk *) p->data) == sound) {
+      if(prev) {
+	prev->next = p->next;
+      }
+      else {
+	purge_sounds = p->next;
+      }
+      Mix_FreeChunk(sound);
+      free(p);
+      return;
+    }
+    prev = p;
+  }
+}
 
 static SCM
 load_sound(SCM path) {
@@ -63,6 +94,27 @@ load_sound(SCM path) {
   SCM_NEWSMOB(smob, sound_tag, sound);
   SCM_SET_SMOB_FLAGS(smob, SOUND);
   return smob;
+}
+
+static SCM
+play_sound_x(SCM x_sound, SCM x_repeats) {
+  SOUND_CONDITIONAL_ASSIGN(x_sound, sound, SCM_BOOL_F);
+  int repeats;
+  if (x_repeats == SCM_UNDEFINED) {
+    repeats = 0;
+  }
+  else {
+    if (scm_is_integer(x_repeats)) {
+      repeats = scm_to_int(x_repeats);
+    }
+    else {
+      repeats = indeed(x_repeats) ? -1 : 0;
+    }
+  }
+  int channel = Mix_PlayChannel(-1, sound, repeats);
+  //OUT("playing sound on channel %d", channel);
+  scm_remember_upto_here_2(x_sound, x_repeats);
+  return scm_from_int(channel);
 }
 
 static SCM
@@ -95,7 +147,6 @@ play_music_x(SCM x_music, SCM x_repeats) {
   }
   now_playing = music;
   Mix_PlayMusic(music, repeats);
-  Mix_HookMusicFinished(music_finish);
   return SCM_UNSPECIFIED;
 }
 
@@ -119,22 +170,29 @@ export_symbols(void *unused) {
   scm_c_export(name,NULL);
 
   EXPORT_PROCEDURE("load-sound", 1, 0, 0, load_sound);
+  EXPORT_PROCEDURE("play-sound!", 1, 1, 0, play_sound_x);
   EXPORT_PROCEDURE("load-music", 1, 0, 0, load_music);
   EXPORT_PROCEDURE("play-music!", 1, 1, 0, play_music_x);
   EXPORT_PROCEDURE("pause-music!", 0, 0, 0, pause_music_x);
   EXPORT_PROCEDURE("resume-music!", 0, 0, 0, resume_music_x);
-
 
 #undef EXPORT_PROCEDURE
 }
 
 static size_t
 free_sound(SCM sound_smob) {
-  return 0;
   scm_assert_smob_type(sound_tag, sound_smob);  
   int type = SCM_SMOB_FLAGS(sound_smob);
   if(type == SOUND) {
-    
+    Mix_Chunk *sound = (Mix_Chunk *) SCM_SMOB_DATA(sound_smob);
+    struct list *p;
+
+    // we don't want to add sound to the queue if it's already there
+    for(p = purge_sounds; p; p = p->next) {
+      if(((Mix_Chunk *) p->data) == sound)
+	return 0;
+    }
+    purge_sounds = cons((void *) sound, purge_sounds);
   }
   else if(type == MUSIC) {
     Mix_Music *music = (Mix_Music *) SCM_SMOB_DATA(sound_smob);
@@ -151,22 +209,26 @@ free_sound(SCM sound_smob) {
 void
 audio_finish() {
   Mix_CloseAudio();
-  Mix_Quit();
   SDL_QuitSubSystem(SDL_INIT_AUDIO);
+  free(used_channels);
 }
 
 void
 audio_init() {
   TRY_SDL(SDL_InitSubSystem(SDL_INIT_AUDIO));
+  Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024);
 
-  //Mix_Init(MIX_INIT_OGG | MIX_INIT_MP3);
-
-  Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
+  nchannels = Mix_AllocateChannels(MIX_CHANNELS);
+  OUT("There are %i channels allocated", nchannels);
+  used_channels = (Mix_Chunk **) calloc(nchannels, sizeof(Mix_Chunk *));
 
   int i;
-  for(i = 0; i < NELEMS(used_channels); ++i) {
+  for(i = 0; i < nchannels; ++i) {
     used_channels[i] = NULL;
   }
+
+  Mix_ChannelFinished(channel_finish);
+  Mix_HookMusicFinished(music_finish);
 
   sound_tag = scm_make_smob_type("sound", sizeof(void *));
   scm_set_smob_free(sound_tag, free_sound);
