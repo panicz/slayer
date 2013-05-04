@@ -1,26 +1,41 @@
-The aim of slayer project is to separate user interface
-from program's logics as much as possible, i.e. to allow
-user completely redefine user interface, by reassembling
-tiny blocks that are provided by application developer.
+The following programs/libraries are required to accomplish the build process:
+- unix build environment (gcc + make + pkg-config + g++)
+- guile 2.0 (with headers)
+- SDL 1.2 + SDL_image + SDL_ttf + SDL_mixer (with headers)
+- OpenGL implementation with headers
 
-From the developer's point of view, the idea is to
-take away the need of designing user interface from
-the developer -- so that the user interfaces could be
-generated automatically according to the program 
-specification, and then they could be polished by the
-user interface designer easily (by adding new widgets,
-joining or retouching the existing ones, removing the
-redundant ones)
+Optionally, slayer can be compiled without OpenGL or SDL_mixer, which
+currently requires editing Makefile by hand -- one needs to remove the 
+-DUSE_OPENGL and -DUSE_SDL_MIXER options from CFLAGS
 
-The end-user could still be allowed to break the GUI
-apart and then reassemble it according to his or her
-needs.
+In order to build slayer, provided the above condition are met, 
+one simply has to type:
 
-Slayer could also be thought of as a platform to develop
-automatic user interface generator that would adjust to
-the user's preferences.
+  $ make
 
-Currently, slayer is implemented by combining the SDL
-library ( http://www.libsdl.org ) with the GNU guile
-scripting language (a flavour of the Scheme programming
-language, http://www.gnu.org/software/guile/ ).
+Once the program is built, it can be run using the following command
+(in the main directory):
+
+  $ ./slayer -e3d
+
+The above command tells slayer to load the 3d (OpenGL) extension,
+which is required by the slayer.scm file from the repository. The
+slayer.scm is a tiny 3D demo which is controlled using mouse and 
+WSAD keys.
+
+As an example, there is a demo of the classical PONG game, which
+can be run using
+
+  $ ./slayer -i pong.scm
+
+or alternatively
+
+  $ ./slayer --input pong.scm
+
+Should anything be wrong with the audio driver, it is possible to
+bypass the audio system using the --nosound option:
+
+  $ ./slayer -i pong.scm --nosound
+
+However, rather than watching various demos, you are encouraged to read
+the source code and to implement your own ideas.

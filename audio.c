@@ -59,6 +59,9 @@ channel_finish(int channel) {
   Mix_Chunk *sound = used_channels[channel];
   used_channels[channel] = NULL;
 
+  if(!purge_sounds)
+    return;
+
   int i;
   for(i = 0; i < nchannels; ++i) {
     if(used_channels[i] == sound) { // the sound is still being played on some

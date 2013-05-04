@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <SDL/SDL.h>
+#include <getopt.h>
 #include "slayer.h"
 #include "video.h"
 #include "symbols.h"
@@ -32,7 +33,7 @@ finish(int status, char *filename) {
 
   scm_gc();
 #ifdef USE_SDL_MIXER
-  audio_finish();
+  //audio_finish();
 #endif
 
   SDL_Quit();
@@ -44,6 +45,7 @@ typedef struct {
   Uint16 w;
   Uint16 h;
   int video_mode;
+  int sound;
 } init_t;
 
 static void
@@ -73,7 +75,6 @@ fake_audio(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
-
 static void 
 init(init_t *arg) {
   symbols_init();
@@ -83,9 +84,13 @@ init(init_t *arg) {
   video_init(arg->w, arg->h, arg->video_mode);
   input_init();
 #ifdef USE_SDL_MIXER
-  audio_init();
-#else
-  scm_c_define_module("slayer", fake_audio, NULL);
+  if(arg->sound) {
+    audio_init();
+  } else {
+#endif
+    scm_c_define_module("slayer", fake_audio, NULL);
+#ifdef USE_SDL_MIXER
+  }
 #endif
 
   // these calls should be moved to separate libraries
@@ -138,12 +143,35 @@ main(int argc, char *argv[]) {
     .outfile = NULL,
     .w = 0,
     .h = 0,
-    .video_mode = SDL_HWSURFACE | SDL_DOUBLEBUF
+    .video_mode = SDL_HWSURFACE | SDL_DOUBLEBUF,
+    .sound = 1
+  };
+
+  int option_index;
+  static struct option long_options[] = {
+    {"input",     required_argument, 0, 'i'},
+    {"output",    required_argument, 0, 'o'},
+    {"extension", required_argument, 0, 'e'},
+    {"nosound",   no_argument,       0,  0 },
+    {"resizable", no_argument,       0, 'r'},
+    {"width",     required_argument, 0, 'w'},
+    {"height",    required_argument, 0, 'h'},
+    {0,           0,                 0,  0 }
   };
   
   int opt;
-  while ((opt = getopt(argc, argv, "i:o:w:h:rfe:")) != -1) {
+  while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:",
+			    long_options, &option_index)) != -1) {
     switch (opt) {
+    case 0: // no sound
+      if(!strcmp(long_options[option_index].name, "nosound")) {
+	arg.sound = 0;
+      }
+      else {
+	OUT("Unrecognised option: %s", long_options[option_index].name);
+	return -1;
+      }
+      break;
     case 'i': // input file
       arg.infile = malloc(strlen(optarg) + 1);
       if (arg.infile) {
