@@ -91,6 +91,9 @@
 			      (inexact->exact (floor (* 1.5 glyph-width)))))
 	       (* 3 ball-height))))
 
+(define bounce-sound (load-sound "art/alert.wav"))
+(define score-sound (load-sound "art/explode.wav"))
+
 (let ((redraw (register-userevent noop))
       (exit (register-userevent quit)))
   (call-with-new-thread
@@ -102,20 +105,26 @@
        (increase! paddle-b-y paddle-b-v)
        (if (or (<= ball-y 1)
 	       (>= ball-y (- board-height 2)))
-	   (multiply! ball-vy -1))
+	   (begin 
+	     (play-sound! bounce-sound)
+	     (multiply! ball-vy -1)))
        (if (or (and (= ball-x (1- paddle-b-x))
 		    (> ball-vx 0)
 		    (<= paddle-b-y ball-y (+ paddle-b-y paddle-b-size)))
 	       (and (= ball-x (1+ paddle-a-x))
 		    (< ball-vx 0)
 		    (<= paddle-a-y ball-y (+ paddle-a-y paddle-a-size))))
-	   (multiply! ball-vx -1))
+	   (begin 
+	     (play-sound! bounce-sound)
+	     (multiply! ball-vx -1)))
        (if (> ball-x board-width)
 	   (begin
+	     (play-sound! score-sound)
 	     (increase! points-a 1)
 	     (reset-ball!)))
        (if (< ball-x 0)
 	   (begin
+	     (play-sound! score-sound)
 	     (increase! points-b 1)
 	     (reset-ball!)))
        (if (or (> points-a 9)

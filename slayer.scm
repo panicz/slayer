@@ -24,12 +24,18 @@
 
 (define *modes* #[])
 
+(define newtra (load-music "art/newtra.mp3"))
+(define alert (load-sound "art/alert.wav"))
+
+(keydn 'm (lambda()(play-music! newtra)))
+(keydn 'n (lambda()(play-sound! alert)))
+
 (let ((redraw (register-userevent noop)))
   (call-with-new-thread
    (lambda()
      (while #t
        (for-each (lambda(f)(f)) (hash-values *modes*))
-       (generate-userevent redraw)
+       (generate-userevent redraw) ; force redraw
        (usleep 30000)))))
 
 (define (key name fun)
@@ -39,7 +45,7 @@
 (define X-SENSITIVITY -0.01)
 (define Y-SENSITIVITY -0.01)
 
-(define-method (turn (object <3d>) (x <number>) (y <number>))
+#;(define-method (turn (object <3d>) (x <number>) (y <number>))
   (set! #[object 'orientation]
 	(normalized 
 	 (+ #[object 'orientation] 
@@ -68,21 +74,20 @@
 
 (key 'w (lambda () 
 	  (increase! #[view : 'camera : 'position]
-		     (rotate #f32(0 0 -0.7) 
+		     (rotate #f32(0 0 -0.07) 
 			     #[view : 'camera : 'orientation]))))
 
 (key 's (lambda () 
 	  (increase! #[view : 'camera : 'position]
-		     (rotate #f32(0 0 0.7) 
+		     (rotate #f32(0 0 0.07) 
 			     #[view : 'camera : 'orientation]))))
 
 (key 'a (lambda () 
 	     (increase! #[view : 'camera : 'position]
-			(rotate #f32(-0.7 0 0) 
+			(rotate #f32(-0.07 0 0) 
 				#[view : 'camera : 'orientation]))))
 
 (key 'd (lambda () 
 	    (increase! #[view : 'camera : 'position]
-		       (rotate #f32(0.7 0 0) 
+		       (rotate #f32(0.07 0 0) 
 			       #[view : 'camera : 'orientation]))))
-
