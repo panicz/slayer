@@ -2,12 +2,40 @@
 #define SLAYER_H
 #include <SDL/SDL.h>
 #include "utils.h"
+#include "extend.h"
 
 #define TRY_SDL(f)						       \
   if((f) == -1) {						       \
     OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, \
 	STR(f),SDL_GetError());					       \
   }
+
+// AUDIO
+extern void audio_init();
+extern void audio_finish();
+
+// INPUT
+extern void input_init();
+extern SCM input_handle_events();
+
+// FILE
+int file_exists(const char *filename);
+int file_empty(const char *filename);
+int file_writable(const char *filename);
+int file_readable(const char *filename);
+
+int file_create(const char *filename);
+int file_write(const char *filename, const char *string);
+SCM file_eval(const char *filename);
+
+// IMAGE
+extern scm_t_bits image_tag;
+extern void image_init();
+extern SCM rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel);
+
+// FONT
+extern scm_t_bits font_tag;
+void font_init();
 
 
 #endif // SLAYER_H
