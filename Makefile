@@ -15,7 +15,7 @@ OBJ_TARGET = elf32-i386
 endif
 
 .PHONY:	clean
-all: slayer libraries
+all: slayer # libraries
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -31,7 +31,7 @@ libraries:
 
 clean:
 	rm -f slayer *.o *~ widgets/*.go widgets/*~ extra/*~ *.go extra/*.go
-	cd libs && make clean
+#cd libs && make clean
 
 again:
 	make clean
