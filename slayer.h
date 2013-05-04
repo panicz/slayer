@@ -11,8 +11,10 @@
   }
 
 // AUDIO
+#ifdef USE_SDL_MIXER
 extern void audio_init();
 extern void audio_finish();
+#endif
 
 // INPUT
 extern void input_init();
@@ -37,5 +39,9 @@ extern SCM rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel);
 extern scm_t_bits font_tag;
 void font_init();
 
+// 3D
+#ifdef USE_OPENGL
+extern void init_3d();
+#endif
 
 #endif // SLAYER_H

@@ -1,6 +1,5 @@
 #include "slayer.h"
 #include <SDL/SDL_ttf.h>
-#include "image.h"
 #include "utils.h"
 
 #ifdef USE_OPENGL

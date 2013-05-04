@@ -1,4 +1,4 @@
-#include "input.h"
+#include "slayer.h"
 #include "utils.h"
 #include "symbols.h"
 #include "video.h"
@@ -356,11 +356,6 @@ export_symbols(void *unused) {
 
 #undef EXPORT_PROCEDURE
 #undef EXPORT_OBJECT
-}
-
-void
-input_finish() {
-  //
 }
 
 void 
