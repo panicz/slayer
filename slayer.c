@@ -27,18 +27,6 @@ set_exit_procedure_x(SCM procedure) {
   return SCM_UNSPECIFIED;
 }
 
-static void 
-finish(int status, char *filename) {
-  scm_call_1(exit_procedure, scm_from_locale_string(filename));
-
-  scm_gc();
-#ifdef USE_SDL_MIXER
-  //audio_finish();
-#endif
-
-  SDL_Quit();
-}
-
 typedef struct {
   char *infile;
   char *outfile;
@@ -46,7 +34,22 @@ typedef struct {
   Uint16 h;
   int video_mode;
   int sound;
-} init_t;
+} arg_t;
+
+static void 
+finish(int status, arg_t *arg) {
+  scm_call_1(exit_procedure, scm_from_locale_string(arg->outfile));
+
+  scm_gc();
+#ifdef USE_SDL_MIXER
+  if(arg->sound) {
+    audio_finish();
+  }
+#endif
+
+  SDL_Quit();
+}
+
 
 static void
 export_symbols(void *unused) {
@@ -76,7 +79,7 @@ fake_audio(void *unused) {
 }
 
 static void 
-init(init_t *arg) {
+init(arg_t *arg) {
   symbols_init();
 
   exit_procedure = noop;
@@ -115,11 +118,11 @@ init(init_t *arg) {
   }
 
   LOGTIME(file_eval(arg->infile));
-  on_exit((void (*)(int, void *)) finish, arg->outfile);
+  on_exit((void (*)(int, void *)) finish, (void *) arg);
 }
 
 static void *
-io(init_t *arg) {
+io(arg_t *arg) {
   /* To see a world in a grain of sand,
    * And a heaven in a wild flower,
    * Hold infinity in the palm of your hand,
@@ -138,7 +141,7 @@ io(init_t *arg) {
 int 
 main(int argc, char *argv[]) {
 
-  init_t arg = {
+  arg_t arg = {
     .infile = NULL,
     .outfile = NULL,
     .w = 0,
