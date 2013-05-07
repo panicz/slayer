@@ -1,3 +1,8 @@
+PRZED RELEASEM:
+- zaktualizowac README
+- 
+
+
 PILNIEJSZE:
 uporzadkowac system modulow tak zeby sie nie pultalo
 i zeby nie bylo niepotrzebnych zaleznosci.
@@ -8,8 +13,6 @@ Problem jest jeszcze jednej natury: jezeli mamy sobie
 modul, ktory zalacza inny modul, merdzujac jednoczesnie
 jego generyki, to co z generykami definiowanymi przez ow
 "zewnetrzny" modul?
-
-
 
 
 DO ZROBIENIA NA CZAS PODROZY:
