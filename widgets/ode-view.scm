@@ -11,7 +11,6 @@
   #:use-module (slayer 3d)
   #:export (<ode-view>))
 
-
 (use-modules (extra ref) (oop goops))
 
 (define-class <ode-view> (<3d-view>)
@@ -30,15 +29,24 @@
 			  ('box
 			   (let ((dims (body-property body 'dimensions)))
 			     (generate-box #:x #[dims 0] 
-					   #:y #[dims 1] #:z #[dims 2])))
+					   #:y #[dims 1] 
+					   #:z #[dims 2])))
 			  ('sphere
 			   (let ((radius (body-property body 'radius)))
 			     (generate-sphere #:radius radius)))
 			  ('cylinder
 			   (let ((radius (body-property body 'radius))
 				 (height (body-property body 'height)))
-			     (generate-tube #:radius radius
-					    #:height height)))
+			     (match (generate-tube #:radius radius
+						   #:height height)
+			       (('mesh . definition)
+				`(mesh
+				  (push-matrix!)
+				  (rotate-view! ,(normalized 
+						  '(1.0 . #f32(1 0 0))))
+				  ,@definition
+				  (pop-matrix!))))
+			     ))
 			  ('plane
 			   (let ((grid (transform-mesh-vertices
 					(match-lambda ((x y) (list x 0.0 y)))

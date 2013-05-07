@@ -72,6 +72,12 @@ translate_view_x(SCM vector) {
 }
 
 static SCM
+load_identity_x() {
+  glLoadIdentity();
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
 multiply_matrix_x(SCM M) {
   scm_t_array_handle h;
   if (scm_is_array(M)) {
@@ -422,12 +428,6 @@ draw_faces_x(SCM type, SCM array) {
   scm_array_handle_release(&handle);
   return SCM_UNSPECIFIED;
 #undef GET_VALUE
-}
-
-static SCM
-load_identity_x() {
-  glLoadIdentity();
-  return SCM_UNSPECIFIED;
 }
 
 static void

@@ -6,7 +6,7 @@
   #:use-module (extra ref)
   #:use-module (extra 3d)
   #:use-module (slayer 3d)
-  #:export (<3d-view> add-object! draw-mesh draw-objects transform-mesh-vertices))
+  #:export (<3d-view> add-object! draw-mesh draw-objects))
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
@@ -46,7 +46,7 @@
 		 (load-identity!))
 		(('translate-view! (? array? vector))
 		 (translate-view! vector))
-		(('rotate-view! (? array? quaternion))
+		(('rotate-view! quaternion)
 		 (rotate-view! quaternion))
 		)
 	       definition)
@@ -55,17 +55,6 @@
     (else
      (display `(no-match ,else)))))
 
-(define (transform-mesh-vertices proc mesh)
-  (match mesh
-    (('mesh . definition)
-     `(mesh
-       ,@(map (match-lambda
-		  (('vertices vertices)
-		   `(vertices ,(list->uniform-array 
-				(map proc (array->list vertices)))))
-		(else
-		 else))
-	      definition)))))
 
 (define-method (draw (object <3d-mesh>))
   (push-matrix!)
@@ -89,7 +78,6 @@
     (translate-view! #f32(0 0 -0.1))
     (rotate-view! (~ #[view : 'camera : 'orientation]))
     (translate-view! (- #[view : 'camera : 'position]))
-
     (draw-objects view)
     (pop-matrix!)
     (apply set-viewport! original-viewport)))

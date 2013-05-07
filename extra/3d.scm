@@ -21,10 +21,10 @@
 	   square-grid
 	   hemisphere
 	   generate-tube
+	   transform-mesh-vertices
 	   )
   ;;:re-export (distance)
   )
-
 
 (define-syntax define-symmetric-method
   (syntax-rules ()
@@ -32,6 +32,18 @@
      (begin
        (define-method (name arg1 arg2) body ...)
        (define-method (name arg2 arg1) body ...)))))
+
+(define (transform-mesh-vertices proc mesh)
+  (match mesh
+    (('mesh . definition)
+     `(mesh
+       ,@(map (match-lambda
+		  (('vertices vertices)
+		   `(vertices ,(list->uniform-array 
+				(map proc (array->list vertices)))))
+		(else
+		 else))
+	      definition)))))
 
 (define-class <3d> ()
   (position #:init-value #f32(0 0 0) #:init-keyword #:position)
@@ -43,16 +55,12 @@
 (define-class <3d-cam> (<3d>)
   (fovy #:init-value 70.0))
 
-
 (define-class <3d-shape> (<3d>)
   (shape #:init-value '()))
-
 
 (define-class <3d-mesh> (<3d-shape>)
   (mesh #:init-value '()
 	#;(\ with-input-from-file "3d/cube.3d" read)))
-
-(use-modules (extra common) (extra math))
 
 (define* (generate-circle #:key (radius 1.0) (points 20))
   (let ((slice (/ 2pi points)))

@@ -12,6 +12,17 @@
 
 (keydn 'esc quit)
 
+(define-syntax utimer
+  (syntax-rules ()
+    ((_ usecs action ...)
+     (let ((tick (register-userevent (lambda () action ...))))
+       (call-with-new-thread
+	(lambda ()
+	  (while #t
+	    (generate-userevent tick)
+	    (usleep usecs))))))))
+
+
 (define ku (load-image "./art/ku.png"))
 
 (add-child! *stage* (make-image ku 75 25))
@@ -24,23 +35,19 @@
 
 (define *modes* #[])
 
+(utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
+
+(define (key name fun)
+  (keydn name (lambda()(hash-set! *modes* name fun)))
+  (keyup name (lambda()(hash-remove! *modes* name))))
+
+
 (define newtra (load-music "art/newtra.mp3"))
 (define alert (load-sound "art/alert.wav"))
 
 (keydn 'm (lambda()(play-music! newtra)))
 (keydn 'n (lambda()(play-sound! alert)))
 
-(let ((redraw (register-userevent noop)))
-  (call-with-new-thread
-   (lambda()
-     (while #t
-       (for-each (lambda(f)(f)) (hash-values *modes*))
-       (generate-userevent redraw) ; force redraw
-       (usleep 30000)))))
-
-(define (key name fun)
-  (keydn name (lambda()(hash-set! *modes* name fun)))
-  (keyup name (lambda()(hash-remove! *modes* name))))
 
 (define X-SENSITIVITY -0.01)
 (define Y-SENSITIVITY -0.01)

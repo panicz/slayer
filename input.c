@@ -167,7 +167,6 @@ userevent_handler(SDL_Event *e) {
 
 static SCM 
 quit_handler(SDL_Event *e) {
-  SDL_Quit();
   exit(0);
   return SCM_UNSPECIFIED;
 }
