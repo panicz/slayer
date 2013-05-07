@@ -19,8 +19,8 @@
 (define *sim* (primitive-make-simulation))
 
 (define-rigs-for *sim*
-  (ground (with-input-from-file "rigs/ground.rig" read))
-  (buggy (with-input-from-file "rigs/car.rig" read)))
+  (ground (with-input-from-file "../art/rigs/ground.rig" read))
+  (buggy (with-input-from-file "../art/rigs/car.rig" read)))
 
 (set-simulation-property! *sim* 'gravity #f32(0 0 -9.8))
 
