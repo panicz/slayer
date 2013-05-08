@@ -217,14 +217,24 @@ main(int argc, char *argv[]) {
 #else
   setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
 #endif
-  setenv("GUILE_LOAD_PATH", ".:./libs", 1);
+  setenv("GUILE_LOAD_PATH", ".:./libs:../guile-modules", 1);
   setenv("LTDL_LIBRARY_PATH", ".:./libs", 1);
   setenv("LC_ALL", "C.UTF8", 1); // discard locale
 
+  // get the name of current file, skipping any slashes
+  char *filename = argv[0];
+
+  int i;
+  for(i = 0; argv[0][i]; ++i) {
+    if(argv[0][i] == '/') {
+      filename = &argv[0][i+1];
+    }
+  }
+
   if (!arg.infile) {
     arg.infile = 
-      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
-    sprintf(arg.infile, "%s" SLAYER_SUFFIX, argv[0]);
+      malloc(strlen(filename) + strlen(SLAYER_SUFFIX) + 1);
+    sprintf(arg.infile, "%s" SLAYER_SUFFIX, filename);
   }
 
   if (!arg.outfile) {

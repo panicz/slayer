@@ -1,3 +1,5 @@
+#!../src/slayer -ipong.scm
+!#
 (use-modules (slayer) (slayer image)
 	     (extra common))
 (keydn 'esc quit)

@@ -1,3 +1,5 @@
+#!../src/slayer -e3d -i./slayer.scm
+!#
 (use-modules (slayer image)
 	     (slayer)
 	     (widgets base)

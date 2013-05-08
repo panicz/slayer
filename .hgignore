@@ -4,4 +4,4 @@ syntax: glob
 .\#*
 *.o
 *~
-TODO-local
+TODO.local
