@@ -1,4 +1,4 @@
-#!../src/slayer -e3d -i./slayer.scm
+#!../src/slayer -e3d -islayer.scm
 !#
 (use-modules (slayer image)
 	     (slayer)

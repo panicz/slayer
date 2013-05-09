@@ -14,6 +14,7 @@ AC_PROG_MAKE_SET
 PKG_CHECK_MODULES([GUILE], [guile-2.0])
 GUILE_PROGS
 
+
 # Checks for libraries.
 AC_CHECK_LIB([GL], [glEnable])
 AC_CHECK_LIB([GLU], [gluPerspective])
@@ -39,6 +40,14 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([atexit regcomp setenv sqrt])
 
-AC_CONFIG_FILES([Makefile src/Makefile])
+##################
+#  Output
+
+pkgdatadir="$datadir/$PACKAGE"
+if test "x$guilesitedir" = "x"; then
+   guilesitedir="$pkgdatadir"
+fi
+
+AC_CONFIG_FILES([Makefile src/Makefile tools/Makefile guile-modules/Makefile])
 
 AC_OUTPUT
