@@ -24,16 +24,31 @@
 	    (generate-userevent tick)
 	    (usleep usecs))))))))
 
+(set-caption! "WELCOME TO SLAYER")
 
-(define ku (load-image "./art/ku.png"))
 
-(add-child! *stage* (make-image ku 75 25))
-(add-child! *stage* (make-text-area))
 
 (define 3d-object (make <3d-mesh>))
 (define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400))
 (add-child! *stage* view)
 (add-object! view 3d-object)
+
+(define ku (load-image "./art/ku.png"))
+
+(add-child! *stage* (make-image ku 475 25))
+(add-child! *stage* (make-text-area 
+		     #:text (string-append
+			     "'(click somewhere around HERE and start typing scheme code)\n"
+			     "'((it helps to press enter a few times and then uparrow, because\n"
+			     "  for some reason the cursor sometimes disappears in opengl mode))\n\n"
+			     "'(feel free to fix that if you like:\n"
+			     "  see guile-modules/widgets/text-area.scm for details)\n\n"
+			     "'(use F1 to evaluate last sexp)\n"
+			     "'((by default the result is printed to stdout))\n\n"
+			     "'(use '(W S A D) and mouse to navigate the 3d area)\n"
+			     "'(use 'ESC to finish typing (after having clicked above)\n"
+			     "  or to exit application)\n")))
+
 
 (define *modes* #[])
 
