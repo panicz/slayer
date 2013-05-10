@@ -127,6 +127,7 @@ io(arg_t *arg) {
    * And a heaven in a wild flower,
    * Hold infinity in the palm of your hand,
    * And eternity in an hour.
+   *                         -- William Blake
    */
   init(arg);
   while (1) {
@@ -155,6 +156,7 @@ main(int argc, char *argv[]) {
     {"input",     required_argument, 0, 'i'},
     {"output",    required_argument, 0, 'o'},
     {"extension", required_argument, 0, 'e'},
+    {"disable",   required_argument, 0, 'd'},
     {"nosound",   no_argument,       0,  0 },
     {"resizable", no_argument,       0, 'r'},
     {"width",     required_argument, 0, 'w'},
@@ -167,13 +169,17 @@ main(int argc, char *argv[]) {
 #endif
   
   int opt;
-  while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:",
+  while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:d:",
 			    long_options, &option_index)) != -1) {
     switch (opt) {
-    case 0: // no sound
-      if(!strcmp(long_options[option_index].name, "nosound")) {
+    case 0:
+      if(0) {
+      }
+#ifdef USE_SDL_MIXER
+      else if(!strcmp(long_options[option_index].name, "nosound")) {
 	arg.sound = 0;
       }
+#endif
       else {
 	OUT("Unrecognised option: %s", long_options[option_index].name);
 	return -1;
@@ -197,24 +203,29 @@ main(int argc, char *argv[]) {
     case 'h': // screen height
       arg.h = atoi(optarg);
       break;
-    case 'e': // enable extensions (3d, net)
+    case 'e': // enable extensions
       if(0) {
       }
 #ifdef USE_OPENGL
       else if(!strcmp(optarg, "3d")) {
 	arg.video_mode |= SDL_OPENGL;
-      } 
+      }
 #endif
       else {
 	WARN("unknown extension: %s", optarg);
       }
       break;
-    case 'd': // disable extensions (3d, net)
+    case 'd': // disable extensions
       if(0) {
       }
 #ifdef USE_OPENGL
       else if(!strcmp(optarg, "3d")) {
 	arg.video_mode &= ~SDL_OPENGL;
+      }
+#endif
+#ifdef USE_SDL_MIXER
+      else if(!strcmp(optarg, "sound")) {
+	arg.sound = 0;
       }
 #endif
       else {

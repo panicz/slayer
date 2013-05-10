@@ -1,10 +1,7 @@
 #include "slayer.h"
 #include <SDL/SDL_ttf.h>
 #include "utils.h"
-
-#ifdef USE_OPENGL
 #include "video.h"
-#endif
 
 scm_t_bits font_tag;
 

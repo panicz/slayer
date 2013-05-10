@@ -18,7 +18,7 @@ PKG_CHECK_MODULES([SDL], [sdl])
 
 AC_ARG_WITH([opengl], 
   AS_HELP_STRING([--with-opengl], 
-    [Build with OpenGL support (enabled with the -e3d option at runtime, \
+    [Build with OpenGL support (requires the -e3d option at runtime, \
 unless --enable-default-3d is passed to the configure script)]),
   [],
   [with_opengl=check])
@@ -32,6 +32,8 @@ if test "x$with_opengl" != xno; then
      fi])
 fi
 
+AM_CONDITIONAL([OPENGL], [test "x$with_opengl" = xyes])
+
 AC_ARG_ENABLE([default-3d],
   AS_HELP_STRING([--enable-default-3d],
     [Assume -e3d argument (use OpenGL for drawing) on runtime [default=no]]),
@@ -39,7 +41,7 @@ AC_ARG_ENABLE([default-3d],
      if test "x$with_opengl" != xyes; then
        AC_MSG_FAILURE([OpenGL package not available for --enable-default-3d])
      fi
-     AC_DEFINE([ENABLE_DEFAULT_3D], [1], \
+     AC_DEFINE([ENABLE_DEFAULT_3D], [1],
 [Do not require -e3d option to use OpenGL for drawing])
    fi])
 
@@ -51,11 +53,14 @@ AC_ARG_WITH([sdl-mixer],
 
 if test "x$with_sdl_mixer" != xno; then
   PKG_CHECK_MODULES([SDL_MIXER], [SDL_mixer], 
-    [AC_DEFINE([USE_SDL_MIXER], [1], [Use SDL_Mixer])],
+    [AC_DEFINE([USE_SDL_MIXER], [1], [Use SDL_Mixer])
+    with_sdl_mixer=yes],
     [if test "x$with_sdl_mixer" != xcheck; then
        AC_MSG_FAILURE([SDL_mixer not found])
      fi])
 fi
+
+AM_CONDITIONAL([SDL_MIXER], test "x$with_sdl_mixer" = xyes)
 
 PKG_CHECK_MODULES([SDL_IMAGE], [SDL_image], [], 
   [AC_MSG_FAILURE([SDL_image not found (required)])])
