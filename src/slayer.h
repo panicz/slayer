@@ -2,16 +2,7 @@
 #define SLAYER_H
 
 #ifdef HAVE_CONFIG_H
-#  include "config.h"
-
-#  if defined HAVE_LIBGL && defined HAVE_LIBGLU 
-#    define USE_OPENGL
-#  endif
-
-#  ifdef HAVE_LIBSDL_MIXER
-#    define USE_SDL_MIXER
-#  endif
-
+#include "config.h"
 #endif
 
 #include <SDL/SDL.h>
