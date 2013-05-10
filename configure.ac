@@ -16,29 +16,54 @@ AC_PROG_MAKE_SET
 PKG_CHECK_MODULES([GUILE], [guile-2.0])
 PKG_CHECK_MODULES([SDL], [sdl])
 
-PKG_CHECK_MODULES([SDL_MIXER], [SDL_mixer],
-		  [AC_DEFINE([USE_SDL_MIXER], [1], [Use SDL_Mixer])])
+AC_ARG_WITH([opengl], 
+  AS_HELP_STRING([--with-opengl], 
+    [Build with OpenGL support (enabled with the -e3d option at runtime, \
+unless --enable-default-3d is passed to the configure script)]),
+  [],
+  [with_opengl=check])
 
-PKG_CHECK_MODULES([SDL_IMAGE], [SDL_image])
+if test "x$with_opengl" != xno; then
+  PKG_CHECK_MODULES([OPENGL], [gl glu], 
+    [AC_DEFINE([USE_OPENGL], [1], [Use OpenGL])
+     with_opengl=yes],
+    [if test "x$with_opengl" != xcheck; then
+       AC_MSG_FAILURE([OpenGL not found])
+     fi])
+fi
 
-PKG_CHECK_MODULES([OPENGL], [gl glu],
-		  [AC_DEFINE([USE_OPENGL], [1], [Use OpenGL])])
+AC_ARG_ENABLE([default-3d],
+  AS_HELP_STRING([--enable-default-3d],
+    [Assume -e3d argument (use OpenGL for drawing) on runtime [default=no]]),
+  [if test "x$enable_default_3d" != xno; then
+     if test "x$with_opengl" != xyes; then
+       AC_MSG_FAILURE([OpenGL package not available for --enable-default-3d])
+     fi
+     AC_DEFINE([ENABLE_DEFAULT_3D], [1], \
+[Do not require -e3d option to use OpenGL for drawing])
+   fi])
 
-AC_CHECK_LIB([SDL_ttf], [TTF_Init])
+AC_ARG_WITH([sdl-mixer],
+  AS_HELP_STRING([--with-sdl-mixer],
+    [Build with audio support through SDL_mixer]),
+    [],
+    [with_sdl_mixer=check])
 
-#AC_CHECK_LIB([GL], [glEnable])
-#AC_CHECK_LIB([GLU], [gluPerspective])
-#AC_CHECK_LIB([SDL_mixer], [Mix_OpenAudio])
+if test "x$with_sdl_mixer" != xno; then
+  PKG_CHECK_MODULES([SDL_MIXER], [SDL_mixer], 
+    [AC_DEFINE([USE_SDL_MIXER], [1], [Use SDL_Mixer])],
+    [if test "x$with_sdl_mixer" != xcheck; then
+       AC_MSG_FAILURE([SDL_mixer not found])
+     fi])
+fi
+
+PKG_CHECK_MODULES([SDL_IMAGE], [SDL_image], [], 
+  [AC_MSG_FAILURE([SDL_image not found (required)])])
+
+AC_CHECK_LIB([SDL_ttf], [TTF_Init], [],
+  [AC_MSG_FAILURE([SDL_ttf not found (required)])])
 
 GUILE_PROGS
-
-
-# Checks for libraries.
-# AC_CHECK_LIB([SDL], [SDL_Init])
-# AC_CHECK_LIB([SDL_image], [IMG_Load])
-# search for 'Mix_' | grep 'Mix_[a-zA-Z0-9_]*\s*[(]' -o | grep 'Mix_[a-zA-Z0-9_]*' -o | sort | uniq
-
-
 
 AC_CHECK_LIB([c], [main])
 
@@ -56,13 +81,13 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([atexit regcomp setenv sqrt])
 
-##################
-#  Output
-
 pkgdatadir="$datadir/$PACKAGE"
 if test "x$guilesitedir" = "x"; then
    guilesitedir="$pkgdatadir"
 fi
+
+##################
+#  Output
 
 AC_CONFIG_FILES([Makefile src/Makefile tools/Makefile guile-modules/Makefile])
 

@@ -161,6 +161,10 @@ main(int argc, char *argv[]) {
     {"height",    required_argument, 0, 'h'},
     {0,           0,                 0,  0 }
   };
+
+#ifdef ENABLE_DEFAULT_3D
+  arg.video_mode |= SDL_OPENGL;
+#endif
   
   int opt;
   while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:",
@@ -193,10 +197,27 @@ main(int argc, char *argv[]) {
     case 'h': // screen height
       arg.h = atoi(optarg);
       break;
-    case 'e': // extensions (3d, net)
-      if(!strcmp(optarg, "3d")) {
+    case 'e': // enable extensions (3d, net)
+      if(0) {
+      }
+#ifdef USE_OPENGL
+      else if(!strcmp(optarg, "3d")) {
 	arg.video_mode |= SDL_OPENGL;
-      } else {
+      } 
+#endif
+      else {
+	WARN("unknown extension: %s", optarg);
+      }
+      break;
+    case 'd': // disable extensions (3d, net)
+      if(0) {
+      }
+#ifdef USE_OPENGL
+      else if(!strcmp(optarg, "3d")) {
+	arg.video_mode &= ~SDL_OPENGL;
+      }
+#endif
+      else {
 	WARN("unknown extension: %s", optarg);
       }
       break;
