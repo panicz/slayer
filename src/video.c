@@ -11,14 +11,6 @@ int video_mode = 0;
 SDL_Surface *screen;
 
 static SCM 
-set_caption(SCM title) {
-  char *str = scm_to_locale_string(title);
-  SDL_WM_SetCaption(str, NULL);
-  free(str);
-  return title;
-}
-
-static SCM 
 clear_screen() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
@@ -89,7 +81,6 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
 
-  EXPORT_PROCEDURE("set-caption!", 1, 0, 0, set_caption); 
   EXPORT_PROCEDURE("screen-width", 0, 0, 0, screen_width); 
   EXPORT_PROCEDURE("screen-height", 0, 0, 0, screen_height); 
   EXPORT_PROCEDURE("screen-size", 0, 0, 0, screen_size); 
@@ -98,7 +89,16 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("flip-screen", 0, 0, 0, flip_screen);
   EXPORT_PROCEDURE("set-display-procedure!", 1, 0, 0, 
 		   set_display_procedure_x);
+
 #undef EXPORT_PROCEDURE
+
+#ifdef USE_OPENGL
+  eval("(cond-expand-provide (current-module) '(slayer-3d-available))");
+  if(video_mode & SDL_OPENGL) {
+    eval("(cond-expand-provide (current-module) '(slayer-3d))");
+  }
+#endif
+
 }
 
 void

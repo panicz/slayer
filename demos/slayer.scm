@@ -1,16 +1,19 @@
 #!../src/slayer -e3d -islayer.scm
 !#
-(use-modules (slayer image)
-	     (slayer)
-	     (widgets base)
-	     (widgets bitmap)
-	     (widgets text-area)
-	     (widgets 3d-view)
-	     (oop goops)
-	     (extra ref)
-	     (extra common)
-	     (extra 3d)
-	     (extra math))
+(use-modules 
+ (slayer image)
+ (slayer)
+ (widgets base)
+ (widgets bitmap)
+ (widgets text-area)
+ (oop goops)
+ (extra ref)
+ (extra common)
+ (extra math))
+
+(cond-expand 
+ (slayer-3d (use-modules (widgets 3d-view) (extra 3d)))
+ (else (begin)))
 
 (keydn 'esc quit)
 
@@ -26,10 +29,14 @@
 
 (set-caption! "WELCOME TO SLAYER")
 
+(cond-expand (slayer-3d
+
 (define 3d-object (make <3d-mesh>))
 (define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400))
 (add-child! *stage* view)
 (add-object! view 3d-object)
+
+) (else (begin))) ;; cond-expand slayer-3d
 
 (define ku (load-image "./art/ku.png"))
 
@@ -41,10 +48,25 @@
    "'(click somewhere around HERE and start typing scheme code)\n"
    "'(use F1 to evaluate last sexp)\n"
    "'((by default the result is printed to stdout))\n\n"
-   "'(use '(W S A D) and mouse to navigate the 3d area)\n"
-   "'(use 'ESC to finish typing (after having clicked above)\n"
-   "  or to exit application)\n")))
 
+   (cond-expand 
+    (slayer-3d
+     "'(use '(W S A D) and mouse to navigate the 3d area)\n")
+    (slayer-3d-available
+     (string-append
+      "'(to see the 3D version of this demo, supply the -e3d option\n"
+      "  as a command line argument)\n\n"))
+    (else
+     (string-append
+      "'(demo compiled without opengl support)\n")))
+
+   "'(use 'ESC to finish typing (after having clicked above)\n"
+   "  or to exit application)\n"
+   (cond-expand
+    (slayer-audio
+     "'(press m to hear some music)")
+    (else ""))
+   )))
 
 (add-child! *stage* (make-image ku 475 25))
 
@@ -56,6 +78,7 @@
   (keydn name (lambda()(hash-set! *modes* name fun)))
   (keyup name (lambda()(hash-remove! *modes* name))))
 
+(cond-expand (slayer-audio
 
 (define newtra (load-music "art/newtra.mp3"))
 (define alert (load-sound "art/alert.wav"))
@@ -63,9 +86,7 @@
 (keydn 'm (lambda()(play-music! newtra)))
 (keydn 'n (lambda()(play-sound! alert)))
 
-
-(define X-SENSITIVITY -0.01)
-(define Y-SENSITIVITY -0.01)
+) (else (begin))) ;; cond-expand slayer-audio
 
 #;(define-method (turn (object <3d>) (x <number>) (y <number>))
   (set! #[object 'orientation]
@@ -76,6 +97,11 @@
 	    (normalized (+ #[object 'orientation]
 			   (* (quaternion 0.0 (* y Y-SENSITIVITY #f32(1 0 0)))
 			      #[object 'orientation])))))))
+
+(cond-expand (slayer-3d
+
+(define X-SENSITIVITY -0.01)
+(define Y-SENSITIVITY -0.01)
 
 (define-method (relative-turn (object <3d>) (x <number>) (y <number>))
   (set! #[object 'orientation]
@@ -113,3 +139,5 @@
 	    (increase! #[view : 'camera : 'position]
 		       (rotate #f32(0.07 0 0) 
 			       #[view : 'camera : 'orientation]))))
+
+) (else (begin))) ;;cond-expand slayer-3d

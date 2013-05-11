@@ -50,6 +50,13 @@ finish(int status, arg_t *arg) {
   SDL_Quit();
 }
 
+static SCM 
+set_caption_x(SCM title) {
+  char *str = scm_to_locale_string(title);
+  SDL_WM_SetCaption(str, NULL);
+  free(str);
+  return title;
+}
 
 static void
 export_symbols(void *unused) {
@@ -59,6 +66,9 @@ export_symbols(void *unused) {
   
   EXPORT_PROCEDURE("set-exit-procedure!", 1, 0, 0, 
 		   set_exit_procedure_x);
+
+  EXPORT_PROCEDURE("set-caption!", 1, 0, 0, set_caption_x); 
+
 #undef EXPORT_PROCEDURE
 }
 

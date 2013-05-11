@@ -180,6 +180,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("resume-music!", 0, 0, 0, resume_music_x);
 
 #undef EXPORT_PROCEDURE
+
+  eval("(cond-expand-provide (current-module) '(slayer-audio))");
 }
 
 static size_t
