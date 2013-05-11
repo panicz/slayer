@@ -17,9 +17,19 @@
   ;(cursor-position #:init-value '(0 0))
   (font #:init-value *default-font* #:init-keyword #:font)
   (port #:init-value (current-input-port))
+  (%cursor #:init-value #f)
+  (%space #:init-value #f)
+  (%background #:init-value #f)
   #;(visible-cols #:init-keyword #:visible-cols)
   #;(visible-lines #:init-keyword #:visible-lines)
   #;(rendered-lines #:init-thunk make-hash-table))
+
+(define-method (initialize (self <text-area>) args)
+  (next-method)
+  (set! #[self '%space] (render-text "_" #[self 'font]))
+  (set! #[self '%cursor] (rectangle 2 #;(image-width #[self '%space]) 
+				    (font-line-skip #[self 'font])
+				    #x20eeaa22)))
 
 (define (render-text-cached text font)
   (define cached-text (make-hash-table))
@@ -35,26 +45,28 @@
   (let* ((font #[t 'font])
 	 (line-skip (font-line-skip font))
 	 (lines #[t 'lines])
-	 (space (render-text "_" font))
-	 (cursor (rectangle 2 line-skip #x20eeaa22)))
-      (for-each (lambda(line top)
-		  (let ((image (render-text-cached line font)))
-		    (set! #[ t 'w ] 
-			  (max #[ t 'w ] (image-width image)))
-		    (draw-image image 
-				(+ (or #[ #[ t 'parent ] 'x ] 0) 
-				   #[t 'x]) 
-				(+ (or #[#[t 'parent] 'y] 0) 
-				   #[t 'y] top))))
-		(vector->list lines)
-		(iota (vector-length lines) 0 line-skip))
-      (if (equal? (current-output-port) #[t 'port])
-	  (draw-image cursor 
-		      (+ #[t 'x] (* (image-width space) 
-				    (port-column #[ t 'port ])) )
-		      (+ #[t 'y] (* line-skip 
-				    (port-line #[ t 'port ])))))
+	 (cursor #[t '%cursor])
+	 (space #[t '%space]))
+    (for-each (lambda(line top)
+		(let ((image (render-text-cached line font)))
+		  (set! #[ t 'w ] 
+			(max #[ t 'w ] (image-width image)))
+		  (draw-image image 
+			      (+ (or #[ #[ t 'parent ] 'x ] 0) 
+				 #[t 'x]) 
+			      (+ (or #[#[t 'parent] 'y] 0) 
+				 #[t 'y] top))))
+	      (vector->list lines)
+	      (iota (vector-length lines) 0 line-skip))
+    (if (equal? (current-output-port) #[t 'port])
+	(draw-image cursor 
+		    (+ #[t 'x] (* (image-width space) 
+				  (port-column #[ t 'port ])) )
+		    (+ #[t 'y] (* line-skip 
+				  (port-line #[ t 'port ])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
+
+
 
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)

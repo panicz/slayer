@@ -52,9 +52,11 @@ draw_image(SCM image_smob, SCM x, SCM y) {
   if(video_mode & SDL_OPENGL) {
     WARN_ONCE("using OpenGL");
 
+    glDisable(GL_DEPTH_TEST);
     glWindowPos2i(X, Y);
     glPixelZoom(1.0, -1.0);
     glDrawPixels(W, H, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);    
+    glEnable(GL_DEPTH_TEST);
   }
   else {
 #endif
