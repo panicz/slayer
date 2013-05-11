@@ -66,8 +66,6 @@
 				  (port-line #[ t 'port ])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
 
-
-
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
@@ -168,6 +166,13 @@
 	     (move-cursor! t 1 0)))))
     (set-key! "up" (lambda()(move-cursor! t 0 -1)))
     (set-key! "down" (lambda()(move-cursor! t 0 1)))
+    (set-key! "end" (lambda()
+		      (let* ((port #[t 'port])
+			     (line #[t : 'lines : (port-line port)]))
+			(move-cursor! t (- (string-length line) 
+					   (port-column port)) 
+				      0))))
+    (set-key! "home" (lambda()(move-cursor! t (- (port-column #[t 'port])) 0)))
     (set-key! 
      "f1" 
      (lambda()
