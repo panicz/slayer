@@ -28,7 +28,8 @@ slayer directory)
 
   $ cp src/slayer demos/
 
-Once it's done, one shall enter the demos directory
+but there's also a symlink now from src/slayer to demos/slayer.
+In order to play with the demos, one shall enter the demos directory
 
   $ cd demos
 
