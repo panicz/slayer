@@ -1,11 +1,11 @@
 (rig
  (bodies
   (chassiss (box #:dimensions #(0.7 0.5 0.2) #:mass 1.0 #:position #(0 0 0.5)))
-  (front-wheel (cylinder #:height 0.05 #:radius 0.18 #:position #(0.35 0 0.4)))
+  (front-wheel (cylinder #:height 0.05 #:radius 0.18 #:position #(0.35 0 0.2)))
   (left-rear-wheel (cylinder #:height 0.05 #:radius 0.18 
-			     #:position #(-0.35 0.25 0.4)))
+			     #:position #(-0.35 0.25 0.2)))
   (right-rear-wheel (cylinder #:height 0.05 #:radius 0.18 
-			      #:position #(-0.35 -0.25 0.4))))
+			      #:position #(-0.35 -0.25 0.2))))
  (joints
   (hinge-2 #:body-1 chassiss #:body-2 front-wheel #:anchor (position front-wheel)
 	   #:axis-1 #(0 0 1) #:axis-2 #(0 1 0) #:suspension-erp 0.4 
