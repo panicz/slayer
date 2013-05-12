@@ -42,8 +42,11 @@
 		     (let ((radius (body-property body 'radius))
 			   (height (body-property body 'height)))
 		       (transform-mesh-vertices
-			(lambda (l)
-			  (rotate l (normalized (quaternion 1.0 #f32(1 0 0)))))
+			(lambda (vertices)
+			  (list->uniform-array 
+			   (map (match-lambda((x y z)
+					      (list x z (- y radius))))
+				(array->list vertices))))
 			(generate-tube #:radius radius
 				       #:height height))
 		       ))
