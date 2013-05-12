@@ -25,3 +25,7 @@ stamp-h1
 Makefile
 libtool
 *~
+config.h
+src/slayer
+tools/grup
+src/libs/physics/physics.so
