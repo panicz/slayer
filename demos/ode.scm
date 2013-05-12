@@ -17,7 +17,7 @@
   (ground (with-input-from-file "art/rigs/ground.rig" read))
   (buggy (with-input-from-file "art/rigs/car.rig" read)))
 
-(set-simulation-property! *sim* 'gravity #f32(0 0 -9.8))
+(set-simulation-property! *sim* 'gravity #f32(0 0 -0.5))
 (make-rig *sim* 'ground)
 (make-rig *sim* 'buggy)
 
@@ -29,7 +29,7 @@
 
 (add-child! *stage* *view*)
 
-(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
+;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
 
 (define-syntax utimer
   (syntax-rules ()
@@ -41,7 +41,7 @@
 	    (generate-userevent tick)
 	    (usleep usecs))))))))
 
-(utimer 100000 (simulation-step! *sim*))
+(utimer 25000 (simulation-step! *sim*))
 
 (define *modes* #[])
 
@@ -67,4 +67,23 @@
 (key 'right (lambda () (relative-turn! #[*view* 'camera] -2 0)))
 
 (set! #[*view* 'drag] (lambda (x y dx dy)
-			(relative-turn! #[*view* 'camera] dx dy)))
+			(relative-turn! #[*view* 'camera] (- dx) (- dy))))
+
+(keydn '/ (lambda () (<< `(position: ,#[*view* : 'camera : 'position])
+			 `(rotation: ,#[*view* : 'camera : 'orientation]))))
+
+(set! #[*view* : 'camera : 'position] 
+      #f32(0.06452277302742 1.43872618675232 0.183476984500885))
+
+
+(set! #[*view* : 'camera : 'orientation] 
+      (quaternion 0.0 #f32(0.0 0.707106781186548 0.707106781186548)))
+
+				   
+
+
+#;(set! #[*view* : 'camera : 'orientation] 
+      (quaternion -0.00158714875474163 
+		  #f32(-0.00434838561341166 
+		       -0.698689818382263 
+		       -0.715409755706787)))
