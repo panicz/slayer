@@ -134,8 +134,9 @@
 	(vertices
 	 ,(list->uniform-array
 	   (append
-	    (append-map (lambda(x)`((,x ,height-start)(,x ,height-end))) ver)
-	    (append-map (lambda(y)`((,width-start ,y)(,width-end ,y))) hor))))
+	    (append-map (lambda(x)`((,x ,height-start 0)(,x ,height-end 0))) ver)
+	    (append-map (lambda(y)`((,width-start ,y 0)(,width-end ,y 0))) hor)
+	    )))
 	(color #f32(0 0.5 0))
 	(faces (lines ,(list->uniform-array 
 			(iota (* 2 (+ width-points height-points))))))))))
@@ -242,8 +243,8 @@
 			    -1)))))))))))
 
 (define* (generate-box #:key (x 1.0) (y 1.0) (z 1.0))
-  (match-let* (((x y z) (list x y z))
-	       ((-x -y -z) (list 0.0 0.0 0.0)))
+  (match-let* (((x y z) (map (\ * _ 0.5) (list x y z)))
+	       ((-x -y -z) (map - (list x y z))))
     `(mesh
       (vertices
        ,(list->typed-array
