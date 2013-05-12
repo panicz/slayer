@@ -151,13 +151,15 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
 #define DEF_JOINT_PARAM_SETTER(type, Type, name, Name)			\
   static void								\
   joint_##type##_##name##_setter(joint_t * joint, SCM value) {		\
-    dJointSet##Type##Param(joint->joint, Name, (dReal) scm_to_double(value)); \
+    dJointSet##Type##Param(joint->joint, Name,				\
+			   (dReal) scm_to_double(value));		\
   }
 
 #define DEF_JOINT_PARAM_GETTER(type, Type, name, Name)			\
   static SCM								\
   joint_##type##_##name##_getter(joint_t * joint) {			\
-    return scm_from_double((dReal) dJointGet##Type##Param(joint->joint, Name)); \
+    return scm_from_double((dReal)dJointGet##Type##Param(joint->joint,	\
+							 Name));	\
   }
 
 #define DEF_JOINT_PARAM_ACCESSOR(type, Type, name, Name)	\
@@ -218,18 +220,25 @@ init_joint_property_accessors() {
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, suspension_cfm,
 			    "suspension-cfm");
   
-#define SET_ALL_JOINT_PARAM_ACCESSORS(ode_type, prefix)			\
-  SET_JOINT_NAMED_ACCESSORS(ode_type,prefix##_,suspension_erp,"suspension-erp"); \
-  SET_JOINT_NAMED_ACCESSORS(ode_type,prefix##_,suspension_cfm,"suspension-cfm"); \
-  SET_JOINT_ACCESSORS(ode_type, prefix##_, velocity);			\
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, max_force, "max-force"); \
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, lo_stop, "lo-stop");	\
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, hi_stop, "hi-stop");	\
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, fudge_factor, "fudge-factor"); \
-  SET_JOINT_ACCESSORS(ode_type, prefix##_, bounce);			\
-  SET_JOINT_ACCESSORS(ode_type, prefix##_, cfm);			\
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, stop_erp, "stop-erp");	\
-  SET_JOINT_NAMED_ACCESSORS(ode_type, prefix##_, stop_cfm, "stop-cfm");
+#define SET_ALL_JOINT_PARAM_ACCESSORS(ode_joint_type, prefix)		\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type , prefix##_,			\
+			    suspension_erp,"suspension-erp");		\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_,			\
+			    suspension_cfm,"suspension-cfm");		\
+  SET_JOINT_ACCESSORS(ode_joint_type, prefix##_, velocity);		\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_,			\
+			    max_force, "max-force");			\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_,			\
+			    lo_stop, "lo-stop");			\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_,			\
+			    hi_stop, "hi-stop");			\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_,			\
+			    fudge_factor, "fudge-factor");		\
+  SET_JOINT_ACCESSORS(ode_joint_type, prefix##_, bounce);		\
+  SET_JOINT_ACCESSORS(ode_joint_type, prefix##_, cfm);			\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_,			\
+			    stop_erp, "stop-erp");			\
+  SET_JOINT_NAMED_ACCESSORS(ode_joint_type, prefix##_, stop_cfm, "stop-cfm")
   
   SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeHinge, hinge);
   SET_ALL_JOINT_PARAM_ACCESSORS(dJointTypeHinge2, hinge2);
