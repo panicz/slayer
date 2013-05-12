@@ -6,7 +6,15 @@
   #:use-module (extra ref)
   #:use-module (extra 3d)
   #:use-module (slayer 3d)
-  #:export (<3d-view> add-object! draw-mesh draw-objects))
+  #:export (<3d-view> 
+	    add-object! 
+	    draw-mesh 
+	    draw-objects
+	    relative-turn!
+	    relative-twist!
+	    relative-move!
+	    X-SENSITIVITY
+	    Y-SENSITIVITY))
 
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
@@ -84,3 +92,33 @@
 
 (define-method (add-object! (view <3d-view>) (object <3d>))
   (set! #[view 'objects] (cons object #[view 'objects])))
+
+(define X-SENSITIVITY (make-fluid 0.01))
+(define Y-SENSITIVITY (make-fluid 0.01))
+
+(define-method (relative-turn! (object <3d>) (x <number>) (y <number>))
+  (set! #[object 'orientation]
+	(normalized 
+	 (+ #[object 'orientation] 
+	    (* (quaternion 0.0 (* x #[X-SENSITIVITY ]
+				  (rotate #f32(0 1 0) #[object 'orientation])))
+	       #[object 'orientation])
+	    (normalized (+ #[object 'orientation]
+			   (* (quaternion 0.0 
+					  (* y #[Y-SENSITIVITY]
+					     (rotate #f32(1 0 0)
+						     #[object 'orientation])))
+			      #[object 'orientation])))))))
+
+
+(define-method (relative-twist! (object <3d>) axis)
+  (set! #[object 'orientation]
+	(normalized
+	 (+ #[object 'orientation]
+	    (* (quaternion 0.0 (rotate axis #[object 'orientation]))
+	       #[object 'orientation])))))
+
+
+(define-method (relative-move! (object <3d>) direction)
+  (increase! #[object 'position]
+	     (rotate direction #[object 'orientation])))

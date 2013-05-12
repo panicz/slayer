@@ -11,23 +11,26 @@
  (extra common)
  (extra math))
 
+(keydn 'esc quit)
+(set-caption! "WELCOME TO SLAYER")
+
 (cond-expand 
  (slayer-3d (use-modules (widgets 3d-view) (extra 3d)))
  (else (begin)))
 
-(keydn 'esc quit)
+(define-syntax-rule (utimer usecs action ...)
+  (let ((tick (register-userevent (lambda () action ...))))
+    (call-with-new-thread (lambda () (while #t
+				       (generate-userevent tick)
+				       (usleep usecs))))))
 
-(define-syntax utimer
-  (syntax-rules ()
-    ((_ usecs action ...)
-     (let ((tick (register-userevent (lambda () action ...))))
-       (call-with-new-thread
-	(lambda ()
-	  (while #t
-	    (generate-userevent tick)
-	    (usleep usecs))))))))
+(define *modes* #[])
 
-(set-caption! "WELCOME TO SLAYER")
+(utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
+
+(define (key name fun)
+  (keydn name (lambda()(hash-set! *modes* name fun)))
+  (keyup name (lambda()(hash-remove! *modes* name))))
 
 (cond-expand (slayer-3d
 
@@ -37,8 +40,6 @@
 (add-object! view 3d-object)
 
 ) (else (begin))) ;; cond-expand slayer-3d
-
-(define ku (load-image "./art/ku.png"))
 
 (add-child! 
  *stage* 
@@ -55,7 +56,8 @@
     (slayer-3d-available
      (string-append
       "'(to see the 3D version of this demo, supply the -e3d option\n"
-      "  as a command line argument)\n\n"))
+      " as a command line argument, or reconfigure with "
+      "--enable-default-3d)\n\n"))
     (else
      (string-append
       "'(demo compiled without opengl support)\n")))
@@ -68,15 +70,8 @@
     (else ""))
    )))
 
+(define ku (load-image "./art/ku.png"))
 (add-child! *stage* (make-image ku 475 25))
-
-(define *modes* #[])
-
-(utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
-
-(define (key name fun)
-  (keydn name (lambda()(hash-set! *modes* name fun)))
-  (keyup name (lambda()(hash-remove! *modes* name))))
 
 (cond-expand (slayer-audio
 
@@ -88,56 +83,23 @@
 
 ) (else (begin))) ;; cond-expand slayer-audio
 
-#;(define-method (turn (object <3d>) (x <number>) (y <number>))
-  (set! #[object 'orientation]
-	(normalized 
-	 (+ #[object 'orientation] 
-	    (* (quaternion 0.0 (* x X-SENSITIVITY #f32(0 1 0)))
-	       #[object 'orientation])
-	    (normalized (+ #[object 'orientation]
-			   (* (quaternion 0.0 (* y Y-SENSITIVITY #f32(1 0 0)))
-			      #[object 'orientation])))))))
-
 (cond-expand (slayer-3d
 
-(define X-SENSITIVITY -0.01)
-(define Y-SENSITIVITY -0.01)
+(set! #[view 'drag]
+      (lambda(x y dx dy)(relative-turn! #[view : 'camera] dx dy)))
 
-(define-method (relative-turn (object <3d>) (x <number>) (y <number>))
-  (set! #[object 'orientation]
-	(normalized 
-	 (+ #[object 'orientation] 
-	    (* (quaternion 0.0 (* x X-SENSITIVITY 
-				  (rotate #f32(0 1 0) #[object 'orientation])))
-	       #[object 'orientation])
-	    (normalized (+ #[object 'orientation]
-			   (* (quaternion 0.0 
-					  (* y Y-SENSITIVITY 
-					     (rotate #f32(1 0 0)
-						     #[object 'orientation])))
-			      #[object 'orientation])))))))
+(key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
+(key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
+(key 'w (lambda () (relative-move! #[view 'camera] #f32(0 0 -0.07))))
+(key 's (lambda () (relative-move! #[view 'camera] #f32(0 0 0.07))))
+(key 'a (lambda () (relative-move! #[view 'camera] #f32(-0.07 0 0))))
+(key 'd (lambda () (relative-move! #[view 'camera] #f32(0.07 0 0))))
+(key 'r (lambda () (relative-move! #[view 'camera] #f32(0 0.07 0))))
+(key 'f (lambda () (relative-move! #[view 'camera] #f32(0 -0.07 0))))
 
-(set! #[view 'drag] (lambda (x y dx dy)
-		      (relative-turn #[view : 'camera] dx dy)))
-
-(key 'w (lambda () 
-	  (increase! #[view : 'camera : 'position]
-		     (rotate #f32(0 0 -0.07) 
-			     #[view : 'camera : 'orientation]))))
-
-(key 's (lambda () 
-	  (increase! #[view : 'camera : 'position]
-		     (rotate #f32(0 0 0.07) 
-			     #[view : 'camera : 'orientation]))))
-
-(key 'a (lambda () 
-	     (increase! #[view : 'camera : 'position]
-			(rotate #f32(-0.07 0 0) 
-				#[view : 'camera : 'orientation]))))
-
-(key 'd (lambda () 
-	    (increase! #[view : 'camera : 'position]
-		       (rotate #f32(0.07 0 0) 
-			       #[view : 'camera : 'orientation]))))
+(key 'up (lambda () (relative-turn! #[view 'camera] 0 2)))
+(key 'down (lambda () (relative-turn! #[view 'camera] 0 -2)))
+(key 'left (lambda () (relative-turn! #[view 'camera] 2 0)))
+(key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
 ) (else (begin))) ;;cond-expand slayer-3d

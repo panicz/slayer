@@ -11,19 +11,13 @@
 
 (keydn 'esc quit)
 
-(keydn 'mouse1 select-widget-at)
-(keyup 'mouse1 unselect-widget-at)
-(keydn 'mouse2 right-click-widget-at)
-(mousemove drag-over-widget)
-
 (define *sim* (primitive-make-simulation))
 
 (define-rigs-for *sim*
-  (ground (with-input-from-file "../art/rigs/ground.rig" read))
-  (buggy (with-input-from-file "../art/rigs/car.rig" read)))
+  (ground (with-input-from-file "art/rigs/ground.rig" read))
+  (buggy (with-input-from-file "art/rigs/car.rig" read)))
 
 (set-simulation-property! *sim* 'gravity #f32(0 0 -9.8))
-
 (make-rig *sim* 'ground)
 (make-rig *sim* 'buggy)
 
@@ -32,23 +26,6 @@
 	#:w (- (screen-width) 10)
 	#:h (- (screen-height) 10)
 	#:simulation *sim*))
-
-(define X-SENSITIVITY -0.01)
-(define Y-SENSITIVITY -0.01)
-
-(define-method (relative-turn (object <3d>) (x <number>) (y <number>))
-  (set! #[object 'orientation]
-	(normalized 
-	 (+ #[object 'orientation] 
-	    (* (quaternion 0.0 (* x X-SENSITIVITY 
-				  (rotate #f32(0 1 0) #[object 'orientation])))
-	       #[object 'orientation])
-	    (normalized (+ #[object 'orientation]
-			   (* (quaternion 0.0 
-					  (* y Y-SENSITIVITY 
-					     (rotate #f32(1 0 0)
-						     #[object 'orientation])))
-			      #[object 'orientation])))))))
 
 (add-child! *stage* *view*)
 
@@ -74,25 +51,20 @@
   (keydn name (lambda()(hash-set! *modes* name fun)))
   (keyup name (lambda()(hash-remove! *modes* name))))
 
+(key 'q (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 0.02))))
+(key 'e (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 -0.02))))
+(key 'w (lambda () (relative-move! #[*view* 'camera] #f32(0 0 -0.07))))
+(key 's (lambda () (relative-move! #[*view* 'camera] #f32(0 0 0.07))))
+(key 'a (lambda () (relative-move! #[*view* 'camera] #f32(-0.07 0 0))))
+(key 'd (lambda () (relative-move! #[*view* 'camera] #f32(0.07 0 0))))
+(key 'r (lambda () (relative-move! #[*view* 'camera] #f32(0 0.07 0))))
+(key 'f (lambda () (relative-move! #[*view* 'camera] #f32(0 -0.07 0))))
+
+(key 'up (lambda () (relative-turn! #[*view* 'camera] 0 2)))
+(key 'down (lambda () (relative-turn! #[*view* 'camera] 0 -2)))
+
+(key 'left (lambda () (relative-turn! #[*view* 'camera] 2 0)))
+(key 'right (lambda () (relative-turn! #[*view* 'camera] -2 0)))
+
 (set! #[*view* 'drag] (lambda (x y dx dy)
-			(relative-turn #[*view* : 'camera] dx dy)))
-
-(key 'w (lambda () 
-	  (increase! #[*view* : 'camera : 'position]
-		     (rotate #f32(0 0 -0.07) 
-			     #[*view* : 'camera : 'orientation]))))
-
-(key 's (lambda () 
-	  (increase! #[*view* : 'camera : 'position]
-		     (rotate #f32(0 0 0.07) 
-			     #[*view* : 'camera : 'orientation]))))
-
-(key 'a (lambda () 
-	  (increase! #[*view* : 'camera : 'position]
-		     (rotate #f32(-0.07 0 0) 
-			     #[*view* : 'camera : 'orientation]))))
-
-(key 'd (lambda () 
-	  (increase! #[*view* : 'camera : 'position]
-		     (rotate #f32(0.07 0 0) 
-			     #[*view* : 'camera : 'orientation]))))
+			(relative-turn! #[*view* 'camera] dx dy)))
