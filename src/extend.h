@@ -5,6 +5,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include "utils.h"
+
+#define DISPLAY(port, msg, ...)					\
+  ({ char *string;						\
+    if(asprintf(&string, msg, ## __VA_ARGS__) == -1) {		\
+      FATAL("failed to allocate memory for %s, ...", msg);	\
+    }								\
+    scm_puts(string, port);					\
+    free(string);						\
+  })
 
 static inline size_t
 scm_array_handle_nelems(scm_t_array_handle *handle) {
