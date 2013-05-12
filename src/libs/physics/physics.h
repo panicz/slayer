@@ -11,6 +11,7 @@
 #include <cmath>
 #include "utils.h"
 #include "extend.h"
+#include "vmx.hh"
 
 using namespace std;
 
@@ -338,6 +339,14 @@ scm_from_dQuaternion(const dQuaternion q) {
   scm_array_handle_release(&h);
   return scm_cons(scm_from_double((double) q[3]), Q);
 }
+
+#if defined(dSINGLE)
+typedef qtf qtReal;
+typedef v3f v3Real;
+#else
+typedef qtd qtReal;
+typedef v3d v3Real;
+#endif
 
 
 #endif // _PHYSICS_H 
