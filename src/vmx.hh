@@ -162,8 +162,8 @@ public:
 template<typename T>
 class qt {
 public:
-  v3<T> v;
   T s;
+  v3<T> v;
   qt<T>(void);
   qt<T>(T ss, v3<T> vv);
   qt<T>(T ss, T xx, T yy, T zz);
