@@ -38,6 +38,95 @@ init_body_maker() {
 #undef SET_BODY_MAKER
 }
 
+static SCM
+body_plane_normal_getter(body_t *body) {
+  dVector4 p;
+  dGeomPlaneGetParams(body->geom, p);
+  double f = 1.0/sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+  dVector3 v;
+  for(int i = 0; i < 3; ++i) {
+    v[i] = p[i]*f;
+  }
+  return scm_from_dVector3(v);
+}
+
+static void
+body_plane_normal_setter(body_t *body, SCM value) {
+  dVector3 p;
+  dGeomPlaneGetParams(body->geom, p);
+  double f = 1.0/sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+  double d = p[3]*f;
+  scm_to_dVector3(value, &p);
+   f = 1.0/sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+  for(int i = 0; i < 3; ++i) {
+    p[i] = p[i]*f;
+  }
+  dGeomPlaneSetParams(body->geom, p[0], p[1], p[2], d);
+}
+
+static SCM
+body_plane_displacement_getter(body_t *body) {
+  dVector4 p;
+  dGeomPlaneGetParams(body->geom, p);
+  double f = 1.0/sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+  return scm_from_double(p[3]*f);
+}
+
+static void
+body_plane_displacement_setter(body_t *body, SCM value) {
+  dVector4 p;
+  dGeomPlaneGetParams(body->geom, p);
+  p[3] = scm_to_double(value);
+}
+
+
+// returns normal * displacement vector
+static SCM
+body_plane_position_getter(body_t *body) {
+  dVector4 p;
+  dGeomPlaneGetParams(body->geom, p);
+  dVector3 v;
+  for(int i = 0; i < 3; ++i) {
+    v[i] = p[i]*p[3];
+  }
+  return scm_from_dVector3(v);
+}
+
+// sets displacement to the dot product of plane's normal and value
+static void
+body_plane_position_setter(body_t *body, SCM value) {
+  dVector4 p;
+  dGeomPlaneGetParams(body->geom, p);
+  dVector3 v;
+  scm_to_dVector3(value, &v);
+  p[3] = 0;
+  for(int i = 0; i < 3; ++i) {
+    p[3] += p[i]*v[i];
+  }
+  dGeomPlaneSetParams(body->geom, p[0], p[1], p[2], p[3]);
+}
+
+// returns a quaternion that would rotate (0 0 1) to plane's normal
+static SCM
+body_plane_quaternion_getter(body_t *body) {
+  dVector4 n;
+  dGeomPlaneGetParams(body->geom, n);
+  qtReal q(v3Real(0, 0, 1), v3Real(n[0], n[1], n[2]));
+  dQuaternion Q = { q.s, q.v.x, q.v.y, q.v.z };
+  return scm_from_dQuaternion(Q);
+}
+
+// sets normal to vector (0 0 1) rotated around value quaternion
+static void
+body_plane_quaternion_setter(body_t *body, SCM value) {
+  dVector4 n;
+  dGeomPlaneGetParams(body->geom, n);
+  dQuaternion Q;
+  scm_to_dQuaternion(value, &Q);
+  v3Real v = qtReal(Q[0], Q[1], Q[2], Q[3]).rotate(v3Real(0, 0, 1));
+  dGeomPlaneSetParams(body->geom, v.x, v.y, v.z, n[3]);
+}
+
 static void
 body_box_dimensions_setter(body_t *body, SCM value) {
   dVector3 v;
@@ -199,15 +288,18 @@ init_body_property_accessors() {
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, height);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, radius);
   SET_BODY_ACCESSORS(dSphereClass, sphere_, radius);
+  SET_BODY_ACCESSORS(dPlaneClass, plane_, normal);
+  SET_BODY_ACCESSORS(dPlaneClass, plane_, displacement);
   
   for(int i = 0; i < dFirstSpaceClass; ++i) {
-    //if placable
     SET_BODY_ACCESSORS(i,, mass);
     SET_BODY_ACCESSORS(i,, position);
     SET_BODY_ACCESSORS(i,, rotation);
     SET_BODY_ACCESSORS(i,, quaternion);
-    //endif
   }
+
+  SET_BODY_ACCESSORS(dPlaneClass, plane_, position);
+  SET_BODY_ACCESSORS(dPlaneClass, plane_, quaternion);
 
 #undef SET_BODY_ACCESSORS
 }
