@@ -14,6 +14,7 @@
 	   generate-wheel
 	   generate-hemisphere
 	   generate-capsule
+	   generate-sphere
 	   generate-box
 	   generate-mesh
 	   square-mesh
@@ -39,8 +40,7 @@
      `(mesh
        ,@(map (match-lambda
 		  (('vertices vertices)
-		   `(vertices ,(list->uniform-array 
-				(map proc (array->list vertices)))))
+		   `(vertices ,(proc vertices)))
 		(else
 		 else))
 	      definition)))))
@@ -233,12 +233,10 @@
 				      vertices 
 				      `((0.0 0.0 ,1.0)))))
 		  (faces
-		   (quad-strip ,(list->typed-array
-				 'u8 1 faces))
+		   (quad-strip ,(list->uniform-array faces))
 		   (triangle-fan
-		    ,(list->typed-array
-		      'u8 1
-		      (iota (+ slices 3) 
+		    ,(list->uniform-array
+		      (iota (+ slices 3)
 			    (* slices stacks) 
 			    -1)))))))))))
 
@@ -274,9 +272,6 @@
 	     (7 6 4 5)
 	     (7 5 1 3)
 	     (7 6 2 3)))))))
-
-(define* (generate-sphere #:key (radius 1.0) (stacks 20) (points 20))
-  (throw 'not-implemented))
 
 (define* (generate-capsule #:key (points 20) (stacks 10)
 			   (height 1.0) (radius 0.2))
@@ -316,6 +311,11 @@
 		    (triangle-fan 
 		     ,(list->uniform-array bottom-fan)))))))
 
+
+(define* (generate-sphere #:key (radius 1.0) (stacks 20) (points 20))
+  (generate-capsule #:points points #:stacks stacks #:radius radius
+		    #:height 0.0))
+
 (define* (generate-tube #:key (radius 0.5) (height 1.0)
 				 (base-points 20))
   (match-let ((('mesh ('vertices circle-vertices) _ ...)
@@ -337,4 +337,4 @@
 		      'f32 2 (append 
 			      (make-list base-points '(1 0 0))
 			      (make-list base-points '(0 0 1)))))
-	    (faces (quads ,(list->typed-array 'u8 2 faces)))))))))
+	    (faces (quads ,(list->uniform-array faces)))))))))
