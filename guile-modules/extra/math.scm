@@ -342,6 +342,9 @@
 (define-method (rotate (v <uvec>) (q <quaternion>))
   (im (* q (quaternion 0.0 v) (~ q))))
 
+(define-method (rotate (l <list>) (q <quaternion>))
+  (uniform-vector->list (rotate (list->f32vector l) q)))
+
 (define (rotation-quaternion u w); This method is borrowed from Game
   (let ((u (normalized u)); Programming Gems vol.1 chapter 2.10
 	(w (normalized w))); written by Stan Melax
