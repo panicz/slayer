@@ -41,7 +41,7 @@ struct hash_pair_scm_int : unary_function<pair<SCM, int>, size_t> {
   }
 };
 
-#define MAX_CONTACTS 12
+#define MAX_CONTACTS 24
 
 enum {
   SIM = 0,

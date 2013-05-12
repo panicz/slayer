@@ -48,6 +48,9 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     dJointID r = dJointCreateContact(sim->world, sim->contact_group, &c[i]);
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     sim->contacts.push_back(r);
+   
+    //OUT("Contact %i penetration depth is %f", i, c[i].geom.depth);
+
   }
 }
 
@@ -74,6 +77,7 @@ export_symbols(void *unused) {
 #undef DEFINE_PROC
 }
 
+/* this causes core dumps
 static SCM
 mark_ode(SCM ode_smob) {
   if(SCM_SMOB_FLAGS(ode_smob) == SIM) {
@@ -86,29 +90,23 @@ mark_ode(SCM ode_smob) {
   }
   return SCM_BOOL_F;
 }
+*/
 
 static int
 print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 
   scm_assert_smob_type(ode_tag, ode);
   int type = SCM_SMOB_FLAGS(ode);
-  char *string;
-
-#define PRINT(msg, ...)					\
-  if(asprintf(&string, msg, ## __VA_ARGS__) == -1)	\
-    return 0;						\
-  scm_puts(string, port);				\
-  free(string)
 
   if(type == SIM) {
     sim_t *sim = (sim_t *) SCM_SMOB_DATA(ode);
-    PRINT("#<simulation %p (dt %.2f) (%i rigs)>", (void *) sim, sim->dt,
-	  (int) sim->rigs.size());
+    DISPLAY(port, "#<simulation %p (dt %.2f) (%i rigs)>", (void *) sim, sim->dt,
+	    (int) sim->rigs.size());
   }
   else if(type == RIG) {
     rig_t *rig = (rig_t *) SCM_SMOB_DATA(ode);
-    PRINT("#<rig %p (%d bodies) (%d joints)>", (void *) rig, 
-	  (int) rig->bodies.size(), (int) rig->joints.size());
+    DISPLAY(port, "#<rig %p (%d bodies) (%d joints)>", (void *) rig, 
+	    (int) rig->bodies.size(), (int) rig->joints.size());
   }
   else if(type == BODY) {
     body_t *body = (body_t *) SCM_SMOB_DATA(ode);
@@ -118,17 +116,20 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
       dBodyGetMass(body->body, &m);
       mass = m.mass;
     }
-    PRINT("#<body %p %s %.2f>", (void *) body, 
-	  class_name[dGeomGetClass(body->geom)], mass);
+    DISPLAY(port, "#<body %p %s %.2f>", (void *) body, 
+	    class_name[dGeomGetClass(body->geom)], mass);
   }
   else if(type == JOINT) {
     joint_t *joint = (joint_t *) SCM_SMOB_DATA(ode);
-    PRINT("#<joint %p %s>", (void *) joint, 
-	  joint_type_name[dJointGetType(joint->joint)]);
+    DISPLAY(port, "#<joint %p %s>", (void *) joint, 
+	    joint_type_name[dJointGetType(joint->joint)]);
+  }
+  else {
+    DISPLAY(port, "#<ode (unknown) %p %i>", (void *) SCM_SMOB_DATA(ode), 
+	    (int) SCM_SMOB_FLAGS(ode));
   }
 
   scm_remember_upto_here_1(ode);
-#undef PRINT
   return 1;
 }
 
@@ -155,7 +156,7 @@ init() {
   ode_tag = scm_make_smob_type("ode", sizeof(void *));
   scm_set_smob_free(ode_tag, free_ode);
   scm_set_smob_print(ode_tag, print_ode);
-  scm_set_smob_mark(ode_tag, mark_ode);
+  //scm_set_smob_mark(ode_tag, mark_ode);
   
   dInitODE();
   dAllocateODEDataForThread(dAllocateMaskAll);
