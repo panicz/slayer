@@ -26,6 +26,31 @@ static SCM mousemove;
 static SCM scancodes;
 // a vector containing 
 static SCM key_names;
+// a map from modifier symbols to their values
+static SCM modifier_codes;
+
+static inline void
+init_modifier_codes() {
+  modifier_codes = gc_protected(scm_c_make_hash_table(16));
+#define INIT_MOD(name, NAME)				\
+  scm_hash_set_x(modifier_codes, s_##name, scm_from_int(KMOD_##NAME))
+
+#define INIT_MOD_LR(name, NAME)			\
+  INIT_MOD(l##name, L##NAME);			\
+  INIT_MOD(r##name, R##NAME);			\
+  INIT_MOD(name, NAME)
+
+  INIT_MOD_LR(shift, SHIFT);
+  INIT_MOD_LR(ctrl, CTRL);
+  INIT_MOD_LR(alt, ALT);
+  INIT_MOD_LR(meta, META);
+  INIT_MOD(num, NUM);
+  INIT_MOD(caps, CAPS);
+  INIT_MOD(mode, MODE);
+  
+#undef INIT_MOD_LR
+#undef INIT_MOD
+}
 
 static void 
 input_mode_direct() {
@@ -240,6 +265,26 @@ get_scancode(SCM key) {
   return scm_to_int(keycode);
 }
 
+static inline int
+get_modifier_code(SCM name) {
+  if(!(scm_is_symbol(name)))
+    return -1;
+
+  SCM code = scm_hash_ref(modifier_codes, name, SCM_UNSPECIFIED);
+  if(!scm_is_integer(code))
+    return -1;
+  return scm_to_int(code);
+}
+
+static inline SCM
+modifier_pressed_p(SCM name) {
+  SDLMod state = SDL_GetModState();
+  int code = get_modifier_code(name);
+  if(state & code)
+    return SCM_BOOL_T;
+  return SCM_BOOL_F;
+}
+
 static void 
 bind_key(SCM *keytab, SDLKey key, SCM function) {
   if(!is_scm_procedure(function))
@@ -350,6 +395,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-resize-procedure!", 1, 0, 0, set_resize_procedure_x);
   EXPORT_PROCEDURE("set-typing-special!", 1, 0, 0, set_typing_special_x);
 
+  EXPORT_PROCEDURE("modifier-pressed?", 1, 0, 0, modifier_pressed_p);
+
   EXPORT_OBJECT("*scancodes*", scancodes);
   EXPORT_OBJECT("*key-names*", key_names);  
 
@@ -381,6 +428,9 @@ input_init() {
   resize_procedure = noop;
 
   build_keymap();
+
+  init_modifier_codes();
+  
   scm_c_define_module("slayer", export_symbols, NULL);
 
   input_mode_direct();

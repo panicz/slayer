@@ -27,6 +27,22 @@ extern SCM s_left;
 extern SCM s_right;
 extern SCM s_middle;
 
+extern SCM s_lshift;
+extern SCM s_rshift;
+extern SCM s_shift;
+extern SCM s_lctrl;
+extern SCM s_rctrl;
+extern SCM s_ctrl;
+extern SCM s_lalt;
+extern SCM s_ralt;
+extern SCM s_alt;
+extern SCM s_lmeta;
+extern SCM s_rmeta;
+extern SCM s_meta;
+extern SCM s_num;
+extern SCM s_caps;
+extern SCM s_mode;
+
 extern void symbols_init();
 
 #endif /* SYMBOLS_H */

@@ -25,6 +25,21 @@ SCM s_left;
 SCM s_right;
 SCM s_middle;
 
+SCM s_lshift;
+SCM s_rshift;
+SCM s_shift;
+SCM s_lctrl;
+SCM s_rctrl;
+SCM s_ctrl;
+SCM s_lalt;
+SCM s_ralt;
+SCM s_alt;
+SCM s_lmeta;
+SCM s_rmeta;
+SCM s_meta;
+SCM s_num;
+SCM s_caps;
+SCM s_mode;
 
 void
 symbols_init() {
@@ -55,6 +70,22 @@ symbols_init() {
   INIT_SYMBOL(left);
   INIT_SYMBOL(right);
   INIT_SYMBOL(middle);
+
+  INIT_SYMBOL(lshift);
+  INIT_SYMBOL(rshift);
+  INIT_SYMBOL(shift);
+  INIT_SYMBOL(lctrl);
+  INIT_SYMBOL(rctrl);
+  INIT_SYMBOL(ctrl);
+  INIT_SYMBOL(lalt);
+  INIT_SYMBOL(ralt);
+  INIT_SYMBOL(alt);
+  INIT_SYMBOL(lmeta);
+  INIT_SYMBOL(rmeta);
+  INIT_SYMBOL(meta);
+  INIT_SYMBOL(num);
+  INIT_SYMBOL(caps);
+  INIT_SYMBOL(mode);
 
 #undef INIT_SYMBOL
 }
