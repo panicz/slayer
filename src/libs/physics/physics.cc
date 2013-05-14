@@ -48,8 +48,10 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     dJointID r = dJointCreateContact(sim->world, sim->contact_group, &c[i]);
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     sim->contacts.push_back(r);
-   
-    //OUT("Contact %i penetration depth is %f", i, c[i].geom.depth);
+
+    if(abs(c[i].geom.depth) >= 0.1) {
+      OUT("Contact %i penetration depth is %f", i, c[i].geom.depth);
+    }
 
   }
 }
@@ -133,11 +135,13 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
   return 1;
 }
 
+/*
 static size_t
 free_ode(SCM smob) {
-  WARN_UPTO(7, "Attempting to release ode smob, but that just isn't implemented!");
+  WARN_ONCE("Attempting to release ode smob, but that just isn't implemented!");
   return 0;
 }
+*/
 
 extern "C" void 
 init() {
@@ -154,7 +158,7 @@ init() {
   export_symbols(NULL);
   
   ode_tag = scm_make_smob_type("ode", sizeof(void *));
-  scm_set_smob_free(ode_tag, free_ode);
+  //scm_set_smob_free(ode_tag, free_ode);
   scm_set_smob_print(ode_tag, print_ode);
   //scm_set_smob_mark(ode_tag, mark_ode);
   
