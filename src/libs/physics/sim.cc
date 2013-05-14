@@ -7,7 +7,7 @@ primitive_make_simulation() {
   sim->world = dWorldCreate();
   sim->space = dHashSpaceCreate(0);
   sim->contact_group = dJointGroupCreate(0);
-  sim->dt = 0.01;  
+  sim->dt = 0.05;
   return sim_to_smob(sim);
 }
 
@@ -78,6 +78,65 @@ simulation_gravity_getter(sim_t *sim) {
   return scm_from_dVector3(v);
 }
 
+#define DEF_SIMULATION_ACCESSOR(name, orig, convert, back, cast)	\
+  static void								\
+  simulation_##name##_setter(sim_t *sim, SCM param) {			\
+    dWorldSet##orig(sim->world, (cast) convert(param));			\
+  }									\
+									\
+  static SCM								\
+  simulation_##name##_getter(sim_t *sim) {				\
+    return back(dWorldGet##orig(sim->world));				\
+  }
+
+DEF_SIMULATION_ACCESSOR(erp, ERP, scm_to_double, scm_from_double, dReal);
+DEF_SIMULATION_ACCESSOR(cfm, CFM, scm_to_double, scm_from_double, dReal);
+DEF_SIMULATION_ACCESSOR(auto_disable_flag, AutoDisableFlag, scm_to_bool, 
+			scm_from_bool, int);
+
+DEF_SIMULATION_ACCESSOR(auto_disable_linear_threshold,
+			AutoDisableLinearThreshold,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(auto_disable_angular_threshold, 
+			AutoDisableAngularThreshold,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(auto_disable_steps, AutoDisableSteps,
+			scm_to_int, scm_from_int, int);
+
+DEF_SIMULATION_ACCESSOR(auto_disable_time, AutoDisableTime,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(quick_step_iterations, QuickStepNumIterations,
+			scm_to_int, scm_from_int, int);
+
+DEF_SIMULATION_ACCESSOR(quick_step_relaxation, QuickStepW,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(linear_damping, LinearDamping,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(angular_damping, AngularDamping,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(linear_damping_threshold, LinearDampingThreshold,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(angular_damping_threshold, AngularDampingThreshold,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(max_angular_speed, MaxAngularSpeed,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(contact_max_correcting_velocity, ContactMaxCorrectingVel,
+			scm_to_double, scm_from_double, dReal);
+
+DEF_SIMULATION_ACCESSOR(contact_surface_layer, ContactSurfaceLayer,
+			scm_to_double, scm_from_double, dReal);
+
+#undef DEF_SIMULATION_ACCESSOR
+
 static SCM
 set_simulation_property_x(SCM x_sim, SCM s_prop, SCM value) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
@@ -120,15 +179,49 @@ simulation_property(SCM x_sim, SCM s_prop) {
 
 static void
 init_sim_property_accessors() {
-  SCM name;
-#define SET_SIM_ACCESSORS(property)					\
-  name = gc_protected(symbol(# property));				\
-  sim_property_setter[name] = simulation_##property##_setter;		\
-  sim_property_getter[name] = simulation_##property##_getter
-  
+  SCM s_name;
+#define SET_SIM_NAMED_ACCESSORS(property, name)				\
+  s_name = gc_protected(symbol(name));					\
+  sim_property_setter[s_name] = simulation_##property##_setter;		\
+  sim_property_getter[s_name] = simulation_##property##_getter
+
+#define SET_SIM_ACCESSORS(property)		\
+  SET_SIM_NAMED_ACCESSORS(property, # property)
+
   SET_SIM_ACCESSORS(gravity);
-  
+  SET_SIM_ACCESSORS(erp);
+  SET_SIM_ACCESSORS(cfm);
+
+  SET_SIM_NAMED_ACCESSORS(auto_disable_flag, "auto-disable-flag");
+
+  SET_SIM_NAMED_ACCESSORS(auto_disable_linear_threshold,
+			  "auto-disable-linear-threshold");
+
+  SET_SIM_NAMED_ACCESSORS(auto_disable_angular_threshold,
+			  "auto-disable-angular-threshold");
+
+  SET_SIM_NAMED_ACCESSORS(auto_disable_steps, "auto-disable-steps");
+  SET_SIM_NAMED_ACCESSORS(auto_disable_time, "auto-disable-time");
+
+  SET_SIM_NAMED_ACCESSORS(quick_step_iterations, "quick-step-iterations");
+  SET_SIM_NAMED_ACCESSORS(quick_step_relaxation, "quick-step-relaxation");
+
+  SET_SIM_NAMED_ACCESSORS(linear_damping, "linear-damping");
+  SET_SIM_NAMED_ACCESSORS(angular_damping, "angular-damping");
+
+  SET_SIM_NAMED_ACCESSORS(linear_damping_threshold, 
+			  "linear-damping-threshold");
+  SET_SIM_NAMED_ACCESSORS(angular_damping_threshold, 
+			  "angular-damping-threshold");
+
+  SET_SIM_NAMED_ACCESSORS(max_angular_speed, "max-angular-speed");
+  SET_SIM_NAMED_ACCESSORS(contact_max_correcting_velocity, 
+			  "contact-max-correcting-velocity");
+
+  SET_SIM_NAMED_ACCESSORS(contact_surface_layer, "contact-surface-layer");
+
 #undef SET_SIM_ACCESSORS  
+#undef SET_SIM_NAMED_ACCESSORS
 }
 
 

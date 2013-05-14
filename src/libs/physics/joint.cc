@@ -181,6 +181,10 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
 
 DEF_ALL_JOINT_PARAM_ACCESSORS(hinge, Hinge);
 DEF_ALL_JOINT_PARAM_ACCESSORS(hinge2, Hinge2);
+
+DEF_JOINT_PARAM_ACCESSOR(hinge2, Hinge2, velocity2, dParamVel2);
+DEF_JOINT_PARAM_ACCESSOR(hinge2, Hinge2, max_force2, dParamFMax2);
+
 DEF_ALL_JOINT_PARAM_ACCESSORS(slider, Slider);
 DEF_ALL_JOINT_PARAM_ACCESSORS(universal, Universal);
 DEF_ALL_JOINT_PARAM_ACCESSORS(angular_motor, AMotor);
@@ -213,6 +217,14 @@ init_joint_property_accessors() {
   SET_JOINT_ACCESSORS(dJointTypeHinge2, hinge2_, anchor);
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, axis1, "axis-1");
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, axis2, "axis-2");
+
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, velocity2,	\
+			    "velocity-2");
+
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, max_force2,	\
+			    "max-force-2");
+
+
 
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, suspension_erp,
 			    "suspension-erp");
