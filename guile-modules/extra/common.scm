@@ -2,6 +2,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-2)
   #:use-module (srfi srfi-11)
+  #:use-module (srfi srfi-31)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 pretty-print)
@@ -67,6 +68,8 @@
 	       lset-difference lset-xor lset-diff+intersection
 	       ;; srfi-2, srfi-11
 	       and-let* let-values let*-values
+	       ;; srfi-31
+	       rec
 	       ;; ice-9 match
 	       match match-let match-let* match-lambda match-lambda*
 	       ;; ice-9 regex
