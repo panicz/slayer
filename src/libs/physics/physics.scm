@@ -55,16 +55,15 @@
 					  value))))
 	  (for (type props ...) in joint-defs
 	       (let ((joint (make-joint rig type))
-		     (literal
-		      (lambda (x)
-			(match x
-			  ((? symbol? body-name)
-			   (body-named body-name rig))
-			  ((property-name body-name)
-			   (body-property (body-named body-name rig)
-					  property-name))
-			  (else 
-			   else)))))
+		     (literal (rec (literal x)
+				   (match x
+				     ((? symbol? body-name)
+				      (body-named body-name rig))
+				     (('? property-name body-name)
+				      (body-property (body-named body-name rig)
+						     property-name))
+				     (else 
+				      else)))))
 		 (for (property value) in (map-n 2 list props)
 		      (set-joint-property! joint 
 					   (keyword->symbol property)
