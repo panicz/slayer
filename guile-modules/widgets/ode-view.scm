@@ -45,11 +45,11 @@
 			(lambda (vertices)
 			  (list->uniform-array 
 			   (map (match-lambda((x y z)
-					      (list x z (- y radius))))
+					      (list x z y #;(+ y radius))))
 				(array->list vertices))))
 			(generate-tube #:radius radius
-				       #:height height))
-		       ))
+				       #:height height))))
+
 		    ('plane
 		     (square-grid #:size 10.0 #:density 50))
 		    (else #f))))
@@ -63,7 +63,15 @@
 	      ;; i jeszcze shape jakos trzeba wydobitch
 	      ;;(display position)(newline)
 	      (push-matrix!)
+
 	      (translate-view! position)
+	      ;(rotate-view! (quaternion 0.0 #f32(1 0 0)))
+	      (if (eq? (body-type body) 'cylinder)
+		  (translate-view! (list->f32vector 
+				    `(0 0 ,(body-property body 'radius)))))
+
+
 	      (rotate-view! rotation)
+
 	      (draw-mesh #[ov : 'meshes : (body-id body)])
 	      (pop-matrix!)))))
