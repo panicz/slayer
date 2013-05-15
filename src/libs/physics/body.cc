@@ -345,10 +345,115 @@ body_named(SCM s_name, SCM x_rig) {
     free(name);
     return SCM_BOOL_F;
   }
-
   return body_to_smob(rig->bodies[id->second]);
 }
 
+static SCM
+add_body_force_x(SCM x_body, SCM force) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(force, &f);
+  dBodyAddForce(body->body, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_force_x(SCM x_body, SCM force) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(force, &f);
+  dBodyAddRelForce(body->body, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_force_at_position_x(SCM x_body, SCM force, SCM position) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f, p;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(position, &p);
+  dBodyAddForceAtPos(body->body, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+static SCM
+add_body_force_at_relative_position_x(SCM x_body, SCM force, SCM position) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f, p;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(position, &p);
+  dBodyAddForceAtRelPos(body->body, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_force_at_position_x(SCM x_body, SCM force, SCM position) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f, p;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(position, &p);
+  dBodyAddRelForceAtPos(body->body, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_force_at_relative_position_x(SCM x_body, SCM force, SCM pos) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f, p;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(force, &f);
+  scm_to_dVector3(pos, &p);
+  dBodyAddRelForceAtRelPos(body->body, f[0], f[1], f[2], p[0], p[1], p[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_torque_x(SCM x_body, SCM torque) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(torque, &f);
+  dBodyAddTorque(body->body, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+add_body_local_torque_x(SCM x_body, SCM torque) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  dVector3 f;
+  if(!(body->body)) {
+    WARN_UPTO(3, "function called on void body");
+    return SCM_BOOL_F;
+  }
+  scm_to_dVector3(torque, &f);
+  dBodyAddRelTorque(body->body, f[0], f[1], f[2]);
+  return SCM_UNSPECIFIED;
+}
 
 static SCM
 set_body_property_x(SCM x_body, SCM s_prop, SCM value) {
@@ -414,7 +519,20 @@ body_id(SCM x_body) {
   EXPORT_PROC("body-property", 2, 0, 0, body_property);			\
   EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
   EXPORT_PROC("body-id", 1, 0, 0, body_id);				\
-  DEFINE_PROC("body-named", 2, 0, 0, body_named)
+  EXPORT_PROC("body-named", 2, 0, 0, body_named);			\
+  EXPORT_PROC("add-body-force!", 2, 0, 0, add_body_force_x);		\
+  EXPORT_PROC("add-body-local-force!", 2, 0, 0, add_body_local_force_x); \
+  EXPORT_PROC("add-body-force-at-position!", 3, 0, 0,			\
+	      add_body_force_at_position_x);				\
+  EXPORT_PROC("add-body-force-at-relative-position!", 3, 0, 0,		\
+	      add_body_force_at_relative_position_x);			\
+  EXPORT_PROC("add-body-local-force-at-position!", 3, 0, 0,		\
+	      add_body_local_force_at_position_x);			\
+  EXPORT_PROC("add-body-local-force-at-relative-position!", 3, 0, 0,	\
+	      add_body_local_force_at_relative_position_x);		\
+  EXPORT_PROC("add-body-torque!", 2, 0, 0, add_body_torque_x);		\
+  EXPORT_PROC("add-body-local-torque!", 2, 0, 0,			\
+	      add_body_local_torque_x)
 
 #define INIT_BODY_MODULE			\
   init_body_maker();				\
