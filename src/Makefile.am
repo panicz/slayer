@@ -9,9 +9,9 @@ slayer_SOURCES = extend.h file.c font.c image.c input.c slayer.c slayer.h \
 	 symbols.c symbols.h utils.h video.c video.h 
 
 if OPENGL
-slayer_SOURCES += audio.c
+slayer_SOURCES += 3d.cc vmx.hh
 endif
 
 if SDL_MIXER
-slayer_SOURCES += 3d.cc vmx.hh
+slayer_SOURCES += audio.c
 endif
