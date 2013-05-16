@@ -62,6 +62,7 @@ struct joint_t;
 typedef struct joint_t {
   rig_t *parent;
   dJointID joint;
+  int id;
   int body1_id;
   int body2_id;
 } joint_t;
@@ -81,6 +82,7 @@ typedef struct rig_t {
   sim_t *parent;
   symbol_index_map_t id;
   vector<body_t *> bodies;
+  symbol_index_map_t joint_id;
   vector<joint_t *> joints;
   dSpaceID space;
   dJointGroupID group;
@@ -318,7 +320,7 @@ scm_to_dQuaternion(SCM Q, dQuaternion *q) {
     return;
   }
   if (scm_is_pair(Q)) {
-    scm_to_dVector3(scm_cdr(Q), ((dVector3 *) &q[1]));
+    scm_to_dVector3(scm_cdr(Q), ((dVector3 *) &((*q)[1])));
     ((dReal *) q)[0] = (dReal) scm_to_double(scm_car(Q));
     return;
   }

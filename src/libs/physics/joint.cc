@@ -40,7 +40,7 @@ init_joint_maker() {
 }
 
 static SCM
-make_joint(SCM x_rig, SCM s_type) {
+make_joint(SCM x_rig, SCM s_type, SCM s_name) {
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
   ASSERT_SCM_TYPE(symbol, s_type, 2);
   joint_t *joint = new joint_t;
@@ -58,9 +58,30 @@ make_joint(SCM x_rig, SCM s_type) {
   joint->body1_id = -1;
   joint->body2_id = -1;
   joint->parent = rig;
+  joint->id = rig->joints.size();
   rig->joints.push_back(joint);
 
+  if(s_name != SCM_UNDEFINED) {
+    rig->joint_id[gc_protected(s_name)] = joint->id;
+  }
+
   return joint_to_smob(joint);
+}
+
+static SCM
+joint_named(SCM s_name, SCM x_rig) {
+  ASSERT_SCM_TYPE(symbol, s_name, 1);
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
+
+  symbol_index_map_t::iterator id = rig->joint_id.find(s_name);
+
+  if(id == rig->id.end()) {
+    char *name = as_c_string(s_name);
+    WARN("no joint named '%s' found in rig %p", name, rig);
+    free(name);
+    return SCM_BOOL_F;
+  }
+  return joint_to_smob(rig->joints[id->second]);
 }
 
 static void
@@ -128,10 +149,14 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge_axis, HingeAxis);
 DEF_JOINT_VECTOR_ACCESSORS(slider_axis, SliderAxis);
 
 DEF_JOINT_VECTOR_ACCESSORS(universal_anchor, UniversalAnchor);
+DEF_JOINT_VECTOR_GETTER(universal_anchor2, UniversalAnchor2);
+
 DEF_JOINT_VECTOR_ACCESSORS(universal_axis1, UniversalAxis1);
 DEF_JOINT_VECTOR_ACCESSORS(universal_axis2, UniversalAxis2);
 
+
 DEF_JOINT_VECTOR_ACCESSORS(hinge2_anchor, Hinge2Anchor);
+DEF_JOINT_VECTOR_GETTER(hinge2_anchor2, Hinge2Anchor2);
 DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis1, Hinge2Axis1);
 DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
 
@@ -144,6 +169,16 @@ DEF_JOINT_VECTOR_ACCESSORS(hinge2_axis2, Hinge2Axis2);
   joint_##property_name##_getter(joint_t * joint) {			\
     return scm_from_double(dJointGet##PropertyName(joint->joint));	\
   }
+
+DEF_JOINT_REAL_GETTER(universal_angle1, UniversalAngle1);
+DEF_JOINT_REAL_GETTER(universal_angle2, UniversalAngle2);
+//DEF_JOINT_REAL_GETTER(universal_angle_rate1, UniversalAngleRate1);
+//DEF_JOINT_REAL_GETTER(universal_angle_rate2, UniversalAngleRate2);
+
+DEF_JOINT_REAL_GETTER(hinge2_angle1, Hinge2Angle1);
+//DEF_JOINT_REAL_GETTER(hinge2_angle2, Hinge2Angle2);
+//DEF_JOINT_REAL_GETTER(hinge2_angle_rate1, Hinge2AngleRate1);
+//DEF_JOINT_REAL_GETTER(hinge2_angle_rate2, Hinge2AngleRate2);
 
 #undef DEF_JOINT_REAL_GETTER
 
@@ -204,6 +239,10 @@ init_joint_property_accessors() {
   joint_property_setter[index] = joint_##prefix##property##_setter;	\
   joint_property_getter[index] = joint_##prefix##property##_getter
 
+#define SET_JOINT_NAMED_GETTER(ode_type, prefix, property, name)	\
+  index = make_pair(gc_protected(symbol(name)), ode_type);		\
+  joint_property_getter[index] = joint_##prefix##property##_getter
+
 #define SET_JOINT_ACCESSORS(ode_type, prefix, property)			\
   SET_JOINT_NAMED_ACCESSORS(ode_type, prefix, property, # property)
 
@@ -213,12 +252,30 @@ init_joint_property_accessors() {
   SET_JOINT_ACCESSORS(dJointTypeSlider, slider_, axis);
 
   SET_JOINT_ACCESSORS(dJointTypeUniversal, universal_, anchor);
+  SET_JOINT_NAMED_GETTER(dJointTypeUniversal, universal_, anchor2, "anchor-2");
+
   SET_JOINT_NAMED_ACCESSORS(dJointTypeUniversal, universal_, axis1, "axis-1");
   SET_JOINT_NAMED_ACCESSORS(dJointTypeUniversal, universal_, axis2, "axis-2");
 
+  SET_JOINT_NAMED_GETTER(dJointTypeUniversal, universal_, angle1, 
+			    "angle-1");
+  SET_JOINT_NAMED_GETTER(dJointTypeUniversal, universal_, angle2, 
+			    "angle-2");
+  //SET_JOINT_NAMED_GETTER(dJointTypeUniversal,universal_,
+  //angle_rate1,"angle-rate-1");
+  //SET_JOINT_NAMED_GETTER(dJointTypeUniversal, universal_,
+  //angle_rate2, "angle-rate-2");
+
   SET_JOINT_ACCESSORS(dJointTypeHinge2, hinge2_, anchor);
+  SET_JOINT_NAMED_GETTER(dJointTypeHinge2, hinge2_, anchor2, "anchor-2");
+
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, axis1, "axis-1");
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, axis2, "axis-2");
+
+  SET_JOINT_NAMED_GETTER(dJointTypeHinge2, hinge2_, angle1, "angle-1");
+  //SET_JOINT_NAMED_GETTER(dJointTypeHinge2, hinge2_, angle2, "angle-2");
+  //SET_JOINT_NAMED_GETTER(dJointTypeHinge2,hinge2_,angle_rate1,"angle-rate-1");
+  //SET_JOINT_NAMED_GETTER(dJointTypeHinge2,hinge2_,angle_rate2,"angle-rate-2");
 
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, hi_stop2, "hi-stop-2");
   SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge2, hinge2_, lo_stop2, "lo-stop-2");
@@ -325,10 +382,11 @@ joint_type(SCM x_joint) {
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_JOINT_PROCEDURES						\
-  EXPORT_PROC("make-joint", 2, 0, 0, make_joint);			\
+  EXPORT_PROC("make-joint", 2, 1, 0, make_joint);			\
   EXPORT_PROC("set-joint-property!", 3, 0, 0, set_joint_property_x);	\
   EXPORT_PROC("joint-property", 2, 0, 0, joint_property);		\
-  EXPORT_PROC("joint-type", 1, 0, 0, joint_type)
+  EXPORT_PROC("joint-type", 1, 0, 0, joint_type);			\
+  EXPORT_PROC("joint-named", 2, 0, 0, joint_named)
 
 #define INIT_JOINT_MODULE			\
   init_joint_maker();				\
