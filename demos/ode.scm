@@ -41,9 +41,16 @@
 
 (make-rig *sim* 'ground)
 (and-let* ((buggy (make-rig *sim* 'buggy))
-	   (chassis (body-named 'chassis buggy)))
+	   (chassis (body-named 'chassis buggy))
+	   (front (joint-named 'front buggy))
+	   (v 0))
   (key 'space (lambda()(force! chassis #f32(1 0 0))))
-  (key 'return (lambda()(force! chassis #f32(0 0 3)))))
+  (key 'return (lambda()(force! chassis #f32(0 0 6))))
+  (key "1" (lambda () 
+	     (increase! v 0.01)
+	     (let ((v (if (modifier-pressed? 'shift) (- v) v)))
+	       (set-joint-property! front 'velocity-2 v)
+	     ))))
 
 #;(let* ((buggy (make-rig *sim* 'buggy))
        (controls (rig-controls rig))
@@ -95,3 +102,4 @@
 
 (set! #[*view* : 'camera : 'orientation] 
       (quaternion 0.0 #f32(0.0 0.707106781186548 0.707106781186548)))
+
