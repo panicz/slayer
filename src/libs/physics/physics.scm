@@ -25,6 +25,7 @@
 	     set-joint-property!
 	     joint-property
 	     joint-type
+	     joint-named
 	     )
   #:export-syntax (define-rigs-for))
 
@@ -56,8 +57,8 @@
 		      (set-body-property! body 
 					  (keyword->symbol property) 
 					  value))))
-	  (for (type props ...) in joint-defs
-	       (let ((joint (make-joint rig type))
+	  (for (name (type props ...)) in joint-defs
+	       (let ((joint (make-joint rig type name))
 		     (literal (rec (literal x)
 				   (match x
 				     ((? symbol? body-name)
@@ -83,20 +84,20 @@
   (if local
       (if relative
 	  (if at 
-	      (add-body-local-force-at-relative-position! body force at)
-	      (add-body-local-force! body force))
+	      (body-add-local-force-at-relative-position! body force at)
+	      (body-add-local-force! body force))
 	  (if at
-	      (add-body-local-force-at-position! body force at)
-	      (add-body-local-force! body force)))
+	      (body-add-local-force-at-position! body force at)
+	      (body-add-local-force! body force)))
       (if relative
 	  (if at 
-	      (add-body-force-at-relative-position! body force at)
-	      (add-body-force! body force))
+	      (body-add-force-at-relative-position! body force at)
+	      (body-add-force! body force))
 	  (if at
-	      (add-body-force-at-position! body force at)
-	      (add-body-force! body force)))))
+	      (body-add-force-at-position! body force at)
+	      (body-add-force! body force)))))
 
 (define* (torque! body torque #:key (local #f))
   (if local 
-      (add-body-local-torque! body torque)
-      (add-body-torque! body torque)))
+      (body-add-local-torque! body torque)
+      (body-add-torque! body torque)))

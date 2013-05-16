@@ -7,7 +7,7 @@ static body_property_getter_map_t body_property_getter;
   make_##shape(rig_t *rig) {						\
     body_t *body = new body_t;						\
     body->body = create_body(rig->parent->world);			\
-    body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
+    body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );	\
     set_body(body->geom, body->body);					\
     body->id = rig->bodies.size();					\
     rig->bodies.push_back(body);					\
@@ -180,7 +180,7 @@ body_position_getter(body_t *body) {
 
 static void
 body_rotation_setter(body_t *body, SCM value) {
-  if(body->body) { 
+  if(!body->body) { 
     WARN_UPTO(3,"function called on void body");
     return;
   }
@@ -212,12 +212,13 @@ body_quaternion_getter(body_t *body) {
 
 static void
 body_quaternion_setter(body_t *body, SCM value) {
-  if(body->body) { 
+  if(!body->body) { 
     WARN_UPTO(3, "function called on void body");
     return;
   }
   dQuaternion Q;
   scm_to_dQuaternion(value, &Q);
+  OUT("Setting Quaternion to [%f %f %f %f]", Q[0], Q[1], Q[2], Q[3]);
   dBodySetQuaternion(body->body, Q);
 }
 
@@ -349,7 +350,7 @@ body_named(SCM s_name, SCM x_rig) {
 }
 
 static SCM
-add_body_force_x(SCM x_body, SCM force) {
+body_add_force_x(SCM x_body, SCM force) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f;
   if(!(body->body)) {
@@ -362,7 +363,7 @@ add_body_force_x(SCM x_body, SCM force) {
 }
 
 static SCM
-add_body_local_force_x(SCM x_body, SCM force) {
+body_add_local_force_x(SCM x_body, SCM force) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f;
   if(!(body->body)) {
@@ -375,7 +376,7 @@ add_body_local_force_x(SCM x_body, SCM force) {
 }
 
 static SCM
-add_body_force_at_position_x(SCM x_body, SCM force, SCM position) {
+body_add_force_at_position_x(SCM x_body, SCM force, SCM position) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f, p;
   if(!(body->body)) {
@@ -388,7 +389,7 @@ add_body_force_at_position_x(SCM x_body, SCM force, SCM position) {
   return SCM_UNSPECIFIED;
 }
 static SCM
-add_body_force_at_relative_position_x(SCM x_body, SCM force, SCM position) {
+body_add_force_at_relative_position_x(SCM x_body, SCM force, SCM position) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f, p;
   if(!(body->body)) {
@@ -402,7 +403,7 @@ add_body_force_at_relative_position_x(SCM x_body, SCM force, SCM position) {
 }
 
 static SCM
-add_body_local_force_at_position_x(SCM x_body, SCM force, SCM position) {
+body_add_local_force_at_position_x(SCM x_body, SCM force, SCM position) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f, p;
   if(!(body->body)) {
@@ -416,7 +417,7 @@ add_body_local_force_at_position_x(SCM x_body, SCM force, SCM position) {
 }
 
 static SCM
-add_body_local_force_at_relative_position_x(SCM x_body, SCM force, SCM pos) {
+body_add_local_force_at_relative_position_x(SCM x_body, SCM force, SCM pos) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f, p;
   if(!(body->body)) {
@@ -430,7 +431,7 @@ add_body_local_force_at_relative_position_x(SCM x_body, SCM force, SCM pos) {
 }
 
 static SCM
-add_body_torque_x(SCM x_body, SCM torque) {
+body_add_torque_x(SCM x_body, SCM torque) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f;
   if(!(body->body)) {
@@ -443,7 +444,7 @@ add_body_torque_x(SCM x_body, SCM torque) {
 }
 
 static SCM
-add_body_local_torque_x(SCM x_body, SCM torque) {
+body_add_local_torque_x(SCM x_body, SCM torque) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   dVector3 f;
   if(!(body->body)) {
@@ -520,19 +521,19 @@ body_id(SCM x_body) {
   EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
   EXPORT_PROC("body-id", 1, 0, 0, body_id);				\
   EXPORT_PROC("body-named", 2, 0, 0, body_named);			\
-  EXPORT_PROC("add-body-force!", 2, 0, 0, add_body_force_x);		\
-  EXPORT_PROC("add-body-local-force!", 2, 0, 0, add_body_local_force_x); \
-  EXPORT_PROC("add-body-force-at-position!", 3, 0, 0,			\
-	      add_body_force_at_position_x);				\
-  EXPORT_PROC("add-body-force-at-relative-position!", 3, 0, 0,		\
-	      add_body_force_at_relative_position_x);			\
-  EXPORT_PROC("add-body-local-force-at-position!", 3, 0, 0,		\
-	      add_body_local_force_at_position_x);			\
-  EXPORT_PROC("add-body-local-force-at-relative-position!", 3, 0, 0,	\
-	      add_body_local_force_at_relative_position_x);		\
-  EXPORT_PROC("add-body-torque!", 2, 0, 0, add_body_torque_x);		\
-  EXPORT_PROC("add-body-local-torque!", 2, 0, 0,			\
-	      add_body_local_torque_x)
+  EXPORT_PROC("body-add-force!", 2, 0, 0, body_add_force_x);		\
+  EXPORT_PROC("body-add-local-force!", 2, 0, 0, body_add_local_force_x); \
+  EXPORT_PROC("body-add-force-at-position!", 3, 0, 0,			\
+	      body_add_force_at_position_x);				\
+  EXPORT_PROC("body-add-force-at-relative-position!", 3, 0, 0,		\
+	      body_add_force_at_relative_position_x);			\
+  EXPORT_PROC("body-add-local-force-at-position!", 3, 0, 0,		\
+	      body_add_local_force_at_position_x);			\
+  EXPORT_PROC("body-add-local-force-at-relative-position!", 3, 0, 0,	\
+	      body_add_local_force_at_relative_position_x);		\
+  EXPORT_PROC("body-add-torque!", 2, 0, 0, body_add_torque_x);		\
+  EXPORT_PROC("body-add-local-torque!", 2, 0, 0,			\
+	      body_add_local_torque_x)
 
 #define INIT_BODY_MODULE			\
   init_body_maker();				\
