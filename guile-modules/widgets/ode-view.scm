@@ -29,28 +29,21 @@
        (for body in (rig-bodies rig)
 	    (and-let* 
 		((mesh
-		  (match (body-type body)
-		    ('box
+		  (case (body-type body)
+		    ((box)
 		     (let ((dims (body-property body 'dimensions)))
 		       (generate-box #:x #[dims 0] 
 				     #:y #[dims 1] 
 				     #:z #[dims 2])))
-		    ('sphere
+		    ((sphere)
 		     (let ((radius (body-property body 'radius)))
 		       (generate-sphere #:radius radius)))
-		    ('cylinder
+		    ((cylinder)
 		     (let ((radius (body-property body 'radius))
 			   (height (body-property body 'height)))
-		       (transform-mesh-vertices
-			(lambda (vertices)
-			  (list->uniform-array 
-			   (map (match-lambda((x y z)
-					      (list x z y #;(+ y radius))))
-				(array->list vertices))))
 			(generate-tube #:radius radius
-				       #:height height))))
-
-		    ('plane
+				       #:height height)))
+		    ((plane)
 		     (square-grid #:size 10.0 #:density 50))
 		    (else #f))))
 	      (hash-set! #[ov 'meshes] (body-id body) mesh)))))
@@ -65,13 +58,7 @@
 	      (push-matrix!)
 
 	      (translate-view! position)
-	      ;(rotate-view! (quaternion 0.0 #f32(1 0 0)))
-	      (if (eq? (body-type body) 'cylinder)
-		  (translate-view! (list->f32vector 
-				    `(0 0 ,(body-property body 'radius)))))
-
-
 	      (rotate-view! rotation)
-
+		
 	      (draw-mesh #[ov : 'meshes : (body-id body)])
 	      (pop-matrix!)))))
