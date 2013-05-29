@@ -19,7 +19,6 @@ build-aux/depcomp
 build-aux/install-sh
 build-aux/ltmain.sh
 build-aux/missing
-configure
 stamp-h1
 *.in
 Makefile
