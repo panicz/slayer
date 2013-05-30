@@ -7,6 +7,8 @@
   #:use-module (ice-9 regex)
   #:use-module (ice-9 pretty-print)
   #:use-module (ice-9 format)
+  #:use-module (ice-9 popen)
+  #:use-module (ice-9 rdelim)
   #:use-module (system base compile)
 
   #:use-module ((rnrs) :version (6) 
@@ -52,7 +54,10 @@
 	    random-array
 	    read-string write-string
 	    with-output-to-utf8
+	    list-directory
+	    shell
 	    <<
+	    real->integer
 	    )
   #:re-export (;; srfi-1
 	       iota
@@ -86,6 +91,12 @@
 		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define (real->integer number)
+  (let ((near (round number)))
+    (if (exact? number)
+	number
+	(inexact->exact number))))
 
 (define (write-string object)
   (with-output-to-string (lambda()(write object))))
@@ -564,6 +575,28 @@
 
 (define (with-output-to-utf8 thunk)
   (string->utf8 (with-output-to-string thunk)))
+
+(define (list-directory directory)
+  (let ((dir (opendir directory)))
+    (let loop ((listed-files '()) 
+	       (file (readdir dir)))
+      (cond ((eof-object? file)
+	     (closedir dir)
+	     listed-files)
+	    (else 
+	     (loop (cons file listed-files)
+		   (readdir dir)))))))
+
+(define (shell command)
+  (let ((pipe (open-pipe command OPEN_READ)))
+    (let loop ((lines '())
+	       (line (read-line pipe)))
+      (cond ((eof-object? line)
+	     (close-pipe pipe)
+	     (reverse lines))
+	    (else
+	     (loop (cons line lines)
+		   (read-line pipe)))))))
 
 ;; do dalszej rozkminki
 ;; (define (collatz n)
