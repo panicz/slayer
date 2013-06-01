@@ -5,9 +5,19 @@
 #include <SDL/SDL.h>
 
 #ifdef USE_OPENGL
-#include <GL/gl.h>
-#include <GL/glu.h>
-#include <GL/glext.h>
+# include <GL/gl.h>
+# include <GL/glu.h>
+# include <GL/glext.h>
+
+# ifdef __cplusplus 
+#  define DECLARE extern "C"
+# else
+#  define DECLARE extern
+# endif
+
+DECLARE void glWindowPos2i (GLint x, GLint y);
+
+# undef DECLARE
 #endif
 
 extern SDL_Surface *screen;
