@@ -49,10 +49,10 @@
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
   (children #:init-value '() #:init-keyword #:children)
-  (click #:init-value noop #:init-keyword #:click)
-  (unclick #:init-value noop #:init-keyword #:unclick)
-  (right-click #:init-value noop #:init-keyword #:right-click)
-  (right-unclick #:init-value noop #:init-keyword #:right-unclick)
+  (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
+  (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
+  (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
+  (right-mouse-up #:init-value noop #:init-keyword #:right-mouse-up)
   (mouse-over #:init-value noop #:init-keyword #:mouse-over)
   (mouse-out #:init-value noop #:init-keyword #:mouse-out)
   (drag #:init-value noop #:init-keyword #:drag)
@@ -126,11 +126,11 @@
 			     (absolute-area w)))
 		 *stage*)))
     (set! *active-widget* w))
-  (if *active-widget* (#[ *active-widget* 'click ] x y)))
+  (if *active-widget* (#[*active-widget* 'left-mouse-down ] x y)))
 
 
 (define (unselect-widget-at x y)
-  (if *active-widget* (#[ *active-widget* 'unclick ] x y))
+  (if *active-widget* (#[*active-widget* 'right-mouse-up] x y))
   (set! *active-widget* *stage*))
 
 (define (right-click-widget-at x y)
@@ -139,7 +139,7 @@
 		   (in-area? (list x y)
 			     (absolute-area w)))
 		 *stage*)))
-    (#[ w 'right-click ] x y)))
+    (#[ w 'right-mouse-down ] x y)))
 
 (define (drag-over-widget x y xrel yrel)
    (let ((mouseover-widget 

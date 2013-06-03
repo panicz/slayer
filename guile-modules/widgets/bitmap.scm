@@ -16,8 +16,8 @@
 
 (define-method (draw (i <bitmap>))
   (draw-image #[ i 'image ]
-	      (+ (or #[#[ i 'parent ] 'x] 0) #[ i 'x ]) 
-	      (+ (or #[#[ i 'parent ] 'y] 0) #[ i 'y ])))
+	      (+ (or #[i : 'parent : 'x] 0) #[ i 'x ]) 
+	      (+ (or #[i : 'parent : 'y] 0) #[ i 'y ])))
 
 (define* (make-button #:key (text "button") (x 0) (y 0) (w #f) (h #f))
   (let ((normal (render-text text *default-font* #xffffff #xff0000))
@@ -30,9 +30,9 @@
 	    (lambda e (set! #[ button 'image ] over )))
       (set! #[ button 'mouse-out ] 
 	    (lambda e (set! #[ button 'image ] normal )))
-      (set! #[ button 'click ] 
+      (set! #[ button 'left-mouse-down ] 
 	    (lambda e (set! #[ button 'image ] clicked )))
-      (set! #[ button 'unclick ] #[ button 'mouse-over ])
+      (set! #[ button 'right-mouse-down ] #[ button 'mouse-over ])
       (set! #[ button 'drag ] noop)
       button)))
 

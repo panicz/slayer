@@ -20,6 +20,7 @@
   (%cursor #:init-value #f)
   (%space #:init-value #f)
   (%background #:init-value #f)
+  (%render-cache #:init-value #f)
   #;(visible-cols #:init-keyword #:visible-cols)
   #;(visible-lines #:init-keyword #:visible-lines)
   #;(rendered-lines #:init-thunk make-hash-table))
@@ -31,52 +32,46 @@
 				    (font-line-skip #[self 'font])
 				    #x20eeaa22)))
 
-(define (render-text-cached text font)
-  (define cached-text (make-hash-table))
-  (define cached-image (make-hash-table))
-  (if (equal? #[cached-text font] text)
-      #[cached-image font]
-      (let ((image (render-text text font)))
-	(set! #[cached-text font] text)
-	(set! #[cached-image font] image)
-	image)))
-
 (define-method (draw (t <text-area>))
   (let* ((font #[t 'font])
 	 (line-skip (font-line-skip font))
 	 (lines #[t 'lines])
 	 (cursor #[t '%cursor])
 	 (space #[t '%space]))
-    (for-each (lambda(line top)
-		(let ((image (render-text-cached line font)))
-		  (set! #[ t 'w ] 
-			(max #[ t 'w ] (image-width image)))
-		  (draw-image image 
-			      (+ (or #[ #[ t 'parent ] 'x ] 0) 
-				 #[t 'x]) 
-			      (+ (or #[#[t 'parent] 'y] 0) 
-				 #[t 'y] top))))
-	      (vector->list lines)
-	      (iota (vector-length lines) 0 line-skip))
+    (if (or (not #[t '%render-cache])
+	    (not (= (vector-length #[t '%render-cache])
+		    (vector-length lines))))
+	(set! #[t '%render-cache] (make-vector (vector-length lines) #f)))
+    (for n in 0 .. (1- (vector-length lines))
+	 (let ((image (or #[t : '%render-cache : n]
+			  (render-text #[lines n] font))))
+	   (set! #[t : '%render-cache : n] image)
+	   (set! #[t 'w] (max #[t 'w] (image-width image)))
+	   (draw-image image 
+		       (+ (or #[t : 'parent : 'x] 0) 
+			  #[t 'x]) 
+		       (+ (or #[t : 'parent : 'y] 0) 
+			  #[t 'y] (* n line-skip)))))
     (if (equal? (current-output-port) #[t 'port])
 	(draw-image cursor 
 		    (+ #[t 'x] (* (image-width space) 
-				  (port-column #[ t 'port ])) )
+				  (port-column #[t 'port])) )
 		    (+ #[t 'y] (* line-skip 
-				  (port-line #[ t 'port ])))))
+				  (port-line #[t 'port])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
+
 
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
   (set-port-line! #[ w 'port ] 
-		  (max 0 (min (+ (port-line #[ w 'port ]) down) 
-			      (- (vector-length #[ w 'lines ]) 1))))
+		  (max 0 (min (+ (port-line #[w 'port]) down) 
+			      (- (vector-length #[w 'lines]) 1))))
   (set-port-column! 
    #[ w 'port ] 
    (max 0 (min 
 	   (+ (port-column #[w 'port]) right)
-	   (string-length #[#[w 'lines](port-line #[w 'port])])))))
+	   (string-length #[w : 'lines : (port-line #[w 'port])])))))
 
 (define-method (delete-char! (w <text-area>))
   (let ((p (slot-ref w 'port)))
@@ -85,11 +80,11 @@
 (define-method (delete-char! (w <text-area>) 
 			     (col <integer>) 
 			     (line <integer>))
-  (let* ((s #[ #[ w 'lines ] line ])
+  (let* ((s #[w : 'lines : line ])
 	 (sl (string-length s))
 	 (l (substring s 0 (max 0 (min sl (- col 1)))))
 	 (r (substring s (min sl col))))
-    (set! #[ #[ w 'lines ] line ] (string-append l r))))
+    (set! #[w : 'lines : line] (string-append l r))))
 
 (define* (make-text-area #:key (text "hi! :)\n") (x 0)(y 0))
   (let* ((t (make <text-area>))
@@ -97,8 +92,9 @@
 		       (let ((p #[ t 'port ]))
 			 (let ((row (port-line p))
 			       (col (port-column p)))
-			   (let ((line #[ #[ t 'lines ] row ]))
-			     (set! #[ #[ t 'lines ] row ]
+			   (set! #[t : '%render-cache : row] #f)
+			   (let ((line #[t : 'lines : row ]))
+			     (set! #[t : 'lines : row]
 				   (string-append
 				    (substring line 0 col)
 				    s
@@ -155,12 +151,12 @@
        (let ((line (port-line #[ t 'port ]))
 	     (column (port-column #[ t 'port ])))
 	 (if (and (= column (string-length 
-			     #[#[t 'lines] line]))
+			     #[t : 'lines : line]))
 		  (< (+ line 1) 
 		     (vector-length #[t 'lines])))
 	     (move-cursor! 
 	      t 
-	      (- (string-length #[#[t 'lines] line]))
+	      (- (string-length #[t : 'lines : line]))
 	      1)
 	     ;;else
 	     (move-cursor! t 1 0)))))
@@ -182,7 +178,7 @@
 	      (text (string-join 
 		     (append (take lines line)
 			     (list (substring 
-				    #[#[t 'lines] line]
+				    #[t : 'lines : line]
 				    0 column)))
 		     "\n"))
 	      (last-sexp (substring 
@@ -192,6 +188,7 @@
     (set-key! 
      "backspace" 
      (lambda()
+       (set! #[t '%render-cache] #f)
        (let ((p #[ t 'port ])
 	     (lines #[ t 'lines ]))
 	 (if (= (port-column p) 0)
@@ -217,6 +214,7 @@
     (set-key! 
      "delete" 
      (lambda()
+       (set! #[t '%render-cache] #f)
        (let* ((p #[ t 'port ])
 	      (lines #[ t 'lines ]))
 	 (if (= (port-column p) 
@@ -229,7 +227,7 @@
 			 (pre (drop-right pre 1)))
 		     (match post 
 		       ((next . rest)
-			(set! #[ t 'lines ]
+			(set! #[t 'lines]
 			      (list->vector
 			       (append pre
 				       `(,(string-append this next))
@@ -237,11 +235,11 @@
 	     (begin
 	       (delete-char! t (+ (port-column p) 1) (port-line p)) 
 	       (move-cursor! t 0 0)))))))
-  (set! #[t 'click]
+  (set! #[t 'left-mouse-down]
 	(lambda e
 	  (set-current-output-port #[ t 'port ])
 	  (set-typing-special! (lambda(scancode)
-				 (#[#[t 'special-keys] scancode])))
+				 (#[t : 'special-keys : scancode])))
 	  (input-mode 'typing)))
   (set! #[t 'x] x)
   (set! #[t 'y] y)
