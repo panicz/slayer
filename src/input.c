@@ -103,8 +103,6 @@ set_resize_procedure_x(SCM procedure) {
 
 static SCM 
 videoresize_handler(SDL_Event *e) {
-  screen = SDL_SetVideoMode(e->resize.w, e->resize.h, 
-			    screen->format->BitsPerPixel, screen->flags);
   scm_call_2(resize_procedure, scm_from_int(e->resize.w), 
 	     scm_from_int(e->resize.h));
   WARN_ONCE("FOR SCREEN RESIZE ON WINDOWS/OPENGL, REFER TO %s",
