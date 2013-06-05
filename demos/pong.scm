@@ -96,44 +96,50 @@
 (define bounce-sound (load-sound "art/alert.wav"))
 (define score-sound (load-sound "art/explode.wav"))
 
-(let ((redraw (register-userevent noop))
-      (exit (register-userevent quit)))
-  (call-with-new-thread
-   (lambda ()
-     (while #t
-       (increase! ball-x ball-vx)
-       (increase! ball-y ball-vy)
-       (increase! paddle-a-y paddle-a-v)
-       (increase! paddle-b-y paddle-b-v)
-       (if (or (<= ball-y 1)
-	       (>= ball-y (- board-height 2)))
-	   (begin 
-	     (play-sound! bounce-sound)
-	     (multiply! ball-vy -1)))
-       (if (or (and (= ball-x (1- paddle-b-x))
-		    (> ball-vx 0)
-		    (<= paddle-b-y ball-y (+ paddle-b-y paddle-b-size)))
-	       (and (= ball-x (1+ paddle-a-x))
-		    (< ball-vx 0)
-		    (<= paddle-a-y ball-y (+ paddle-a-y paddle-a-size))))
-	   (begin 
-	     (play-sound! bounce-sound)
-	     (multiply! ball-vx -1)))
-       (if (> ball-x board-width)
-	   (begin
-	     (play-sound! score-sound)
-	     (increase! points-a 1)
-	     (reset-ball!)))
-       (if (< ball-x 0)
-	   (begin
-	     (play-sound! score-sound)
-	     (increase! points-b 1)
-	     (reset-ball!)))
-       (if (or (> points-a 9)
-	       (> points-b 9))
-	   (generate-userevent exit)) ;; inform main thread to exit
-       (generate-userevent redraw) ;; force a redraw
-       (usleep 30000)))))
+(define (wait usecs)
+  (let loop ((usecs (usleep usecs)))
+    (if (> usecs 0) 
+	(loop (usleep usecs)))))
+
+(define-syntax-rule (utimer usecs action ...)
+  (let ((tick (register-userevent (lambda () action ...))))
+    (call-with-new-thread (lambda () (while #t
+				       (generate-userevent tick)
+				       (wait usecs))))))
+
+(utimer 
+ 30000
+ (increase! ball-x ball-vx)
+ (increase! ball-y ball-vy)
+ (increase! paddle-a-y paddle-a-v)
+ (increase! paddle-b-y paddle-b-v)
+ (if (or (<= ball-y 1)
+	 (>= ball-y (- board-height 2)))
+     (begin 
+       (play-sound! bounce-sound)
+       (multiply! ball-vy -1)))
+ (if (or (and (= ball-x (1- paddle-b-x))
+	      (> ball-vx 0)
+	      (<= paddle-b-y ball-y (+ paddle-b-y paddle-b-size)))
+	 (and (= ball-x (1+ paddle-a-x))
+	      (< ball-vx 0)
+	      (<= paddle-a-y ball-y (+ paddle-a-y paddle-a-size))))
+     (begin 
+       (play-sound! bounce-sound)
+       (multiply! ball-vx -1)))
+ (if (> ball-x board-width)
+     (begin
+       (play-sound! score-sound)
+       (increase! points-a 1)
+       (reset-ball!)))
+ (if (< ball-x 0)
+     (begin
+       (play-sound! score-sound)
+       (increase! points-b 1)
+       (reset-ball!)))
+ (if (or (> points-a 9)
+	 (> points-b 9))
+     (quit)))
 
 (keydn 'a (lambda()(decrease! paddle-a-v 1)))
 (keyup 'a (lambda()(increase! paddle-a-v 1)))
