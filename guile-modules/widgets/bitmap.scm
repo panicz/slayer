@@ -15,9 +15,9 @@
   (image #:init-keyword #:image))
 
 (define-method (draw (i <bitmap>))
-  (draw-image #[ i 'image ]
-	      (+ (or #[i : 'parent : 'x] 0) #[ i 'x ]) 
-	      (+ (or #[i : 'parent : 'y] 0) #[ i 'y ])))
+  (draw-image! #[ i 'image ]
+	       (+ (or #[i : 'parent : 'x] 0) #[ i 'x ]) 
+	       (+ (or #[i : 'parent : 'y] 0) #[ i 'y ])))
 
 (define* (make-button #:key (text "button") (x 0) (y 0) (w #f) (h #f))
   (let ((normal (render-text text *default-font* #xffffff #xff0000))

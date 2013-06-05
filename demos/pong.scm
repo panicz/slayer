@@ -60,8 +60,8 @@
     (for j in 0 .. (1- rows)
 	 (for i in 0 .. (1- cols)
 	      (if (not (eq? (array-ref glyph j i) '_))
-		  (draw-image ball (+ x (* i ball-width)) 
-			      (+ y (* j ball-height))))))))
+		  (draw-image! ball (+ x (* i ball-width)) 
+			       (+ y (* j ball-height))))))))
 
 (define points-a 0)
 (define points-b 0)
@@ -70,19 +70,19 @@
  (lambda()
    ;; draw board
    (for i in 0 .. board-width
-	(draw-image ball (* i ball-width) 0)
-	(draw-image ball (* i ball-width) (* (1- board-height) ball-height)))
+	(draw-image! ball (* i ball-width) 0)
+	(draw-image! ball (* i ball-width) (* (1- board-height) ball-height)))
    (for i in 0 .. (/ board-height 2)
-	(draw-image ball (* ball-width (/ board-width 2)) (* 2 i ball-height)))
+	(draw-image! ball (* ball-width (/ board-width 2)) (* 2 i ball-height)))
    ;; draw ball
-   (draw-image ball (* ball-width ball-x) (* ball-height ball-y))
+   (draw-image! ball (* ball-width ball-x) (* ball-height ball-y))
    ;; draw paddles
    (for i in 0 .. paddle-a-size
-	(draw-image ball (* ball-width paddle-a-x) 
+	(draw-image! ball (* ball-width paddle-a-x) 
 		    (* (+ i paddle-a-y) ball-height)))
 
    (for i in 0 .. paddle-b-size
-	(draw-image ball (* ball-width paddle-b-x) 
+	(draw-image! ball (* ball-width paddle-b-x) 
 		    (* (+ i paddle-b-y) ball-height)))
    ;; draw score
    (draw-digit points-a (* ball-width

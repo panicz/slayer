@@ -40,7 +40,7 @@ load_image(SCM path) {
 }
 
 SCM 
-draw_image(SCM image_smob, SCM x, SCM y) {
+draw_image_x(SCM image_smob, SCM x, SCM y) {
   scm_assert_smob_type(image_tag, image_smob);  
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
 #ifdef USE_OPENGL
@@ -226,7 +226,7 @@ export_symbols(void *unused) {
 
   EXPORT_PROCEDURE("rectangle", 2, 2, 0, rectangle);
   EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
-  EXPORT_PROCEDURE("draw-image", 3, 0, 0, draw_image);
+  EXPORT_PROCEDURE("draw-image!", 3, 0, 0, draw_image_x);
   EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);
   EXPORT_PROCEDURE("image-height", 1, 0, 0, image_height);
   EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);

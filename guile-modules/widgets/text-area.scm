@@ -47,17 +47,17 @@
 			  (render-text #[lines n] font))))
 	   (set! #[t : '%render-cache : n] image)
 	   (set! #[t 'w] (max #[t 'w] (image-width image)))
-	   (draw-image image 
-		       (+ (or #[t : 'parent : 'x] 0) 
-			  #[t 'x]) 
-		       (+ (or #[t : 'parent : 'y] 0) 
-			  #[t 'y] (* n line-skip)))))
+	   (draw-image! image 
+			(+ (or #[t : 'parent : 'x] 0) 
+			   #[t 'x]) 
+			(+ (or #[t : 'parent : 'y] 0) 
+			   #[t 'y] (* n line-skip)))))
     (if (equal? (current-output-port) #[t 'port])
-	(draw-image cursor 
-		    (+ #[t 'x] (* (image-width space) 
-				  (port-column #[t 'port])) )
-		    (+ #[t 'y] (* line-skip 
-				  (port-line #[t 'port])))))
+	(draw-image! cursor 
+		     (+ #[t 'x] (* (image-width space) 
+				   (port-column #[t 'port])) )
+		     (+ #[t 'y] (* line-skip 
+				   (port-line #[t 'port])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
 
 
