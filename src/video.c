@@ -11,7 +11,7 @@ int video_mode = 0;
 SDL_Surface *screen;
 
 static SCM 
-clear_screen() {
+clear_screen_x() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -25,7 +25,7 @@ clear_screen() {
 }
 
 static SCM 
-wipe_screen() {
+wipe_screen_x() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -37,7 +37,7 @@ wipe_screen() {
 }
 
 static SCM
-flip_screen() {
+flip_screen_x() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     SDL_GL_SwapBuffers();
@@ -84,9 +84,9 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("screen-width", 0, 0, 0, screen_width); 
   EXPORT_PROCEDURE("screen-height", 0, 0, 0, screen_height); 
   EXPORT_PROCEDURE("screen-size", 0, 0, 0, screen_size); 
-  EXPORT_PROCEDURE("clear-screen", 0, 0, 0, clear_screen);
-  EXPORT_PROCEDURE("wipe-screen", 0, 0, 0, wipe_screen);
-  EXPORT_PROCEDURE("flip-screen", 0, 0, 0, flip_screen);
+  EXPORT_PROCEDURE("clear-screen!", 0, 0, 0, clear_screen_x);
+  EXPORT_PROCEDURE("wipe-screen!", 0, 0, 0, wipe_screen_x);
+  EXPORT_PROCEDURE("flip-screen!", 0, 0, 0, flip_screen_x);
   EXPORT_PROCEDURE("set-display-procedure!", 1, 0, 0, 
 		   set_display_procedure_x);
 
@@ -103,9 +103,9 @@ export_symbols(void *unused) {
 
 void
 video_refresh_screen() {
-  wipe_screen();
+  wipe_screen_x();
   scm_call_0(display_procedure);
-  flip_screen();
+  flip_screen_x();
 }
 
 void
