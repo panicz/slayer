@@ -140,9 +140,13 @@ io(arg_t *arg) {
    *                         -- William Blake
    */
   init(arg);
+  unsigned int step = 0;
   while (1) {
     input_handle_events();
     video_refresh_screen();
+    if((step++ % 64) == 0) {
+      scm_gc();
+    }
   }
   return NULL;
 }
