@@ -11,6 +11,11 @@
 
 (keydn 'esc quit)
 
+(define (wait usecs)
+  (let loop ((usecs (usleep usecs)))
+    (if (> usecs 0) 
+	(loop (usleep usecs)))))
+
 (define-syntax utimer
   (syntax-rules ()
     ((_ usecs action ...)
@@ -19,7 +24,7 @@
 	(lambda ()
 	  (while #t
 	    (generate-userevent tick)
-	    (usleep usecs))))))))
+	    (wait usecs))))))))
 
 (define *modes* #[])
 
@@ -35,7 +40,7 @@
   (ground (with-input-from-file "art/rigs/ground.rig" read))
   (buggy (with-input-from-file "art/rigs/car.rig" read)))
 
-(set-simulation-property! *sim* 'gravity #f32(0 0 -0.5))
+(set-simulation-property! *sim* 'gravity #f32(0 0 -0.98))
 ;(set-simulation-property! *sim* 'erp 0.8)
 ;(set-simulation-property! *sim* 'cfm 1.0)
 
@@ -43,14 +48,28 @@
 (and-let* ((buggy (make-rig *sim* 'buggy))
 	   (chassis (body-named 'chassis buggy))
 	   (front (joint-named 'front buggy))
-	   (v 0))
-  (key 'space (lambda()(force! chassis #f32(1 0 0))))
+	   (v 0)(w 0))
+  (key 'lshift (lambda()(force! chassis #f32(6 0 0))))
   (key 'return (lambda()(force! chassis #f32(0 0 6))))
-  (key "1" (lambda () 
+  (key 'k (lambda () 
 	     (increase! v 0.01)
-	     (let ((v (if (modifier-pressed? 'shift) (- v) v)))
-	       (set-joint-property! front 'velocity-2 v)
-	     ))))
+	     (set-joint-property! front 'velocity-2 v)))
+  (key 'i (lambda ()
+	     (decrease! v 0.01)
+	     (set-joint-property! front 'velocity-2 v)))
+  (key 'l (lambda ()
+	     (increase! w 0.001)
+	     (set-joint-property! front 'velocity w)))
+  (key 'j (lambda ()
+	     (decrease! w 0.001)
+	     (set-joint-property! front 'velocity w)))
+  (key 'space
+       (lambda ()
+	 (set! v 0)
+	 (set! w 0)
+	 (set-joint-property! front 'velocity w)
+	 (set-joint-property! front 'velocity-2 v))))
+
 
 #;(let* ((buggy (make-rig *sim* 'buggy))
        (controls (rig-controls rig))
