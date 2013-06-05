@@ -5,8 +5,6 @@
 #include "video.h"
 #include <limits.h>
 
-extern "C" void glWindowPos2i (GLint x, GLint y);
-
 static SCM s_f32;
 static SCM s_f64;
 
@@ -145,7 +143,7 @@ perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
   GLdouble fovy = scm_to_float(FOVY);
   
   GLdouble aspect;
-  if ((ASPECT == SCM_UNDEFINED) 
+  if ((   ASPECT == SCM_UNDEFINED) 
       || (ASPECT == SCM_UNSPECIFIED)
       || (ASPECT == SCM_BOOL_F)) {
     struct { GLint x, y, w, h; } s;
@@ -400,6 +398,15 @@ set_color_x(SCM value) {
 }
 
 static SCM
+z_index(SCM X, SCM Y) {
+  double x = scm_to_double(X);
+  double y = scm_to_double(Y);
+  float z;
+  glReadPixels(x, y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, (GLvoid *) &z);
+  return scm_from_double((double) z);
+}
+
+static SCM
 draw_faces_x(SCM type, SCM array) {
 #define GET_VALUE(name) \
   scm_to_int(scm_hash_ref(GLnames, name, SCM_BOOL_F))
@@ -436,6 +443,7 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc);	\
   scm_c_export(name,NULL);
 
+  EXPORT_PROCEDURE("z-index", 2, 0, 0, z_index);
   EXPORT_PROCEDURE("multiply-matrix!", 1, 0, 0, multiply_matrix_x);
   EXPORT_PROCEDURE("push-matrix!", 0, 0, 0, push_matrix_x);
   EXPORT_PROCEDURE("pop-matrix!", 0, 0, 0, pop_matrix_x);
