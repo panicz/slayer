@@ -56,7 +56,7 @@
 	    with-output-to-utf8
 	    list-directory
 	    shell
-	    <<
+	    << die
 	    real->integer
 	    )
   #:re-export (;; srfi-1
@@ -91,6 +91,13 @@
 		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define* (die #:optional (message #f))
+  (if message
+      (let ((stderr (current-error-port)))
+	(display message stderr)
+	(newline stderr)))
+  (quit))
 
 (define (real->integer number)
   (let ((near (round number)))
