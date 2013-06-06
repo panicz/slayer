@@ -12,10 +12,10 @@
  (extra math))
 
 (keydn 'esc quit)
-(set-caption! "WELCOME TO SLAYER")
+(set-window-title! "WELCOME TO SLAYER")
 
 (cond-expand 
- (slayer-3d (use-modules (widgets 3d-view) (extra 3d)))
+ (slayer-3d (use-modules (slayer 3d) (widgets 3d-view) (extra 3d)))
  (else (begin)))
 
 (define-syntax-rule (utimer usecs action ...)
@@ -86,7 +86,20 @@
 (cond-expand (slayer-3d
 
 (set! #[view 'drag]
-      (lambda(x y dx dy)(relative-turn! #[view : 'camera] dx dy)))
+      (lambda(x y dx dy)
+	(relative-turn! #[view 'camera] (- dx) (- dy))))
+
+(set! #[view 'left-mouse-down]
+      (lambda(x y)
+	(let* ((y (- (screen-height) y))
+	       (z (z-index x y))
+	       (camera #[view 'camera])
+	       (xyz (- #[camera 'position] 
+		       (rotate (f32vector x y z)
+			       #;by (~ #[camera 'orientation])))))
+	  (<< "camera position: "#[camera 'position])
+	  (<< "orientation: "#[camera 'orientation])
+	  (<< xyz))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))

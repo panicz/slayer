@@ -16,7 +16,7 @@
   (let ((image-name (list-ref *image-names* *image-index*)))
     (set! *current-image* (load-image image-name))
     (apply set-screen-size! (image-size *current-image*))
-    (set-caption! image-name)))
+    (set-window-title! image-name)))
 
 (show-image! 0)
 

@@ -50,7 +50,7 @@ finish(int status, arg_t *arg) {
 }
 
 static SCM 
-set_caption_x(SCM title) {
+set_window_title_x(SCM title) {
   char *str = scm_to_locale_string(title);
   SDL_WM_SetCaption(str, NULL);
   free(str);
@@ -66,7 +66,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-exit-procedure!", 1, 0, 0, 
 		   set_exit_procedure_x);
 
-  EXPORT_PROCEDURE("set-caption!", 1, 0, 0, set_caption_x); 
+  EXPORT_PROCEDURE("set-window-title!", 1, 0, 0, set_window_title_x);
 
 #undef EXPORT_PROCEDURE
 }
@@ -192,6 +192,7 @@ show_usage(const char *program, const char *file_name) {
   printf("  -h N,       --height N\tset initial window height to N\n");
   printf("  -r,        --resizable\tallow user to resize the window\n");
   printf(TABS "by dragging its edge\n");
+  printf("  -f,       --fullscreen\trun SLAYER in fullscreen mode\n");
   printf("  --help\t\t\tdisplay this help and exit\n");
   printf("  --version\t\t\tdisplay version information and exit\n");
   printf("\n");
@@ -215,6 +216,7 @@ process_command_line_options(int argc,
     {"disable",   required_argument, 0, 'd'},
     {"nosound",   no_argument,       0,  0 },
     {"resizable", no_argument,       0, 'r'},
+    {"fullscreen",no_argument,       0, 'f'},
     {"width",     required_argument, 0, 'w'},
     {"height",    required_argument, 0, 'h'},
     {0,           0,                 0,  0 }
@@ -225,8 +227,7 @@ process_command_line_options(int argc,
 			    long_options, &option_index)) != -1) {
     switch (opt) {
     case 0:
-      if(0) {
-      }
+      if(0) {}
 #ifdef USE_SDL_MIXER
       else if(!strcmp(long_options[option_index].name, "nosound")) {
 	arg->sound = 0;
@@ -265,8 +266,7 @@ process_command_line_options(int argc,
       arg->h = atoi(optarg);
       break;
     case 'e': // enable extensions
-      if(0) {
-      }
+      if(0) {}
 #ifdef USE_OPENGL
       else if(!strcmp(optarg, "3d")) {
 	arg->video_mode |= SDL_OPENGL;
@@ -277,8 +277,7 @@ process_command_line_options(int argc,
       }
       break;
     case 'd': // disable extensions
-      if(0) {
-      }
+      if(0) {}
 #ifdef USE_OPENGL
       else if(!strcmp(optarg, "3d")) {
 	arg->video_mode &= ~SDL_OPENGL;
@@ -296,7 +295,7 @@ process_command_line_options(int argc,
     case 'r': // resizable
       arg->video_mode |= SDL_RESIZABLE;
       break;
-    case 'f':
+    case 'f': // full screen
       arg->video_mode |= SDL_FULLSCREEN;
       break;
       
