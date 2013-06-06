@@ -5,7 +5,6 @@
 #include "video.h"
 #include "symbols.h"
 
-
 SCM 
 scm_catch_handler(void *data, SCM key, SCM args) {
   if (scm_is_eq(s_quit, key)) {
@@ -151,7 +150,161 @@ io(arg_t *arg) {
   return NULL;
 }
 
-#define SLAYER_SUFFIX ".scm"
+static void
+show_version() {
+  printf("%s\n", PACKAGE_STRING);
+  printf("%s\n", COPYRIGHT);
+}
+
+
+static void
+show_usage(const char *program, const char *file_name) {
+#define TABS "\t\t\t\t" //"                             "
+  printf("Usage: %s [OPTION] ...\n", program);
+  printf("Run specified program in SLAYER environment. "
+	 "Unless -i option given, it\n");
+  printf("attempts to run a program named %s%s"
+	 " from current working directory.\n\n", file_name, SLAYER_SUFFIX);
+  printf("Available options:\n");
+  printf("  -i FILE,   --input FILE\texecute FILE (guile scheme source)\n");
+
+#if defined(USE_OPENGL) || defined(USE_SDL_MIXER)
+  printf("  -e EXT, --extension EXT\tload extension EXT."
+	 " Currently available\n");
+  printf(TABS "extensions are:\n");
+#ifdef USE_OPENGL
+  printf(TABS "  * 3d      use OpenGL    (%s by default)\n",
+#ifdef ENABLE_DEFAULT_3D
+	 "enabled"
+#else
+	 "disabled"
+#endif // DEFAULT 3D
+	 );
+#endif // USE OPENGL
+
+#ifdef USE_SDL_MIXER
+  printf(TABS "  * sound   use SDL_mixer (%s by default)\n",
+	 "enabled");
+#endif  // MIXER
+  printf("  -d EXT,  --disable EXT\tdisable extension EXT\n");
+#endif  // EXTENSIONS
+  printf("  -w N,        --width N\tset initial window width to N\n");
+  printf("  -h N,       --height N\tset initial window height to N\n");
+  printf("  -r,        --resizable\tallow user to resize the window\n");
+  printf(TABS "by dragging its edge\n");
+  printf("  --help\t\t\tdisplay this help and exit\n");
+  printf("  --version\t\t\tdisplay version information and exit\n");
+  printf("\n");
+  printf("Report bugs to: %s\n", PACKAGE_BUGREPORT);
+  printf("For more information, type ``info slayer''\n");
+#undef TABS
+}
+
+static void
+process_command_line_options(int argc, 
+			     char *argv[], 
+			     arg_t *arg, 
+			     const char *exec_file_name) {
+  int option_index;
+  static struct option long_options[] = {
+    {"help",      no_argument,       0,  0 },
+    {"version",   no_argument,       0,  0 },
+    {"input",     required_argument, 0, 'i'},
+    {"output",    required_argument, 0, 'o'},
+    {"extension", required_argument, 0, 'e'},
+    {"disable",   required_argument, 0, 'd'},
+    {"nosound",   no_argument,       0,  0 },
+    {"resizable", no_argument,       0, 'r'},
+    {"width",     required_argument, 0, 'w'},
+    {"height",    required_argument, 0, 'h'},
+    {0,           0,                 0,  0 }
+  };
+  
+  int opt;
+  while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:d:",
+			    long_options, &option_index)) != -1) {
+    switch (opt) {
+    case 0:
+      if(0) {
+      }
+#ifdef USE_SDL_MIXER
+      else if(!strcmp(long_options[option_index].name, "nosound")) {
+	arg->sound = 0;
+      }
+#endif
+      else if(!strcmp(long_options[option_index].name, "help")) {
+	show_usage(argv[0], exec_file_name);
+	exit(0);
+      }
+      else if(!strcmp(long_options[option_index].name, "version")) {
+	show_version();
+	exit(0);
+      }
+      else {
+	printf("Unrecognised option: %s\n", long_options[option_index].name);
+	show_usage(argv[0], exec_file_name);
+	exit(-1);
+      }
+      break;
+    case 'i': // input file
+      arg->infile = malloc(strlen(optarg) + 1);
+      if (arg->infile) {
+	sprintf(arg->infile, "%s", optarg);
+      }
+      break;
+    case 'o': // output file
+      arg->outfile = malloc(strlen(optarg) + 1);
+      if (arg->outfile) {
+	sprintf(arg->outfile, "%s", optarg);
+      }
+      break;
+    case 'w': // screen width
+      arg->w = atoi(optarg);
+      break;
+    case 'h': // screen height
+      arg->h = atoi(optarg);
+      break;
+    case 'e': // enable extensions
+      if(0) {
+      }
+#ifdef USE_OPENGL
+      else if(!strcmp(optarg, "3d")) {
+	arg->video_mode |= SDL_OPENGL;
+      }
+#endif
+      else {
+	WARN("unknown extension: %s", optarg);
+      }
+      break;
+    case 'd': // disable extensions
+      if(0) {
+      }
+#ifdef USE_OPENGL
+      else if(!strcmp(optarg, "3d")) {
+	arg->video_mode &= ~SDL_OPENGL;
+      }
+#endif
+#ifdef USE_SDL_MIXER
+      else if(!strcmp(optarg, "sound")) {
+	arg->sound = 0;
+      }
+#endif
+      else {
+	WARN("unknown extension: %s", optarg);
+      }
+      break;
+    case 'r': // resizable
+      arg->video_mode |= SDL_RESIZABLE;
+      break;
+    case 'f':
+      arg->video_mode |= SDL_FULLSCREEN;
+      break;
+      
+    default:
+      break;
+    }
+  }
+}
 
 int 
 main(int argc, char *argv[]) {
@@ -165,108 +318,6 @@ main(int argc, char *argv[]) {
     .sound = 1
   };
 
-  int option_index;
-  static struct option long_options[] = {
-    {"input",     required_argument, 0, 'i'},
-    {"output",    required_argument, 0, 'o'},
-    {"extension", required_argument, 0, 'e'},
-    {"disable",   required_argument, 0, 'd'},
-    {"nosound",   no_argument,       0,  0 },
-    {"resizable", no_argument,       0, 'r'},
-    {"width",     required_argument, 0, 'w'},
-    {"height",    required_argument, 0, 'h'},
-    {0,           0,                 0,  0 }
-  };
-
-#ifdef ENABLE_DEFAULT_3D
-  arg.video_mode |= SDL_OPENGL;
-#endif
-  
-  int opt;
-  while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:d:",
-			    long_options, &option_index)) != -1) {
-    switch (opt) {
-    case 0:
-      if(0) {
-      }
-#ifdef USE_SDL_MIXER
-      else if(!strcmp(long_options[option_index].name, "nosound")) {
-	arg.sound = 0;
-      }
-#endif
-      else {
-	OUT("Unrecognised option: %s", long_options[option_index].name);
-	return -1;
-      }
-      break;
-    case 'i': // input file
-      arg.infile = malloc(strlen(optarg) + 1);
-      if (arg.infile) {
-	sprintf(arg.infile, "%s", optarg);
-      }
-      break;
-    case 'o': // output file
-      arg.outfile = malloc(strlen(optarg) + 1);
-      if (arg.outfile) {
-	sprintf(arg.outfile, "%s", optarg);
-      }
-      break;
-    case 'w': // screen width
-      arg.w = atoi(optarg);
-      break;
-    case 'h': // screen height
-      arg.h = atoi(optarg);
-      break;
-    case 'e': // enable extensions
-      if(0) {
-      }
-#ifdef USE_OPENGL
-      else if(!strcmp(optarg, "3d")) {
-	arg.video_mode |= SDL_OPENGL;
-      }
-#endif
-      else {
-	WARN("unknown extension: %s", optarg);
-      }
-      break;
-    case 'd': // disable extensions
-      if(0) {
-      }
-#ifdef USE_OPENGL
-      else if(!strcmp(optarg, "3d")) {
-	arg.video_mode &= ~SDL_OPENGL;
-      }
-#endif
-#ifdef USE_SDL_MIXER
-      else if(!strcmp(optarg, "sound")) {
-	arg.sound = 0;
-      }
-#endif
-      else {
-	WARN("unknown extension: %s", optarg);
-      }
-      break;
-    case 'r': // resizable
-      arg.video_mode |= SDL_RESIZABLE;
-      break;
-    case 'f':
-      arg.video_mode |= SDL_FULLSCREEN;
-      break;
-      
-    default:
-      break;
-    }
-  }
- 
-#ifdef NDEBUG
-  setenv("GUILE_WARN_DEPRECATED", "no", 1);
-#else
-  setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
-#endif
-  setenv("GUILE_LOAD_PATH", ".:./libs:../guile-modules", 1);
-  setenv("LTDL_LIBRARY_PATH", ".:./libs", 1);
-  setenv("LC_ALL", "C.UTF8", 1); // discard locale
-
   // get the name of current file, skipping any slashes
   char *filename = argv[0];
 
@@ -276,6 +327,21 @@ main(int argc, char *argv[]) {
       filename = &argv[0][i+1];
     }
   }
+
+#ifdef ENABLE_DEFAULT_3D
+  arg.video_mode |= SDL_OPENGL;
+#endif
+
+  process_command_line_options(argc, argv, &arg, filename);
+
+#ifdef NDEBUG
+  setenv("GUILE_WARN_DEPRECATED", "no", 1);
+#else
+  setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
+#endif
+  setenv("GUILE_LOAD_PATH", ".:./libs:../guile-modules", 1);
+  setenv("LTDL_LIBRARY_PATH", ".:./libs", 1);
+  setenv("LC_ALL", "C.UTF8", 1); // discard locale
 
   if (!arg.infile) {
     arg.infile = 
