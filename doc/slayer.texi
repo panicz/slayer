@@ -112,10 +112,11 @@ In a way SLAYER can resemble fluxus@footnote{@uref{www.pawfal.org/fluxus/}}.
 There are however some essential differences between those systems. Fluxus
 is intended to work mainly with 3D-graphics, while SLAYER works with 2D
 objects just as fine. Fluxus has a built-in editor, while SLAYER is kept
-minimalistic and only allows to add an editor widget to the stage, which
-makes it more flexible. (By the way, such widget is already provided and used 
-in one of the demos.) Also, fluxus is focused on live coding and sound 
-processing, but there are no good sound processing libraries for SLAYER yet.
+minimalistic and only allows to add an editor widget to the stage, which 
+perhaps makes it more flexible. (By the way, such widget is already provided
+and used in one of the demos.) Also, fluxus is focused on live coding and 
+sound processing, but there are no good sound processing libraries for SLAYER
+yet.
 
 Lastly, SLAYER works with Guile Scheme, and fluxus uses Racket. These are
 both Scheme-based languages, but their extensions are incompatible with each
@@ -124,6 +125,8 @@ other. They're both cool, though.
 @menu
 * Getting started::             An implementation of a simple image browsing
                                 application
+* Invoking SLAYER::             A detailed description of command line 
+                                arguments
 
 @end menu
 
@@ -142,6 +145,7 @@ it is convinient to name files with .scm extension, because various editors
 can detect that and load appropreate editing mode}. Let's fill the file with
 the following content:
 
+@pindex Image browser
 @lisp
 (use-modules (slayer) (slayer image) (extra common))
 (keydn 'esc quit)
@@ -172,14 +176,16 @@ the following content:
 In order to execute the program, one shall type
 $ slayer -i image-browser.scm
 
+@findex shell
 The @code{(extra common)} module contains definitions and evocations of
 various useful procedures and macros, among which there is @code{shell}
 procedure (which behaves like @code{system}, except that it returns a list
 containing the lines written to standard output) and @code{match-let*} macro,
 re-exported from the @code{(ice-9 match)} module.
 
+@findex set-display-procedure!
 The argument to @code{set-display-procedure!} is executed after a series of
-events has been processed -- so evey time an even occurs (like keyboard or
+events has been processed -- so evey time an event occurs (like keyboard or
 mouse input, or window resize, or timer event), the whole screen is wiped
 and its content is displayed on the screen from scratch.
 
@@ -188,19 +194,59 @@ the class of applications that SLAYER aims to deliver, i.e. 3d games and
 real-time multimedia processing apps. Since the input can be gathered during
 the redisplay stage, the applications generally tend to be responsive.
 
+@node Invoking SLAYER
+
+
+
 @node Direct Layer
 @chapter Direct Layer
 In order to make SLAYER useful, you need to attach event handlers to certain
 events. If you are willing to create a real-time simulation, you may also wish 
 to run a timer that generates its own events.
 In this chapter, you will find a description of all procedures available
-directly from SLAYER.
+directly from SLAYER, divided into three groups:
 
 * Input handling and screen management::
 * Loading and processing fonts, images and sounds::
 * Diving into 3D graphics::
 
 @node Input handling and screen management
+Once SLAYER is up and running, it has one window where everything is
+displayed, and which gathers all the input. If you want to use procedures
+described here, you need to @code{(use-modules (slayer))}.
+
+In order to get something displayed on the screen, you need to set a display
+procedure of your liking.
+@deffn {Procedure} set-display-procedure! thunk
+Sets @var{thunk} to be called after each series of events is handled and the
+screen is wiped.
+@end deffn
+
+@deffn {Procedure} screen-size
+Return a list containing width and height of the window, in pixels.
+@end deffn
+
+@deffn {Procedure} set-screen-size! width height
+Set the screen size to @var{width} times @var{height} pixels. It causes
+a screen resize event, which can be handled using @code{set-resize-procedure!}.
+@end deffn
+
+@deffn {Procedure} set-resize-procedure! proc
+Sets the binary procedure @var{proc} to be invoked on window resize event.
+@var{proc} takes two arguments, namely -- the new width and height of the screen.
+@end deffn
+
+@deffn {Procedure} set-exit-procedure! proc
+Sets the @var{proc} procedure to be called on exit. Due to historical reasons,
+@var{proc} currently takes one argument, which should be ignored.
+@end deffn
+
+@deffn {Procedure} set-window-title! string
+Sets the window caption to @var{string}. This can only be visible if SLAYER
+is run in a window manager, in non-fullscreen mode.
+@end deffn
+
+
 
 @node Loading and processing fonts, images and sounds
 
