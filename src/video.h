@@ -9,25 +9,16 @@
 # include <GL/glu.h>
 # include <GL/glext.h>
 
-# ifdef __cplusplus 
-#  define DECLARE extern "C"
-# else
-#  define DECLARE extern
-# endif
-
 DECLARE void glWindowPos2i (GLint x, GLint y);
 
-# undef DECLARE
 #endif
 
 extern SDL_Surface *screen;
 
-extern void video_refresh_screen();
-extern void video_init(Uint16 w, Uint16 h, int mode);
+DECLARE void video_refresh_screen();
+DECLARE void video_init(Uint16 w, Uint16 h, int mode);
 
-#ifdef USE_OPENGL
 extern int video_mode;
-#endif
 
 static inline SDL_Surface *
 sdl_surface(int w, int h, int BytesPerPixel) {

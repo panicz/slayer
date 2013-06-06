@@ -17,36 +17,36 @@
 
 // AUDIO
 #ifdef USE_SDL_MIXER
-extern void audio_init();
-extern void audio_finish();
+DECLARE void audio_init();
+DECLARE void audio_finish();
 #endif
 
 // INPUT
-extern void input_init();
-extern SCM input_handle_events();
+DECLARE void input_init();
+DECLARE SCM input_handle_events();
 
 // FILE
-int file_exists(const char *filename);
-int file_empty(const char *filename);
-int file_writable(const char *filename);
-int file_readable(const char *filename);
+DECLARE int file_exists(const char *filename);
+DECLARE int file_empty(const char *filename);
+DECLARE int file_writable(const char *filename);
+DECLARE int file_readable(const char *filename);
 
-int file_create(const char *filename);
-int file_write(const char *filename, const char *string);
-SCM file_eval(const char *filename);
+DECLARE int file_create(const char *filename);
+DECLARE int file_write(const char *filename, const char *string);
+DECLARE SCM file_eval(const char *filename);
 
 // IMAGE
 extern scm_t_bits image_tag;
-extern void image_init();
-extern SCM rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel);
+DECLARE void image_init();
+DECLARE SCM rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel);
 
 // FONT
 extern scm_t_bits font_tag;
-void font_init();
+DECLARE void font_init();
 
 // 3D
 #ifdef USE_OPENGL
-extern void init_3d();
+DECLARE void init_3d();
 #endif
 
 #endif // SLAYER_H

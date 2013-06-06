@@ -7,6 +7,12 @@
 #include <stdarg.h>
 #include "utils.h"
 
+#ifdef __cplusplus 
+# define DECLARE extern "C"
+#else
+# define DECLARE extern
+#endif
+
 #define DISPLAY(port, msg, ...)					\
   ({ char *string;						\
     if(asprintf(&string, msg, ## __VA_ARGS__) == -1) {		\
