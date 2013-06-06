@@ -4,11 +4,8 @@
 #include "utils.h"
 #include "symbols.h"
 
-#ifdef USE_OPENGL
 int video_mode = 0;
-#endif
-
-SDL_Surface *screen;
+SDL_Surface *screen = NULL;
 
 static SCM 
 clear_screen_x() {
@@ -78,20 +75,22 @@ screen_size() {
 
 static SCM 
 set_screen_size_x(SCM w, SCM h) {
-  screen = SDL_SetVideoMode(scm_to_int(w), scm_to_int(h), 0, screen->flags);
+  screen = SDL_SetVideoMode(scm_to_int(w), scm_to_int(h), 0, video_mode);
   return SCM_UNSPECIFIED;
 }
 
 static SCM
 set_screen_width_x(SCM w) {
-  screen = SDL_SetVideoMode(scm_to_int(w), screen->h, 0, screen->flags);
+  int h = screen ? screen->h : 1;
+  screen = SDL_SetVideoMode(scm_to_int(w), h, 0, video_mode);
   return SCM_UNSPECIFIED;
   
 }
 
 static SCM
 set_screen_height_x(SCM h) {
-  screen = SDL_SetVideoMode(screen->w, scm_to_int(h), 0, screen->flags);
+  int w = screen ? screen->w : 1;
+  screen = SDL_SetVideoMode(w, scm_to_int(h), 0, video_mode);
   return SCM_UNSPECIFIED;
 }
 
@@ -137,13 +136,13 @@ video_init(Uint16 w, Uint16 h, int mode) {
   TRY_SDL(SDL_Init(SDL_INIT_VIDEO));
 
   screen = SDL_SetVideoMode(w, h, 0, mode);
+  video_mode = mode;
 
   if(mode & SDL_OPENGL) {
 #ifndef USE_OPENGL
     FATAL("slayer compiled without opengl support");
 #else
-    video_mode = mode;
-    init_3d(w, h);
+    init_3d();
 #endif
   }
 
