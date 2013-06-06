@@ -332,6 +332,48 @@ init_color_setters() {
 #undef SET_COLOR_SETTER
 }
 
+static inline SCM
+_set_color_from_scm_vector(SCM value) {
+#define V(n) scm_c_vector_ref(value, n)
+#define UINT(x) scm_to_uint(x)
+#define DBL(x) scm_to_double(x)
+  int i, exact = 1;
+  size_t size = mini(scm_c_vector_length(value), 4);
+  if(size < 3) {
+    WARN("Invalid vector size: %d", (int) size);
+    return SCM_BOOL_F;
+  }
+  for(i = 0; i < (int) size; ++i) {
+    if(scm_is_inexact(V(i))) {
+      exact = 0;
+      break;
+    }
+  }
+
+  switch(size) {
+  case 3:
+    if(exact) {
+      glColor3ui(UINT(V(0)), UINT(V(1)), UINT(V(2)));
+    }
+    else {
+      glColor3d(DBL(V(0)), DBL(V(1)), DBL(V(2)));
+    }
+    break;
+  case 4:
+    if(exact) {
+      glColor4ui(UINT(V(0)), UINT(V(1)), UINT(V(2)), UINT(V(3)));
+    }
+    else {
+      glColor4d(DBL(V(0)), DBL(V(1)), DBL(V(2)), DBL(V(3)));
+    }
+    break;
+  }
+#undef DBL
+#undef UINT
+#undef V
+  return SCM_UNSPECIFIED;
+}
+
 static SCM
 set_color_x(SCM value) {
   if(scm_is_unsigned_integer(value, 0, UINT_MAX)) {
@@ -342,7 +384,7 @@ set_color_x(SCM value) {
     size_t size = mini(scm_c_uniform_vector_length(value), 4);
     if(size < 2) {
       WARN("Invalid uniform vector size: %d", (int) size);
-      return SCM_UNSPECIFIED;
+      return SCM_BOOL_F;
     }
     scm_t_array_handle h;
     scm_array_get_handle(value, &h);
@@ -351,48 +393,11 @@ set_color_x(SCM value) {
     scm_array_handle_release(&h);
   }
   else if(scm_is_vector(value)) {
-
-#define V(n) scm_c_vector_ref(value, n)
-#define UINT(x) scm_to_uint(x)
-#define DBL(x) scm_to_double(x)
-
-    int i, exact = 1;
-    size_t size = mini(scm_c_vector_length(value), 4);
-    if(size < 2) {
-      WARN("Invalid vector size: %d", (int) size);
-      return SCM_UNSPECIFIED;
-    }
-    for(i = 0; i < (int) size; ++i) {
-      if(scm_is_inexact(V(i))) {
-	exact = 0;
-	break;
-      }
-    }
-
-    switch(size) {
-    case 3:
-      if(exact) {
-	glColor3ui(UINT(V(0)), UINT(V(1)), UINT(V(2)));
-      }
-      else {
-	glColor3d(DBL(V(0)), DBL(V(1)), DBL(V(2)));
-      }
-      break;
-    case 4:
-      if(exact) {
-	glColor4ui(UINT(V(0)), UINT(V(1)), UINT(V(2)), UINT(V(3)));
-      }
-      else {
-	glColor4d(DBL(V(0)), DBL(V(1)), DBL(V(2)), DBL(V(3)));
-      }
-      break;
-    }
-#undef DBL
-#undef UINT
-#undef V
+    return _set_color_from_scm_vector(value);
   }
   else {
     WARN("Unsupported argument type");
+    return SCM_BOOL_F;
   }
   return SCM_UNSPECIFIED;
 }
@@ -472,8 +477,8 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
-extern "C" void
-init_3d(Uint16 w, Uint16 h) {
+void
+init_3d() {
   init_GLtypes();
   init_GLnames();
   init_color_setters();
