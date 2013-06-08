@@ -52,28 +52,24 @@ init_modifier_codes() {
 #undef INIT_MOD
 }
 
-static void 
-input_mode_direct() {
+static SCM 
+set_direct_input_mode_x() {
   SDL_EnableUNICODE(0); // actually DisableUNICODE
   SDL_EnableKeyRepeat(0, 0); //actually DisableKeyRepeat
   input_mode = DIRECT_MODE;
+  return SCM_UNSPECIFIED;
 }
 
-static void 
-input_mode_typing() {
+static SCM
+set_typing_input_mode_x() {
   SDL_EnableUNICODE(1);
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
   input_mode = TYPING_MODE;
+  return SCM_UNSPECIFIED;
 }
 
 static SCM 
-input_mode_x(SCM mode) {
-  if (equal(mode, s_typing)) {
-    input_mode_typing();
-  }
-  else if (equal(mode, s_direct)) {
-    input_mode_direct();
-  }
+get_input_mode(SCM mode) {
   return input_mode == TYPING_MODE ? s_typing : s_direct;
 }
 
@@ -320,7 +316,7 @@ bind_mousemove(SCM function) {
 }
 
 static SCM 
-input_grab(SCM on) {
+grab_input_x(SCM on) {
   if(on != SCM_UNDEFINED) {
     if(indeed(on)) {
       SDL_WM_GrabInput(SDL_GRAB_ON);
@@ -363,7 +359,7 @@ mousemove_binding(SCM type) {
 
 static SCM typing_special;
 static SCM
-set_typing_special_x(SCM proc) {
+set_typing_special_procedure_x(SCM proc) {
   ASSERT_SCM_TYPE(procedure, proc, 1);
   typing_special = proc;
   return SCM_UNSPECIFIED;
@@ -380,18 +376,21 @@ export_symbols(void *unused) {
   scm_c_export(name, NULL)
 
   EXPORT_PROCEDURE("handle-input", 0, 0, 0, input_handle_events);
-  EXPORT_PROCEDURE("grab-input", 0, 1, 0, input_grab);
+  EXPORT_PROCEDURE("grab-input!", 0, 1, 0, grab_input_x);
   EXPORT_PROCEDURE("keydn", 2, 0, 0, bind_keydown);
   EXPORT_PROCEDURE("keyup", 2, 0, 0, bind_keyup);
   EXPORT_PROCEDURE("mousemove", 1, 0, 0, bind_mousemove);  
-  EXPORT_PROCEDURE("input-mode", 0, 1, 0, input_mode_x);
+  EXPORT_PROCEDURE("input-mode", 0, 0, 0, get_input_mode);
+  EXPORT_PROCEDURE("set-typing-input-mode!", 0, 0, 0, set_typing_input_mode_x);
+  EXPORT_PROCEDURE("set-direct-input-mode!", 0, 0, 0, set_direct_input_mode_x);
   EXPORT_PROCEDURE("key-bindings", 1, 0, 0, key_bindings);
   EXPORT_PROCEDURE("mousemove-binding", 0, 0, 0, mousemove_binding);
   EXPORT_PROCEDURE("get-ticks", 0, 0, 0, get_ticks);
   EXPORT_PROCEDURE("generate-userevent", 0, 3, 0, generate_userevent);
   EXPORT_PROCEDURE("register-userevent", 1, 0, 0, register_userevent);
   EXPORT_PROCEDURE("set-resize-procedure!", 1, 0, 0, set_resize_procedure_x);
-  EXPORT_PROCEDURE("set-typing-special!", 1, 0, 0, set_typing_special_x);
+  EXPORT_PROCEDURE("set-typing-special-procedure!", 1, 0, 0, 
+		   set_typing_special_procedure_x);
 
   EXPORT_PROCEDURE("modifier-pressed?", 1, 0, 0, modifier_pressed_p);
 
@@ -431,7 +430,7 @@ input_init() {
   
   scm_c_define_module("slayer", export_symbols, NULL);
 
-  input_mode_direct();
+  set_direct_input_mode_x();
 }
 
 void (*handle_events)(SDL_Event *e);

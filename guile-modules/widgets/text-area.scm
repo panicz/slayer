@@ -115,7 +115,7 @@
 			   action))))
     (set-key! "esc" (lambda()
 		      (set-current-output-port *stdout*)
-		      (input-mode 'direct)))
+		      (set-direct-input-mode!)))
     (set-key! 
      "return"
      (lambda ()
@@ -238,9 +238,9 @@
   (set! #[t 'left-mouse-down]
 	(lambda e
 	  (set-current-output-port #[ t 'port ])
-	  (set-typing-special! (lambda(scancode)
-				 (#[t : 'special-keys : scancode])))
-	  (input-mode 'typing)))
+	  (set-typing-special-procedure! (lambda(scancode)
+					   (#[t : 'special-keys : scancode])))
+	  (set-typing-input-mode!)))
   (set! #[t 'x] x)
   (set! #[t 'y] y)
   t))

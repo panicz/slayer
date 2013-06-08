@@ -45,6 +45,8 @@ finish(int status, arg_t *arg) {
     audio_finish();
   }
 #endif
+  SDL_WM_GrabInput(SDL_GRAB_OFF);
+  SDL_ShowCursor(SDL_ENABLE);
 
   SDL_Quit();
 }
