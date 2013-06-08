@@ -92,7 +92,7 @@ static struct scancode keymap[] = {
   { "num-", SDLK_KP_MINUS },
   { "num+", SDLK_KP_PLUS },
   { "numret", SDLK_KP_ENTER },
-  { "numeql", SDLK_KP_EQUALS },
+  { "num=", SDLK_KP_EQUALS },
   { "up", SDLK_UP },
   { "down", SDLK_DOWN },
   { "left", SDLK_LEFT },
