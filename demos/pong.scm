@@ -2,6 +2,12 @@
 !#
 (use-modules (slayer) (slayer image)
 	     (extra common))
+(cond-expand 
+ (slayer-audio (use-modules (slayer audio)) (display "using audio\n"))
+ (else (define load-sound noop)
+       (define play-sound! noop)
+       (display "dismissing audio\n")))
+
 (keydn 'esc quit)
 (define board-width 64)
 (define board-height 48)

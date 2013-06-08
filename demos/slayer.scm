@@ -18,6 +18,10 @@
  (slayer-3d (use-modules (slayer 3d) (widgets 3d-view) (extra 3d)))
  (else (begin)))
 
+(cond-expand 
+ (slayer-audio (use-modules (slayer audio)))
+ (else (begin)))
+
 (define-syntax-rule (utimer usecs action ...)
   (let ((tick (register-userevent (lambda () action ...))))
     (call-with-new-thread (lambda () (while #t

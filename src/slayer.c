@@ -73,22 +73,6 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
-static void
-fake_audio(void *unused) {
-#define FAKE_PROCEDURE(name)					    \
-  scm_c_define_gsubr(name, 0, 0, 1,(scm_t_subr) scm_noop);	    \
-  scm_c_export(name, NULL);
-  
-  FAKE_PROCEDURE("load-sound");
-  FAKE_PROCEDURE("play-sound!");
-  FAKE_PROCEDURE("load-music");
-  FAKE_PROCEDURE("play-music!");
-  FAKE_PROCEDURE("pause-music!");
-  FAKE_PROCEDURE("resume-music!");
-
-#undef EXPORT_PROCEDURE
-}
-
 static void 
 init(arg_t *arg) {
   symbols_init();
@@ -96,15 +80,12 @@ init(arg_t *arg) {
   exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
   video_init(arg->w, arg->h, arg->video_mode);
+
   input_init();
 #ifdef USE_SDL_MIXER
   if(arg->sound) {
     audio_init();
-  } else {
-#endif
-    scm_c_define_module("slayer", fake_audio, NULL);
-#ifdef USE_SDL_MIXER
-  }
+  } 
 #endif
 
   // these calls should be moved to separate libraries
