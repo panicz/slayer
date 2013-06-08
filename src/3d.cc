@@ -296,9 +296,9 @@ init_GLnames() {
 }
 
 static SCM
-disable_client_state_x(SCM state) {
-  ASSERT_SCM_TYPE(symbol, state, 1);
-  glDisableClientState(scm_to_int(scm_hash_ref(GLnames, state, SCM_BOOL_F)));
+forget_array_x(SCM type) {
+  ASSERT_SCM_TYPE(symbol, type, 1);
+  glDisableClientState(scm_to_int(scm_hash_ref(GLnames, type, SCM_BOOL_F)));
   return SCM_UNSPECIFIED;
 }
 
@@ -470,7 +470,7 @@ export_symbols(void *unused) {
 		      set_colors_array_x);
   EXPORT_PROCEDURE("set-normal-array!", 1, 0, 0, 
 		   set_normal_array_x);
-  EXPORT_PROCEDURE("disable-client-state!", 1, 0, 0, disable_client_state_x);
+  EXPORT_PROCEDURE("forget-array!", 1, 0, 0, forget_array_x);
   EXPORT_PROCEDURE("set-color!", 1, 0, 0, set_color_x);
 
   EXPORT_PROCEDURE("set-texture-coords-array!", 1, 0, 0, 
