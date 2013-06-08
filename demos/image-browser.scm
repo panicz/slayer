@@ -1,5 +1,16 @@
-(use-modules (slayer) (slayer image) (extra common))
+(use-modules (slayer) (slayer image) (ice-9 popen) (ice-9 rdelim))
 (keydn 'esc quit)
+
+(define (shell command)
+  (let ((pipe (open-pipe command OPEN_READ)))
+    (let loop ((lines '())
+	       (line (read-line pipe)))
+      (cond ((eof-object? line)
+	     (close-pipe pipe)
+	     (reverse lines))
+	    (else
+	     (loop (cons line lines)
+		   (read-line pipe)))))))
 
 (define *image-names* (shell "ls ../demos/art/*.png"))
 (define *number-of-images* (length *image-names*))
