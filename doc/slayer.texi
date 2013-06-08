@@ -137,7 +137,7 @@ Guile Scheme in particular.
 
 To get the grasp on how SLAYER works, we'll create a simple application for
 browsing images@footnote{The idea for this program was inspired by Thien-Thi
-Nguyen, who placed a similar program in the manual for the Guile-SDL package}. 
+Nguyen, who placed a similar program in the manual for the Guile-SDL package}.
 
 In order to do so, we need to create a text file; let's call it 
 ``image-browser.scm''@footnote{SLAYER uses Scheme programming language, so 
@@ -147,8 +147,19 @@ the following content:
 
 @pindex Image browser
 @lisp
-(use-modules (slayer) (slayer image) (extra common))
+(use-modules (slayer) (slayer image) (ice-9 popen) (ice-9 rdelim))
 (keydn 'esc quit)
+
+(define (shell command)
+  (let ((pipe (open-pipe command OPEN_READ)))
+    (let loop ((lines '())
+	       (line (read-line pipe)))
+      (cond ((eof-object? line)
+	     (close-pipe pipe)
+	     (reverse lines))
+	    (else
+	     (loop (cons line lines)
+		   (read-line pipe)))))))
 
 (define *image-names* (shell "ls ../demos/art/*.png"))
 (define *number-of-images* (length *image-names*))
@@ -176,13 +187,6 @@ the following content:
 In order to execute the program, one shall type
 $ slayer -i image-browser.scm
 
-@findex shell
-The @code{(extra common)} module contains definitions and evocations of
-various useful procedures and macros, among which there is @code{shell}
-procedure (which behaves like @code{system}, except that it returns a list
-containing the lines written to standard output) and @code{match-let*} macro,
-re-exported from the @code{(ice-9 match)} module.
-
 @findex set-display-procedure!
 The argument to @code{set-display-procedure!} is executed after a series of
 events has been processed -- so evey time an event occurs (like keyboard or
@@ -195,8 +199,8 @@ real-time multimedia processing apps. Since the input can be gathered during
 the redisplay stage, the applications generally tend to be responsive.
 
 @node Invoking SLAYER
-
-
+Type ``slayer --help'' to get the list of possible options.
+(TODO: this section definitely requires some elaboration)
 
 @node Direct Layer
 @chapter Direct Layer
@@ -248,9 +252,8 @@ is run in a window manager, in non-fullscreen mode.
 
 @deffn {Procedure} keydn key thunk
 Set @var{thunk} to be invoked whenever @var{key} is pressed (including mouse
-buttons) or repeated (in so called 'typing mode', see @code{input-mode} function
-for details). @var{key} can either be a string or a symbol. 
-See the @xref{Key names} table to get the names of specific keys.
+buttons). @var{key} can either be a string or a symbol. See the @xref{Key names}
+table to get the names of specific keys.
 @end deffn
 
 @deffn {Procedure} keyup key thunk
@@ -312,7 +315,7 @@ When @var{state} is not given, the procedure only returns the current state.
 Register a new user event. The @var{proc} procedure will be called with zero,
 one or two arguments, depending on the way the corresponding
 @code{generate-userevent} procedure is called. @code{register-userevent}
-returns an identifier of user event, which happens to be an integer. Up to
+returns an identifier of user event (which happens to be an integer). Up to
 255 user events can be registered.
 @end deffn
 
@@ -322,18 +325,287 @@ call to @code{register-userevent}. The @var{data1} and @var{data2} arguments
 are passed to event handler if provided.
 @end deffn
 
-
-
 * Key names::
 * Implementing persistent input::
 
 @node Key names
 The names of the keys are usually rather intuitive: 'a names the key A, 
-"1" names the key 1, and so on. There are, however, some 
+"1" names the key 1, and so on. Note that, although usually the names can be
+given as symbols, in some cases the string representation is required, like
+in the case of digits, punctuation marks or brackets.
+Note also, that not all these characters will be accessible through the
+event subsystem in direct mode (it should depend on the keyboard layout):
+for instance, if exclamation mark is obtained by pressing shift and '1'
+(in typing mode), only the events related with pressing shift and '1' will
+be generated (in direct mode).
+
+   SLAYER NAME                 ASCII VALUE              COMMON NAME (SDL)
+
+   "mouse1"                                             left mouse button
+   "mouse2"                                             right mouse button
+   "mouse3"                                             middle mouse button
+   "mwheelup"                                           mouse wheel up
+   "mwheeldown"                                         mouse wheel down
+
+   "backspace"                 '\b'                     backspace
+   "tab"                       '\t'                     tab
+   "clear"                                              clear
+   "return"                    '\r'                     return
+   "pause"                                              pause
+   "esc"                       '^['                     escape
+   "space"                     ' '                      space
+   "!"                         '!'                      exclaim
+   "\""                        '"'                      quotedbl
+   "#"                         '#'                      hash
+   "$"                         '$'                      dollar
+   "&"                         '&'                      ampersand
+   "'"                         '''                      quote
+   "("                         '('                      left parenthesis
+   ")"                         ')'                      right parenthesis
+   "*"                         '*'                      asterisk
+   "+"                         '+'                      plus sign
+   "-"                         '-'                      minus sign
+   ","                         ','                      comma
+   "."                         '.'                      period
+   "/"                         '/'                      forward slash
+   "0"                         '0'                      0
+   "1"                         '1'                      1
+   "2"                         '2'                      2
+   "3"                         '3'                      3
+   "4"                         '4'                      4
+   "5"                         '5'                      5
+   "6"                         '6'                      6
+   "7"                         '7'                      7
+   "8"                         '8'                      8
+   "9"                         '9'                      9
+   ":"                         ':'                      colon
+   ";"                         ';'                      semicolon
+   "<"                         '<'                      less-than sign
+   "="                         '='                      equals sign
+   ">"                         '>'                      greater-than sign
+   "?"                         '?'                      question mark
+   "@"                         '@'                      at
+   "["                         '['                      left bracket
+   "\\"                        '\'                      slash
+   "]"                         ']'                      right bracket
+   "^"                         '^'                      caret
+   "_"                         '_'                      underscore
+   "`"                         '`'                      grave
+   "a"                         'a'                      a
+   "b"                         'b'                      b
+   "c"                         'c'                      c
+   "d"                         'd'                      d
+   "e"                         'e'                      e
+   "f"                         'f'                      f
+   "g"                         'g'                      g
+   "h"                         'h'                      h
+   "i"                         'i'                      i
+   "j"                         'j'                      j
+   "k"                         'k'                      k
+   "l"                         'l'                      l
+   "m"                         'm'                      m
+   "n"                         'n'                      n
+   "o"                         'o'                      o
+   "p"                         'p'                      p
+   "q"                         'q'                      q
+   "r"                         'r'                      r
+   "s"                         's'                      s
+   "t"                         't'                      t
+   "u"                         'u'                      u
+   "v"                         'v'                      v
+   "w"                         'w'                      w
+   "x"                         'x'                      x
+   "y"                         'y'                      y
+   "z"                         'z'                      z
+   "delete"                    '^?'                     delete
+   "num0"                                               keypad 0
+   "num1"                                               keypad 1
+   "num2"                                               keypad 2
+   "num3"                                               keypad 3
+   "num4"                                               keypad 4
+   "num5"                                               keypad 5
+   "num6"                                               keypad 6   
+   "num7"                                               keypad 7
+   "num8"                                               keypad 8
+   "num9"                                               keypad 9
+   "num."                      '.'                      keypad period
+   "num/"                      '/'                      keypad divide
+   "num*"                      '*'                      keypad multiply
+   "num-"                      '-'                      keypad minus
+   "num+"                      '+'                      keypad plus
+   "numret"                    '\r'                     keypad enter
+   "numeql"                    '='                      keypad equals
+   "up"                                                 up arrow
+   "down"                                               down arrow
+   "left"                                               left arrow
+   "right"                                              right arrow
+   "ins"                                                insert
+   "home"                                               home
+   "end"                                                end
+   "pgup"                                               page up
+   "pgdown"                                             page down
+   "f1"                                                 F1
+   "f2"                                                 F2
+   "f3"                                                 F3
+   "f4"                                                 F4
+   "f5"                                                 F5
+   "f6"                                                 F6
+   "f7"                                                 F7
+   "f8"                                                 F8
+   "f9"                                                 F9
+   "f10"                                                F10
+   "f11"                                                F11
+   "f12"                                                F12
+   "f13"                                                F13
+   "f14"                                                F14
+   "f15"                                                F15
+   "numlock"                                            numlock
+   "caps"                                               capslock
+   "scroll"                                             scrollock
+   "lshift"                                             left shift
+   "rshift"                                             right shift
+   "lctrl"                                              left ctrl
+   "rctrl"                                              right ctrl
+   "lalt"                                               left alt
+   "ralt"                                               right alt
+   "lmeta"                                              left meta
+   "rmeta"                                              right meta
+   "lsuper"                                             left windows key
+   "rsuper"                                             right windows key
+   "mode"                                               mode shift
+   "help"                                               help
+   "print"                                              print screen
+   "sysrq"                                              SysRq
+   "break"                                              break
+   "menu"                                               menu
+   "power"                                              power
+   "euro"                                               euro
 
 @node Implementing persistent input
+The @code{keydn} and @code{keyup} procedures register event handlers that are
+called whenever a certain key is pressed or released. It can sometimes be
+desired, however, to call a certain procedure ``persistently'', i.e. as long
+as a given key is pressed.
+
+SLAYER itself doesn't provide such functions, because they frequently depend
+on a specific application. However, this document provides a general solution
+that can be taylored to one's needs. The purpose is not only to show how the
+feature can be implemented, but also to set the paradigm, which perhaps would 
+make any future programs easier to read. It also shows how to use the
+@code{register-userevent} and @code{generate-userevent} procedures.
+
+@pindex Persistent input
+@lisp
+(use-modules (slayer))
+
+;; first, we might find it useful to have a timer, which would generate
+;; an event from time to time, and sleep for the most of the time, in an
+;; infinite loop
+
+(define-syntax-rule (utimer usecs action ...)
+  (let ((tick (register-userevent (lambda () action ...))))
+    (call-with-new-thread (lambda () (while #t
+				       (generate-userevent tick)
+				       (usleep usecs))))))
+
+;; we need to keep track on which keys are pressed, in the *modes* hash table.
+;; its keys are the names of pressed keys, and values -- the procedures that
+;; are meant to be called "persistently"
+
+(define *modes* (make-hash-table))
+
+;; we also need to be able to define a procedure to be called as long as the
+;; key is pressed
+
+(define (key name proc)
+  (keydn name (lambda()(hash-set! *modes* name proc)))
+  (keyup name (lambda()(hash-remove! *modes* name))))
+
+;; lastly, we shall invoke procedures corresponding to the pressed keys with
+;; a certain regularity, say, 30000 micro-seconds:
+
+(utimer 30000 (hash-for-each (lambda(key thunk)(thunk)) *modes*))
+
+;; now we can bind keys to persistent procedures:
+(key 'return 
+     (lambda ()
+        (display (string-append "this message will be printed"
+                                " for as long as 'return is pressed\n"))))
+@end lisp
 
 @node Loading and processing fonts, images and sounds
+When creating a multimedia application, it is inevitable to work with external
+data, such as sounds and images. It can also be strongly desired to be able to 
+render text to images and display it on the screen.
+
+The following sections describe how to perform those activities in SLAYER.
+
+* Loading and displaying images::              (slayer image)
+* Rendering and displaying text::              (slayer font)
+* Loading and playing sounds::
+
+@node Loading and displaying images
+
+In order to be able to use the procedures documented here, one shall 
+@code{(use-modules (slayer image))}.
+
+@deffn {Procedure} load-image path
+Loads an image from an external file, indicated by @var{path}. The supported 
+file formats depend on the way the SDL_image library was compiled. The procedure
+returns an object that represents the image internally, and can be used with
+@code{draw-image!} and other procedures.
+FIXME: if something goes wrong (i.e. the file doesn't exist), the application
+will probably crash.
+@end deffn
+
+@deffn {Procedure} draw-image! image x y
+Display @var{image} on the screen. Its top left corner will be located at
+(@var{x}, @var{y}).
+@end deffn
+
+@deffn {Procedure} rectangle w h color
+Generates and returns solid rectangle whose width is @var{w}, height @var{h} and 
+color is @var{color}. @var{color} is a 32-bit integer value, which can be 
+written as @code{#xAARRGGBB}, where @code{AA} means alpha channel, @code{RR} 
+is red component, @code{GG} -- green component, and @code{BB} -- blue component.
+@end deffn
+
+@deffn {Procedure} image-size image
+Returns @code{(width height)} of the @var{image}.
+@end
+
+@deffn {Procedure} image->array image
+Converts @var{image} to two-dimensional uniform array of integers.
+@end deffn
+
+@deffn {Procedure} array->image array
+Converts two-dimensional uniform @var{array} of integers to image.
+@end deffn
+
+@node Rendering and displaying text
+In order to be able to use the procedures documented here, one shall 
+@code{(use-modules (slayer font))}.
+
+@deffn {Procedure} load-font path pt-size
+Load TrueType font from a file indicated by @var{path}. The size of the font
+will be @var{pt-size}. Returns the object representing font, which can later
+be used for rendering text using @code{render-text} procedure.
+@end deffn
+
+@deffn {Procedure} render-text text font [color] [bgcolor]
+Returns a new image containing @var{text} rendered using @var{font} with
+@var{color} (which defaults to white). If @var{bgcolor} is given, it will
+become the background color of the image; otherwise, the background is
+transparent.
+The obtained image can be displayed on the screen using @code{draw-image!}.
+@end deffn
+
+@deffn {Procedure} font-line-skip font
+Returns the line skip (integer) defined by the @var{font}.
+@end
+
+@node Loading and playing sounds
+
 
 @node Diving into 3D graphics
 
