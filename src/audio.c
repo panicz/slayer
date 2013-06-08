@@ -165,7 +165,6 @@ resume_music_x() {
   return SCM_UNSPECIFIED;
 }
 
-
 static void
 export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
@@ -180,7 +179,10 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("resume-music!", 0, 0, 0, resume_music_x);
 
 #undef EXPORT_PROCEDURE
+}
 
+static void
+cond_expand_provide(void *unused) {
   eval("(cond-expand-provide (current-module) '(slayer-audio))");
 }
 
@@ -238,5 +240,6 @@ audio_init() {
   sound_tag = scm_make_smob_type("sound", sizeof(void *));
   scm_set_smob_free(sound_tag, free_sound);
   
-  scm_c_define_module("slayer", export_symbols, NULL);
+  scm_c_define_module("slayer audio", export_symbols, NULL);
+  scm_c_define_module("slayer", cond_expand_provide, NULL);
 }
