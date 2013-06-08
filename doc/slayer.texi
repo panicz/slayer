@@ -157,7 +157,7 @@ the following content:
 
 (if (<= *number-of-images* 0)
     (die "no images found"))
-
+    
 (set-display-procedure! (lambda () (draw-image! *current-image* 0 0)))
 
 (define (show-image! i)
@@ -246,7 +246,92 @@ Sets the window caption to @var{string}. This can only be visible if SLAYER
 is run in a window manager, in non-fullscreen mode.
 @end deffn
 
+@deffn {Procedure} keydn key thunk
+Set @var{thunk} to be invoked whenever @var{key} is pressed (including mouse
+buttons) or repeated (in so called 'typing mode', see @code{input-mode} function
+for details). @var{key} can either be a string or a symbol. 
+See the @xref{Key names} table to get the names of specific keys.
+@end deffn
 
+@deffn {Procedure} keyup key thunk
+This function works exactly as @code{keydn}, except that the @var{thunk} is
+invoked on @var{key} release.
+@end deffn
+
+@deffn {Procedure} mousemove proc
+Set @var{proc} to be invoked whenever mouse is moved. @var{proc} takes four
+arguments: @code{(x y dx dy)}, where @code{(x y)} is the current mouse position
+and @code{(dx dy)} is the difference between the previous and the current
+position.
+@end deffn
+
+@deffn {Procedure} modifier-pressed? modifier
+Checks whether @var{modifier} is pressed. @var{modifier} is a symbol that
+can be either @code{shift}, @code{rshift}, @code{lshift}, @code{alt},
+@code{lalt}, @code{ralt}, @code{ctrl}, @code{lctrl}, @code{rctrl}, @code{meta}, 
+@code{lmeta}, @code{rmeta}.
+@end deffn
+
+@deffn {Procedure} input-mode
+Return the symbol describing current input mode, which can either be 
+@code{'typing} or @code{'direct}. Direct mode is the default for SLAYER.
+@end deffn
+
+@deffn {Procedure} set-direct-input-mode!
+Sets the input mode to ``direct'', which means that events are generated only
+when keys are actually pressed, which is the desired behaviour for most games,
+and the default behaviour of SLAYER.
+@end deffn
+
+@deffn {Procedure} set-typing-input-mode!
+Sets the input mode to ``typing'', which means that the keyboard input behaves
+like when typing in an editor -- once a key is pressed, after a certain time
+it gets repeated at a certain frequency. In typing mode, pressing printable
+characters do not cause the procedures specified with @code{keydn} and 
+@code{keyup} to be called; instead, it causes the typed character to be written
+to current output port, or it invokes a procedure specified with
+@code{set-typing-special-procedure!} to be called with the pressed special key
+name as argument.
+@end deffn
+
+@deffn {Procedure} set-typing-special-procedure! proc
+When in typing mode, @var{proc} will be called whenever a special (i.e.
+non-printable, e.g. return, escape of F1) key is pressed or repeated.
+@var{proc} will receive one argument: the name of the special key that
+was pressed (as a string).
+@end deffn
+
+@deffn {Procedure} grab-input! state
+If @var{state} is given and not @code{#f}, the procedure causes the SLAYER
+window to grab all the keyboard and mouse input. This can be deactivated
+and brought back to normal by passing @code{#f} as @var{state}.
+When @var{state} is not given, the procedure only returns the current state.
+@end deffn
+
+@deffn {Procedure} register-userevent proc
+Register a new user event. The @var{proc} procedure will be called with zero,
+one or two arguments, depending on the way the corresponding
+@code{generate-userevent} procedure is called. @code{register-userevent}
+returns an identifier of user event, which happens to be an integer. Up to
+255 user events can be registered.
+@end deffn
+
+@deffn {Procedure} generate-userevent identifier [data1] [data2]
+Generate user event identified with @code{identifier}, obtained with a previous 
+call to @code{register-userevent}. The @var{data1} and @var{data2} arguments
+are passed to event handler if provided.
+@end deffn
+
+
+
+* Key names::
+* Implementing persistent input::
+
+@node Key names
+The names of the keys are usually rather intuitive: 'a names the key A, 
+"1" names the key 1, and so on. There are, however, some 
+
+@node Implementing persistent input
 
 @node Loading and processing fonts, images and sounds
 
