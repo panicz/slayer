@@ -134,8 +134,11 @@ static SCM
 current_viewport() {
   struct { GLint x, y, w, h; } s;
   glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
-  return scm_list_4(scm_from_int(s.x), scm_from_int(s.y),
-		    scm_from_int(s.w), scm_from_int(s.h));
+
+  return scm_list_4(scm_from_int(s.x), 
+		    scm_from_int(screen->h - s.y - s.h),
+		    scm_from_int(s.w), 
+		    scm_from_int(s.h));
 }
 
 static SCM
