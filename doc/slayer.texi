@@ -434,7 +434,7 @@ be generated (in direct mode).
    "num-"                      '-'                      keypad minus
    "num+"                      '+'                      keypad plus
    "numret"                    '\r'                     keypad enter
-   "numeql"                    '='                      keypad equals
+   "num="                      '='                      keypad equals
    "up"                                                 up arrow
    "down"                                               down arrow
    "left"                                               left arrow
@@ -545,7 +545,6 @@ The following sections describe how to perform those activities in SLAYER.
 * Loading and playing sounds::
 
 @node Loading and displaying images
-
 In order to be able to use the procedures documented here, one shall 
 @code{(use-modules (slayer image))}.
 
@@ -602,17 +601,226 @@ The obtained image can be displayed on the screen using @code{draw-image!}.
 
 @deffn {Procedure} font-line-skip font
 Returns the line skip (integer) defined by the @var{font}.
-@end
+@end deffn
 
 @node Loading and playing sounds
+In order to be able to use the procedures documented here, one needs to
+@code{(use-modules (slayer audio))}.
 
+@deffn {Procedure} load-sound path
+Loads a sound file indicated by @var{path}. It ought to be a wave file.
+@end deffn
+
+@deffn {Procedure} play-sound! sound
+Plays a specified @var{sound}, which has previously been loaded using the
+@code{load-sound} procedure. Many sound files can be played at once.
+@end deffn
+
+@deffn {Procedure} load-music path
+Loads a music file indicated by @var{path}. It can be mp3 or ogg file.
+@end deffn
+
+@deffn {Procedure} play-music! music
+Plays a specified @var{music}, which has previously been loaded using
+@code{load-music} procedure. Only one music track can be played at once, and
+it can be paused using @code{pause-music!} procedure.
+@end deffn
+
+@deffn {Procedure} pause-music!
+Pauses currently played music track (if any).
+@end deffn
+
+@deffn {Procedure} resume-music!
+Resumes previously paused music track (if any).
+@end deffn
 
 @node Diving into 3D graphics
+Apart from the elementary support for images, SLAYER also allows to use OpenGL
+display context and exports some of the OpenGL/GLU procedures.
+If you're not familiar with the OpenGL library, I recommend you to read at
+least the first three chapters of the OpenGL Programming Guide, also known as
+The Red Book@footnote{@url{http://www.glprogramming.com/red/}}.
 
+Note, that programming in SLAYER differs in a few ways from the raw OpenGL API.
+Firstly, many OpenGL tutorials use ``glBegin'', ``glEnd'', ``glVertex*'' and
+similar procedures. SLAYER does not support them. Instead, it forces you to use
+its wrappers for ``glVertexPointer'', ``glColorPointer'', ``glDrawElements'' 
+and so on, which makes it a little bit more difficult for beginners, but 
+results in a more concise code. (There are also higher level interface 
+functions available in (extra 3d) and (widgets 3d-view) modules)
+
+Secondly, because of Guile's more informative data types, it is unnecessary
+to maintain so many variants of the same procedure (like ``glColor3f'',
+``glColor4f'', ``glColor3u'', ``glColor4i'') -- SLAYER chooses the appropreate
+variant depending on the type of the argument.
+
+Thirdly, OpenGL doesn't allow to choose to perform operations on the 
+projection matrix stack: only modelview matrix is available to the procedures 
+like ``push-matrix!'', ``pop-matrix!'' or ``multiply-matrix!''; the 
+``glMatrixMode'' procedure is unavailable to the programmer, because I didn't
+find that useful at all.
+
+@deffn {Procedure} multiply-matrix! M
+Multiply current modelview matrix by 4x4 uniform array @var{M} containing 
+floats or doubles.
+@end deffn
+
+@deffn {Procedure} push-matrix!
+Push current modelview matrix on the matrix stack.
+@end deffn
+
+@deffn {Procedure} pop-matrix!
+Pop modelview matrix from the stack.
+@end deffn
+
+@deffn {Procedure} load-identity!
+Set current modelview matrix to identity.
+@end deffn
+
+@deffn {Procedure} translate-view! vector
+Add a translation @var{vector} to current modelview matrix.
+@end deffn
+
+@deffn {Procedure} rotate-view! quaternion
+Rotate current matrix by @var{quaternion}. Quaternions are represented by pairs,
+whose first element is the real scalar, and second -- the imaginary vector, but
+this representation may change in the future@footnote{To find out more about
+how quaternions can be used to represent rotations in the 3d space, see e.g.
+@uref{http://www.genesis3d.com/~kdtop/Quaternions-UsingToRepresentRotation.htm}}.
+@end deffn
+
+@deffn {Procedure} set-viewport! x y w h
+Set left upper corner of viewport to (@var{x}, @var{y}) and its dimensions to
+(@var{w}, @var{h}). Note that this differs from OpenGL's viewport, because
+the origin is the upper left corner, and not in the lower left.
+@end deffn
+
+@deffn {Procedure} current-viewport
+Return a list @code{(x y w h)} describing the current viewport. Again, origin
+is located in the upper left corner, contrary to OpenGL's convention.
+@end deffn
+
+@deffn {Procedure} perspective-projection! fovy [aspect] [near] [far]
+Set the projection matrix to calculate perspective projection, where horizontal
+field of view is specified with @var{fovy}. If @var{aspect} isn't given, it
+is calculated according to current viewport, to preserve natural aspect ratio;
+the @var{near} clipping plane defaults to 0.1, and @var{far} -- to 1000.0.
+@end deffn
+
+@deffn {Procedure} set-vertices-array! array
+Sets current vertex pointer to the two dimensional uniform @var{array} of 
+vertices to use it with the @code{draw-faces!} procedure. The first dimension
+of the @var{array} specifies the number of vertices, and the second -- the 
+number of coordinates (from 2 to 4), so for instance if @var{array} is 
+@code{#2f32((0 0 0)(1 1 1))}, it will be interpreted as an array containing two
+three-dimensional vertices: @code{(0, 0, 0)} and @code{(1, 1, 1)}.
+The uniform array can be of any real type, so it can be either f32, f64,
+s32, u32, s16, u16, s8 or u8.
+This procedure enables GL_VERTEX_ARRAY client state.
+@end deffn
+
+@deffn {Procedure} set-colors-array! array
+Sets current color pointer to the two-dimensional uniform @var{array} of color
+parameters, that can either have 3 or 4 parameters (the fourth value will be
+interpreted as alpha channel). The remaining notes from 
+@code{set-vertices-array!} apply here as well (mutatis mutandis).
+@end deffn
+
+@deffn {Procedure} set-normal-array! array
+Sets current normal pointer to the two-dimensional uniform @var{array} of
+normal vectors. The vectors must be three-dimensional. The remaining notes from
+@code{set-vertices-array!} apply here as well (mutatis mutandis).
+@end deffn
+
+@deffn {Procedure} set-texture-coords-array! array
+I implemented this procedure, because it was similar to the ones above, but
+I really don't know what it does. It has never been used nor tested, so if you
+would like to use it, I wish you all best!
+@end deffn
+
+@deffn {Procedure} draw-faces! type indices
+Draws vertices from the array set using @code{set-vertices-array!}, interpreted
+depending on the value of the @var{type} parameter, in the order specified in
+the uniform array of integer @var{indices} (which can be either u8, u16 or u32,
+and the dimension of which is irrelevant). The @var{type} is a symbol that can
+have one of the following values: @code{points}, @code{lines}, @code{line-strip},
+@code{line-loop}, @code{triangles}, @code{triangle-strip}, @code{triangle-fan},
+@code{quads}, @code{quad-strip}, @code{polygon} (consult OpenGL reference for
+details).
+@end deffn
+
+@deffn {Procedure} forget-array! type
+Forget a pointer to the array specified in @var{type}. Possible values of
+@var{type} are the following symbols: @code{vertex-array}, @code{color-array},
+@code{texture-coord-array}, @code{normal-array}.
+@end deffn
+
+@deffn {Procedure} set-color! color
+Sets the current display color to @var{color}, which can either be a uniform
+vector containing three or four elements, or an integer, interpreted as in
+the @code{rectangle} function from @code{(slayer image)}.
+@end deffn
 
 @node Widgets
 @chapter Widgets
+When developing a graphics user interface based application, it is convinient to
+assemble it from simple and elastic components, such as buttons, text areas,
+draggable icons, canvases, menus, windows and so on.
+The common name for these components is ``widget''. SLAYER is shipped with its
+own framework for creating and using widgets.
 
+In order to use the widget framework, one shall 
+@code{(use-modules (widgets base))}. It creates and exports the main widget
+under the symbol @code{*stage*}, and sets the appropriate display and resize
+procedures.
+
+It also contains a definition of a @code{<widget>} class, which is the base
+class for all widgets. The @code{<widget>} class is defined as follows:
+@pindex <widget> class definition
+@lisp
+(define-class <widget> ()
+  (parent #:init-value #f #:init-keyword #:parent)
+  (children #:init-value '() #:init-keyword #:children)
+  (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
+  (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
+  (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
+  (right-mouse-up #:init-value noop #:init-keyword #:right-mouse-up)
+  (mouse-over #:init-value noop #:init-keyword #:mouse-over)
+  (mouse-out #:init-value noop #:init-keyword #:mouse-out)
+  (drag #:init-value noop #:init-keyword #:drag)
+  (update!  #:init-value noop #:init-keyword #:update)
+  (activate #:init-value noop #:init-keyword #:activate)
+  (deactivate #:init-value noop #:init-keyword #:deactivate)
+  (resize #:init-value noop #:init-keyword #:resize)
+  (x #:init-value 0 #:init-keyword #:x)
+  (y #:init-value 0 #:init-keyword #:y)
+  (w #:init-value 0 #:init-keyword #:w)
+  (h #:init-value 0 #:init-keyword #:h))
+@end lisp
+
+As you can see, the widget structure is hierarchical: all widgets (except
+@code{*stage*}) have their parent, and some can have their children.
+The biggest part of the definition consists of some event handlers, which
+are called in certain situations (like clicking, dragging and so on).
+Furthermore, all widgets have rectangular shape, and the rectangle should be
+big enough to fit all of the widget's children (otherwise they can become
+unreachable).
+
+In order to use the widget framework, it is enough to load the desired
+widget modules and add their instances to @code{*stage*} using the
+@code{(add-child! *stage* >instance-of-a-widget<)}. The simplest program
+that uses widgets -- a draggable rectangle -- could look like this:
+@pindex Draggable rectangle
+@lisp
+(use-modules (slayer) (slayer image) (widgets base) (widgets bitmap))
+(keydn 'esc quit)
+(add-child! *stage* (make-image (rectangle 50 50 #xcc33dd) 50 50))
+@end lisp
+
+There are a few widgets already bundled with slayer, among which there is
+<text-area> widget (which still requires some work) and <3d-view> widget.
+
+See the slayer.scm demo to see how to use them.
 @node Plug-ins (SCUM)
 @chapter Plug-ins (SCUM)
 
