@@ -487,7 +487,7 @@ called whenever a certain key is pressed or released. It can sometimes be
 desired, however, to call a certain procedure ``persistently'', i.e. as long
 as a given key is pressed.
 
-SLAYER itself doesn't provide such functions, because they frequently depend
+SLAYER itself doesn't provide such procedures, because they frequently depend
 on a specific application. However, this document provides a general solution
 that can be taylored to one's needs. The purpose is not only to show how the
 feature can be implemented, but also to set the paradigm, which perhaps would 
@@ -700,14 +700,20 @@ Return a list @code{(x y w h)} describing the current viewport. Again, origin
 is located in the upper left corner, contrary to OpenGL's convention.
 @end deffn
 
-@deffn {Procedure} perspective-projection! fovy [aspect] [near] [far]
+@deffn {Procedure} set-perspective-projection! fovy [aspect] [near] [far]
 Set the projection matrix to calculate perspective projection, where horizontal
 field of view is specified with @var{fovy}. If @var{aspect} isn't given, it
 is calculated according to current viewport, to preserve natural aspect ratio;
 the @var{near} clipping plane defaults to 0.1, and @var{far} -- to 1000.0.
 @end deffn
 
-@deffn {Procedure} set-vertices-array! array
+@deffn {Procedure} set-ortographic-projection! left right bottom top [near] [far]
+Sets the projection matrix to calculate ortographic projection. If @var{near}
+and @var{far} not given, they default to @code{-1.0} and @code{1.0}, respectively.
+@end deffn
+
+
+@deffn {Procedure} set-vertex-array! array
 Sets current vertex pointer to the two dimensional uniform @var{array} of 
 vertices to use it with the @code{draw-faces!} procedure. The first dimension
 of the @var{array} specifies the number of vertices, and the second -- the 
@@ -719,20 +725,20 @@ s32, u32, s16, u16, s8 or u8.
 This procedure enables GL_VERTEX_ARRAY client state.
 @end deffn
 
-@deffn {Procedure} set-colors-array! array
+@deffn {Procedure} set-color-array! array
 Sets current color pointer to the two-dimensional uniform @var{array} of color
 parameters, that can either have 3 or 4 parameters (the fourth value will be
 interpreted as alpha channel). The remaining notes from 
-@code{set-vertices-array!} apply here as well (mutatis mutandis).
+@code{set-vertex-array!} apply here as well (mutatis mutandis).
 @end deffn
 
 @deffn {Procedure} set-normal-array! array
 Sets current normal pointer to the two-dimensional uniform @var{array} of
 normal vectors. The vectors must be three-dimensional. The remaining notes from
-@code{set-vertices-array!} apply here as well (mutatis mutandis).
+@code{set-vertex-array!} apply here as well (mutatis mutandis).
 @end deffn
 
-@deffn {Procedure} set-texture-coords-array! array
+@deffn {Procedure} set-texture-coord-array! array
 I implemented this procedure, because it was similar to the ones above, but
 I really don't know what it does. It has never been used nor tested, so if you
 would like to use it, I wish you all best!

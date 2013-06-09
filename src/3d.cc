@@ -142,7 +142,7 @@ current_viewport() {
 }
 
 static SCM
-perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
+set_perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
   GLdouble fovy = scm_to_float(FOVY);
   
   GLdouble aspect;
@@ -175,9 +175,24 @@ perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
 }
 
 static SCM
-ortographic_projection_x() {
-  // TODO
-  WARN("unimplemented");
+set_ortographic_projection_x(SCM left, SCM right, 
+			     SCM bottom, SCM top,
+			     SCM near, SCM far) {
+  
+  struct { GLint x, y, w, h; } s;
+  glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(GIVEN(left) ? scm_to_double(left) : (GLdouble) s.x, 
+	  GIVEN(right) ? scm_to_double(right) : (GLdouble) (s.x + s.w),
+	  GIVEN(bottom) ? scm_to_double(bottom) : (GLdouble) s.y, 
+	  GIVEN(top) ? scm_to_double(top) : (GLdouble) (s.y + s.h),
+	  GIVEN(near) ? scm_to_double(near) : -1.0,
+	  GIVEN(far) ? scm_to_double(far) : 1.0);
+
+  glMatrixMode(GL_MODELVIEW);
+
   return SCM_UNSPECIFIED;
 }
 
@@ -253,9 +268,9 @@ init_GLtypes() {
     return SCM_UNSPECIFIED;				\
   }
 
-DEF_SET_GL_ARRAY(vertices, glVertexPointer, GL_VERTEX_ARRAY, 3);
-DEF_SET_GL_ARRAY(colors, glColorPointer, GL_COLOR_ARRAY, 3);
-DEF_SET_GL_ARRAY(texture_coords, glTexCoordPointer, 
+DEF_SET_GL_ARRAY(vertex, glVertexPointer, GL_VERTEX_ARRAY, 3);
+DEF_SET_GL_ARRAY(color, glColorPointer, GL_COLOR_ARRAY, 3);
+DEF_SET_GL_ARRAY(texture_coord, glTexCoordPointer, 
 		 GL_TEXTURE_COORD_ARRAY, 3);
 
 static inline void
@@ -460,21 +475,21 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("load-identity!", 0, 0, 0, load_identity_x);
   EXPORT_PROCEDURE("set-viewport!", 4, 0, 0, set_viewport_x);
   EXPORT_PROCEDURE("current-viewport", 0, 0, 0, current_viewport);
-  EXPORT_PROCEDURE("perspective-projection!", 1, 3, 0, 
-		      perspective_projection_x);
-  EXPORT_PROCEDURE("ortographic-projection!", 4, 2, 0, 
-		      ortographic_projection_x);
-  EXPORT_PROCEDURE("set-vertices-array!", 1, 0, 0, 
-		   set_vertices_array_x);
-  EXPORT_PROCEDURE("set-colors-array!", 1, 0, 0, 
-		      set_colors_array_x);
+  EXPORT_PROCEDURE("set-perspective-projection!", 1, 3, 0, 
+		   set_perspective_projection_x);
+  EXPORT_PROCEDURE("set-ortographic-projection!", 4, 2, 0, 
+		   set_ortographic_projection_x);
+  EXPORT_PROCEDURE("set-vertex-array!", 1, 0, 0, 
+		   set_vertex_array_x);
+  EXPORT_PROCEDURE("set-color-array!", 1, 0, 0, 
+		   set_color_array_x);
   EXPORT_PROCEDURE("set-normal-array!", 1, 0, 0, 
 		   set_normal_array_x);
   EXPORT_PROCEDURE("forget-array!", 1, 0, 0, forget_array_x);
   EXPORT_PROCEDURE("set-color!", 1, 0, 0, set_color_x);
 
-  EXPORT_PROCEDURE("set-texture-coords-array!", 1, 0, 0, 
-		      set_texture_coords_array_x);
+  EXPORT_PROCEDURE("set-texture-coord-array!", 1, 0, 0, 
+		   set_texture_coord_array_x);
   EXPORT_PROCEDURE("draw-faces!", 2, 0, 0, draw_faces_x);
 
 #undef EXPORT_PROCEDURE

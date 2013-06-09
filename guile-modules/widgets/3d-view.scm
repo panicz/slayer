@@ -34,11 +34,11 @@
     (('mesh . definition)
      (for-each (match-lambda
 		(('vertices (? array? array))
-		 (set-vertices-array! array))
+		 (set-vertex-array! array))
 		(('color color)
 		 (set-color! color))
 		(('colors (? array? array))
-		 (set-colors-array! array))
+		 (set-color-array! array))
 		(('normals (? array? array))
 		 (set-normal-array! array))
 		(('faces . faces)
@@ -58,7 +58,7 @@
 		 (rotate-view! quaternion))
 		)
 	       definition)
-     (for-each disable-client-state! 
+     (for-each forget-array! 
 	       '(vertex-array color-array normal-array texture-coord-array)))
     (else
      (display `(no-match ,else)))))
@@ -81,8 +81,9 @@
 (define-method (draw (view <3d-view>))
   (let ((original-viewport (current-viewport)))
     (set-viewport! #[view 'x] #[view 'y] #[view 'w] #[view 'h])
+    (current-viewport)
     (push-matrix!)
-    (perspective-projection! #[view : 'camera : 'fovy])
+    (set-perspective-projection! #[view : 'camera : 'fovy])
     (translate-view! #f32(0 0 -0.1))
     (rotate-view! (~ #[view : 'camera : 'orientation]))
     (translate-view! (- #[view : 'camera : 'position]))
