@@ -127,6 +127,9 @@ other. They're both cool, though.
                                 application
 * Invoking SLAYER::             A detailed description of command line 
                                 arguments
+* Trying out the demos::        SLAYER is shipped with a set of demos that
+                                are fun to play with, and even more fun to
+                                read and understand
 
 @end menu
 
@@ -201,6 +204,36 @@ the redisplay stage, the applications generally tend to be responsive.
 @node Invoking SLAYER
 Type ``slayer --help'' to get the list of possible options.
 (TODO: this section definitely requires some elaboration)
+
+@node Trying out the demos
+In addition to the core SLAYER and some libraries, the SLAYER tarball contains
+a set of demos that show how easily complex things can be achieved. They are
+located in the ``demos'' subdirectory.
+
+If you manage to build SLAYER (even without installing it), you can run the
+demos with the following commands (assuming you're in the ``demos'' dir):
+$ ./slayer # equivalent to ./slayer -i slayer.scm
+$ ./slayer -e3d
+$ ./slayer -i pong.scm
+
+If you have Open Dynamics Engine installed on your system, you can also
+try building the (scum physics) module by entering ``src/scum'' dir and
+typing
+$ make
+
+If you manage to build it successfully, then, back in the ``demos'' dir,
+you can try it out by typing:
+$ ./slayer -e3d -i ode.scm
+
+More importantly than just playing with the demos (which, honestly, can become
+boring quite quickly), you are encouraged to read their source code (which, in
+turn, is a fascinating and endless endeavour).
+In particular, the ``guile-modules/widgets/3d-view.scm'' module defines a file 
+format for representing 3d mesh (an example can be found in the 
+``demos/art/3d/cube.3d'' file), and the scum/physics.scm defines a
+``define-rigs-for'' procedure, which is used to implement a file format for
+representing rigs (see ``demos/art/rigs/car.rig'' to see a more advanced 
+example, or ``demos/arg/rigs/ground.rig'' for hopelessly simple one)
 
 @node Direct Layer
 @chapter Direct Layer
@@ -678,7 +711,7 @@ Set current modelview matrix to identity.
 @end deffn
 
 @deffn {Procedure} translate-view! vector
-Add a translation @var{vector} to current modelview matrix.
+Add a translation @var{vector} of 3 numbers to current modelview matrix.
 @end deffn
 
 @deffn {Procedure} rotate-view! quaternion
@@ -711,7 +744,6 @@ the @var{near} clipping plane defaults to 0.1, and @var{far} -- to 1000.0.
 Sets the projection matrix to calculate ortographic projection. If @var{near}
 and @var{far} not given, they default to @code{-1.0} and @code{1.0}, respectively.
 @end deffn
-
 
 @deffn {Procedure} set-vertex-array! array
 Sets current vertex pointer to the two dimensional uniform @var{array} of 
@@ -767,6 +799,10 @@ vector containing three or four elements, or an integer, interpreted as in
 the @code{rectangle} function from @code{(slayer image)}.
 @end deffn
 
+I realize that the above list of procedures might be insufficient for certain
+purposes. If you notice that an essential procedure is lacking here, don't
+hesitate to let me know about it, and we can try to work out a solution.
+
 @node Widgets
 @chapter Widgets
 When developing a graphics user interface based application, it is convinient to
@@ -778,7 +814,8 @@ own framework for creating and using widgets.
 In order to use the widget framework, one shall 
 @code{(use-modules (widgets base))}. It creates and exports the main widget
 under the symbol @code{*stage*}, and sets the appropriate display and resize
-procedures.
+procedures, as well as handlers for mouse1 and mouse2 press and release events
+and mousemove event.
 
 It also contains a definition of a @code{<widget>} class, which is the base
 class for all widgets. The @code{<widget>} class is defined as follows:
@@ -818,19 +855,48 @@ widget modules and add their instances to @code{*stage*} using the
 that uses widgets -- a draggable rectangle -- could look like this:
 @pindex Draggable rectangle
 @lisp
-(use-modules (slayer) (slayer image) (widgets base) (widgets bitmap))
+(use-modules (slayer) (slayer image) 
+	     (widgets base) (widgets bitmap)
+	     (oop goops))
 (keydn 'esc quit)
-(add-child! *stage* (make-image (rectangle 50 50 #xcc33dd) 50 50))
+
+(define-method (dragger (w <widget>))
+  (lambda (x y xrel yrel)
+    (slot-set! w 'x (+ (slot-ref w 'x) xrel))
+    (slot-set! w 'y (+ (slot-ref w 'y) yrel))))
+
+(let* ((rect (rectangle #;w 50 #;h 50 #xcc33dd))
+       (img (make-image rect #;x 50 #;y 50)))
+  (slot-set! img 'drag (dragger img))
+  (add-child! *stage* img))
 @end lisp
 
 There are a few widgets already bundled with slayer, among which there is
 <text-area> widget (which still requires some work) and <3d-view> widget.
 
-See the slayer.scm demo to see how to use them.
+Check the slayer.scm demo to see how to use them.
+
+Note also, that although the direct layer described in the previous chapter
+is rather stable and will only be extended rather than modified, the widget
+layer is more likely to change. 
+
 @node Plug-ins (SCUM)
 @chapter Plug-ins (SCUM)
+Currently SLAYER is shipped with one additional module -- a wrapper for the 
+prominent Open Dynamics Engine, which is required for the module to build.
+The module is located outside the build tree, so it doesn't get installed
+by default, but requires additional effort. (This should change in the future)
+
+In order to build the module, one needs to enter the src/scum directory
+from the installation package, and type:
+$ make
+
+If everything goes well, a file named ``physics.so'' will be created. In order
+to run, it should be moved to a path specified in the LTDL_LIBRARY_PATH 
+environment variable, and the accompanyign file, ``physics.scm'' should be
+placed in a ``scum'' directory within the range of GUILE_LOAD_PATH environment
+variable.
 
 @node Looking ahead
 @chapter Looking ahead
-
-
+SLAYER is a 
