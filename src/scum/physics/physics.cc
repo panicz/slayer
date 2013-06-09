@@ -40,8 +40,8 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     c[i].surface.mode = dContactSlip1 | dContactSlip2 |
       dContactSoftERP | dContactSoftCFM | dContactApprox1;
     c[i].surface.mu = dInfinity;
-    c[i].surface.slip1 = 0.1;
-    c[i].surface.slip2 = 0.1;
+    c[i].surface.slip1 = 0.01;
+    c[i].surface.slip2 = 0.01;
     c[i].surface.soft_erp = 0.5;
     c[i].surface.soft_cfm = 0.3;
 

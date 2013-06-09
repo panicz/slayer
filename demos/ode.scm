@@ -7,7 +7,7 @@
 	     (extra common)
 	     (extra 3d)
 	     (extra math)
-	     (libs physics))
+	     (scum physics))
 
 (keydn 'esc quit)
 

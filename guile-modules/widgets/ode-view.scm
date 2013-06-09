@@ -1,5 +1,5 @@
 (define-module (widgets ode-view)
-  #:use-module (libs physics)
+  #:use-module (scum physics)
   #:use-module (widgets base)
   #:use-module (widgets 3d-view)
   #:use-module (oop goops)

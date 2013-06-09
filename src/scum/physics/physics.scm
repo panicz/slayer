@@ -1,4 +1,4 @@
-(define-module (libs physics)
+(define-module (scum physics)
   #:use-module (extra common)
   #:export (define-rig-for make-rig
 	     primitive-make-simulation
