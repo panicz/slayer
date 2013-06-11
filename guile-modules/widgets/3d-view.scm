@@ -13,6 +13,7 @@
 	    relative-turn!
 	    relative-twist!
 	    relative-move!
+	    mouse->3d
 	    X-SENSITIVITY
 	    Y-SENSITIVITY))
 
@@ -63,7 +64,6 @@
     (else
      (display `(no-match ,else)))))
 
-
 (define-method (draw (object <3d-mesh>))
   (push-matrix!)
   (translate-view! #[object 'position])
@@ -80,10 +80,9 @@
 
 (define-method (draw (view <3d-view>))
   (let ((original-viewport (current-viewport)))
-    (set-viewport! #[view 'x] #[view 'y] #[view 'w] #[view 'h])
-    (current-viewport)
-    (push-matrix!)
+    (apply set-viewport! (area view))
     (set-perspective-projection! #[view : 'camera : 'fovy])
+    (push-matrix!)
     (translate-view! #f32(0 0 -0.1))
     (rotate-view! (~ #[view : 'camera : 'orientation]))
     (translate-view! (- #[view : 'camera : 'position]))
@@ -101,7 +100,7 @@
   (set! #[object 'orientation]
 	(normalized 
 	 (+ #[object 'orientation] 
-	    (* (quaternion 0.0 (* x #[X-SENSITIVITY ]
+	    (* (quaternion 0.0 (* x #[X-SENSITIVITY]
 				  (rotate #f32(0 1 0) #[object 'orientation])))
 	       #[object 'orientation])
 	    (normalized (+ #[object 'orientation]
@@ -123,3 +122,15 @@
 (define-method (relative-move! (object <3d>) direction)
   (increase! #[object 'position]
 	     (rotate direction #[object 'orientation])))
+
+(define-method (mouse->3d (view <3d-view>) (x <integer>) (y <integer>))
+  (let* ((camera #[view 'camera])
+	 (matrix (position+rotation->matrix
+		  #[camera 'position] #[camera 'orientation]))
+	 (projection (perspective-projection
+		      #[camera 'fovy]
+		      (/ (* 1.0 #[view 'w]) #[view 'h]))))
+    (unproject x y #f
+	       matrix
+	       projection
+	       (area view))))
