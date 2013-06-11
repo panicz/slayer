@@ -49,6 +49,15 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
 #define ASSERT_SCM_TYPE(type, var, pos)					\
   SCM_ASSERT_TYPE(scm_is_##type(var), var, pos, __FUNCTION__, # type)
 
+#define SCM_LIST_TO_C_ARRAY(type, dest, size, conv, list)	\
+  ({								\
+    SCM _head; int _i;						\
+    for((_i = 0), _head = list;					\
+	(_i < size) && scm_is_pair(_head);			\
+	(_i++), _head = scm_cdr(_head)) {			\
+      ((type *) dest)[_i] = conv(scm_car(_head));		\
+    }})
+
 #define DEFINE_ARRAY_GETTER(name, type, failval, getter)	\
   static inline type						\
   name(SCM array, ...) {					\
