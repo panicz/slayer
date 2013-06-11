@@ -95,15 +95,7 @@
 
 (set! #[view 'left-mouse-down]
       (lambda(x y)
-	(let* ((y (- (screen-height) y))
-	       (z (z-index x y))
-	       (camera #[view 'camera])
-	       (xyz (- #[camera 'position] 
-		       (rotate (f32vector x y z)
-			       #;by (~ #[camera 'orientation])))))
-	  (<< "camera position: "#[camera 'position])
-	  (<< "orientation: "#[camera 'orientation])
-	  (<< xyz))))
+	(<< (mouse->3d view x y))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
