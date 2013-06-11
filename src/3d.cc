@@ -1,14 +1,14 @@
 #include "slayer.h"
 #include "extend.h"
 #include "utils.h"
-#include "vmx.hh"
 #include "video.h"
 #include <limits.h>
+#include "vmx.hh"
 
 static SCM s_f32;
 static SCM s_f64;
 
-#define DEF_SCM_TO_V(n,t,ype)						\
+#define DEF_SCM_TOFROM_V(n,t,ype,sym)					\
   static inline v##n##t							\
   scm_to_v##n##t(SCM vector) {						\
     int i; v##n##t v;							\
@@ -23,16 +23,74 @@ static SCM s_f64;
     else								\
       WARN("function called on a non-vector");				\
     return v;								\
-}
+  }									\
+									\
+  static inline SCM							\
+  scm_from_v##n##t(v##n##t v) {						\
+    SCM result = scm_make_typed_array(s_##sym, SCM_UNSPECIFIED,		\
+				      scm_list_1(scm_from_int(n)));	\
+    scm_t_array_handle h;						\
+    scm_array_get_handle(result, &h);					\
+    t##ype *data = scm_array_handle_##sym##_writable_elements(&h);	\
+    									\
+    *((v##n##t *) data) = v;						\
+    scm_array_handle_release(&h);					\
+    return result;							\
+  }
 
-DEF_SCM_TO_V(2,f,loat);
-DEF_SCM_TO_V(2,d,ouble);
-DEF_SCM_TO_V(3,f,loat);
-DEF_SCM_TO_V(3,d,ouble);
-DEF_SCM_TO_V(4,f,loat);
-DEF_SCM_TO_V(4,d,ouble);
 
-#undef DEF_SCM_TO_V
+DEF_SCM_TOFROM_V(3,f,loat,f32);
+DEF_SCM_TOFROM_V(3,d,ouble,f64);
+DEF_SCM_TOFROM_V(4,f,loat,f32);
+DEF_SCM_TOFROM_V(4,d,ouble,f64);
+
+#undef DEF_SCM_TOFROM_V
+
+#define DEF_SCM_TOFROM_M(n,t,ype,sym)					\
+  static inline m##n##x##n##t						\
+  scm_to_m##n##x##n##t(SCM array) {					\
+    m##n##x##n##t result;						\
+    t##ype *data;							\
+    if(!scm_is_typed_array(array, s_##sym)) {				\
+      WARN("argument should be a uniform " # sym " array");		\
+      return result;							\
+    }									\
+									\
+    scm_t_array_handle h;						\
+    scm_array_get_handle(array, &h);					\
+    if(scm_array_handle_nelems(&h) < n*n) {				\
+      WARN("array should contain at least %i elements", n*n);		\
+      goto end;								\
+    }									\
+									\
+    data = scm_array_handle_##sym##_writable_elements(&h);		\
+    result = *((m##n##x##n##t *) data);					\
+  end:									\
+    scm_array_handle_release(&h);					\
+    return result;							\
+  }									\
+									\
+  static inline SCM							\
+  scm_from_m##n##x##n##t(m##n##x##n##t M) {				\
+    SCM result = scm_make_typed_array(s_##sym, SCM_UNSPECIFIED,		\
+				      scm_list_2(scm_from_int(n),	\
+						 scm_from_int(4)));	\
+    scm_t_array_handle h;						\
+    scm_array_get_handle(result, &h);					\
+    t##ype *data = scm_array_handle_##sym##_writable_elements(&h);	\
+    									\
+    *((m##n##x##n##t *) data) = M;					\
+    scm_array_handle_release(&h);					\
+    return result;							\
+  }
+
+DEF_SCM_TOFROM_M(3,f,loat,f32);
+DEF_SCM_TOFROM_M(3,d,ouble,f64);
+
+DEF_SCM_TOFROM_M(4,f,loat,f32);
+DEF_SCM_TOFROM_M(4,d,ouble,f64);
+
+#undef DEF_SCM_TOFROM_M
 
 static inline qtf
 scm_to_qtf(SCM pair) {
@@ -141,36 +199,131 @@ current_viewport() {
 		    scm_from_int(s.h));
 }
 
+static double 
+_z_index(int x, int y) {
+  float z;
+  glReadPixels(x, y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, (GLvoid *) &z);
+  return (double) z;
+}
+
 static SCM
-set_perspective_projection_x(SCM FOVY, SCM ASPECT, SCM NEAR, SCM FAR) {
-  GLdouble fovy = scm_to_float(FOVY);
+z_index(SCM X, SCM Y) {
+  return scm_from_double(_z_index(scm_to_int(X), scm_to_int(Y)));
+}
+
+static SCM
+position_plus_rotation_to_matrix(SCM vector, SCM quaternion) {
+  v3d v = scm_to_v3d(vector);
+  qtd q = scm_to_qtd(quaternion);
+  return scm_from_m4x4d(m4x4d(q, v4d(v, 1)));
+}
+
+static SCM
+unproject(SCM _x, SCM _y, SCM _z,
+	  SCM _modelview_matrix,
+	  SCM _projection_matrix,
+	  SCM _viewport_list) {
+  double x = scm_to_double(_x);
+  double y = screen->h - scm_to_double(_y);
+  double z = isnt(_z) ? _z_index((int) x, (int) y) : scm_to_double(_z);
   
-  GLdouble aspect;
-  if ((   ASPECT == SCM_UNDEFINED) 
-      || (ASPECT == SCM_UNSPECIFIED)
-      || (ASPECT == SCM_BOOL_F)) {
-    struct { GLint x, y, w, h; } s;
+  m4x4d modelview_matrix = scm_to_m4x4d(_modelview_matrix);
+  m4x4d projection_matrix = scm_to_m4x4d(_projection_matrix);
+  struct { GLint x, y, w, h; } s;
+  if(!GIVEN(_viewport_list) 
+     || isnt(scm_list_p(_viewport_list))
+     || (scm_to_int(scm_length(_viewport_list)) < 4)
+     ) {
     glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
-    aspect = (GLdouble) s.w / (GLdouble) s.h; 
   }
   else {
-    aspect = (GLdouble) scm_to_double(ASPECT);
+    SCM_LIST_TO_C_ARRAY(int, &s, 4, scm_to_int, _viewport_list);
+    s.y = screen->h - s.y - s.h;
   }
 
-  GLdouble near = (NEAR == SCM_UNDEFINED)
-    ? 0.1 : (GLdouble) scm_to_double(NEAR);
-  GLdouble far = (FAR == SCM_UNDEFINED)
-    ? 1000.0 : (GLdouble) scm_to_double(FAR);
+  OUT("mouse: %f, %f, %f", x, y, z);
+  OUT("viewport: %i, %i, %i, %i", s.x, s.y, s.w, s.h);
+
+  v3d v;
+  gluUnProject(x, y, z, 
+	       (GLdouble *) &modelview_matrix,
+	       (GLdouble *) &projection_matrix,
+	       (GLint *) &s,
+	       &v.x, &v.y, &v.z);
+  OUT("3d: %f, %f, %f", v.x, v.y, v.z);
+  return scm_from_v3d(v);
+}
+
+// by convention, each function that ever
+// alters a matrix mode, should leave GL_MODELVIEW
+// as the current matrix mode.
+
+static inline double
+_get_aspect_from_scm(SCM aspect) {
+  if ((   aspect == SCM_UNDEFINED) 
+      || (aspect == SCM_UNSPECIFIED)
+      || (aspect == SCM_BOOL_F)) {
+    struct { GLint x, y, w, h; } s;
+    glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
+    return (double) s.w / (double) s.h; 
+  }
+  return scm_to_double(aspect);
+}
+
+// this code is a travesty of gluPerspective from the GLU library
+static SCM
+perspective_projection(SCM _fovy, SCM _aspect, SCM _near, SCM _far) {
+  double fovy = scm_to_double(_fovy);
+  double aspect = _get_aspect_from_scm(_aspect);
+  double radians = deg2rad(0.5*fovy);
+  double near = GIVEN(_near) ? scm_to_double(_near) : 0.1;
+  double far = GIVEN(_far) ? scm_to_double(_far) : 1000.0;
+  double d = far-near;
+  double sine = sin(radians);
+  if((d == 0) || (sine == 0) || (aspect == 0)) {
+    WARN("Invalid argument");
+    return SCM_UNSPECIFIED;
+  }
+  d = 1/d;
+  double cotangent = cos(radians)/sine;
+  return scm_from_m4x4d
+    (m4x4d(cotangent/aspect, 0,                0,                0,
+	   0,                cotangent,        0,                0,
+	   0,                0,                -(far+near)*d,   -2*near*far*d,
+	   0,                0,                -1,               0));
+}
+
+static SCM
+current_projection() {
+  m4x4d M;
+  glGetDoublev(GL_PROJECTION_MATRIX, (GLdouble *) &M);
+  return scm_from_m4x4d(M);
+}
+
+static SCM
+current_matrix() {
+  m4x4d M;
+  glGetDoublev(GL_MODELVIEW_MATRIX, (GLdouble *) &M);
+  return scm_from_m4x4d(M);
+}
+
+static SCM
+set_perspective_projection_x(SCM _fovy, SCM _aspect, SCM _near, SCM _far) {
+  GLdouble fovy = scm_to_float(_fovy);
+
+  GLdouble aspect = _get_aspect_from_scm(_aspect);
+
+  GLdouble near = (_near == SCM_UNDEFINED)
+    ? 0.1 : (GLdouble) scm_to_double(_near);
+  GLdouble far = (_far == SCM_UNDEFINED)
+    ? 1000.0 : (GLdouble) scm_to_double(_far);
 
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   gluPerspective(fovy, aspect, near, far);
 
   glMatrixMode(GL_MODELVIEW);
-  // by convention, each function that ever
-  // alters a matrix mode, should leave GL_MODELVIEW
-  // as the current matrix mode.
-    
+
   return SCM_UNSPECIFIED;
 }
 
@@ -277,6 +430,7 @@ static inline void
 _glNormalPointer(GLint size,GLenum type,GLsizei stride,const GLvoid *pointer) {
   return glNormalPointer(type, stride, pointer);
 }
+
 DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3);
 
 #undef DEF_SET_GL_ARRAY
@@ -421,15 +575,6 @@ set_color_x(SCM value) {
 }
 
 static SCM
-z_index(SCM X, SCM Y) {
-  double x = scm_to_double(X);
-  double y = scm_to_double(Y);
-  float z;
-  glReadPixels(x, y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, (GLvoid *) &z);
-  return scm_from_double((double) z);
-}
-
-static SCM
 draw_faces_x(SCM type, SCM array) {
 #define GET_VALUE(name) \
   scm_to_int(scm_hash_ref(GLnames, name, SCM_BOOL_F))
@@ -475,6 +620,15 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("load-identity!", 0, 0, 0, load_identity_x);
   EXPORT_PROCEDURE("set-viewport!", 4, 0, 0, set_viewport_x);
   EXPORT_PROCEDURE("current-viewport", 0, 0, 0, current_viewport);
+  EXPORT_PROCEDURE("current-projection", 0, 0, 0, 
+		   current_projection);
+  EXPORT_PROCEDURE("unproject", 5, 1, 0, unproject);
+  EXPORT_PROCEDURE("position+rotation->matrix", 2, 0, 0, 
+		   position_plus_rotation_to_matrix);
+  
+  EXPORT_PROCEDURE("current-matrix", 0, 0, 0, current_matrix);
+  EXPORT_PROCEDURE("perspective-projection", 1, 3, 0, 
+		   perspective_projection);
   EXPORT_PROCEDURE("set-perspective-projection!", 1, 3, 0, 
 		   set_perspective_projection_x);
   EXPORT_PROCEDURE("set-ortographic-projection!", 4, 2, 0, 
