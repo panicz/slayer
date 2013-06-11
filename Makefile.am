@@ -1,2 +1,2 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = src tools guile-modules
+SUBDIRS = src doc tools guile-modules 

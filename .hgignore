@@ -19,6 +19,8 @@ build-aux/depcomp
 build-aux/install-sh
 build-aux/ltmain.sh
 build-aux/missing
+build-aux/mdate-sh
+build-aux/texinfo.tex
 stamp-h1
 *.in
 Makefile
@@ -28,3 +30,6 @@ config.h
 src/slayer
 tools/grup
 src/scum/physics/physics.so
+doc/version.texi
+doc/slayer.info
+doc/stamp-vti

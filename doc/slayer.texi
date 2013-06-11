@@ -4,7 +4,7 @@
 @setfilename slayer.info
 @documentencoding UTF-8
 @settitle SLAYER
-@paragraphident 0
+@paragraphindent 0
 @iftex
 @afourpaper
 @end iftex
@@ -80,8 +80,8 @@ This manual is
 
 * Looking ahead::               Further development of SLAYER
 
-* GNU FDL::                     Copying and sharing this documentation
-* Index::
+@c * GNU FDL::                     Copying and sharing this documentation
+@c * Index::
 @end menu
 
 
@@ -133,7 +133,8 @@ other. They're both cool, though.
 
 @end menu
 
-@node Simple example
+@node Getting started
+@section Getting started
 This section assumes that SLAYER is already installed and properly configured
 on your system, and that you are familiar with programming in general, and 
 Guile Scheme in particular.
@@ -202,28 +203,35 @@ real-time multimedia processing apps. Since the input can be gathered during
 the redisplay stage, the applications generally tend to be responsive.
 
 @node Invoking SLAYER
+@section Invoking SLAYER
 Type ``slayer --help'' to get the list of possible options.
 (TODO: this section definitely requires some elaboration)
 
 @node Trying out the demos
+@section Trying out the demos
 In addition to the core SLAYER and some libraries, the SLAYER tarball contains
 a set of demos that show how easily complex things can be achieved. They are
 located in the ``demos'' subdirectory.
 
 If you manage to build SLAYER (even without installing it), you can run the
 demos with the following commands (assuming you're in the ``demos'' dir):
-$ ./slayer # equivalent to ./slayer -i slayer.scm
-$ ./slayer -e3d
-$ ./slayer -i pong.scm
+
+@code{$ ./slayer # equivalent to ./slayer -i slayer.scm}
+
+@code{$ ./slayer -e3d}
+
+@code{$ ./slayer -i pong.scm}
 
 If you have Open Dynamics Engine installed on your system, you can also
 try building the (scum physics) module by entering ``src/scum'' dir and
 typing
-$ make
+
+@code{$ make}
 
 If you manage to build it successfully, then, back in the ``demos'' dir,
 you can try it out by typing:
-$ ./slayer -e3d -i ode.scm
+
+@code{$ ./slayer -e3d -i ode.scm}
 
 More importantly than just playing with the demos (which, honestly, can become
 boring quite quickly), you are encouraged to read their source code (which, in
@@ -243,11 +251,19 @@ to run a timer that generates its own events.
 In this chapter, you will find a description of all procedures available
 directly from SLAYER, divided into three groups:
 
+@menu
 * Input handling and screen management::
-* Loading and processing fonts, images and sounds::
+* Loading and processing fonts@comma{} images and sounds::
 * Diving into 3D graphics::
+@end menu
 
 @node Input handling and screen management
+@section Input handling and screen management
+@menu
+* Key names::
+* Implementing persistent input::
+@end menu
+
 Once SLAYER is up and running, it has one window where everything is
 displayed, and which gathers all the input. If you want to use procedures
 described here, you need to @code{(use-modules (slayer))}.
@@ -285,7 +301,7 @@ is run in a window manager, in non-fullscreen mode.
 
 @deffn {Procedure} keydn key thunk
 Set @var{thunk} to be invoked whenever @var{key} is pressed (including mouse
-buttons). @var{key} can either be a string or a symbol. See the @xref{Key names}
+buttons). @var{key} can either be a string or a symbol. @ref{Key names}
 table to get the names of specific keys.
 @end deffn
 
@@ -358,10 +374,8 @@ call to @code{register-userevent}. The @var{data1} and @var{data2} arguments
 are passed to event handler if provided.
 @end deffn
 
-* Key names::
-* Implementing persistent input::
-
 @node Key names
+@subsection Key names
 The names of the keys are usually rather intuitive: 'a names the key A, 
 "1" names the key 1, and so on. Note that, although usually the names can be
 given as symbols, in some cases the string representation is required, like
@@ -372,149 +386,152 @@ for instance, if exclamation mark is obtained by pressing shift and '1'
 (in typing mode), only the events related with pressing shift and '1' will
 be generated (in direct mode).
 
-   SLAYER NAME                 ASCII VALUE              COMMON NAME (SDL)
-
-   "mouse1"                                             left mouse button
-   "mouse2"                                             right mouse button
-   "mouse3"                                             middle mouse button
-   "mwheelup"                                           mouse wheel up
-   "mwheeldown"                                         mouse wheel down
-
-   "backspace"                 '\b'                     backspace
-   "tab"                       '\t'                     tab
-   "clear"                                              clear
-   "return"                    '\r'                     return
-   "pause"                                              pause
-   "esc"                       '^['                     escape
-   "space"                     ' '                      space
-   "!"                         '!'                      exclaim
-   "\""                        '"'                      quotedbl
-   "#"                         '#'                      hash
-   "$"                         '$'                      dollar
-   "&"                         '&'                      ampersand
-   "'"                         '''                      quote
-   "("                         '('                      left parenthesis
-   ")"                         ')'                      right parenthesis
-   "*"                         '*'                      asterisk
-   "+"                         '+'                      plus sign
-   "-"                         '-'                      minus sign
-   ","                         ','                      comma
-   "."                         '.'                      period
-   "/"                         '/'                      forward slash
-   "0"                         '0'                      0
-   "1"                         '1'                      1
-   "2"                         '2'                      2
-   "3"                         '3'                      3
-   "4"                         '4'                      4
-   "5"                         '5'                      5
-   "6"                         '6'                      6
-   "7"                         '7'                      7
-   "8"                         '8'                      8
-   "9"                         '9'                      9
-   ":"                         ':'                      colon
-   ";"                         ';'                      semicolon
-   "<"                         '<'                      less-than sign
-   "="                         '='                      equals sign
-   ">"                         '>'                      greater-than sign
-   "?"                         '?'                      question mark
-   "@"                         '@'                      at
-   "["                         '['                      left bracket
-   "\\"                        '\'                      slash
-   "]"                         ']'                      right bracket
-   "^"                         '^'                      caret
-   "_"                         '_'                      underscore
-   "`"                         '`'                      grave
-   "a"                         'a'                      a
-   "b"                         'b'                      b
-   "c"                         'c'                      c
-   "d"                         'd'                      d
-   "e"                         'e'                      e
-   "f"                         'f'                      f
-   "g"                         'g'                      g
-   "h"                         'h'                      h
-   "i"                         'i'                      i
-   "j"                         'j'                      j
-   "k"                         'k'                      k
-   "l"                         'l'                      l
-   "m"                         'm'                      m
-   "n"                         'n'                      n
-   "o"                         'o'                      o
-   "p"                         'p'                      p
-   "q"                         'q'                      q
-   "r"                         'r'                      r
-   "s"                         's'                      s
-   "t"                         't'                      t
-   "u"                         'u'                      u
-   "v"                         'v'                      v
-   "w"                         'w'                      w
-   "x"                         'x'                      x
-   "y"                         'y'                      y
-   "z"                         'z'                      z
-   "delete"                    '^?'                     delete
-   "num0"                                               keypad 0
-   "num1"                                               keypad 1
-   "num2"                                               keypad 2
-   "num3"                                               keypad 3
-   "num4"                                               keypad 4
-   "num5"                                               keypad 5
-   "num6"                                               keypad 6   
-   "num7"                                               keypad 7
-   "num8"                                               keypad 8
-   "num9"                                               keypad 9
-   "num."                      '.'                      keypad period
-   "num/"                      '/'                      keypad divide
-   "num*"                      '*'                      keypad multiply
-   "num-"                      '-'                      keypad minus
-   "num+"                      '+'                      keypad plus
-   "numret"                    '\r'                     keypad enter
-   "num="                      '='                      keypad equals
-   "up"                                                 up arrow
-   "down"                                               down arrow
-   "left"                                               left arrow
-   "right"                                              right arrow
-   "ins"                                                insert
-   "home"                                               home
-   "end"                                                end
-   "pgup"                                               page up
-   "pgdown"                                             page down
-   "f1"                                                 F1
-   "f2"                                                 F2
-   "f3"                                                 F3
-   "f4"                                                 F4
-   "f5"                                                 F5
-   "f6"                                                 F6
-   "f7"                                                 F7
-   "f8"                                                 F8
-   "f9"                                                 F9
-   "f10"                                                F10
-   "f11"                                                F11
-   "f12"                                                F12
-   "f13"                                                F13
-   "f14"                                                F14
-   "f15"                                                F15
-   "numlock"                                            numlock
-   "caps"                                               capslock
-   "scroll"                                             scrollock
-   "lshift"                                             left shift
-   "rshift"                                             right shift
-   "lctrl"                                              left ctrl
-   "rctrl"                                              right ctrl
-   "lalt"                                               left alt
-   "ralt"                                               right alt
-   "lmeta"                                              left meta
-   "rmeta"                                              right meta
-   "lsuper"                                             left windows key
-   "rsuper"                                             right windows key
-   "mode"                                               mode shift
-   "help"                                               help
-   "print"                                              print screen
-   "sysrq"                                              SysRq
-   "break"                                              break
-   "menu"                                               menu
-   "power"                                              power
-   "euro"                                               euro
+@multitable @columnfractions .33 .33 .33
+@item  *SLAYER NAME*         @tab  *ASCII VALUE*      @tab *COMMON NAME (SDL)*
+@item                        @tab                     @tab
+@item "mouse1"               @tab                     @tab left mouse button
+@item "mouse2"               @tab                     @tab right mouse button
+@item "mouse3"               @tab                     @tab middle mouse button
+@item "mwheelup"             @tab                     @tab mouse wheel up
+@item "mwheeldown"           @tab                     @tab mouse wheel down
+@item                        @tab                     @tab
+@item "backspace"            @tab '\b'                @tab backspace
+@item "tab"                  @tab '\t'                @tab tab
+@item "clear"                @tab                     @tab clear
+@item "return"               @tab '\r'                @tab return
+@item "pause"                @tab                     @tab pause
+@item "esc"                  @tab '^['                @tab escape
+@item "space"                @tab ' '                 @tab space
+@item "!"                    @tab '!'                 @tab exclaim
+@item "\""                   @tab '"'                 @tab quotedbl
+@item "#"                    @tab '#'                 @tab hash
+@item "$"                    @tab '$'                 @tab dollar
+@item "&"                    @tab '&'                 @tab ampersand
+@item "'"                    @tab '''                 @tab quote
+@item "("                    @tab '('                 @tab left parenthesis
+@item ")"                    @tab ')'                 @tab right parenthesis
+@item "*"                    @tab '*'                 @tab asterisk
+@item "+"                    @tab '+'                 @tab plus sign
+@item "-"                    @tab '-'                 @tab minus sign
+@item ","                    @tab ','                 @tab comma
+@item "."                    @tab '.'                 @tab period
+@item "/"                    @tab '/'                 @tab forward slash
+@item "0"                    @tab '0'                 @tab 0
+@item "1"                    @tab '1'                 @tab 1
+@item "2"                    @tab '2'                 @tab 2
+@item "3"                    @tab '3'                 @tab 3
+@item "4"                    @tab '4'                 @tab 4
+@item "5"                    @tab '5'                 @tab 5
+@item "6"                    @tab '6'                 @tab 6
+@item "7"                    @tab '7'                 @tab 7
+@item "8"                    @tab '8'                 @tab 8
+@item "9"                    @tab '9'                 @tab 9
+@item ":"                    @tab ':'                 @tab colon
+@item ";"                    @tab ';'                 @tab semicolon
+@item "<"                    @tab '<'                 @tab less-than sign
+@item "="                    @tab '='                 @tab equals sign
+@item ">"                    @tab '>'                 @tab greater-than sign
+@item "?"                    @tab '?'                 @tab question mark
+@item "@@"                   @tab '@@'                @tab at
+@item "["                    @tab '['                 @tab left bracket
+@item "\\"                   @tab '\'                 @tab slash
+@item "]"                    @tab ']'                 @tab right bracket
+@item "^"                    @tab '^'                 @tab caret
+@item "_"                    @tab '_'                 @tab underscore
+@item "`"                    @tab '`'                 @tab grave
+@item "a"                    @tab 'a'                 @tab a
+@item "b"                    @tab 'b'                 @tab b
+@item "c"                    @tab 'c'                 @tab c
+@item "d"                    @tab 'd'                 @tab d
+@item "e"                    @tab 'e'                 @tab e
+@item "f"                    @tab 'f'                 @tab f
+@item "g"                    @tab 'g'                 @tab g
+@item "h"                    @tab 'h'                 @tab h
+@item "i"                    @tab 'i'                 @tab i
+@item "j"                    @tab 'j'                 @tab j
+@item "k"                    @tab 'k'                 @tab k
+@item "l"                    @tab 'l'                 @tab l
+@item "m"                    @tab 'm'                 @tab m
+@item "n"                    @tab 'n'                 @tab n
+@item "o"                    @tab 'o'                 @tab o
+@item "p"                    @tab 'p'                 @tab p
+@item "q"                    @tab 'q'                 @tab q
+@item "r"                    @tab 'r'                 @tab r
+@item "s"                    @tab 's'                 @tab s
+@item "t"                    @tab 't'                 @tab t
+@item "u"                    @tab 'u'                 @tab u
+@item "v"                    @tab 'v'                 @tab v
+@item "w"                    @tab 'w'                 @tab w
+@item "x"                    @tab 'x'                 @tab x
+@item "y"                    @tab 'y'                 @tab y
+@item "z"                    @tab 'z'                 @tab z
+@item "delete"               @tab '^?'                @tab delete
+@item "num0"                 @tab                     @tab keypad 0
+@item "num1"                 @tab                     @tab keypad 1
+@item "num2"                 @tab                     @tab keypad 2
+@item "num3"                 @tab                     @tab keypad 3
+@item "num4"                 @tab                     @tab keypad 4
+@item "num5"                 @tab                     @tab keypad 5
+@item "num6"                 @tab                     @tab keypad 6   
+@item "num7"                 @tab                     @tab keypad 7
+@item "num8"                 @tab                     @tab keypad 8
+@item "num9"                 @tab                     @tab keypad 9
+@item "num."                 @tab '.'                 @tab keypad period
+@item "num/"                 @tab '/'                 @tab keypad divide
+@item "num*"                 @tab '*'                 @tab keypad multiply
+@item "num-"                 @tab '-'                 @tab keypad minus
+@item "num+"                 @tab '+'                 @tab keypad plus
+@item "numret"               @tab '\r'                @tab keypad enter
+@item "num="                 @tab '='                 @tab keypad equals
+@item "up"                   @tab                     @tab up arrow
+@item "down"                 @tab                     @tab down arrow
+@item "left"                 @tab                     @tab left arrow
+@item "right"                @tab                     @tab right arrow
+@item "ins"                  @tab                     @tab insert
+@item "home"                 @tab                     @tab home
+@item "end"                  @tab                     @tab end
+@item "pgup"                 @tab                     @tab page up
+@item "pgdown"               @tab                     @tab page down
+@item "f1"                   @tab                     @tab F1
+@item "f2"                   @tab                     @tab F2
+@item "f3"                   @tab                     @tab F3
+@item "f4"                   @tab                     @tab F4
+@item "f5"                   @tab                     @tab F5
+@item "f6"                   @tab                     @tab F6
+@item "f7"                   @tab                     @tab F7
+@item "f8"                   @tab                     @tab F8
+@item "f9"                   @tab                     @tab F9
+@item "f10"                  @tab                     @tab F10
+@item "f11"                  @tab                     @tab F11
+@item "f12"                  @tab                     @tab F12
+@item "f13"                  @tab                     @tab F13
+@item "f14"                  @tab                     @tab F14
+@item "f15"                  @tab                     @tab F15
+@item "numlock"              @tab                     @tab numlock
+@item "caps"                 @tab                     @tab capslock
+@item "scroll"               @tab                     @tab scrollock
+@item "lshift"               @tab                     @tab left shift
+@item "rshift"               @tab                     @tab right shift
+@item "lctrl"                @tab                     @tab left ctrl
+@item "rctrl"                @tab                     @tab right ctrl
+@item "lalt"                 @tab                     @tab left alt
+@item "ralt"                 @tab                     @tab right alt
+@item "lmeta"                @tab                     @tab left meta
+@item "rmeta"                @tab                     @tab right meta
+@item "lsuper"               @tab                     @tab left windows key
+@item "rsuper"               @tab                     @tab right windows key
+@item "mode"                 @tab                     @tab mode shift
+@item "help"                 @tab                     @tab help
+@item "print"                @tab                     @tab print screen
+@item "sysrq"                @tab                     @tab SysRq
+@item "break"                @tab                     @tab break
+@item "menu"                 @tab                     @tab menu
+@item "power"                @tab                     @tab power
+@item "euro"                 @tab                     @tab euro
+@end multitable
 
 @node Implementing persistent input
+@subsection Implementing persistent input
 The @code{keydn} and @code{keyup} procedures register event handlers that are
 called whenever a certain key is pressed or released. It can sometimes be
 desired, however, to call a certain procedure ``persistently'', i.e. as long
@@ -526,6 +543,7 @@ that can be taylored to one's needs. The purpose is not only to show how the
 feature can be implemented, but also to set the paradigm, which perhaps would 
 make any future programs easier to read. It also shows how to use the
 @code{register-userevent} and @code{generate-userevent} procedures.
+
 
 @pindex Persistent input
 @lisp
@@ -566,18 +584,22 @@ make any future programs easier to read. It also shows how to use the
                                 " for as long as 'return is pressed\n"))))
 @end lisp
 
-@node Loading and processing fonts, images and sounds
+@node Loading and processing fonts@comma{} images and sounds
+@section Loading and processing fonts, images and sounds
 When creating a multimedia application, it is inevitable to work with external
 data, such as sounds and images. It can also be strongly desired to be able to 
 render text to images and display it on the screen.
 
 The following sections describe how to perform those activities in SLAYER.
 
+@menu
 * Loading and displaying images::              (slayer image)
 * Rendering and displaying text::              (slayer font)
-* Loading and playing sounds::
+* Loading and playing sounds::                 (slayer audio)
+@end menu
 
 @node Loading and displaying images
+@subsection Loading and displaying images
 In order to be able to use the procedures documented here, one shall 
 @code{(use-modules (slayer image))}.
 
@@ -604,7 +626,7 @@ is red component, @code{GG} -- green component, and @code{BB} -- blue component.
 
 @deffn {Procedure} image-size image
 Returns @code{(width height)} of the @var{image}.
-@end
+@end deffn
 
 @deffn {Procedure} image->array image
 Converts @var{image} to two-dimensional uniform array of integers.
@@ -615,6 +637,7 @@ Converts two-dimensional uniform @var{array} of integers to image.
 @end deffn
 
 @node Rendering and displaying text
+@subsection Rendering and displaying text
 In order to be able to use the procedures documented here, one shall 
 @code{(use-modules (slayer font))}.
 
@@ -637,6 +660,7 @@ Returns the line skip (integer) defined by the @var{font}.
 @end deffn
 
 @node Loading and playing sounds
+@subsection Loading and playing sounds
 In order to be able to use the procedures documented here, one needs to
 @code{(use-modules (slayer audio))}.
 
@@ -668,6 +692,7 @@ Resumes previously paused music track (if any).
 @end deffn
 
 @node Diving into 3D graphics
+@section Diving into 3D graphics
 Apart from the elementary support for images, SLAYER also allows to use OpenGL
 display context and exports some of the OpenGL/GLU procedures.
 If you're not familiar with the OpenGL library, I recommend you to read at
@@ -818,23 +843,30 @@ procedures, as well as handlers for mouse1 and mouse2 press and release events
 and mousemove event.
 
 It also contains a definition of a @code{<widget>} class, which is the base
-class for all widgets. The @code{<widget>} class is defined as follows:
+class for all widgets. Here's a simplified definition of  @code{<widget>} class
+(in fact, all event handler slots are initialized to noop, and their init 
+keywords correspond strictly to their names):
+
+
 @pindex <widget> class definition
 @lisp
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
   (children #:init-value '() #:init-keyword #:children)
-  (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
-  (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
-  (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
-  (right-mouse-up #:init-value noop #:init-keyword #:right-mouse-up)
-  (mouse-over #:init-value noop #:init-keyword #:mouse-over)
-  (mouse-out #:init-value noop #:init-keyword #:mouse-out)
-  (drag #:init-value noop #:init-keyword #:drag)
-  (update!  #:init-value noop #:init-keyword #:update)
-  (activate #:init-value noop #:init-keyword #:activate)
-  (deactivate #:init-value noop #:init-keyword #:deactivate)
-  (resize #:init-value noop #:init-keyword #:resize)
+
+  ;; event handlers (initialized to noop)
+  left-mouse-down
+  left-mouse-up
+  right-mouse-down
+  right-mouse-up
+  mouse-over
+  mouse-out
+  drag
+  update!
+  activate
+  deactivate
+  resize
+
   (x #:init-value 0 #:init-keyword #:x)
   (y #:init-value 0 #:init-keyword #:y)
   (w #:init-value 0 #:init-keyword #:w)
@@ -899,4 +931,5 @@ variable.
 
 @node Looking ahead
 @chapter Looking ahead
-SLAYER is a 
+
+@bye
