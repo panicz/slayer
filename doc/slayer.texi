@@ -188,8 +188,9 @@ the following content:
 (keydn 'right (lambda () (show-image! (- *image-index* 1))))
 @end lisp
 
-In order to execute the program, one shall type
-$ slayer -i image-browser.scm
+In order to execute the program, one shall type:
+
+@code{$ slayer -i image-browser.scm}
 
 @findex set-display-procedure!
 The argument to @code{set-display-procedure!} is executed after a series of
@@ -204,7 +205,8 @@ the redisplay stage, the applications generally tend to be responsive.
 
 @node Invoking SLAYER
 @section Invoking SLAYER
-Type ``slayer --help'' to get the list of possible options.
+Type @code{slayer --help} to get the list of possible options.
+
 (TODO: this section definitely requires some elaboration)
 
 @node Trying out the demos
@@ -253,7 +255,7 @@ directly from SLAYER, divided into three groups:
 
 @menu
 * Input handling and screen management::
-* Loading and processing fonts@comma{} images and sounds::
+* Loading and processing fonts, images and sounds: Working with external data.
 * Diving into 3D graphics::
 @end menu
 
@@ -584,8 +586,9 @@ make any future programs easier to read. It also shows how to use the
                                 " for as long as 'return is pressed\n"))))
 @end lisp
 
-@node Loading and processing fonts@comma{} images and sounds
+@node Working with external data
 @section Loading and processing fonts, images and sounds
+
 When creating a multimedia application, it is inevitable to work with external
 data, such as sounds and images. It can also be strongly desired to be able to 
 render text to images and display it on the screen.
@@ -765,7 +768,7 @@ is calculated according to current viewport, to preserve natural aspect ratio;
 the @var{near} clipping plane defaults to 0.1, and @var{far} -- to 1000.0.
 @end deffn
 
-@deffn {Procedure} set-ortographic-projection! left right bottom top [near] [far]
+@deffn {Procedure} set-orthographic-projection! left right bottom top [near] [far]
 Sets the projection matrix to calculate ortographic projection. If @var{near}
 and @var{far} not given, they default to @code{-1.0} and @code{1.0}, respectively.
 @end deffn
@@ -813,7 +816,8 @@ details).
 @end deffn
 
 @deffn {Procedure} forget-array! type
-Forget a pointer to the array specified in @var{type}. Possible values of
+Forget a pointer to the array specified in @var{type}, so that 
+@code{draw-faces!} won't take it into consideration. Possible values of 
 @var{type} are the following symbols: @code{vertex-array}, @code{color-array},
 @code{texture-coord-array}, @code{normal-array}.
 @end deffn
@@ -830,8 +834,8 @@ hesitate to let me know about it, and we can try to work out a solution.
 
 @node Widgets
 @chapter Widgets
-When developing a graphics user interface based application, it is convinient to
-assemble it from simple and elastic components, such as buttons, text areas,
+When developing a graphics user interface based application, it is convinient 
+to assemble it from simple and elastic components, such as buttons, text areas,
 draggable icons, canvases, menus, windows and so on.
 The common name for these components is ``widget''. SLAYER is shipped with its
 own framework for creating and using widgets.
@@ -883,7 +887,7 @@ unreachable).
 
 In order to use the widget framework, it is enough to load the desired
 widget modules and add their instances to @code{*stage*} using the
-@code{(add-child! *stage* >instance-of-a-widget<)}. The simplest program
+@code{(add-child! *stage* /instance-of-a-widget/)}. The simplest program
 that uses widgets -- a draggable rectangle -- could look like this:
 @pindex Draggable rectangle
 @lisp
@@ -921,7 +925,7 @@ by default, but requires additional effort. (This should change in the future)
 
 In order to build the module, one needs to enter the src/scum directory
 from the installation package, and type:
-$ make
+@code{$ make}
 
 If everything goes well, a file named ``physics.so'' will be created. In order
 to run, it should be moved to a path specified in the LTDL_LIBRARY_PATH 

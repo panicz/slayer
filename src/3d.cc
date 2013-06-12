@@ -330,7 +330,7 @@ set_perspective_projection_x(SCM _fovy, SCM _aspect, SCM _near, SCM _far) {
 }
 
 static SCM
-set_ortographic_projection_x(SCM left, SCM right, 
+set_orthographic_projection_x(SCM left, SCM right, 
 			     SCM bottom, SCM top,
 			     SCM near, SCM far) {
   
@@ -634,8 +634,8 @@ export_symbols(void *unused) {
 		   perspective_projection);
   EXPORT_PROCEDURE("set-perspective-projection!", 1, 3, 0, 
 		   set_perspective_projection_x);
-  EXPORT_PROCEDURE("set-ortographic-projection!", 4, 2, 0, 
-		   set_ortographic_projection_x);
+  EXPORT_PROCEDURE("set-orthographic-projection!", 4, 2, 0, 
+		   set_orthographic_projection_x);
   EXPORT_PROCEDURE("set-vertex-array!", 1, 0, 0, 
 		   set_vertex_array_x);
   EXPORT_PROCEDURE("set-color-array!", 1, 0, 0, 
