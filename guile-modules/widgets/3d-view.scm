@@ -110,7 +110,6 @@
 						     #[object 'orientation])))
 			      #[object 'orientation])))))))
 
-
 (define-method (relative-twist! (object <3d>) axis)
   (set! #[object 'orientation]
 	(normalized
@@ -118,15 +117,17 @@
 	    (* (quaternion 0.0 (rotate axis #[object 'orientation]))
 	       #[object 'orientation])))))
 
-
 (define-method (relative-move! (object <3d>) direction)
   (increase! #[object 'position]
 	     (rotate direction #[object 'orientation])))
 
 (define-method (mouse->3d (view <3d-view>) (x <integer>) (y <integer>))
   (let* ((camera #[view 'camera])
-	 (matrix (position+rotation->matrix
-		  #[camera 'position] #[camera 'orientation]))
+	 (matrix (*
+		  (translation-matrix (- #[camera 'position]))
+		  (quaternion->matrix (~ #[camera 'orientation]))
+
+		 ))
 	 (projection (perspective-projection
 		      #[camera 'fovy]
 		      (/ (* 1.0 #[view 'w]) #[view 'h]))))
