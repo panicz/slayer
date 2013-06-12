@@ -56,7 +56,9 @@
 
    (cond-expand 
     (slayer-3d
-     "'(use '(W S A D) and mouse to navigate the 3d area)\n")
+     (string-append
+      "'(use '(W S A D) and mouse to navigate the 3d area)\n"
+      "'(right-click on the ball to create a new one!)\n"))
     (slayer-3d-available
      (string-append
       "'(to see the 3D version of this demo, supply the -e3d option\n"
@@ -93,9 +95,11 @@
       (lambda(x y dx dy)
 	(relative-turn! #[view 'camera] (- dx) (- dy))))
 
-(set! #[view 'left-mouse-down]
+(set! #[view 'right-mouse-down]
       (lambda(x y)
-	(<< (mouse->3d view x y))))
+	(add-object! view 
+		     (make <3d-mesh> 
+		       #:position (mouse->3d view x y)))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
