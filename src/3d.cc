@@ -212,10 +212,15 @@ z_index(SCM X, SCM Y) {
 }
 
 static SCM
-position_plus_rotation_to_matrix(SCM vector, SCM quaternion) {
-  v3d v = scm_to_v3d(vector);
+quaternion_to_matrix(SCM quaternion) {
   qtd q = scm_to_qtd(quaternion);
-  return scm_from_m4x4d(m4x4d(q, v4d(v, 1)));
+  return scm_from_m4x4d(m4x4d(m3x3d(q), v4d(0,0,0,1)));
+}
+
+static SCM
+translation_matrix(SCM vector) {
+  v3d v = scm_to_v3d(vector);
+  return scm_from_m4x4d(m4x4d(m3x3d(), v4d(v, 1)));
 }
 
 static SCM
@@ -223,9 +228,10 @@ unproject(SCM _x, SCM _y, SCM _z,
 	  SCM _modelview_matrix,
 	  SCM _projection_matrix,
 	  SCM _viewport_list) {
-  double x = scm_to_double(_x);
-  double y = screen->h - scm_to_double(_y);
-  double z = isnt(_z) ? _z_index((int) x, (int) y) : scm_to_double(_z);
+  v3d m;
+  m.x = scm_to_double(_x);
+  m.y = screen->h - scm_to_double(_y);
+  m.z = isnt(_z) ? _z_index((int) m.x, (int) m.y) : scm_to_double(_z);
   
   m4x4d modelview_matrix = scm_to_m4x4d(_modelview_matrix);
   m4x4d projection_matrix = scm_to_m4x4d(_projection_matrix);
@@ -238,19 +244,15 @@ unproject(SCM _x, SCM _y, SCM _z,
   }
   else {
     SCM_LIST_TO_C_ARRAY(int, &s, 4, scm_to_int, _viewport_list);
-    s.y = screen->h - s.y - s.h;
+    //s.y = screen->h - s.y - s.h;
   }
 
-  OUT("mouse: %f, %f, %f", x, y, z);
-  OUT("viewport: %i, %i, %i, %i", s.x, s.y, s.w, s.h);
-
   v3d v;
-  gluUnProject(x, y, z, 
+  gluUnProject(m.x, m.y, m.z, 
 	       (GLdouble *) &modelview_matrix,
 	       (GLdouble *) &projection_matrix,
 	       (GLint *) &s,
 	       &v.x, &v.y, &v.z);
-  OUT("3d: %f, %f, %f", v.x, v.y, v.z);
   return scm_from_v3d(v);
 }
 
@@ -623,9 +625,10 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("current-projection", 0, 0, 0, 
 		   current_projection);
   EXPORT_PROCEDURE("unproject", 5, 1, 0, unproject);
-  EXPORT_PROCEDURE("position+rotation->matrix", 2, 0, 0, 
-		   position_plus_rotation_to_matrix);
-  
+
+  EXPORT_PROCEDURE("quaternion->matrix", 1, 0, 0, quaternion_to_matrix);
+  EXPORT_PROCEDURE("translation-matrix", 1, 0, 0, translation_matrix);
+
   EXPORT_PROCEDURE("current-matrix", 0, 0, 0, current_matrix);
   EXPORT_PROCEDURE("perspective-projection", 1, 3, 0, 
 		   perspective_projection);
