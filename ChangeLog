@@ -1,0 +1,6 @@
+The daily change log is stored in the Mercurial repository of slayer
+on BitBucket, which can be obtained with the following command:
+
+  $ hg clone https://bitbucket.org/panicz/slayer
+
+The new features from the subsequent releases can be found in the NEWS file.

@@ -1,0 +1,26 @@
+Implement:
+--with[out]-sdl-mixer
+--with[out]-opengl
+
+--guilesitedir [defaults to DATAROOTDIR/guile/site]
+--gamesdir [defaults to PREFIX/games]
+
+The content of demos should be copied to the gamesdir,
+and guile-modules to guilesitedir
+
+Separate SDL_mixer, SDL_image and SDL_ttf to loadable modules
+and then implement
+--with[out]-sdl-image
+--with[out]-sdl-ttf
+
+and finally, add the
+
+--with[out]-ode
+
+and later perhaps
+
+--with[out]-gstreamer
+
+The other question which rises is: where should the plugins
+be put?
+Should there be anything like SLAYER_PLUGINS_PATH?

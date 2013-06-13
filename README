@@ -4,24 +4,45 @@ The following programs/libraries are required to accomplish the build process:
 - SDL 1.2 + SDL_image + SDL_ttf + SDL_mixer (with headers)
 - OpenGL implementation with headers
 
-Optionally, slayer can be compiled without OpenGL or SDL_mixer, which
-currently requires editing Makefile by hand -- one needs to remove the 
--DUSE_OPENGL and -DUSE_SDL_MIXER options from CFLAGS
+These are checked for using the ./configure script. However,
+automake and autoconf >= 2.68 is required to generate the script.
+This is done by typing
 
-In order to build slayer, provided the above condition are met, 
-one simply has to type:
+  $ autoreconf -i
+
+Once the ./configure script is generated, one can view available build
+options using ./configure --help.
+If the build process goes well, then it is sufficient to type
 
   $ make
 
-Once the program is built, it can be run using the following command
-(in the main directory):
+in order to build the program. 
+
+The configure script isn't yet adjusted to make install. Instead,
+it can be distributed as a standalone executable (on systems that
+provide the guile interpreter)
+
+To run the demos, one needs to copy the executable to the demos
+directory. This is typically done (provided the cwd is the main
+slayer directory)
+
+  $ cp src/slayer demos/
+
+but there's also a symlink now from src/slayer to demos/slayer.
+In order to play with the demos, one shall enter the demos directory
+
+  $ cd demos
+
+and run
 
   $ ./slayer -e3d
 
 The above command tells slayer to load the 3d (OpenGL) extension,
 which is required by the slayer.scm file from the repository. The
 slayer.scm is a tiny 3D demo which is controlled using mouse and 
-WSAD keys.
+WSAD keys. If it fails to work, it's probably because the configure
+script didn't find the OpenGL library. It should still be able
+to run the other demo.
 
 As an example, there is a demo of the classical PONG game, which
 can be run using

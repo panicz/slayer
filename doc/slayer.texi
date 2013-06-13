@@ -1,0 +1,939 @@
+\input texinfo
+@c -*-texinfo-*-
+@c %**start of header
+@setfilename slayer.info
+@documentencoding UTF-8
+@settitle SLAYER
+@paragraphindent 0
+@iftex
+@afourpaper
+@end iftex
+@c %**end of header
+
+@include version.texi
+
+@dircategory The Algorithmic Language Scheme
+@direntry
+* SLAYER: (slayer).     Multimedia programming platform for Guile Scheme.
+@end direntry
+
+@copying
+Copyright @copyright{} 2013 Panicz Maciej Godek
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts.  A copy of the license is included in the appendix entitled
+``GNU Free Documentation License''.
+@end quotation
+@end copying
+
+@c --- title page starts here ---
+
+@titlepage
+@title SLAYER
+@subtitle Multimedia programming platform for Guile Scheme
+@subtitle Version @value{VERSION}
+@author Panicz Maciej Godek
+
+@c  The following two commands
+@c  start the copyright page.
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@c --- title page ends here ---
+
+@contents
+
+@syncodeindex vr cp
+@syncodeindex fn cp
+
+@node Top
+@top The Slayer Platform
+
+@ifinfo
+This manual documents SLAYER @value{VERSION} package, which provides 
+an event-driven SDL-based@footnote{@uref{http://www.libsdl.org}} multimedia 
+framework in Guile Scheme@footnote{@uref{http://www.gnu.org/software/guile}} 
+for displaying and editing multimedia content, including images (through 
+SDL_image), sounds (through SDL_mixer) and 3d-graphics (through OpenGL). 
+It comes shipped with a plug-in which wraps Open Dynamics 
+Engine@footnote{@uref{http://www.ode.org}} and provides a simplified
+and relatively natural interface to rigid body simulations in Scheme.
+
+This manual is
+@insertcopying
+@end ifinfo
+
+@menu
+* Introduction::                What exactly is SLAYER and what
+                                can it do for you
+* Direct Layer::                The basic event-driven model of control
+
+* Widgets::                     Higher-level framework for convinient
+                                GUI development
+* Plug-ins (SCUM)::             Slayer Convinient Utility Modules
+
+* Looking ahead::               Further development of SLAYER
+
+@c * GNU FDL::                     Copying and sharing this documentation
+@c * Index::
+@end menu
+
+
+@node Introduction
+@chapter Introduction
+When I was 14, I felt a desperate urge to program computer games. I collected
+$25 to buy a book that would teach me programming. It was a huge brick titled
+``Teach yourself Visual Basic 6.0 in 21 days'', and I soon figured out that 
+I'd need $1000 more to obtain the tools that would allow me to use the 
+knowledge contained in the book. That I could not afford.
+
+Times have changed a lot since then. Windows 95 is no longer a dictator
+on desktop computers, there are many excellent free tools and libraries 
+for developers (often much better than the proprietary ones), and knowledge 
+on the Web is available to virtually everyone.
+
+However, many tools are much more difficult to learn than they could be, or
+aren't available on as many systems as one could wish. Furthermore, existing
+soultions frequently impose many restrictions on the way the things can be done.
+
+SLAYER was conceived to address those issues. It is meant to be an accessible,
+portable and extensible multimedia environment that would be suitable for
+learning as well as game development and unconventional or highly customizable 
+GUI/multimedia applications. It uses SDL for portability and is built on top 
+of Guile Scheme for accessibility and extensibility.
+
+In a way SLAYER can resemble fluxus@footnote{@uref{www.pawfal.org/fluxus/}}.
+There are however some essential differences between those systems. Fluxus
+is intended to work mainly with 3D-graphics, while SLAYER works with 2D
+objects just as fine. Fluxus has a built-in editor, while SLAYER is kept
+minimalistic and only allows to add an editor widget to the stage, which 
+perhaps makes it more flexible. (By the way, such widget is already provided
+and used in one of the demos.) Also, fluxus is focused on live coding and 
+sound processing, but there are no good sound processing libraries for SLAYER
+yet.
+
+Lastly, SLAYER works with Guile Scheme, and fluxus uses Racket. These are
+both Scheme-based languages, but their extensions are incompatible with each
+other. They're both cool, though.
+
+@menu
+* Getting started::             An implementation of a simple image browsing
+                                application
+* Invoking SLAYER::             A detailed description of command line 
+                                arguments
+* Trying out the demos::        SLAYER is shipped with a set of demos that
+                                are fun to play with, and even more fun to
+                                read and understand
+
+@end menu
+
+@node Getting started
+@section Getting started
+This section assumes that SLAYER is already installed and properly configured
+on your system, and that you are familiar with programming in general, and 
+Guile Scheme in particular.
+
+To get the grasp on how SLAYER works, we'll create a simple application for
+browsing images@footnote{The idea for this program was inspired by Thien-Thi
+Nguyen, who placed a similar program in the manual for the Guile-SDL package}.
+
+In order to do so, we need to create a text file; let's call it 
+``image-browser.scm''@footnote{SLAYER uses Scheme programming language, so 
+it is convinient to name files with .scm extension, because various editors 
+can detect that and load appropreate editing mode}. Let's fill the file with
+the following content:
+
+@pindex Image browser
+@lisp
+(use-modules (slayer) (slayer image) (ice-9 popen) (ice-9 rdelim))
+(keydn 'esc quit)
+
+(define (shell command)
+  (let ((pipe (open-pipe command OPEN_READ)))
+    (let loop ((lines '())
+	       (line (read-line pipe)))
+      (cond ((eof-object? line)
+	     (close-pipe pipe)
+	     (reverse lines))
+	    (else
+	     (loop (cons line lines)
+		   (read-line pipe)))))))
+
+(define *image-names* (shell "ls ../demos/art/*.png"))
+(define *number-of-images* (length *image-names*))
+(define *current-image* #f)
+(define *image-index* 0)
+
+(if (<= *number-of-images* 0)
+    (die "no images found"))
+    
+(set-display-procedure! (lambda () (draw-image! *current-image* 0 0)))
+
+(define (show-image! i)
+  (set! *image-index* (modulo i *number-of-images*))
+  (let ((image-name (list-ref *image-names* *image-index*)))
+    (set! *current-image* (load-image image-name))
+    (apply set-screen-size! (image-size *current-image*))
+    (set-window-title! image-name)))
+
+(show-image! 0)
+
+(keydn 'left (lambda () (show-image! (+ *image-index* 1))))
+(keydn 'right (lambda () (show-image! (- *image-index* 1))))
+@end lisp
+
+In order to execute the program, one shall type:
+
+@code{$ slayer -i image-browser.scm}
+
+@findex set-display-procedure!
+The argument to @code{set-display-procedure!} is executed after a series of
+events has been processed -- so evey time an event occurs (like keyboard or
+mouse input, or window resize, or timer event), the whole screen is wiped
+and its content is displayed on the screen from scratch.
+
+While this might seem a waste of resources, this is a desired behaviour for
+the class of applications that SLAYER aims to deliver, i.e. 3d games and
+real-time multimedia processing apps. Since the input can be gathered during
+the redisplay stage, the applications generally tend to be responsive.
+
+@node Invoking SLAYER
+@section Invoking SLAYER
+Type @code{slayer --help} to get the list of possible options.
+
+(TODO: this section definitely requires some elaboration)
+
+@node Trying out the demos
+@section Trying out the demos
+In addition to the core SLAYER and some libraries, the SLAYER tarball contains
+a set of demos that show how easily complex things can be achieved. They are
+located in the ``demos'' subdirectory.
+
+If you manage to build SLAYER (even without installing it), you can run the
+demos with the following commands (assuming you're in the ``demos'' dir):
+
+@code{$ ./slayer # equivalent to ./slayer -i slayer.scm}
+
+@code{$ ./slayer -e3d}
+
+@code{$ ./slayer -i pong.scm}
+
+If you have Open Dynamics Engine installed on your system, you can also
+try building the (scum physics) module by entering ``src/scum'' dir and
+typing
+
+@code{$ make}
+
+If you manage to build it successfully, then, back in the ``demos'' dir,
+you can try it out by typing:
+
+@code{$ ./slayer -e3d -i ode.scm}
+
+More importantly than just playing with the demos (which, honestly, can become
+boring quite quickly), you are encouraged to read their source code (which, in
+turn, is a fascinating and endless endeavour).
+In particular, the ``guile-modules/widgets/3d-view.scm'' module defines a file 
+format for representing 3d mesh (an example can be found in the 
+``demos/art/3d/cube.3d'' file), and the scum/physics.scm defines a
+``define-rigs-for'' procedure, which is used to implement a file format for
+representing rigs (see ``demos/art/rigs/car.rig'' to see a more advanced 
+example, or ``demos/arg/rigs/ground.rig'' for hopelessly simple one)
+
+@node Direct Layer
+@chapter Direct Layer
+In order to make SLAYER useful, you need to attach event handlers to certain
+events. If you are willing to create a real-time simulation, you may also wish 
+to run a timer that generates its own events.
+In this chapter, you will find a description of all procedures available
+directly from SLAYER, divided into three groups:
+
+@menu
+* Input handling and screen management::
+* Loading and processing fonts, images and sounds: Working with external data.
+* Diving into 3D graphics::
+@end menu
+
+@node Input handling and screen management
+@section Input handling and screen management
+@menu
+* Key names::
+* Implementing persistent input::
+@end menu
+
+Once SLAYER is up and running, it has one window where everything is
+displayed, and which gathers all the input. If you want to use procedures
+described here, you need to @code{(use-modules (slayer))}.
+
+In order to get something displayed on the screen, you need to set a display
+procedure of your liking.
+@deffn {Procedure} set-display-procedure! thunk
+Sets @var{thunk} to be called after each series of events is handled and the
+screen is wiped.
+@end deffn
+
+@deffn {Procedure} screen-size
+Return a list containing width and height of the window, in pixels.
+@end deffn
+
+@deffn {Procedure} set-screen-size! width height
+Set the screen size to @var{width} times @var{height} pixels. It causes
+a screen resize event, which can be handled using @code{set-resize-procedure!}.
+@end deffn
+
+@deffn {Procedure} set-resize-procedure! proc
+Sets the binary procedure @var{proc} to be invoked on window resize event.
+@var{proc} takes two arguments, namely -- the new width and height of the screen.
+@end deffn
+
+@deffn {Procedure} set-exit-procedure! proc
+Sets the @var{proc} procedure to be called on exit. Due to historical reasons,
+@var{proc} currently takes one argument, which should be ignored.
+@end deffn
+
+@deffn {Procedure} set-window-title! string
+Sets the window caption to @var{string}. This can only be visible if SLAYER
+is run in a window manager, in non-fullscreen mode.
+@end deffn
+
+@deffn {Procedure} keydn key thunk
+Set @var{thunk} to be invoked whenever @var{key} is pressed (including mouse
+buttons). @var{key} can either be a string or a symbol. @ref{Key names}
+table to get the names of specific keys.
+@end deffn
+
+@deffn {Procedure} keyup key thunk
+This function works exactly as @code{keydn}, except that the @var{thunk} is
+invoked on @var{key} release.
+@end deffn
+
+@deffn {Procedure} mousemove proc
+Set @var{proc} to be invoked whenever mouse is moved. @var{proc} takes four
+arguments: @code{(x y dx dy)}, where @code{(x y)} is the current mouse position
+and @code{(dx dy)} is the difference between the previous and the current
+position.
+@end deffn
+
+@deffn {Procedure} modifier-pressed? modifier
+Checks whether @var{modifier} is pressed. @var{modifier} is a symbol that
+can be either @code{shift}, @code{rshift}, @code{lshift}, @code{alt},
+@code{lalt}, @code{ralt}, @code{ctrl}, @code{lctrl}, @code{rctrl}, @code{meta}, 
+@code{lmeta}, @code{rmeta}.
+@end deffn
+
+@deffn {Procedure} input-mode
+Return the symbol describing current input mode, which can either be 
+@code{'typing} or @code{'direct}. Direct mode is the default for SLAYER.
+@end deffn
+
+@deffn {Procedure} set-direct-input-mode!
+Sets the input mode to ``direct'', which means that events are generated only
+when keys are actually pressed, which is the desired behaviour for most games,
+and the default behaviour of SLAYER.
+@end deffn
+
+@deffn {Procedure} set-typing-input-mode!
+Sets the input mode to ``typing'', which means that the keyboard input behaves
+like when typing in an editor -- once a key is pressed, after a certain time
+it gets repeated at a certain frequency. In typing mode, pressing printable
+characters do not cause the procedures specified with @code{keydn} and 
+@code{keyup} to be called; instead, it causes the typed character to be written
+to current output port, or it invokes a procedure specified with
+@code{set-typing-special-procedure!} to be called with the pressed special key
+name as argument.
+@end deffn
+
+@deffn {Procedure} set-typing-special-procedure! proc
+When in typing mode, @var{proc} will be called whenever a special (i.e.
+non-printable, e.g. return, escape of F1) key is pressed or repeated.
+@var{proc} will receive one argument: the name of the special key that
+was pressed (as a string).
+@end deffn
+
+@deffn {Procedure} grab-input! state
+If @var{state} is given and not @code{#f}, the procedure causes the SLAYER
+window to grab all the keyboard and mouse input. This can be deactivated
+and brought back to normal by passing @code{#f} as @var{state}.
+When @var{state} is not given, the procedure only returns the current state.
+@end deffn
+
+@deffn {Procedure} register-userevent proc
+Register a new user event. The @var{proc} procedure will be called with zero,
+one or two arguments, depending on the way the corresponding
+@code{generate-userevent} procedure is called. @code{register-userevent}
+returns an identifier of user event (which happens to be an integer). Up to
+255 user events can be registered.
+@end deffn
+
+@deffn {Procedure} generate-userevent identifier [data1] [data2]
+Generate user event identified with @code{identifier}, obtained with a previous 
+call to @code{register-userevent}. The @var{data1} and @var{data2} arguments
+are passed to event handler if provided.
+@end deffn
+
+@node Key names
+@subsection Key names
+The names of the keys are usually rather intuitive: 'a names the key A, 
+"1" names the key 1, and so on. Note that, although usually the names can be
+given as symbols, in some cases the string representation is required, like
+in the case of digits, punctuation marks or brackets.
+Note also, that not all these characters will be accessible through the
+event subsystem in direct mode (it should depend on the keyboard layout):
+for instance, if exclamation mark is obtained by pressing shift and '1'
+(in typing mode), only the events related with pressing shift and '1' will
+be generated (in direct mode).
+
+@multitable @columnfractions .33 .33 .33
+@item  *SLAYER NAME*         @tab  *ASCII VALUE*      @tab *COMMON NAME (SDL)*
+@item                        @tab                     @tab
+@item "mouse1"               @tab                     @tab left mouse button
+@item "mouse2"               @tab                     @tab right mouse button
+@item "mouse3"               @tab                     @tab middle mouse button
+@item "mwheelup"             @tab                     @tab mouse wheel up
+@item "mwheeldown"           @tab                     @tab mouse wheel down
+@item                        @tab                     @tab
+@item "backspace"            @tab '\b'                @tab backspace
+@item "tab"                  @tab '\t'                @tab tab
+@item "clear"                @tab                     @tab clear
+@item "return"               @tab '\r'                @tab return
+@item "pause"                @tab                     @tab pause
+@item "esc"                  @tab '^['                @tab escape
+@item "space"                @tab ' '                 @tab space
+@item "!"                    @tab '!'                 @tab exclaim
+@item "\""                   @tab '"'                 @tab quotedbl
+@item "#"                    @tab '#'                 @tab hash
+@item "$"                    @tab '$'                 @tab dollar
+@item "&"                    @tab '&'                 @tab ampersand
+@item "'"                    @tab '''                 @tab quote
+@item "("                    @tab '('                 @tab left parenthesis
+@item ")"                    @tab ')'                 @tab right parenthesis
+@item "*"                    @tab '*'                 @tab asterisk
+@item "+"                    @tab '+'                 @tab plus sign
+@item "-"                    @tab '-'                 @tab minus sign
+@item ","                    @tab ','                 @tab comma
+@item "."                    @tab '.'                 @tab period
+@item "/"                    @tab '/'                 @tab forward slash
+@item "0"                    @tab '0'                 @tab 0
+@item "1"                    @tab '1'                 @tab 1
+@item "2"                    @tab '2'                 @tab 2
+@item "3"                    @tab '3'                 @tab 3
+@item "4"                    @tab '4'                 @tab 4
+@item "5"                    @tab '5'                 @tab 5
+@item "6"                    @tab '6'                 @tab 6
+@item "7"                    @tab '7'                 @tab 7
+@item "8"                    @tab '8'                 @tab 8
+@item "9"                    @tab '9'                 @tab 9
+@item ":"                    @tab ':'                 @tab colon
+@item ";"                    @tab ';'                 @tab semicolon
+@item "<"                    @tab '<'                 @tab less-than sign
+@item "="                    @tab '='                 @tab equals sign
+@item ">"                    @tab '>'                 @tab greater-than sign
+@item "?"                    @tab '?'                 @tab question mark
+@item "@@"                   @tab '@@'                @tab at
+@item "["                    @tab '['                 @tab left bracket
+@item "\\"                   @tab '\'                 @tab slash
+@item "]"                    @tab ']'                 @tab right bracket
+@item "^"                    @tab '^'                 @tab caret
+@item "_"                    @tab '_'                 @tab underscore
+@item "`"                    @tab '`'                 @tab grave
+@item "a"                    @tab 'a'                 @tab a
+@item "b"                    @tab 'b'                 @tab b
+@item "c"                    @tab 'c'                 @tab c
+@item "d"                    @tab 'd'                 @tab d
+@item "e"                    @tab 'e'                 @tab e
+@item "f"                    @tab 'f'                 @tab f
+@item "g"                    @tab 'g'                 @tab g
+@item "h"                    @tab 'h'                 @tab h
+@item "i"                    @tab 'i'                 @tab i
+@item "j"                    @tab 'j'                 @tab j
+@item "k"                    @tab 'k'                 @tab k
+@item "l"                    @tab 'l'                 @tab l
+@item "m"                    @tab 'm'                 @tab m
+@item "n"                    @tab 'n'                 @tab n
+@item "o"                    @tab 'o'                 @tab o
+@item "p"                    @tab 'p'                 @tab p
+@item "q"                    @tab 'q'                 @tab q
+@item "r"                    @tab 'r'                 @tab r
+@item "s"                    @tab 's'                 @tab s
+@item "t"                    @tab 't'                 @tab t
+@item "u"                    @tab 'u'                 @tab u
+@item "v"                    @tab 'v'                 @tab v
+@item "w"                    @tab 'w'                 @tab w
+@item "x"                    @tab 'x'                 @tab x
+@item "y"                    @tab 'y'                 @tab y
+@item "z"                    @tab 'z'                 @tab z
+@item "delete"               @tab '^?'                @tab delete
+@item "num0"                 @tab                     @tab keypad 0
+@item "num1"                 @tab                     @tab keypad 1
+@item "num2"                 @tab                     @tab keypad 2
+@item "num3"                 @tab                     @tab keypad 3
+@item "num4"                 @tab                     @tab keypad 4
+@item "num5"                 @tab                     @tab keypad 5
+@item "num6"                 @tab                     @tab keypad 6   
+@item "num7"                 @tab                     @tab keypad 7
+@item "num8"                 @tab                     @tab keypad 8
+@item "num9"                 @tab                     @tab keypad 9
+@item "num."                 @tab '.'                 @tab keypad period
+@item "num/"                 @tab '/'                 @tab keypad divide
+@item "num*"                 @tab '*'                 @tab keypad multiply
+@item "num-"                 @tab '-'                 @tab keypad minus
+@item "num+"                 @tab '+'                 @tab keypad plus
+@item "numret"               @tab '\r'                @tab keypad enter
+@item "num="                 @tab '='                 @tab keypad equals
+@item "up"                   @tab                     @tab up arrow
+@item "down"                 @tab                     @tab down arrow
+@item "left"                 @tab                     @tab left arrow
+@item "right"                @tab                     @tab right arrow
+@item "ins"                  @tab                     @tab insert
+@item "home"                 @tab                     @tab home
+@item "end"                  @tab                     @tab end
+@item "pgup"                 @tab                     @tab page up
+@item "pgdown"               @tab                     @tab page down
+@item "f1"                   @tab                     @tab F1
+@item "f2"                   @tab                     @tab F2
+@item "f3"                   @tab                     @tab F3
+@item "f4"                   @tab                     @tab F4
+@item "f5"                   @tab                     @tab F5
+@item "f6"                   @tab                     @tab F6
+@item "f7"                   @tab                     @tab F7
+@item "f8"                   @tab                     @tab F8
+@item "f9"                   @tab                     @tab F9
+@item "f10"                  @tab                     @tab F10
+@item "f11"                  @tab                     @tab F11
+@item "f12"                  @tab                     @tab F12
+@item "f13"                  @tab                     @tab F13
+@item "f14"                  @tab                     @tab F14
+@item "f15"                  @tab                     @tab F15
+@item "numlock"              @tab                     @tab numlock
+@item "caps"                 @tab                     @tab capslock
+@item "scroll"               @tab                     @tab scrollock
+@item "lshift"               @tab                     @tab left shift
+@item "rshift"               @tab                     @tab right shift
+@item "lctrl"                @tab                     @tab left ctrl
+@item "rctrl"                @tab                     @tab right ctrl
+@item "lalt"                 @tab                     @tab left alt
+@item "ralt"                 @tab                     @tab right alt
+@item "lmeta"                @tab                     @tab left meta
+@item "rmeta"                @tab                     @tab right meta
+@item "lsuper"               @tab                     @tab left windows key
+@item "rsuper"               @tab                     @tab right windows key
+@item "mode"                 @tab                     @tab mode shift
+@item "help"                 @tab                     @tab help
+@item "print"                @tab                     @tab print screen
+@item "sysrq"                @tab                     @tab SysRq
+@item "break"                @tab                     @tab break
+@item "menu"                 @tab                     @tab menu
+@item "power"                @tab                     @tab power
+@item "euro"                 @tab                     @tab euro
+@end multitable
+
+@node Implementing persistent input
+@subsection Implementing persistent input
+The @code{keydn} and @code{keyup} procedures register event handlers that are
+called whenever a certain key is pressed or released. It can sometimes be
+desired, however, to call a certain procedure ``persistently'', i.e. as long
+as a given key is pressed.
+
+SLAYER itself doesn't provide such procedures, because they frequently depend
+on a specific application. However, this document provides a general solution
+that can be taylored to one's needs. The purpose is not only to show how the
+feature can be implemented, but also to set the paradigm, which perhaps would 
+make any future programs easier to read. It also shows how to use the
+@code{register-userevent} and @code{generate-userevent} procedures.
+
+
+@pindex Persistent input
+@lisp
+(use-modules (slayer))
+
+;; first, we might find it useful to have a timer, which would generate
+;; an event from time to time, and sleep for the most of the time, in an
+;; infinite loop
+
+(define-syntax-rule (utimer usecs action ...)
+  (let ((tick (register-userevent (lambda () action ...))))
+    (call-with-new-thread (lambda () (while #t
+				       (generate-userevent tick)
+				       (usleep usecs))))))
+
+;; we need to keep track on which keys are pressed, in the *modes* hash table.
+;; its keys are the names of pressed keys, and values -- the procedures that
+;; are meant to be called "persistently"
+
+(define *modes* (make-hash-table))
+
+;; we also need to be able to define a procedure to be called as long as the
+;; key is pressed
+
+(define (key name proc)
+  (keydn name (lambda()(hash-set! *modes* name proc)))
+  (keyup name (lambda()(hash-remove! *modes* name))))
+
+;; lastly, we shall invoke procedures corresponding to the pressed keys with
+;; a certain regularity, say, 30000 micro-seconds:
+
+(utimer 30000 (hash-for-each (lambda(key thunk)(thunk)) *modes*))
+
+;; now we can bind keys to persistent procedures:
+(key 'return 
+     (lambda ()
+        (display (string-append "this message will be printed"
+                                " for as long as 'return is pressed\n"))))
+@end lisp
+
+@node Working with external data
+@section Loading and processing fonts, images and sounds
+
+When creating a multimedia application, it is inevitable to work with external
+data, such as sounds and images. It can also be strongly desired to be able to 
+render text to images and display it on the screen.
+
+The following sections describe how to perform those activities in SLAYER.
+
+@menu
+* Loading and displaying images::              (slayer image)
+* Rendering and displaying text::              (slayer font)
+* Loading and playing sounds::                 (slayer audio)
+@end menu
+
+@node Loading and displaying images
+@subsection Loading and displaying images
+In order to be able to use the procedures documented here, one shall 
+@code{(use-modules (slayer image))}.
+
+@deffn {Procedure} load-image path
+Loads an image from an external file, indicated by @var{path}. The supported 
+file formats depend on the way the SDL_image library was compiled. The procedure
+returns an object that represents the image internally, and can be used with
+@code{draw-image!} and other procedures.
+FIXME: if something goes wrong (i.e. the file doesn't exist), the application
+will probably crash.
+@end deffn
+
+@deffn {Procedure} draw-image! image x y
+Display @var{image} on the screen. Its top left corner will be located at
+(@var{x}, @var{y}).
+@end deffn
+
+@deffn {Procedure} rectangle w h color
+Generates and returns solid rectangle whose width is @var{w}, height @var{h} and 
+color is @var{color}. @var{color} is a 32-bit integer value, which can be 
+written as @code{#xAARRGGBB}, where @code{AA} means alpha channel, @code{RR} 
+is red component, @code{GG} -- green component, and @code{BB} -- blue component.
+@end deffn
+
+@deffn {Procedure} image-size image
+Returns @code{(width height)} of the @var{image}.
+@end deffn
+
+@deffn {Procedure} image->array image
+Converts @var{image} to two-dimensional uniform array of integers.
+@end deffn
+
+@deffn {Procedure} array->image array
+Converts two-dimensional uniform @var{array} of integers to image.
+@end deffn
+
+@node Rendering and displaying text
+@subsection Rendering and displaying text
+In order to be able to use the procedures documented here, one shall 
+@code{(use-modules (slayer font))}.
+
+@deffn {Procedure} load-font path pt-size
+Load TrueType font from a file indicated by @var{path}. The size of the font
+will be @var{pt-size}. Returns the object representing font, which can later
+be used for rendering text using @code{render-text} procedure.
+@end deffn
+
+@deffn {Procedure} render-text text font [color] [bgcolor]
+Returns a new image containing @var{text} rendered using @var{font} with
+@var{color} (which defaults to white). If @var{bgcolor} is given, it will
+become the background color of the image; otherwise, the background is
+transparent.
+The obtained image can be displayed on the screen using @code{draw-image!}.
+@end deffn
+
+@deffn {Procedure} font-line-skip font
+Returns the line skip (integer) defined by the @var{font}.
+@end deffn
+
+@node Loading and playing sounds
+@subsection Loading and playing sounds
+In order to be able to use the procedures documented here, one needs to
+@code{(use-modules (slayer audio))}.
+
+@deffn {Procedure} load-sound path
+Loads a sound file indicated by @var{path}. It ought to be a wave file.
+@end deffn
+
+@deffn {Procedure} play-sound! sound
+Plays a specified @var{sound}, which has previously been loaded using the
+@code{load-sound} procedure. Many sound files can be played at once.
+@end deffn
+
+@deffn {Procedure} load-music path
+Loads a music file indicated by @var{path}. It can be mp3 or ogg file.
+@end deffn
+
+@deffn {Procedure} play-music! music
+Plays a specified @var{music}, which has previously been loaded using
+@code{load-music} procedure. Only one music track can be played at once, and
+it can be paused using @code{pause-music!} procedure.
+@end deffn
+
+@deffn {Procedure} pause-music!
+Pauses currently played music track (if any).
+@end deffn
+
+@deffn {Procedure} resume-music!
+Resumes previously paused music track (if any).
+@end deffn
+
+@node Diving into 3D graphics
+@section Diving into 3D graphics
+Apart from the elementary support for images, SLAYER also allows to use OpenGL
+display context and exports some of the OpenGL/GLU procedures.
+If you're not familiar with the OpenGL library, I recommend you to read at
+least the first three chapters of the OpenGL Programming Guide, also known as
+The Red Book@footnote{@url{http://www.glprogramming.com/red/}}.
+
+Note, that programming in SLAYER differs in a few ways from the raw OpenGL API.
+Firstly, many OpenGL tutorials use ``glBegin'', ``glEnd'', ``glVertex*'' and
+similar procedures. SLAYER does not support them. Instead, it forces you to use
+its wrappers for ``glVertexPointer'', ``glColorPointer'', ``glDrawElements'' 
+and so on, which makes it a little bit more difficult for beginners, but 
+results in a more concise code. (There are also higher level interface 
+functions available in (extra 3d) and (widgets 3d-view) modules)
+
+Secondly, because of Guile's more informative data types, it is unnecessary
+to maintain so many variants of the same procedure (like ``glColor3f'',
+``glColor4f'', ``glColor3u'', ``glColor4i'') -- SLAYER chooses the appropreate
+variant depending on the type of the argument.
+
+Thirdly, OpenGL doesn't allow to choose to perform operations on the 
+projection matrix stack: only modelview matrix is available to the procedures 
+like ``push-matrix!'', ``pop-matrix!'' or ``multiply-matrix!''; the 
+``glMatrixMode'' procedure is unavailable to the programmer, because I didn't
+find that useful at all.
+
+@deffn {Procedure} multiply-matrix! M
+Multiply current modelview matrix by 4x4 uniform array @var{M} containing 
+floats or doubles.
+@end deffn
+
+@deffn {Procedure} push-matrix!
+Push current modelview matrix on the matrix stack.
+@end deffn
+
+@deffn {Procedure} pop-matrix!
+Pop modelview matrix from the stack.
+@end deffn
+
+@deffn {Procedure} load-identity!
+Set current modelview matrix to identity.
+@end deffn
+
+@deffn {Procedure} translate-view! vector
+Add a translation @var{vector} of 3 numbers to current modelview matrix.
+@end deffn
+
+@deffn {Procedure} rotate-view! quaternion
+Rotate current matrix by @var{quaternion}. Quaternions are represented by pairs,
+whose first element is the real scalar, and second -- the imaginary vector, but
+this representation may change in the future@footnote{To find out more about
+how quaternions can be used to represent rotations in the 3d space, see e.g.
+@uref{http://www.genesis3d.com/~kdtop/Quaternions-UsingToRepresentRotation.htm}}.
+@end deffn
+
+@deffn {Procedure} set-viewport! x y w h
+Set left upper corner of viewport to (@var{x}, @var{y}) and its dimensions to
+(@var{w}, @var{h}). Note that this differs from OpenGL's viewport, because
+the origin is the upper left corner, and not in the lower left.
+@end deffn
+
+@deffn {Procedure} current-viewport
+Return a list @code{(x y w h)} describing the current viewport. Again, origin
+is located in the upper left corner, contrary to OpenGL's convention.
+@end deffn
+
+@deffn {Procedure} set-perspective-projection! fovy [aspect] [near] [far]
+Set the projection matrix to calculate perspective projection, where horizontal
+field of view is specified with @var{fovy}. If @var{aspect} isn't given, it
+is calculated according to current viewport, to preserve natural aspect ratio;
+the @var{near} clipping plane defaults to 0.1, and @var{far} -- to 1000.0.
+@end deffn
+
+@deffn {Procedure} set-orthographic-projection! left right bottom top [near] [far]
+Sets the projection matrix to calculate ortographic projection. If @var{near}
+and @var{far} not given, they default to @code{-1.0} and @code{1.0}, respectively.
+@end deffn
+
+@deffn {Procedure} set-vertex-array! array
+Sets current vertex pointer to the two dimensional uniform @var{array} of 
+vertices to use it with the @code{draw-faces!} procedure. The first dimension
+of the @var{array} specifies the number of vertices, and the second -- the 
+number of coordinates (from 2 to 4), so for instance if @var{array} is 
+@code{#2f32((0 0 0)(1 1 1))}, it will be interpreted as an array containing two
+three-dimensional vertices: @code{(0, 0, 0)} and @code{(1, 1, 1)}.
+The uniform array can be of any real type, so it can be either f32, f64,
+s32, u32, s16, u16, s8 or u8.
+This procedure enables GL_VERTEX_ARRAY client state.
+@end deffn
+
+@deffn {Procedure} set-color-array! array
+Sets current color pointer to the two-dimensional uniform @var{array} of color
+parameters, that can either have 3 or 4 parameters (the fourth value will be
+interpreted as alpha channel). The remaining notes from 
+@code{set-vertex-array!} apply here as well (mutatis mutandis).
+@end deffn
+
+@deffn {Procedure} set-normal-array! array
+Sets current normal pointer to the two-dimensional uniform @var{array} of
+normal vectors. The vectors must be three-dimensional. The remaining notes from
+@code{set-vertex-array!} apply here as well (mutatis mutandis).
+@end deffn
+
+@deffn {Procedure} set-texture-coord-array! array
+I implemented this procedure, because it was similar to the ones above, but
+I really don't know what it does. It has never been used nor tested, so if you
+would like to use it, I wish you all best!
+@end deffn
+
+@deffn {Procedure} draw-faces! type indices
+Draws vertices from the array set using @code{set-vertices-array!}, interpreted
+depending on the value of the @var{type} parameter, in the order specified in
+the uniform array of integer @var{indices} (which can be either u8, u16 or u32,
+and the dimension of which is irrelevant). The @var{type} is a symbol that can
+have one of the following values: @code{points}, @code{lines}, @code{line-strip},
+@code{line-loop}, @code{triangles}, @code{triangle-strip}, @code{triangle-fan},
+@code{quads}, @code{quad-strip}, @code{polygon} (consult OpenGL reference for
+details).
+@end deffn
+
+@deffn {Procedure} forget-array! type
+Forget a pointer to the array specified in @var{type}, so that 
+@code{draw-faces!} won't take it into consideration. Possible values of 
+@var{type} are the following symbols: @code{vertex-array}, @code{color-array},
+@code{texture-coord-array}, @code{normal-array}.
+@end deffn
+
+@deffn {Procedure} set-color! color
+Sets the current display color to @var{color}, which can either be a uniform
+vector containing three or four elements, or an integer, interpreted as in
+the @code{rectangle} function from @code{(slayer image)}.
+@end deffn
+
+I realize that the above list of procedures might be insufficient for certain
+purposes. If you notice that an essential procedure is lacking here, don't
+hesitate to let me know about it, and we can try to work out a solution.
+
+@node Widgets
+@chapter Widgets
+When developing a graphics user interface based application, it is convinient 
+to assemble it from simple and elastic components, such as buttons, text areas,
+draggable icons, canvases, menus, windows and so on.
+The common name for these components is ``widget''. SLAYER is shipped with its
+own framework for creating and using widgets.
+
+In order to use the widget framework, one shall 
+@code{(use-modules (widgets base))}. It creates and exports the main widget
+under the symbol @code{*stage*}, and sets the appropriate display and resize
+procedures, as well as handlers for mouse1 and mouse2 press and release events
+and mousemove event.
+
+It also contains a definition of a @code{<widget>} class, which is the base
+class for all widgets. Here's a simplified definition of  @code{<widget>} class
+(in fact, all event handler slots are initialized to noop, and their init 
+keywords correspond strictly to their names):
+
+
+@pindex <widget> class definition
+@lisp
+(define-class <widget> ()
+  (parent #:init-value #f #:init-keyword #:parent)
+  (children #:init-value '() #:init-keyword #:children)
+
+  ;; event handlers (initialized to noop)
+  left-mouse-down
+  left-mouse-up
+  right-mouse-down
+  right-mouse-up
+  mouse-over
+  mouse-out
+  drag
+  update!
+  activate
+  deactivate
+  resize
+
+  (x #:init-value 0 #:init-keyword #:x)
+  (y #:init-value 0 #:init-keyword #:y)
+  (w #:init-value 0 #:init-keyword #:w)
+  (h #:init-value 0 #:init-keyword #:h))
+@end lisp
+
+As you can see, the widget structure is hierarchical: all widgets (except
+@code{*stage*}) have their parent, and some can have their children.
+The biggest part of the definition consists of some event handlers, which
+are called in certain situations (like clicking, dragging and so on).
+Furthermore, all widgets have rectangular shape, and the rectangle should be
+big enough to fit all of the widget's children (otherwise they can become
+unreachable).
+
+In order to use the widget framework, it is enough to load the desired
+widget modules and add their instances to @code{*stage*} using the
+@code{(add-child! *stage* /instance-of-a-widget/)}. The simplest program
+that uses widgets -- a draggable rectangle -- could look like this:
+@pindex Draggable rectangle
+@lisp
+(use-modules (slayer) (slayer image) 
+	     (widgets base) (widgets bitmap)
+	     (oop goops))
+(keydn 'esc quit)
+
+(define-method (dragger (w <widget>))
+  (lambda (x y xrel yrel)
+    (slot-set! w 'x (+ (slot-ref w 'x) xrel))
+    (slot-set! w 'y (+ (slot-ref w 'y) yrel))))
+
+(let* ((rect (rectangle #;w 50 #;h 50 #xcc33dd))
+       (img (make-image rect #;x 50 #;y 50)))
+  (slot-set! img 'drag (dragger img))
+  (add-child! *stage* img))
+@end lisp
+
+There are a few widgets already bundled with slayer, among which there is
+<text-area> widget (which still requires some work) and <3d-view> widget.
+
+Check the slayer.scm demo to see how to use them.
+
+Note also, that although the direct layer described in the previous chapter
+is rather stable and will only be extended rather than modified, the widget
+layer is more likely to change. 
+
+@node Plug-ins (SCUM)
+@chapter Plug-ins (SCUM)
+Currently SLAYER is shipped with one additional module -- a wrapper for the 
+prominent Open Dynamics Engine, which is required for the module to build.
+The module is located outside the build tree, so it doesn't get installed
+by default, but requires additional effort. (This should change in the future)
+
+In order to build the module, one needs to enter the src/scum directory
+from the installation package, and type:
+@code{$ make}
+
+If everything goes well, a file named ``physics.so'' will be created. In order
+to run, it should be moved to a path specified in the LTDL_LIBRARY_PATH 
+environment variable, and the accompanyign file, ``physics.scm'' should be
+placed in a ``scum'' directory within the range of GUILE_LOAD_PATH environment
+variable.
+
+@node Looking ahead
+@chapter Looking ahead
+
+@bye

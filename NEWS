@@ -1,0 +1,11 @@
+SLAYER NEWS
+===========
+
+- 1.0.0
+
+	This is the first release of slayer. It comes bundled with
+	GNU autotools. The environment statically enables certain
+	features from SDL, i.e. the ones provided by SDL_image, SDL_ttf
+	and SDL_mixer -- thus, those libraries are required to build
+	slayer. This should change in the future, and they should become
+	available as loadable modules that are built separately.
