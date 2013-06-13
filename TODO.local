@@ -1,6 +1,34 @@
-PRZED RELEASEM:
-- zaktualizowac README
-- 
+- rozkminić kwestię sterowania (położeniowego) oraz macierzowy opis stanu
+więzów (chcemy mieć takie cudo, że podajemy okreslony stan, a sterownik sam
+wylicza optymalne sterowanie, mając na względzie wielorakie sprzężenia zwrotne
+itd -- czyli sterowaniem winna być macierz położeniowa, albo cos takiego)
+
+- skonstruować to cacuszko, że jak się klika na łidżet, to znajduje ciało,
+które zostało zaklikłe (podobno gluUnproject jakoś w tym pomaga)
+-- to już jest jako tako rozstrzygnięte; ewentualnie można zrobić coś takiego,
+że jak się kliknie na jakieś ciało, to jest przenoszone do specjalnej przestrzeni
+bez detekcji kolizji ani grawitacji, i rusza się zgodnie z ruchami myszy
+
+
+
+DOKUMENTACJA:
+
+- wprowadzenie
+  - czym jest slayer?
+  - dlaczego guile?
+  - kwestia wyda3jności
+
+- opis warstwy bezpośredniej (slayer)
+  - stabilność
+  - ładowalne moduły (font, image, audio)
+
+- opis widgetów (unstable)
+
+- opis plug-inow
+
+- plany na przyszłość
+  - "emacs dla multimediów"
+  - repozytorium scumbag?
 
 
 PILNIEJSZE:

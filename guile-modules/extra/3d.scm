@@ -316,6 +316,22 @@
   (generate-capsule #:points points #:stacks stacks #:radius radius
 		    #:height 0.0))
 
+#;(define (projection-matrix fovy aspect near far)
+  (and-let* (( (not (= aspect 0)))
+	     (radians (* fovy 0.5 pi 1/180))
+	     (sine (sin radians))
+	     ( (not (= sine 0)))
+	     (depth (- far near))
+	     ( (not (= depth 0)))
+	     (cotangent (/ (cos radians) sine)))
+    (list->uniform-array
+     (apply 
+      map list ;i.e. transpose
+      `((,(/ cotangent aspect) 0          0                             0)
+	(0                     ,cotangent 0                             0)
+	(0                     0          ,(- (/ (+ near far) depth))  -1)
+	(0                     0          ,(* -2 near far (/ 1 depth))  0))))))  
+
 (define* (generate-tube #:key (radius 0.5) (height 1.0)
 				 (base-points 20))
   (match-let ((('mesh ('vertices circle-vertices) _ ...)
