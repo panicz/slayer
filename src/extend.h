@@ -54,8 +54,8 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
     SCM _head; int _i;						\
     for((_i = 0), _head = list;					\
 	(_i < size) && scm_is_pair(_head);			\
-	(_i++), _head = scm_cdr(_head)) {			\
-      ((type *) dest)[_i] = conv(scm_car(_head));		\
+	(_i++), _head = SCM_CDR(_head)) {			\
+      ((type *) dest)[_i] = conv(SCM_CAR(_head));		\
     }})
 
 #define DEFINE_ARRAY_GETTER(name, type, failval, getter)	\
