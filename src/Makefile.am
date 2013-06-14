@@ -1,8 +1,12 @@
 # flags set by pkg-config
-AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) -Wall -Werror
-AM_CXXFLAGS = $(AM_CFLAGS)
 AM_LDFLAGS = $(SDL_LIBS) $(GUILE_LIBS) $(OPENGL_LIBS) $(SDL_MIXER_LIBS) \
 	$(SDL_IMAGE_LIBS)
+
+AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) -Wall -Werror \
+	$(AM_LDFLAGS)
+
+AM_CXXFLAGS = $(AM_CFLAGS)
+
 
 bin_PROGRAMS = slayer
 slayer_SOURCES = extend.h file.c font.c image.c input.c slayer.c slayer.h \
