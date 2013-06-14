@@ -1,4 +1,4 @@
-AC_INIT([slayer], [1.0.0], [godek.maciek@gmail.com])
+AC_INIT([slayer], [1.0.0], [bugs-slayer@gnu.org.ua])
 AC_PREREQ([2.68])
 AC_CONFIG_AUX_DIR([build-aux])
 
