@@ -22,19 +22,36 @@
  (slayer-audio (use-modules (slayer audio)))
  (else (begin)))
 
-(define-syntax-rule (utimer usecs action ...)
+(define-syntax-rule (utimer mutex usecs action ...)
   (let ((tick (register-userevent (lambda () action ...))))
     (call-with-new-thread (lambda () (while #t
+				       ;; powinniśmy wisieć, dopóki jakiś klawisz
+				       ;; nie zostanie wciśnięty
+				       (lock-mutex mutex)
 				       (generate-userevent tick)
+				       (unlock-mutex mutex)
 				       (usleep usecs))))))
 
 (define *modes* #[])
+(define *mutex* (make-mutex))
+(lock-mutex *mutex*)
 
-(utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
+(utimer *mutex* 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
 
 (define (key name fun)
-  (keydn name (lambda()(hash-set! *modes* name fun)))
-  (keyup name (lambda()(hash-remove! *modes* name))))
+  (keydn name 
+	 (lambda()
+	   ;; jezeli muteks nie jest zwolniony, to go zwolnij
+	   (if (equal? (mutex-owner *mutex*) (current-thread))
+	       (unlock-mutex *mutex*))
+	   (hash-set! *modes* name fun)))
+  (keyup name 
+	 (lambda()
+	   ;; jezeli muteks nie jest zajety (przez ten proces), to go zajmij
+	   (hash-remove! *modes* name)
+	   (if (zero? (hash-size *modes*))
+	       (lock-mutex *mutex*))
+	   )))
 
 (cond-expand (slayer-3d
 
