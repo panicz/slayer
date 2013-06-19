@@ -33,8 +33,10 @@ load_image(SCM path) {
   if(filename == NULL)
     return SCM_BOOL_F;
   SDL_Surface *image = IMG_Load(filename);
-  //print_sdl_surface(image);
   free(filename);
+  if(!image) {
+    return SCM_BOOL_F;
+  }
   SCM_NEWSMOB(smob, image_tag, image);
   return smob;
 }
