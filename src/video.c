@@ -75,14 +75,16 @@ screen_size() {
 
 static SCM 
 set_screen_size_x(SCM w, SCM h) {
-  screen = SDL_SetVideoMode(scm_to_int(w), scm_to_int(h), 0, video_mode);
+  screen = SDL_SetVideoMode(scm_to_int(w), scm_to_int(h), 
+			    screen->format->BitsPerPixel, video_mode);
   return SCM_UNSPECIFIED;
 }
 
 static SCM
 set_screen_width_x(SCM w) {
   int h = screen ? screen->h : 1;
-  screen = SDL_SetVideoMode(scm_to_int(w), h, 0, video_mode);
+  screen = SDL_SetVideoMode(scm_to_int(w), h, screen->format->BitsPerPixel, 
+			    video_mode);
   return SCM_UNSPECIFIED;
   
 }
@@ -90,8 +92,22 @@ set_screen_width_x(SCM w) {
 static SCM
 set_screen_height_x(SCM h) {
   int w = screen ? screen->w : 1;
-  screen = SDL_SetVideoMode(w, scm_to_int(h), 0, video_mode);
+  screen = SDL_SetVideoMode(w, scm_to_int(h), screen->format->BitsPerPixel, 
+			    video_mode);
   return SCM_UNSPECIFIED;
+}
+
+static SCM
+set_screen_color_depth_x(SCM bits_per_pixel) {
+  int w = screen ? screen->w : 1;
+  int h = screen ? screen->h : 1;
+  screen = SDL_SetVideoMode(w, h, scm_to_int(bits_per_pixel), video_mode);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+screen_color_depth() {
+  return scm_from_int(screen->format->BitsPerPixel);
 }
 
 static void 
@@ -103,6 +119,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-screen-width!", 1, 0, 0, set_screen_width_x); 
   EXPORT_PROCEDURE("set-screen-height!", 1, 0, 0, set_screen_height_x); 
   EXPORT_PROCEDURE("set-screen-size!", 2, 0, 0, set_screen_size_x); 
+  EXPORT_PROCEDURE("set-screen-color-depth!", 1, 0, 0, set_screen_color_depth_x); 
+  EXPORT_PROCEDURE("screen-color-depth", 0, 0, 0, screen_color_depth); 
   EXPORT_PROCEDURE("screen-width", 0, 0, 0, screen_width); 
   EXPORT_PROCEDURE("screen-height", 0, 0, 0, screen_height); 
   EXPORT_PROCEDURE("screen-size", 0, 0, 0, screen_size); 
