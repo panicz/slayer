@@ -2,6 +2,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-2)
   #:use-module (srfi srfi-11)
+  #:use-module (srfi srfi-18)
   #:use-module (srfi srfi-31)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
@@ -58,6 +59,7 @@
 	    shell
 	    << die
 	    real->integer
+	    make-locked-mutex
 	    )
   #:re-export (;; srfi-1
 	       iota
@@ -91,6 +93,11 @@
 		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define (make-locked-mutex)
+  (let ((m (make-mutex)))
+    (lock-mutex m)
+    m))
 
 (define* (die #:optional (message #f))
   (if message
@@ -481,19 +488,23 @@
 	  (opening-braces '(#\( #\[))
 	  (closing-braces '(#\) #\]))
 	  (braces (append opening-braces closing-braces)))
+
   (define* (rewind #:key string while starting-from)
     (let loop ((pos starting-from))
       (if (and (>= pos 0) (while (string-ref string pos)))
 	  (loop (1- pos))
 	  pos)))
+
   (define (last-symbol-starting-position str init-pos)
     (rewind #:string str #:starting-from init-pos 
 	    #:while (lambda(c)
 		      (and (not (char-whitespace? c)) 
 			   (not (in? c braces))))))
+
   (define (last-whitespaces-starting-position str init-pos)
     (rewind #:string str #:starting-from init-pos 
 	    #:while char-whitespace?))
+
   (define (last-string-starting-position str init-pos)
     (let loop ((pos init-pos))
       (if (and (eq? (string-ref str pos) #\")
@@ -501,9 +512,12 @@
 		   (not (eq? (string-ref str (1- pos)) #\\))))
 	  pos
 	  (loop (1- pos)))))
+  ;; function definition
   (let eat ((pos (1- (string-length str)))
 	    (level 0))
-    (cond ((char-whitespace? (string-ref str pos)) ; eat whitespace
+    (cond ((< pos 0)
+	   0)
+	  ((char-whitespace? (string-ref str pos)) ; eat whitespace
 	   (eat (last-whitespaces-starting-position str pos) level))
 	  ((eq? (string-ref str pos) #\") ; eat strings
 	   (if (= level 0)
