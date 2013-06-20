@@ -21,6 +21,7 @@
   (%space #:init-value #f)
   (%background #:init-value #f)
   (%render-cache #:init-value #f)
+  (%thread-results #:init-thunk make-hash-table)
   #;(visible-cols #:init-keyword #:visible-cols)
   #;(visible-lines #:init-keyword #:visible-lines)
   #;(rendered-lines #:init-thunk make-hash-table))
@@ -60,6 +61,18 @@
 				   (port-line #[t 'port])))))
     (set! #[ t 'h ] (* (vector-length lines) line-skip))))
 
+(define-method (last-sexp (t <text-area>))
+  (and-let* ((lines (vector->list #[ t 'lines ]))
+	     (line (port-line #[ t 'port ]))
+	     (column (port-column #[ t 'port ]))
+	     (text (string-join 
+		    (append (take lines line)
+			    (list (substring 
+				   #[t : 'lines : line]
+				   0 column)))
+		    "\n"))
+	     (starting-position (last-sexp-starting-position text)))
+    (substring text starting-position)))
 
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
@@ -172,19 +185,10 @@
     (set-key! 
      "f1" 
      (lambda()
-       (let* ((lines (vector->list #[ t 'lines ]))
-	      (line (port-line #[ t 'port ]))
-	      (column (port-column #[ t 'port ]))
-	      (text (string-join 
-		     (append (take lines line)
-			     (list (substring 
-				    #[t : 'lines : line]
-				    0 column)))
-		     "\n"))
-	      (last-sexp (substring 
-			  text 
-			  (last-sexp-starting-position text))))
-	 (display (eval-string last-sexp) *stdout*))))
+       (call-with-new-thread 
+	(lambda()(display (eval-string (last-sexp t)) *stdout*)))))
+
+    (set-key! "f2" (lambda()(display (last-sexp t) *stdout*)))
     (set-key! 
      "backspace" 
      (lambda()
