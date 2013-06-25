@@ -614,6 +614,7 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+guilesitedir
 LIBOBJS
 GUILE_TOOLS
 GUILE_CONFIG
@@ -761,6 +762,7 @@ enable_dependency_tracking
 with_gnu_ld
 with_sysroot
 enable_libtool_lock
+with_guilesitedir
 with_opengl
 enable_default_3d
 with_sdl_mixer
@@ -1429,6 +1431,8 @@ Optional Packages:
   --with-gnu-ld           assume the C compiler uses GNU ld [default=no]
   --with-sysroot=DIR Search for dependent libraries within DIR
                         (or the compiler's sysroot if not specified).
+  --with-guilesitedir     use the specified installation path for Guile
+                          modules
   --with-opengl           Build with OpenGL support (requires the -e3d option
                           at runtime, unless --enable-default-3d is passed to
                           the configure script)
@@ -16031,6 +16035,19 @@ $as_echo "yes" >&6; }
 
 fi
 
+
+# Check whether --with-guilesitedir was given.
+if test "${with_guilesitedir+set}" = set; then :
+  withval=$with_guilesitedir; case "x$withval" in
+             xyes|xno) guilesitedir="";;
+             *)        guilesitedir="$withval";;
+             esac
+else
+  guilesitedir=""
+fi
+
+
+
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SDL" >&5
 $as_echo_n "checking for SDL... " >&6; }
@@ -17016,13 +17033,15 @@ fi
 done
 
 
-pkgdatadir="$datadir/$PACKAGE"
-if test "x$guilesitedir" = "x"; then
-   guilesitedir="$pkgdatadir"
-fi
-
 ##################
 #  Output
+
+
+if test "x$guilesitedir" = "x"; then
+   guilesitedir="$datadir/guile/site"
+fi
+
+
 
 ac_config_files="$ac_config_files Makefile src/Makefile tools/Makefile guile-modules/Makefile doc/Makefile"
 
@@ -19680,3 +19699,21 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
 $as_echo "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
 
+
+# if test "x$GUILE_SITE" != "x"; then
+   if test "$guilesitedir" != "$GUILE_SITE"; then
+      # Guile has a different prefix than this module
+      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING:
+      The Guile modules will be installed in ${guilesitedir}.
+      You should probably re-run \`configure' with
+      \`--with-guilesitedir=$GUILE_SITE'
+      Otherwise, you will have to adjust the \`GUILE_LOAD_PATH' environment
+      variable." >&5
+$as_echo "$as_me: WARNING:
+      The Guile modules will be installed in ${guilesitedir}.
+      You should probably re-run \`configure' with
+      \`--with-guilesitedir=$GUILE_SITE'
+      Otherwise, you will have to adjust the \`GUILE_LOAD_PATH' environment
+      variable." >&2;}
+   fi
+# fi

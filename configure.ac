@@ -14,6 +14,16 @@ AC_PROG_CC
 AC_PROG_MAKE_SET
 
 PKG_CHECK_MODULES([GUILE], [guile-2.0])
+
+AC_ARG_WITH([guilesitedir],
+            [AS_HELP_STRING([--with-guilesitedir],
+                            [use the specified installation path for Guile modules])],
+            [case "x$withval" in
+             xyes|xno) guilesitedir="";;
+             *)        guilesitedir="$withval";;
+             esac],
+             [guilesitedir=""])
+
 PKG_CHECK_MODULES([SDL], [sdl])
 
 AC_ARG_WITH([opengl], 
@@ -90,14 +100,28 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([atexit regcomp setenv sqrt])
 
-pkgdatadir="$datadir/$PACKAGE"
-if test "x$guilesitedir" = "x"; then
-   guilesitedir="$pkgdatadir"
-fi
-
 ##################
 #  Output
+
+
+if test "x$guilesitedir" = "x"; then
+   guilesitedir="$datadir/guile/site"
+fi
+
+AC_SUBST([guilesitedir])
 
 AC_CONFIG_FILES([Makefile src/Makefile tools/Makefile guile-modules/Makefile doc/Makefile])
 
 AC_OUTPUT
+
+# if test "x$GUILE_SITE" != "x"; then
+   if test "$guilesitedir" != "$GUILE_SITE"; then
+      # Guile has a different prefix than this module
+      AC_MSG_WARN([]
+      [The Guile modules will be installed in ${guilesitedir}.]
+      [You should probably re-run `configure' with]
+      [`--with-guilesitedir=$GUILE_SITE']
+      [Otherwise, you will have to adjust the `GUILE_LOAD_PATH' environment]
+      [variable.])
+   fi
+# fi
