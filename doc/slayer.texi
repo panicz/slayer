@@ -35,7 +35,7 @@ Texts.  A copy of the license is included in the appendix entitled
 @titlepage
 @title SLAYER
 @subtitle Multimedia programming platform for Guile Scheme
-@subtitle Version @value{VERSION}
+@subtitle Version @value{VERSION}, updated @value{UPDATED}
 @author Panicz Maciej Godek
 
 @c  The following two commands
@@ -71,14 +71,14 @@ This manual is
 
 @menu
 * Introduction::                What exactly is SLAYER and what
-                                can it do for you
+                                  can it do for you
 * Direct Layer::                The basic event-driven model of control
 
 * Widgets::                     Higher-level framework for convinient
-                                GUI development
+                                  GUI development
 * Plug-ins (SCUM)::             Slayer Convinient Utility Modules
 
-* Looking ahead::               Further development of SLAYER
+@c * Looking ahead::               Further development of SLAYER
 
 @c * GNU FDL::                     Copying and sharing this documentation
 @c * Index::
@@ -124,12 +124,12 @@ other. They're both cool, though.
 
 @menu
 * Getting started::             An implementation of a simple image browsing
-                                application
+                                  application
 * Invoking SLAYER::             A detailed description of command line 
-                                arguments
+                                  arguments
 * Trying out the demos::        SLAYER is shipped with a set of demos that
-                                are fun to play with, and even more fun to
-                                read and understand
+                                  are fun to play with, and even more fun to
+                                  read and understand
 
 @end menu
 
@@ -152,29 +152,27 @@ the following content:
 @pindex Image browser
 @lisp
 (use-modules (slayer) (slayer image) 
-	     (ice-9 popen) (ice-9 rdelim) (ice-9 pretty-print)
 	     (srfi srfi-1) (srfi srfi-2))
 (keydn 'esc quit)
 
-(define (list-directory directory)
-  (let ((dir (opendir directory)))
-    (unfold eof-object? (lambda(f)(string-append directory f)) 
+(define (list-directory path)
+  (let ((dir (opendir path)))
+    (unfold eof-object? (lambda(f)(string-append path f)) 
 	    (lambda x (readdir dir)) (readdir dir))))
 
 (define (file? f) (eq? 'regular (stat:type (stat f))))
 
 (define *image-names* (filter file? (list-directory "/usr/share/pixmaps/")))
-(define *number-of-images* (length *image-names*))
 (define *current-image* #f)
 (define *image-index* 0)
 
-(if (<= *number-of-images* 0)
-    (die "no images found"))
+(if (<= (length *image-names*) 0)
+    (begin (display "no images found\n") (quit)))
 
 (set-display-procedure! (lambda () (draw-image! *current-image* 0 0)))
 
 (define (show-image! i)
-  (set! *image-index* (modulo i *number-of-images*))
+  (set! *image-index* (modulo i (length *image-names*)))
   (and-let* ((image-name (list-ref *image-names* *image-index*))
 	     (image (load-image image-name)))
     (set! *current-image* image)
@@ -888,6 +886,8 @@ In order to use the widget framework, it is enough to load the desired
 widget modules and add their instances to @code{*stage*} using the
 @code{(add-child! *stage* /instance-of-a-widget/)}. The simplest program
 that uses widgets -- a draggable rectangle -- could look like this:
+
+
 @pindex Draggable rectangle
 @lisp
 (use-modules (slayer) (slayer image) 
@@ -900,7 +900,7 @@ that uses widgets -- a draggable rectangle -- could look like this:
     (slot-set! w 'x (+ (slot-ref w 'x) xrel))
     (slot-set! w 'y (+ (slot-ref w 'y) yrel))))
 
-(let* ((rect (rectangle #;w 50 #;h 50 #xcc33dd))
+(let* ((rect (rectangle #;w 50 #;h 50 #;color #xcc33dd))
        (img (make-image rect #;x 50 #;y 50)))
   (slot-set! img 'drag (dragger img))
   (add-child! *stage* img))
@@ -932,7 +932,7 @@ environment variable, and the accompanyign file, ``physics.scm'' should be
 placed in a ``scum'' directory within the range of GUILE_LOAD_PATH environment
 variable.
 
-@node Looking ahead
-@chapter Looking ahead
+@c @node Looking ahead
+@c @chapter Looking ahead
 
 @bye
