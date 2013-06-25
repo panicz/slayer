@@ -222,7 +222,7 @@ demos with the following commands (assuming you're in the ``demos'' dir):
 @code{$ ./slayer -i pong.scm}
 
 If you have Open Dynamics Engine installed on your system, you can also
-try building the (scum physics) module by entering ``src/scum'' dir and
+try building the @code{(scum physics)} module by entering ``src/scum'' dir and
 typing
 
 @code{$ make}
@@ -231,6 +231,11 @@ If you manage to build it successfully, then, back in the ``demos'' dir,
 you can try it out by typing:
 
 @code{$ ./slayer -e3d -i ode.scm}
+
+Note however, that the @code{(scum physics)} module isn't bundled with the
+tarball and needs to be obtained from the mercurial repository:
+
+@code{$ hg clone http://hg.gnu.org.ua/hgweb/slayer}
 
 More importantly than just playing with the demos (which, honestly, can become
 boring quite quickly), you are encouraged to read their source code (which, in
