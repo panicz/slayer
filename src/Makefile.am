@@ -11,6 +11,7 @@ AM_CXXFLAGS = $(AM_CFLAGS)
 bin_PROGRAMS = slayer
 slayer_SOURCES = extend.h file.c font.c image.c input.c slayer.c slayer.h \
 	 symbols.c symbols.h utils.h video.c video.h 
+noinst_HEADERS = scancode.c
 
 if OPENGL
 slayer_SOURCES += 3d.cc vmx.hh
