@@ -5,6 +5,8 @@ syntax: glob
 *.o
 *.Po
 autom4te.cache/*
+build-aux/*
+m4/*
 config.log
 config.status
 stamp-h1
@@ -20,3 +22,6 @@ doc/version.texi
 doc/slayer.info
 doc/stamp-vti
 push
+INSTALL
+aclocal.m4
+configure
