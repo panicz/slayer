@@ -1,0 +1,67 @@
+#!/usr/bin/perl
+## subtract lines of one file from lines of another file.
+##
+## Usage:
+## fsub [options] subtrahend minuend [> difference]
+## 
+use Getopt::Std;
+sub ltrim { $_[0] =~ s/^\s*//; $_[0] }
+sub rtrim { $_[0] =~ s/\s*$//; $_[0] }
+sub trim { rtrim(ltrim($_[0])) }
+sub lowcase { lc $_[0] }	
+sub debug { print STDERR "PROCESSED: \"".$_[0]."\"\n"; $_[0] }
+
+sub help {
+    open THISFILE, "<", $0 or die;
+    print "$0: ";
+    while(<THISFILE>) { if(/^.*#{2} (.*)$/) { print "$1\n" } }
+    exit
+}
+
+$condition = sub { $_[0] ? 1 : 0 };
+
+sub neg {
+    $condition = sub { $_[0] ? 0 : 1 }
+}
+
+my @proc = ();
+
+sub calls {
+    my $chain = $_[1];
+    for (@{$_[0]}) { $chain = &{$_}($chain) }
+    $chain
+}
+
+## Options:
+
+my %pre = (
+    'h' => \&help,    ##   -h   display this help message
+    'x' => \&neg,     ##   -x   output only subtracted files
+    );
+
+my %proc = (
+    'i' => \&lowcase, ##   -i   case insensitive
+    't' => \&trim,    ##   -t   trim surrounding white characters
+    'l' => \&ltrim,   ##   -l   trim white characters on the left
+    'r' => \&rtrim,   ##   -r   trim white characters on the right
+    'd' => \&debug    ##   -d   debug mode
+    );
+
+@opts = (keys %pre, keys %proc);
+getopts join("", @opts), \%opts;
+
+help and exit unless @ARGV;
+
+for (reverse sort keys %opts) { 
+    push @proc, $proc{$_} if $proc{$_};
+    &{ $pre{$_} }() if $pre{$_};
+}
+
+open MINUEND, "<", $ARGV[0];
+open SUBTRAHEND, "<", $ARGV[1];
+
+my %subtrahend = ();
+while (<SUBTRAHEND>) { $subtrahend{ calls \@proc, $_ } = 1 }
+while (<MINUEND>) { print unless &{$condition}($subtrahend{ calls \@proc, $_ }) }
+
+## 
