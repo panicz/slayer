@@ -1,0 +1,21 @@
+This work would never see the daylight without help and support from the GUILE
+community, whose comments have always been fruitful for my development in
+programming. In particular, I'd like to thank Neil Jerram, who kindly 
+explained me the very baiscs of Scheme in my early days; to Ludovic Courtès,
+who patiently kept responding to my groundless bug reports; to Andy Wingo, 
+whose knowledge and ideas will probably never stop to impress me; to 
+Thien-Thi Nguyen, who bears the spirit of a true community maker, and from
+whom I learn a lot; to Mark H. Weaver, Ian Price, Mike Gran, Nala Ginrut
+and a few others, of whom my fallible memory forgot to mention.
+
+Great thanks to Sergey Pozniakoff for helping out with the inscrutable
+GNU build system, running build tests and for standing my whinings regarding
+hosting at puszcza.gnu.org.ua. Exchanging thoughts with him has been a source
+of pure joy and priceless knowldege.
+
+Finally, I'd like to thank my dear friends, in particular Ścisław Dercz,
+whose spring of creativity has been a constant inspiration for me, and 
+Adrian Gruntkowski for his sober insight and concise suggestions.
+
+I believe that this is just a very beginning of the journey, and that there's
+so much more to come.
