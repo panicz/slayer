@@ -1,3 +1,5 @@
+#!./slayer -i
+!#
 (use-modules (slayer) (slayer image) 
 	     (srfi srfi-1) (srfi srfi-2))
 (keydn 'esc quit)

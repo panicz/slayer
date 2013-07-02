@@ -1,4 +1,4 @@
-#!../src/slayer -ipong.scm
+#!./slayer -i
 !#
 (use-modules (slayer) (slayer image)
 	     (extra common))
@@ -11,8 +11,8 @@
 (keydn 'esc quit)
 (define board-width 64)
 (define board-height 48)
-(define ball-width (inexact->exact (round (/ (screen-width) board-width))))
-(define ball-height (inexact->exact (round (/ (screen-height) board-height))))
+(define ball-width (quotient (screen-width) board-width))
+(define ball-height (quotient (screen-height) board-height))
 
 (define ball (array->image ;; a white square (ball-width x ball-height)
 	      (make-typed-array 'u32 #xffffffff ball-width ball-height)))
@@ -27,8 +27,8 @@
 (seed->random-state (vector-ref (times) 0))
 
 (define (reset-ball!)
-  (set! ball-x (/ board-width 2))
-  (set! ball-y (/ board-height 2))
+  (set! ball-x (quotient board-width 2))
+  (set! ball-y (quotient board-height 2))
   (set! ball-vx (1- (* 2 (random 2))))
   (set! ball-vy (1- (* 2 (random 2)))))
 
@@ -36,13 +36,12 @@
 
 (define paddle-a-size 5)
 (define paddle-a-x 1)
-(define paddle-a-y (inexact->exact (floor (- (/ board-height 2) 
-					     (/ paddle-a-size 2)))))
+(define paddle-a-y (quotient (- board-height paddle-a-size) 2))
 (define paddle-a-v 0)
 
 (define paddle-b-size 5)
 (define paddle-b-x (- board-width 2))
-(define paddle-b-y (inexact->exact (floor (/ (+ board-height paddle-b-size) 2))))
+(define paddle-b-y (quotient (+ board-height paddle-b-size) 2))
 (define paddle-b-v 0)
 
 (define digits

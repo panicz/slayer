@@ -1,3 +1,9 @@
+#!/bin/sh
+#|
+./slayer -e3d -i $0
+exit # this prevents from executing the rest of the file by the shell
+|#
+!#
 (use-modules (slayer)
 	     (slayer 3d)
 	     (widgets base)
@@ -26,6 +32,7 @@
 	    (generate-userevent tick)
 	    (wait usecs))))))))
 
+
 (define *modes* #[])
 
 (utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
@@ -49,13 +56,18 @@
 	   (chassis (body-named 'chassis buggy))
 	   (front (joint-named 'front buggy))
 	   (v 0)(w 0))
+  (keydn 'lctrl (lambda()
+		  (let ((max-force-2 (joint-property front 'max-force-2)))
+		    (if (> max-force-2 0)
+			(set-joint-property! front 'max-force-2 0.0)
+			(set-joint-property! front 'max-force-2 100.0)))))       
   (key 'lshift (lambda()(force! chassis #f32(6 0 0))))
   (key 'return (lambda()(force! chassis #f32(0 0 6))))
   (key 'k (lambda () 
-	     (increase! v 0.01)
+	     (increase! v 0.02)
 	     (set-joint-property! front 'velocity-2 v)))
   (key 'i (lambda ()
-	     (decrease! v 0.01)
+	     (decrease! v 0.02)
 	     (set-joint-property! front 'velocity-2 v)))
   (key 'l (lambda ()
 	     (increase! w 0.001)
