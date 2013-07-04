@@ -46,6 +46,12 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
   }									\
   c_type c_var = (c_type) SCM_SMOB_DATA(scm_var)
 
+#define ASSIGN_SCM(object, value) 				\
+  if(!SCM_IMP(object)) {					\
+      scm_gc_unprotect_object(object);				\
+    }								\
+    object = SCM_IMP(value) ? value : gc_protected(value)
+
 #define ASSERT_SCM_TYPE(type, var, pos)					\
   SCM_ASSERT_TYPE(scm_is_##type(var), var, pos, __FUNCTION__, # type)
 
