@@ -390,6 +390,7 @@ init_GLtypes() {
 }
 
 #define DEF_SET_GL_ARRAY(objects, proc, cls, dflt)	\
+  static SCM objects##_gc_guard = SCM_UNDEFINED;	\
   static SCM						\
   set_##objects##_array_x(SCM array) {			\
     glEnableClientState(cls);				\
@@ -418,10 +419,12 @@ init_GLtypes() {
   assign:						\
     data = scm_array_handle_uniform_elements(&handle);	\
     proc(size, (GLenum) type, 0, data);			\
+    ASSIGN_SCM(objects##_gc_guard, array);		\
   end:							\
     scm_array_handle_release(&handle);			\
     return SCM_UNSPECIFIED;				\
   }
+
 
 DEF_SET_GL_ARRAY(vertex, glVertexPointer, GL_VERTEX_ARRAY, 3);
 DEF_SET_GL_ARRAY(color, glColorPointer, GL_COLOR_ARRAY, 3);
@@ -460,7 +463,7 @@ init_GLnames() {
 
   SET_VALUE("vertex-array", GL_VERTEX_ARRAY);
   SET_VALUE("color-array", GL_COLOR_ARRAY);
-  SET_VALUE("texture-coord-array", GL_TEXTURE_COORD_ARRAY);  
+  SET_VALUE("texture-coord-array", GL_TEXTURE_COORD_ARRAY);
   SET_VALUE("normal-array", GL_NORMAL_ARRAY);
   
 #undef SET_VALUE
@@ -469,7 +472,8 @@ init_GLnames() {
 static SCM
 forget_array_x(SCM type) {
   ASSERT_SCM_TYPE(symbol, type, 1);
-  glDisableClientState(scm_to_int(scm_hash_ref(GLnames, type, SCM_BOOL_F)));
+  int type_id = scm_to_int(scm_hash_ref(GLnames, type, SCM_BOOL_F));
+  glDisableClientState(type_id);
   return SCM_UNSPECIFIED;
 }
 
