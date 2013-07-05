@@ -208,9 +208,11 @@ Type @code{slayer --help} to get the list of possible options.
 
 @node Trying out the demos
 @section Trying out the demos
-In addition to the core SLAYER and some libraries, the SLAYER tarball contains
-a set of demos that show how easily complex things can be achieved. They are
-located in the ``demos'' subdirectory.
+In addition to the core SLAYER and some libraries, SLAYER comes with a set 
+of demos that show how easily complex things can be achieved. They are located 
+in the ``demos'' subdirectory. Note however, that the demos are available only 
+if you obtained SLAYER source from the repository, and are not contained in
+the release tarball.
 
 If you manage to build SLAYER (even without installing it), you can run the
 demos with the following commands (assuming you're in the ``demos'' dir):

@@ -22,6 +22,11 @@ The configure script isn't yet adjusted to make install. Instead,
 it can be distributed as a standalone executable (on systems that
 provide the guile interpreter)
 
+If you want to try out some of the demos, you need to use the
+code from the SLAYER repository, which can be obtained via mercurial:
+
+  $ hg clone http://hg.gnu.org.ua/hgweb/slayer
+
 To run the demos, one needs to copy the executable to the demos
 directory. This is typically done (provided the cwd is the main
 slayer directory)
