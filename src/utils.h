@@ -34,8 +34,8 @@ unsigned int now() {
 #define NELEMS(a) ((int)(sizeof(a)/sizeof(a[0])))
 
 #define WARN(msg, ...)							\
-  fprintf(stderr, "[ %09u ] %s/%s: " msg "\n", now(), __FILE__,		\
-	  __FUNCTION__, ## __VA_ARGS__ )
+  (void) fprintf(stderr, "[ %09u ] %s/%s: " msg "\n", now(), __FILE__,	\
+		 __FUNCTION__, ## __VA_ARGS__ )
 
 #ifdef __cplusplus
 #define WARN_UPTO(n, msg, ...)						\
