@@ -116,15 +116,15 @@ SCM scm_dTriIndex_uniform_vector(SCM v) {
 }
 
 static void
-body_trimesh_mesh_setter(body_t *body, SCM value) {
-  if (!scm_is_pair(value)) {
+body_trimesh_mesh_setter(body_t *body, SCM vertices_indices) {
+  if (!scm_is_pair(vertices_indices)) {
     return WARN("Invalid argument (expecting pair)");
   }
-  SCM Vertices = SCM_CAR(value);
+  SCM Vertices = SCM_CAR(vertices_indices);
   if (!scm_is_array(Vertices)) {
     return WARN("Invalid car(argument) (expecting array of vertices)");
   }
-  SCM Indices = SCM_CDR(value);
+  SCM Indices = SCM_CDR(vertices_indices);
   if (!scm_is_array(Indices)) {
     return WARN("Invalid cdr(argument) (expecting array of indices)");
   }
@@ -162,7 +162,7 @@ body_trimesh_mesh_setter(body_t *body, SCM value) {
   }
 #undef ASSIGN_MESH
   dGeomTriMeshSetData(body->geom, mesh);
-  scm_remember_upto_here_1(value);
+  scm_remember_upto_here_1(vertices_indices);
 }
 
 static SCM
@@ -382,17 +382,17 @@ body_mass_getter(body_t *body) {
 }
 
 static void 
-body_mass_distribution_setter(body_t *body, SCM value) {
+body_mass_distribution_setter(body_t *body, SCM center_tensor) {
   if(!(body->body)) {
     return WARN("Unable to retrieve body mass");
   }
-  if (!scm_is_pair(value)) {
+  if (!scm_is_pair(center_tensor)) {
     return WARN("Invalid argument (expecting pair)");
   }
   dMass M;
   dBodyGetMass(body->body, &M);
-  scm_to_dVector3(SCM_CAR(value), &M.c);
-  scm_to_dMatrix3(SCM_CDR(value), &M.I);
+  scm_to_dVector3(SCM_CAR(center_tensor), &M.c);
+  scm_to_dMatrix3(SCM_CDR(center_tensor), &M.I);
 #define M_I(i, j) M.I[(i)*3+j]
   dMassSetParameters(&M, M.mass, M.c[0], M.c[1], M.c[2],
 		     M_I(0,0), M_I(1,1), M_I(2,2),
