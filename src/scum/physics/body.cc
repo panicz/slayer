@@ -2,25 +2,33 @@ static body_maker_map_t body_maker;
 static body_property_setter_map_t body_property_setter;
 static body_property_getter_map_t body_property_getter;
 
-#define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, ...)	\
+#define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, init, ...) \
   static body_t *							\
   make_##shape(rig_t *rig) {						\
     body_t *body = new body_t;						\
     body->body = create_body(rig->parent->world);			\
-    body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );	\
+    body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
+    OUT(# shape ": %p", body->geom);					\
     set_body(body->geom, body->body);					\
     body->id = rig->bodies.size();					\
     rig->bodies.push_back(body);					\
+    init;								\
     return body;							\
   }
 
-#define DEF_MAKE_BODY(shape, Shape, ...)				\
-  DEF_MAKE_SOME_BODY(dBodyCreate, dGeomSetBody, shape, Shape, ## __VA_ARGS__)
+#define DEF_MAKE_BODY(shape, Shape, init, ...)				\
+  DEF_MAKE_SOME_BODY(dBodyCreate, dGeomSetBody, shape, Shape,		\
+		     init, ## __VA_ARGS__)
 
-DEF_MAKE_SOME_BODY(ZILCH, DONT, plane, Plane, 0, 0, 1, 0);
-DEF_MAKE_BODY(cylinder, Cylinder, 0.5, 1.0);
-DEF_MAKE_BODY(box, Box, 1, 1, 1);
-DEF_MAKE_BODY(sphere, Sphere, 0.5);
+DEF_MAKE_SOME_BODY(ZILCH, DONT, plane, Plane, DONT(), 0, 0, 1, 0);
+DEF_MAKE_BODY(cylinder, Cylinder, DONT(), 0.5, 1.0);
+DEF_MAKE_BODY(box, Box, DONT(), 1, 1, 1);
+DEF_MAKE_BODY(sphere, Sphere, DONT(), 0.5);
+DEF_MAKE_BODY(trimesh, TriMesh, {
+    dGeomTriMeshSetData(body->geom, dGeomTriMeshDataCreate());
+    body->data.trimesh.vertices = SCM_UNDEFINED;
+    body->data.trimesh.indices = SCM_UNDEFINED;
+    }, NULL, NULL, NULL, NULL);
 
 #undef DEF_MAKE_BODY
 #undef DEF_MAKE_SOME_BODY
@@ -34,8 +42,140 @@ init_body_maker() {
   SET_BODY_MAKER(cylinder);
   SET_BODY_MAKER(plane);
   SET_BODY_MAKER(sphere);
+  SET_BODY_MAKER(trimesh);
 
 #undef SET_BODY_MAKER
+}
+
+template <typename T> SCM 
+_dTriIndex_uniform_vector_internal(SCM v);
+
+#define BEGIN_TRIINDEX_UNIFORM_VECTOR_INTERNAL(bits)			\
+  template<> SCM							\
+  _dTriIndex_uniform_vector_internal< scm_t_uint##bits >(SCM v) {	\
+  char *s = as_c_string(s_u##bits);					\
+  OUT("Testing against %s", s);						\
+  free(s);								\
+  if(scm_is_typed_array(v, s_u##bits)) {				\
+    OUT("Compatible array (%d bits)", bits);				\
+    return v;								\
+  }									\
+    scm_t_array_handle H, h;						\
+    scm_array_get_handle(v, &h);					\
+    int i, n = scm_array_handle_nelems(&h);				\
+    OUT("ORIGINAL ARRAY HAS %d ELEMS", n);				\
+    SCM V = scm_make_u##bits##vector(scm_from_int(n), SCM_UNDEFINED);	\
+    scm_array_get_handle(V, &H);					\
+    scm_t_uint##bits *dest						\
+     = scm_array_handle_u##bits##_writable_elements(&H);		\
+    if(0){}
+
+#define TRIINDEX_CONVERT_ARRAY_IF(type, src_t, dest_t)			\
+  else if(scm_is_typed_array(v, s_##type)) {				\
+    scm_t_##src_t *src							\
+      = scm_array_handle_##type##_writable_elements(&h);		\
+    for(i = 0; i < n; ++i) {						\
+      dest[i] = (scm_t_##dest_t) src[i];				\
+    }									\
+  }
+
+#define END_TRIINDEX_UNIFORM_VECTOR_INTERNAL(bits)			\
+  else {								\
+    WARN("Invalid argument type (expecting uniform array)");		\
+    V = SCM_BOOL_F;							\
+  }									\
+  scm_array_handle_release(&h);						\
+  scm_array_handle_release(&H);						\
+  return V;								\
+  }
+
+BEGIN_TRIINDEX_UNIFORM_VECTOR_INTERNAL(32)
+TRIINDEX_CONVERT_ARRAY_IF(u8, uint8, uint32)
+TRIINDEX_CONVERT_ARRAY_IF(s8, int8, uint32)
+TRIINDEX_CONVERT_ARRAY_IF(u16, uint16, uint32)
+TRIINDEX_CONVERT_ARRAY_IF(s16, int16, uint32)
+TRIINDEX_CONVERT_ARRAY_IF(s32, int32, uint32)
+TRIINDEX_CONVERT_ARRAY_IF(u64, uint64, uint32)
+TRIINDEX_CONVERT_ARRAY_IF(s64, int64, uint32)
+END_TRIINDEX_UNIFORM_VECTOR_INTERNAL(32)
+
+BEGIN_TRIINDEX_UNIFORM_VECTOR_INTERNAL(16)
+TRIINDEX_CONVERT_ARRAY_IF(u8, uint8, uint16)
+TRIINDEX_CONVERT_ARRAY_IF(s8, int8, uint16)
+TRIINDEX_CONVERT_ARRAY_IF(s16, int16, uint16)
+TRIINDEX_CONVERT_ARRAY_IF(u32, uint32, uint16)
+TRIINDEX_CONVERT_ARRAY_IF(s32, int32, uint16)
+TRIINDEX_CONVERT_ARRAY_IF(u64, uint64, uint16)
+TRIINDEX_CONVERT_ARRAY_IF(s64, int64, uint16)
+END_TRIINDEX_UNIFORM_VECTOR_INTERNAL(16)
+
+#undef END_TRIINDEX_UNIFORM_VECTOR_INTERNAL
+#undef TRIINDEX_CONVERT_ARRAY_IF
+#undef BEGIN_TRIINDEX_UNIFORM_VECTOR_INTERNAL
+
+static inline
+SCM scm_dTriIndex_uniform_vector(SCM v) { 
+  OUT("choosing %d-bit dTriIndex variant ", (int) 8*sizeof(dTriIndex));
+  return _dTriIndex_uniform_vector_internal<dTriIndex>(v); 
+}
+
+static void
+body_trimesh_mesh_setter(body_t *body, SCM Value) {
+  if (!scm_is_pair(Value)) {
+    return WARN("Invalid argument (expecting pair)");
+  }
+  SCM Vertices = SCM_CAR(Value);
+  if (!scm_is_array(Vertices)) {
+    return WARN("Invalid car(argument) (expecting array of vertices)");
+  }
+  SCM Indices = SCM_CDR(Value);
+  if (!scm_is_array(Indices)) {
+    return WARN("Invalid cdr(argument) (expecting array of indices)");
+  }
+  Indices = scm_dTriIndex_uniform_vector(Indices);
+  dTriMeshDataID mesh;
+
+#define ASSIGN_MESH(ctype, stype, ftype) 				\
+  mesh = dGeomTriMeshGetTriMeshDataID(body->geom);			\
+									\
+  ASSIGN_SCM(body->data.trimesh.vertices, Vertices);			\
+  ASSIGN_SCM(body->data.trimesh.indices, Indices);			\
+  scm_t_array_handle vh, ih;						\
+  scm_array_get_handle(Vertices, &vh);					\
+  scm_array_get_handle(Indices, &ih);					\
+									\
+  ctype const *vertices = scm_array_handle_##stype##_elements(&vh);	\
+  dTriIndex const *indices						\
+    = (dTriIndex const *) scm_array_handle_uniform_elements(&ih);	\
+									\
+  dGeomTriMeshDataBuild##ftype(mesh, vertices, 3*sizeof(ctype),		\
+			       scm_array_handle_nelems(&vh)/3,		\
+			       indices,	scm_array_handle_nelems(&ih),	\
+			       3*sizeof(dTriIndex));			\
+  scm_array_handle_release(&ih);					\
+  scm_array_handle_release(&vh)
+
+  if (scm_is_typed_array(Vertices, s_f32)) {
+    ASSIGN_MESH(float, f32, Single);
+  }
+  else if (scm_is_typed_array(Vertices, s_f64)) {
+    ASSIGN_MESH(double, f64, Double);
+  }
+  else {
+    return WARN("Invalid argument (expecting f32 or f64 uniform array)");
+  }
+#undef ASSIGN_MESH
+  dGeomTriMeshSetData(body->geom, mesh);
+  scm_remember_upto_here_1(Value);
+}
+
+static SCM
+body_trimesh_mesh_getter(body_t *body) {
+  if (dGeomTriMeshGetTriMeshDataID(body->geom)) {
+    return scm_cons(body->data.trimesh.vertices,
+		    body->data.trimesh.indices);
+  }
+  return SCM_BOOL_F;
 }
 
 static SCM
@@ -77,6 +217,7 @@ body_plane_displacement_setter(body_t *body, SCM value) {
   dVector4 p;
   dGeomPlaneGetParams(body->geom, p);
   p[3] = scm_to_double(value);
+  dGeomPlaneSetParams(body->geom, p[0], p[1], p[2], p[3]);
 }
 
 
@@ -218,7 +359,6 @@ body_quaternion_setter(body_t *body, SCM value) {
   }
   dQuaternion Q;
   scm_to_dQuaternion(value, &Q);
-  OUT("Setting Quaternion to [%f %f %f %f]", Q[0], Q[1], Q[2], Q[3]);
   dBodySetQuaternion(body->body, Q);
 }
 
@@ -291,6 +431,7 @@ init_body_property_accessors() {
   SET_BODY_ACCESSORS(dSphereClass, sphere_, radius);
   SET_BODY_ACCESSORS(dPlaneClass, plane_, normal);
   SET_BODY_ACCESSORS(dPlaneClass, plane_, displacement);
+  SET_BODY_ACCESSORS(dTriMeshClass, trimesh_, mesh);
   
   for(int i = 0; i < dFirstSpaceClass; ++i) {
     SET_BODY_ACCESSORS(i,, mass);
