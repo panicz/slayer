@@ -54,16 +54,13 @@ _dTriIndex_uniform_vector_internal(SCM v);
   template<> SCM							\
   _dTriIndex_uniform_vector_internal< scm_t_uint##bits >(SCM v) {	\
   char *s = as_c_string(s_u##bits);					\
-  OUT("Testing against %s", s);						\
   free(s);								\
   if(scm_is_typed_array(v, s_u##bits)) {				\
-    OUT("Compatible array (%d bits)", bits);				\
     return v;								\
   }									\
     scm_t_array_handle H, h;						\
     scm_array_get_handle(v, &h);					\
     int i, n = scm_array_handle_nelems(&h);				\
-    OUT("ORIGINAL ARRAY HAS %d ELEMS", n);				\
     SCM V = scm_make_u##bits##vector(scm_from_int(n), SCM_UNDEFINED);	\
     scm_array_get_handle(V, &H);					\
     scm_t_uint##bits *dest						\
@@ -115,20 +112,19 @@ END_TRIINDEX_UNIFORM_VECTOR_INTERNAL(16)
 
 static inline
 SCM scm_dTriIndex_uniform_vector(SCM v) { 
-  OUT("choosing %d-bit dTriIndex variant ", (int) 8*sizeof(dTriIndex));
   return _dTriIndex_uniform_vector_internal<dTriIndex>(v); 
 }
 
 static void
-body_trimesh_mesh_setter(body_t *body, SCM Value) {
-  if (!scm_is_pair(Value)) {
+body_trimesh_mesh_setter(body_t *body, SCM value) {
+  if (!scm_is_pair(value)) {
     return WARN("Invalid argument (expecting pair)");
   }
-  SCM Vertices = SCM_CAR(Value);
+  SCM Vertices = SCM_CAR(value);
   if (!scm_is_array(Vertices)) {
     return WARN("Invalid car(argument) (expecting array of vertices)");
   }
-  SCM Indices = SCM_CDR(Value);
+  SCM Indices = SCM_CDR(value);
   if (!scm_is_array(Indices)) {
     return WARN("Invalid cdr(argument) (expecting array of indices)");
   }
@@ -166,7 +162,7 @@ body_trimesh_mesh_setter(body_t *body, SCM Value) {
   }
 #undef ASSIGN_MESH
   dGeomTriMeshSetData(body->geom, mesh);
-  scm_remember_upto_here_1(Value);
+  scm_remember_upto_here_1(value);
 }
 
 static SCM
@@ -385,6 +381,37 @@ body_mass_getter(body_t *body) {
   return scm_from_double(m.mass);
 }
 
+static void 
+body_mass_distribution_setter(body_t *body, SCM value) {
+  if(!(body->body)) {
+    return WARN("Unable to retrieve body mass");
+  }
+  if (!scm_is_pair(value)) {
+    return WARN("Invalid argument (expecting pair)");
+  }
+  dMass M;
+  dBodyGetMass(body->body, &M);
+  scm_to_dVector3(SCM_CAR(value), &M.c);
+  scm_to_dMatrix3(SCM_CDR(value), &M.I);
+#define M_I(i, j) M.I[(i)*3+j]
+  dMassSetParameters(&M, M.mass, M.c[0], M.c[1], M.c[2],
+		     M_I(0,0), M_I(1,1), M_I(2,2),
+		     M_I(0,1), M_I(0,2), M_I(1,2));
+#undef M_I
+  dBodySetMass(body->body, &M);
+}
+
+static SCM
+body_mass_distribution_getter(body_t *body) {
+  if(!(body->body)) {
+    return scm_from_double(INFINITY);
+  }
+  dMass m;
+  dBodyGetMass(body->body, &m);
+  return scm_cons(scm_from_dVector3(m.c), scm_from_dMatrix3(m.I));
+}
+
+
 static void
 body_cylinder_height_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
@@ -420,10 +447,14 @@ body_cylinder_radius_getter(body_t *body) {
 static void
 init_body_property_accessors() {
   pair<SCM, int> index;
-#define SET_BODY_ACCESSORS(ode_type, prefix, property)			\
-  index = make_pair(gc_protected(symbol(# property)), ode_type);	\
+#define SET_BODY_NAMED_ACCESSORS(ode_type, prefix, property, name)	\
+  index = make_pair(gc_protected(symbol(name)), ode_type);		\
   body_property_setter[index] = body_##prefix##property##_setter;	\
   body_property_getter[index] = body_##prefix##property##_getter
+
+#define SET_BODY_ACCESSORS(ode_type, prefix, property)		\
+  SET_BODY_NAMED_ACCESSORS(ode_type, prefix, property, # property)
+  
 
   SET_BODY_ACCESSORS(dBoxClass, box_, dimensions);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, height);
@@ -438,12 +469,14 @@ init_body_property_accessors() {
     SET_BODY_ACCESSORS(i,, position);
     SET_BODY_ACCESSORS(i,, rotation);
     SET_BODY_ACCESSORS(i,, quaternion);
+    SET_BODY_NAMED_ACCESSORS(i,, mass_distribution, "mass-distribution");
   }
 
   SET_BODY_ACCESSORS(dPlaneClass, plane_, position);
   SET_BODY_ACCESSORS(dPlaneClass, plane_, quaternion);
 
 #undef SET_BODY_ACCESSORS
+#undef SET_BODY_NAMED_ACCESSORS
 }
 
 static SCM
