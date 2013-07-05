@@ -1,7 +1,9 @@
 (rig
  (bodies
   (chassis (box #:dimensions #f32(0.7 0.5 0.2) #:mass 3.0 
-		#:position #f32(0 0 0.3)))
+		#:position #f32(0 0 0.3))
+   #;(trimesh #:mesh (#2f32((1 0 1)(-0.5 0.5 0)(-0.5 -0.5 0)) . #u32(0 1 2))
+	    #:mass 3.0 #:position #f32(0 0 0.6)))
   (front-wheel 
    (cylinder #:height 0.05 #:radius 0.18 
 	     #:mass 0.2 #:position #f32(0.35 0 0.2)
@@ -26,7 +28,6 @@
 		  #:lo-stop-2 -inf.0 #:hi-stop-2 +inf.0
 		  #:fudge-factor 0.5 
 		  #:max-force-2 100.0
-		  #:max-force 0.2
 		  ))
   (left-rear (hinge-2 #:body-1 chassis #:body-2 left-rear-wheel 
 		      #:anchor (? position left-rear-wheel)
