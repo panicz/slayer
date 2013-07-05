@@ -1,19 +1,20 @@
+// these need to be defined before including "physics.h"
+#include "extend.h"
+static scm_t_bits ode_tag;
+static SCM s_f32;
+static SCM s_f64;
+
+static SCM s_u8;
+static SCM s_s8;
+static SCM s_u16;
+static SCM s_s16;
+static SCM s_u32;
+static SCM s_s32;
+static SCM s_u64;
+static SCM s_s64;
+
 #include "physics.h"
-// primitive C functions (to be implemented!)
-// (make-simulation)
-// (make-rig simulation)
-// (make-body sim rig type name) ??
-// (set-body-property! body (name <string>) value)
-// (body-property body property-name)
 
-// (make-joint sim rig type)
-// (body-named- name rig)
-// (set-joint-property! joint (property-name <string>) value)
-// (joint-property property-name joint)
-
-scm_t_bits ode_tag;
-SCM s_f32;
-SCM s_f64;
 
 // based on src/ode/collision.h enum, lines 880-902
 static char const *class_name[] = {
@@ -151,8 +152,20 @@ init() {
   INIT_BODY_MODULE;
   INIT_JOINT_MODULE;
 
-  s_f32 = gc_protected(symbol("f32"));
-  s_f64 = gc_protected(symbol("f64"));
+#define INIT_SYMBOL(sym) s_##sym = gc_protected(symbol(# sym))
+
+  INIT_SYMBOL(f32);
+  INIT_SYMBOL(f64);
+  INIT_SYMBOL(u8);
+  INIT_SYMBOL(s8);
+  INIT_SYMBOL(u16);
+  INIT_SYMBOL(s16);
+  INIT_SYMBOL(u32);
+  INIT_SYMBOL(s32);
+  INIT_SYMBOL(u64);
+  INIT_SYMBOL(s64);
+
+#undef INIT_SYMBOL
 
   //scm_c_define_module("lib physics", export_symbols, NULL);
   export_symbols(NULL);

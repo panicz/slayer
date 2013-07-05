@@ -7,17 +7,18 @@
 #include <functional>
 #include <algorithm>
 #include <unordered_map>
+#include <type_traits>
 #include <tuple>
 #include <cmath>
 #include "utils.h"
-#include "extend.h"
 #include "vmx.hh"
 
 using namespace std;
 
-extern scm_t_bits ode_tag;
-extern SCM s_f32;
-extern SCM s_f64;
+// the following symbols must be defined in a file that includes this one:
+// scm_t_bits ode_tag;
+// SCM s_f32;
+// SCM s_f64;
 
 struct scm_eq : binary_function<SCM, SCM, bool> {
   bool operator() (const SCM& x, const SCM& y) const {
@@ -72,6 +73,12 @@ typedef struct body_t {
   int id;
   dBodyID body;
   dGeomID geom;
+  union {
+    struct {
+      SCM vertices;
+      SCM indices;
+    } trimesh;
+  } data;
 } body_t;
 
 typedef unordered_map<SCM, int, hash<SCM>, scm_eq> symbol_index_map_t;
