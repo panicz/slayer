@@ -45,6 +45,12 @@
 				       #:height height)))
 		    ((plane)
 		     (square-grid #:size 10.0 #:density 50))
+		    ((trimesh)
+		     (match-let (((vertices . indices)
+				  (body-property body 'mesh)))
+		       `(mesh (vertices ,vertices)
+			      (color #f32(0.7 0 0))
+			      (faces (triangles ,indices)))))
 		    (else #f))))
 	      (hash-set! #[ov 'meshes] (body-id body) mesh)))))
 
