@@ -48,9 +48,9 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
 
 #define ASSIGN_SCM(object, value) 				\
   if(!SCM_IMP(object)) {					\
-      scm_gc_unprotect_object(object);				\
-    }								\
-    object = SCM_IMP(value) ? value : gc_protected(value)
+    scm_gc_unprotect_object(object);				\
+  }								\
+  object = SCM_IMP(value) ? value : gc_protected(value)
 
 #define ASSERT_SCM_TYPE(type, var, pos)					\
   SCM_ASSERT_TYPE(scm_is_##type(var), var, pos, __FUNCTION__, # type)
