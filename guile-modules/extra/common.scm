@@ -87,12 +87,14 @@
 	       bytevector-fill!
 	       pretty-print format
 	       )
-  #:export-syntax (\ for if*
+  #:export-syntax (TODO \ for if*
 		   safely export-types
 		   transform! increase! decrease! multiply!
 		   push! pop!))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define-syntax-rule (TODO something ...) (begin))
 
 (define (make-locked-mutex)
   (let ((m (make-mutex)))

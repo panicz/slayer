@@ -37,6 +37,8 @@ unsigned int now() {
   (void) fprintf(stderr, "[ %09u ] %s/%s: " msg "\n", now(), __FILE__,	\
 		 __FUNCTION__, ## __VA_ARGS__ )
 
+#define TODO(arg, ...)
+
 #ifdef __cplusplus
 #define WARN_UPTO(n, msg, ...)						\
   ({static int __warn_counter_##n;					\
