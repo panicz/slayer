@@ -22,7 +22,7 @@
 	   <point>
 	   <generalized-vector>
 	   <quaternion> 
-	   quaternion quaternion-real quaternion-imag re im ~
+	   quaternion quaternion-real quaternion-imag re im ~ ^
 	   rotation-quaternion rotate
 	   TOLERANCE
 	   ))
@@ -127,11 +127,14 @@
    (lambda (x) (list x i)) 
    (list 0 (1- (rows a)))))
 
-(define (dot a b) 
+(define-method (dot (a <point>) (b <point>))
   (let ((sum 0))
     (array-for-each 
      (lambda(x y) (set! sum (+ sum (* x y)))) a b)
     sum))
+
+(define-method (dot (a <list>) (b <list>))
+  (apply + (map * a b)))
 
 (define (square v)
   (dot v v))
@@ -139,21 +142,38 @@
 (define-method (norm v)
   (sqrt (square v)))
 
-(define-method (normalize! v)
+(define-method (normalize! (v <point>))
   (let ((lv (norm v)))
     (array-map! v (lambda(x)(/ x lv)) v)))
 
-(define-method (normalized v)
+(define-method (normalized (v <point>))
   (let ((lv (norm v))
-	(u (apply make-typed-array (array-type v) (if #f #f) 
+	(u (apply make-typed-array (array-type v) 0 
 		  (array-dimensions v))))
-    (array-map! u (lambda(x)(/ x lv)) v)
-    u))
+    (if (< lv #[TOLERANCE])
+	u
+	(begin
+	  (array-map! u (lambda(x)(/ x lv)) v)
+	  u))))
 
-(define-method (normalized (q <quaternion>))
-  (match-let* (((re . im) q)
-	       (1/norm (/ 1 (sqrt (+ (* re re) (* im im))))))
-    (quaternion (* 1/norm re) (* 1/norm im))))
+(define-method (normalized (p <pair>))
+  ;; this procedure had to be written in this manner, because GOOPS doesn't
+  ;; allow to distinguish between dotted pairs and non-empty lists
+  (match p 
+    (((? number? _) ...) 
+     ;; list of numbers
+     (let ((l (norm p)))
+       (if (< l #[TOLERANCE])
+	   l
+	   (let ((1/l (/ 1.0 l)))
+	     (map (lambda(x)(* 1/l x)) p)))))
+    (((? real? re) . (? array? im))
+     ;; quaternion
+     (let ((norm (sqrt (+ (* re re) (* im im)))))
+       (if (< norm #[TOLERANCE])
+	   (quaternion 1.0 (make-typed-array (array-type im) 0 3))
+	   (let ((1/norm (/ 1 norm)))
+	     (quaternion (* 1/norm re) (* 1/norm im))))))))
 
 ;; it turned out that this procedure is implemented twice -- here
 ;; and at the bottom (the 'projection procedure)
@@ -202,19 +222,19 @@
      (* #[M 2 1] (- (* #[M 1 0] #[M 0 2]) (* #[M 0 0] #[M 1 2])))
      (* #[M 0 1] (- (* #[M 2 0] #[M 1 2]) (* #[M 1 0] #[M 2 2])))))
 
-(define (wedge3x3 u v)
-  (let ((vector-length 
-	 (if (uniform-vector? v) 
-	     uniform-vector-length 
-	     vector-length)))
-    #;(assert (and (or (and (vector? u) (vector? v))
-		     (and (uniform-vector? u) (uniform-vector? v)))
-		 (= (vector-length u) (vector-length v) 3)))
-    (list->typed-array 
-     (array-type u) 1 
-     (list (- (* #[u 1] #[v 2])(* #[u 2] #[v 1]))
-	   (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
-	   (- (* #[u 0] #[v 1])(* #[u 1] #[v 0]))))))
+(define-method (wedge3x3 (u <point>) (v <point>))
+  (list->typed-array 
+   (array-type u) 1 
+   (list (- (* #[u 1] #[v 2])(* #[u 2] #[v 1]))
+	 (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
+	 (- (* #[u 0] #[v 1])(* #[u 1] #[v 0])))))
+
+(define-method (wedge3x3 (u <list>) (v <list>))
+  (match (list u v)
+    (((ux uy uz . _) (vx vy vz . _))
+     (list (- (* uy vz) (* uz vy))
+	   (- (* uz vx) (* ux vz))
+	   (- (* ux vy) (* uy vz))))))
 
 (define (crossm3x3 v)
   (list->typed-array (array-type v) 2
@@ -289,14 +309,29 @@
 (define-method (+ (p <point>) . rest)
   (apply array-map add p rest))
 
+(define-method (+ (l <list>) . rest)
+  (apply map + l rest))
+
+(define-method (- (l <list>) . rest)
+  (apply map - l rest))
+
 (define-method (- (p <point>) . rest)
   (apply array-map subtract p rest))
 
 (define-method (/ (p <point>) (n <number>))
   (* p (/ 1.0 n)))
 
+(define-method (^ (n <number>) (m <number>))
+  (expt n m))
+
+(define-method (^ (u <point>) (v <point>))
+  (wedge3x3 u v))
+
+(define-method (^ (u <list>) (v <list>))
+  (wedge3x3 u v))
+
 ; this has to be added to support unary minus, as guile probably 
-; implements it like as (define (- (first <number>)) (- 0 first)) ...
+; implements it as (define (- (first <number>)) (- 0 first)) ...
 (define-method (- (n <number>) (p <point>))
   (array-map (lambda(x)(- n x)) p)) 
 
