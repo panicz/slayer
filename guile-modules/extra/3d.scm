@@ -27,6 +27,98 @@
   ;;:re-export (distance)
   )
 
+
+(define (3d-list l)
+  (match l
+    ((x y)
+     (list x y .0))
+    ((x y z . _)
+     (list x y z))))
+
+(define (normals/triangles vertices triangle-indices)
+  (let* ((vertices (map 3d-list (array->list vertices)))
+	 (normals (make-vector (length vertices) '())))
+    (let loop ((index-lists (map-n 3 list (array->list triangle-indices))))
+      (match index-lists
+	(((indices ...) . remaining-index-lists)
+	 (match-let (((v1 v2 v3) 
+		      (map (lambda(i)(list-ref vertices i)) indices)))
+	   (let ((normal (normalized (^ (- v2 v1) (- v3 v2)))))
+	     (for i in indices
+		  (vector-set! normals i 
+			       (cons normal 
+				     (vector-ref normals i))))))
+	 (loop remaining-index-lists))
+	(()
+	 (for i in 0 .. (last-index normals)
+	      (let ((vertex-normals (vector-ref normals i)))
+		(if (null? vertex-normals)
+		    (vector-set! normals i '(.0 .0 .0))
+		    (vector-set! normals i 
+				 (normalized (apply + vertex-normals))))))
+	 (list->typed-array 'f32 2 (vector->list normals)))))))
+
+#;(transform (v0 v1 v2 v3 v4 ...) ((v0 v1 v2)(v2 v1 v3)(v2 v3 v4) ...))
+#;(trans (v0 v1 v2 v3 v4 v5 v6 v7 ...)((v0 v1 v2)(v1 v2 v3))(v4 v5 v6)(v5 v6 v7))
+
+(define (list->indices l) 
+  (list->typed-array (array-type indices) 2 l))
+
+(define (indices->list l) 
+  (flatten (array->list indices)))
+
+(define (triangle-strip->triangles indices)
+  (let loop ((index-list (indices->list indices))
+	     (result '())
+	     (swap #f))
+    (match index-list
+      ((v0 v1 v2 . _)
+       (loop (drop index-list 1) 
+	     (cons (if swap (list v1 v0 v2) (list v0 v1 v2)) result) 
+	     (not swap)))
+      (else
+       (list->indices (reverse result))))))
+
+(define (triangle-fan->triangles indices)
+  (match-let (((pivot . edges) (indices->list indices)))
+    (list->indices
+     (map (lambda (second third) (list pivot second third))
+	  (drop-right edges 1) (drop edges 1)))))
+
+(define (quads->triangles indices)
+  (let loop ((index-list (indices->list indices))
+	     (result '()))
+    (match index-list
+      ((a b c d . rest)
+       (loop rest (cons (list c a d) (cons (list a b c) result))))
+      (else
+       (list->indices (reverse result))))))
+
+(define (quad-strip->triangles indices)
+  (let loop ((index-list (indices->list indices))
+	     (result '()))
+    (match index-list
+      ((a b c d . _)
+       (loop (drop index-list 2) (cons (list a b c d) result)))
+      (else
+       (triangle-indices 'quads (list->indices (reverse result)))))))
+
+(define *index-triangulizers* #[])
+
+(define-macro (triangulize type)
+  `(hash-set! *index-triangulizers* ',type 
+	      (symbol-append ',type '->triangles)))
+
+(triangulize triangle-strip)
+(triangulize triangle-fan)
+(triangulize quads)
+(triangulize quad-strip)
+(triangulize polygon)
+
+(define (normals type vertices indices)
+  (normals/triangles 
+   vertices ((hash-ref *index-triangulizers* type noop) indices)))
+
 (define-syntax define-symmetric-method
   (syntax-rules ()
     ((_ (name arg1 arg2) body ...)
@@ -182,6 +274,7 @@
 				 (if (in? i remove-list)
 				     (list x y 0.0)
 				     (list x y z)))))
+	 
 	 `(mesh
 	   (vertices ,(list->typed-array 'f32 2 (vector->list v)))
 	   (colors ,(list->typed-array 'f32 2 (vector->list v)))
