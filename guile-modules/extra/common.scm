@@ -60,6 +60,7 @@
 	    << die
 	    real->integer
 	    make-locked-mutex
+	    rec
 	    )
   #:re-export (;; srfi-1
 	       iota
@@ -75,8 +76,6 @@
 	       lset-difference lset-xor lset-diff+intersection
 	       ;; srfi-2, srfi-11
 	       and-let* let-values let*-values
-	       ;; srfi-31
-	       rec
 	       ;; ice-9 match
 	       match match-let match-let* match-lambda match-lambda*
 	       ;; ice-9 regex
@@ -94,7 +93,14 @@
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
 
-(define-syntax-rule (TODO something ...) (begin))
+(define-syntax rec
+  (syntax-rules ()
+    ((rec (NAME . VARIABLES) . BODY)
+     (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
+    ((rec NAME EXPRESSION)
+     (letrec ( (NAME EXPRESSION) ) NAME))))
+
+(define-syntax-rule (TODO something ...) (rec (f . x) f))
 
 (define (make-locked-mutex)
   (let ((m (make-mutex)))
@@ -225,10 +231,13 @@
     result))
 
 (define-syntax for
-  (syntax-rules (in ..)
+  (syntax-rules (in .. =>)
     ((_ x in first .. last body ...)
      (for-each (lambda(x) body ...) 
 	       (iota (1+ (floor (- last first))) first)))
+    ((_ (key => value) in hash-map body ...)
+     (for-each (match-lambda ((key . value) body ...))
+	       (hash-map->list cons hash-map)))
     ((_ x in list body ...)
      (for-each (match-lambda (x body ...)
 		 (else (throw 'invalid-for-clause else))) list))))
