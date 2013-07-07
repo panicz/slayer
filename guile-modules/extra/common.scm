@@ -61,6 +61,7 @@
 	    real->integer
 	    make-locked-mutex
 	    rec
+	    last-index
 	    )
   #:re-export (;; srfi-1
 	       iota
@@ -229,6 +230,9 @@
   (let ((result (car l)))
     (set! l (cdr l))
     result))
+
+(define (last-index array)
+  (1- (vector-length array)))
 
 (define-syntax for
   (syntax-rules (in .. =>)
