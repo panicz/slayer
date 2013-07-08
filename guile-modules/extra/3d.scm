@@ -27,7 +27,6 @@
   ;;:re-export (distance)
   )
 
-
 (define (3d-list l)
   (match l
     ((x y)
@@ -59,7 +58,7 @@
 	 (list->typed-array 'f32 2 (vector->list normals)))))))
 
 #;(transform (v0 v1 v2 v3 v4 ...) ((v0 v1 v2)(v2 v1 v3)(v2 v3 v4) ...))
-#;(trans (v0 v1 v2 v3 v4 v5 v6 v7 ...)((v0 v1 v2)(v1 v2 v3))(v4 v5 v6)(v5 v6 v7))
+#;(trans (v0 v1 v2 v3 v4 v5 v6 v7 ...)((v0 v1 v2)(v1 v2 v3)(v4 v5 v6)(v5 v6 v7)))
 
 (define (list->indices l) 
   (list->typed-array (array-type indices) 2 l))
@@ -104,6 +103,38 @@
        (triangle-indices 'quads (list->indices (reverse result)))))))
 
 (define *index-triangulizers* #[])
+
+(define (mesh-with-normals mesh)
+  (match mesh
+    (('mesh . definition)
+     (let ((display-units (split-into-display-units definition)))
+       (map (lambda(display-unit)
+	      (if (mesh-defines? 'normals display-unit)
+		  display-unit
+		  (insert-normals display-unit
+				  (triangulize (faces display-unit)))))
+	    display-units)))))
+
+(define (split-into-display-units mesh-definition)
+  "Each display unit contains one ``vertices'' section and typically 
+ at least one ``faces'' section. "
+  (let loop ((definition mesh-definition)
+	     (current-display-unit '())
+	     (finished-display-units '())
+	     (already-had-faces #f))
+    (match definition
+      (()
+       (reverse (cons `(,(reverse current-display-unit))
+		      finished-display-units)))
+      ((((? symbol? symbol) args ...) . rest)
+       (if (and (eq? symbol 'vertices) already-had-faces)
+	   (loop rest `((,symbol ,@args))
+		 (cons `(,(reverse current-display-unit))
+		       finished-display-units)
+		 #t)
+	   (loop rest (cons `(,symbol ,@args) current-display-unit)
+		 finished-display-units 
+		 (or already-had-faces (eq? symbol 'faces))))))))
 
 (define-macro (triangulize type)
   `(hash-set! *index-triangulizers* ',type 
