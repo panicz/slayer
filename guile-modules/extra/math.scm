@@ -127,7 +127,7 @@
    (lambda (x) (list x i)) 
    (list 0 (1- (rows a)))))
 
-(define-method (dot (a <point>) (b <point>))
+(define-method (dot a b)
   (let ((sum 0))
     (array-for-each 
      (lambda(x y) (set! sum (+ sum (* x y)))) a b)
@@ -181,6 +181,7 @@
 		  #:key (onto destination)) ; project src onto dest
   (let ((s (/ (dot source onto) (square onto))))
     (array-map (lambda(x)(* x s)) onto)))
+
 
 (define (matrix-mul2 a b)
   (assert (= (columns a) (rows b)))
