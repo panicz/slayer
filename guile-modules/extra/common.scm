@@ -20,47 +20,33 @@
 
   ;;  #:use-module ((rnrs) #:version (6))
   #:export (
-	    expand 
-	    ?not ?and ?or in? 
+	    expand ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy hash-size
-	    union intersection difference adjoin
-	    unique
-	    map-n
-	    for-each-n
+	    union intersection difference adjoin unique
+	    map-n for-each-n
 	    atom?
-	    insert
-	    rest
+	    insert rest
 	    tree-find tree-map
-	    depth
-	    array-map
-	    array-append
+	    depth array-map array-append
 	    kw-list->hash-map
-	    list->uniform-vector
-	    list->uniform-array
+	    list->uniform-vector list->uniform-array
 	    contains-duplicates?
-	    module->hash-map
-	    module->list
-	    module-symbols
-	    symbol->list
-	    hash-map->alist 
+	    module->hash-map module->list module-symbols
+	    symbol->list hash-map->alist 
 	    alist->hash-map
 	    last-sexp-starting-position
-	    properize
-	    flatten
-	    cart
-	    all-tuples all-pairs all-triples
+	    properize flatten
+	    cart all-tuples all-pairs all-triples
 	    take-at-most drop-at-most
 	    remove-keyword-args
 	    array-size
 	    random-array
 	    read-string write-string
 	    with-output-to-utf8
-	    list-directory
-	    shell
+	    list-directory shell
 	    << die
 	    real->integer
 	    make-locked-mutex
-	    rec
 	    last-index
 	    )
   #:re-export (;; srfi-1
@@ -87,12 +73,59 @@
 	       bytevector-fill!
 	       pretty-print format
 	       )
-  #:export-syntax (TODO \ for if*
+  #:export-syntax (TODO \ for if* matches?
 		   safely export-types
+		   define-curried
+		   rec
 		   transform! increase! decrease! multiply!
-		   push! pop!))
+		   push! pop!)
+  #:replace ((cdefine . define)
+	     (cdefine* . define*))
+  )
+
+(define-syntax cdefine
+  (syntax-rules ()
+    ((_ ((head . tail) . rest) body body* ...)
+     (cdefine (head . tail)
+       (lambda rest body body* ...)))
+    ((_ (head . rest) body body* ...)
+     (define head
+       (lambda rest body body* ...)))
+    ((_ . rest)
+     (define . rest))))
+
+(define-syntax cdefine*
+  (syntax-rules ()
+    ((_ ((head . tail) . rest) body body* ...)
+     (cdefine* (head . tail)
+       (lambda* rest body body* ...)))
+    ((_ (head . rest) body body* ...)
+     (define* head
+       (lambda* rest body body* ...)))
+    ((_ . rest)
+     (define* . rest))))
 
 ;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+
+(define-macro (define-curried signature . body)
+  (match signature
+    ((name args ...)	  
+     `(define-syntax ,name
+	(syntax-rules ()
+	  ((_ ,@args)
+	   (begin ,@body))
+	  ,@(let loop ((args* args))
+	      (match args*
+		(() '())
+		((first ... last)
+		 (cons `((_ ,@first #;...)
+			 (lambda(,last)(,name ,@args* #;...)))
+		       (loop first #;...))))))))))
+
+(define-curried (matches? pattern x)
+  (match x 
+    (pattern #t)
+    (else #f)))
 
 (define-syntax rec
   (syntax-rules ()
@@ -193,6 +226,7 @@
 	     (tree-map proc item)
 	     (proc item)))
        tree))
+
 
 (define-syntax safely 
   (syntax-rules ()
@@ -449,7 +483,7 @@
     ((only) (map list only))
     ((first . rest)
      (append-map (lambda(x)
-		   (map (\ cons _ x)
+		   (map (lambda(y) (cons y x))
 			first))
 		 (apply cart rest)))))
 
