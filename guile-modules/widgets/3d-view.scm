@@ -17,6 +17,10 @@
 	    X-SENSITIVITY
 	    Y-SENSITIVITY))
 
+(define-class <3d-view> (<extended-widget>)
+  (camera #:init-thunk (lambda()(make <3d-cam>)))
+  (objects #:init-value '()))
+
 (define-method (initialize (mesh <3d-mesh>) args)
   (next-method)
   ; (display "initializing mesh\n")
@@ -30,7 +34,24 @@
 	#;(generate-circle #:radius 0.2)
 	#;(with-input-from-file "3d/basket.3d" read)))
 
-(define (draw-mesh mesh)
+
+
+(define *lights* '())
+
+(use-modules (extra common))
+
+(define-method (draw-mesh mesh (context <3d-view>))
+  (define (transform transformation-spec)
+    (for-each (match-lambda
+	       (('load-identity!)
+		(load-identity!))
+	       (('translate-view! (? array? vector))
+		(translate-view! vector))
+	       (('rotate-view! quaternion)
+		(rotate-view! quaternion))
+	       (else
+		(<< "unrecognised transformation: "else)))
+	      transformation-spec))
   (match mesh
     (('mesh . definition)
      (for-each (match-lambda
@@ -42,21 +63,26 @@
 		 (set-color-array! array))
 		(('normals (? array? array))
 		 (set-normal-array! array))
+		(('light . properties)
+		 (let ((light (make-light)))
+		   (for (property value) in (map-n 2 list properties)
+			(set-light-property! 
+			 light
+			 (keyword->symbol property)
+			 value))
+		   #;(set! *lights* (cons light *lights*))))
 		(('faces . faces)
-		 (for-each (match-lambda 
-			    ((type array)
-			     (draw-faces! type array)))
+		 (for-each (match-lambda ((type array)
+					  (draw-faces! type array)))
 			   faces))
-		(('push-matrix!)
-		 (push-matrix!))
-		(('pop-matrix!)
+		(('with-transformations 
+		  transformations actions ...)
+		 (push-matrix!)
+		 (transform transformations)
+		 (draw-mesh `(mesh ,@actions #;...))
 		 (pop-matrix!))
-		(('load-identity!)
-		 (load-identity!))
-		(('translate-view! (? array? vector))
-		 (translate-view! vector))
-		(('rotate-view! quaternion)
-		 (rotate-view! quaternion))
+		(else
+		 (<< "no mathing pattern: "else))
 		)
 	       definition)
      (for-each forget-array! 
@@ -64,19 +90,15 @@
     (else
      (display `(no-match ,else)))))
 
-(define-method (draw (object <3d-mesh>))
+(define-method (draw (object <3d-mesh>)(view <3d-view>))
   (push-matrix!)
   (translate-view! #[object 'position])
   (rotate-view! #[object 'orientation])
-  (draw-mesh #[object 'mesh])
+  (draw-mesh #[object 'mesh] view)
   (pop-matrix!))
 
-(define-class <3d-view> (<extended-widget>)
-  (camera #:init-thunk (lambda()(make <3d-cam>)))
-  (objects #:init-value '()))
-
 (define-method (draw-objects (view <3d-view>))
-  (for-each draw #[view 'objects]))
+  (for-each (lambda(object)(draw object view)) #[view 'objects]))
 
 (define-method (draw (view <3d-view>))
   (let ((original-viewport (current-viewport)))

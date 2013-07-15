@@ -66,5 +66,5 @@
 	      (translate-view! position)
 	      (rotate-view! rotation)
 		
-	      (draw-mesh #[ov : 'meshes : (body-id body)])
+	      (draw-mesh #[ov : 'meshes : (body-id body)] ov)
 	      (pop-matrix!)))))
