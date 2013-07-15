@@ -189,6 +189,11 @@ scm_to_float(SCM number) {
   return (float) scm_to_double(number);
 }
 
+static inline SCM
+scm_from_float(float number) {
+  return scm_from_double((float) number);
+}
+
 static inline int 
 isnt(SCM value) {
   return scm_is_false(value);
