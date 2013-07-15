@@ -17,7 +17,7 @@
 #define TRY_SDL(f)						       \
   if((f) == -1) {						       \
     OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, \
-	STR(f),SDL_GetError());					       \
+	_TOSTRING(f),SDL_GetError());					       \
   }
 
 // SLAYER

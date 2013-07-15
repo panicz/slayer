@@ -14,18 +14,18 @@ unsigned int now() {
 
 #define OUT_(msg, ...) fprintf(stderr, msg, ## __VA_ARGS__ )
 
-#define STR(x) # x
+#define _TOSTRING(x) # x
 
-#define TOSTRING(x) STR(x)
+#define TOSTRING(x) _TOSTRING(x)
 
 #define LOG(expr)						\
-  ({OUT("[ %09u ] %s/%s[%d]: "STR(expr), now(), __FILE__,	\
+  ({OUT("[ %09u ] %s/%s[%d]: "_TOSTRING(expr), now(), __FILE__,	\
 	__FUNCTION__,__LINE__);expr;})
 
-#define LOGTIME(expr)						      \
-  ({int time=now();expr;time=now()-time;			      \
-    OUT("[ %09u ] %s/%s,%d: "STR(expr)" (%d ticks)", now(), __FILE__, \
-	__FUNCTION__,__LINE__,time);})
+#define LOGTIME(expr)							\
+  ({int time=now();expr;time=now()-time;				\
+    OUT("[ %09u ] %s/%s,%d: "_TOSTRING(expr)" (%d ticks)", now(),	\
+	__FILE__, __FUNCTION__,__LINE__,time);})
 
 #define FATAL(msg, ...)							\
   do { fprintf(stderr, "FATAL ERROR: " msg "\n", ## __VA_ARGS__ );	\
@@ -38,6 +38,8 @@ unsigned int now() {
 		 __FUNCTION__, ## __VA_ARGS__ )
 
 #define TODO(arg, ...)
+
+#define NOTE(msg, ...) WARN_ONCE(msg, ## __VA_ARGS__ )
 
 #ifdef __cplusplus
 #define WARN_UPTO(n, msg, ...)						\
