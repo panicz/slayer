@@ -39,10 +39,10 @@ static SCM s_f64;
   }
 
 
-DEF_SCM_TOFROM_V(3,f,loat,f32);
-DEF_SCM_TOFROM_V(3,d,ouble,f64);
-DEF_SCM_TOFROM_V(4,f,loat,f32);
-DEF_SCM_TOFROM_V(4,d,ouble,f64);
+DEF_SCM_TOFROM_V(3,f,loat,f32)
+DEF_SCM_TOFROM_V(3,d,ouble,f64)
+DEF_SCM_TOFROM_V(4,f,loat,f32)
+DEF_SCM_TOFROM_V(4,d,ouble,f64)
 
 #undef DEF_SCM_TOFROM_V
 
@@ -84,11 +84,11 @@ DEF_SCM_TOFROM_V(4,d,ouble,f64);
     return result;							\
   }
 
-DEF_SCM_TOFROM_M(3,f,loat,f32);
-DEF_SCM_TOFROM_M(3,d,ouble,f64);
+DEF_SCM_TOFROM_M(3,f,loat,f32)
+DEF_SCM_TOFROM_M(3,d,ouble,f64)
 
-DEF_SCM_TOFROM_M(4,f,loat,f32);
-DEF_SCM_TOFROM_M(4,d,ouble,f64);
+DEF_SCM_TOFROM_M(4,f,loat,f32)
+DEF_SCM_TOFROM_M(4,d,ouble,f64)
 
 #undef DEF_SCM_TOFROM_M
 
@@ -332,8 +332,8 @@ set_perspective_projection_x(SCM _fovy, SCM _aspect, SCM _near, SCM _far) {
 
 static SCM
 set_orthographic_projection_x(SCM left, SCM right, 
-			     SCM bottom, SCM top,
-			     SCM near, SCM far) {
+			      SCM bottom, SCM top,
+			      SCM near, SCM far) {
   
   struct { GLint x, y, w, h; } s;
   glGetIntegerv(GL_VIEWPORT, (GLint *) &s);
@@ -427,17 +427,16 @@ init_GLtypes() {
   }
 
 
-DEF_SET_GL_ARRAY(vertex, glVertexPointer, GL_VERTEX_ARRAY, 3);
-DEF_SET_GL_ARRAY(color, glColorPointer, GL_COLOR_ARRAY, 3);
-DEF_SET_GL_ARRAY(texture_coord, glTexCoordPointer, 
-		 GL_TEXTURE_COORD_ARRAY, 3);
+DEF_SET_GL_ARRAY(vertex, glVertexPointer, GL_VERTEX_ARRAY, 3)
+DEF_SET_GL_ARRAY(color, glColorPointer, GL_COLOR_ARRAY, 3)
+DEF_SET_GL_ARRAY(texture_coord, glTexCoordPointer, GL_TEXTURE_COORD_ARRAY, 3)
 
 static inline void
 _glNormalPointer(GLint size,GLenum type,GLsizei stride,const GLvoid *pointer) {
   return glNormalPointer(type, stride, pointer);
 }
 
-DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3);
+DEF_SET_GL_ARRAY(normal, _glNormalPointer, GL_NORMAL_ARRAY, 3)
 
 #undef DEF_SET_GL_ARRAY
 #undef NOT_SUPPORTED
@@ -480,7 +479,9 @@ forget_array_x(SCM type) {
 static void dont_set_color(const void *unused) { 
   WARN("Unsupported color setter called");
 }
+
 static void (*color_setters[SCM_ARRAY_ELEMENT_TYPE_LAST+1][2])(const void *);
+
 static inline void
 init_color_setters() {
   int i, dim;
@@ -716,25 +717,26 @@ DEF_GL_LIGHT_ACCESSORS(QUADRATIC_ATTENUATION, float)
 #undef DEF_LIGHT_GETTER
 #undef DEF_LIGHT_SETTER
 
+#define GET_PROPERTY_ID(property)			\
+  scm_to_int(scm_hash_ref(light_properties, property,	\
+			  scm_from_int(LIGHT_PROPERTY_UNSUPPORTED)))
+
 static SCM
 set_light_property_x(SCM light, SCM property, SCM value) {
   int l = scm_to_int(light);
-  int property_id 
-    = scm_to_int(scm_hash_ref(light_properties, property,
-			      scm_from_int(LIGHT_PROPERTY_UNSUPPORTED)));
+  int property_id = GET_PROPERTY_ID(property);
   (*light_property_setters[property_id])(l, value);
   return SCM_UNSPECIFIED;
 }
 
 static SCM
 light_property(SCM light, SCM property) {
-  WARN("not implemented");
-  int l = scm_to_int(light);
-  int property_id 
-    = scm_to_int(scm_hash_ref(light_properties, property,
-			      scm_from_int(LIGHT_PROPERTY_UNSUPPORTED)));
-  return (light_property_getters[property_id])(l);
+   int l = scm_to_int(light);
+   int property_id = GET_PROPERTY_ID(property);
+   return (*light_property_getters[property_id])(l);
 }
+
+#undef GET_PROPERTY_ID
 
 static inline void
 init_lights() {
@@ -772,6 +774,8 @@ make_light() {
       WARN("The maximum number of %d lights has been exceeded", GL_MAX_LIGHTS);
       return SCM_BOOL_F;
     }
+    
+    WARN_ONCE("GL_LIGHT0 == %i", (int) GL_LIGHT0);
     current_light = GL_LIGHT0 + next_light++;
     glEnable(current_light);
     return scm_from_int(current_light);
@@ -788,7 +792,7 @@ remove_light_x(SCM light) {
   ASSERT_SCM_TYPE(integer, light, 1);
   int l = scm_to_int(light);
 #ifndef NDEBUG
-  if (l > next_light - 1) {
+  if (l > (GL_LIGHT0 + next_light) - 1) {
     WARN("Trying to remove unallocated light (%d)", (int) l);
     return SCM_UNSPECIFIED;
   }
@@ -800,10 +804,13 @@ remove_light_x(SCM light) {
   }
 #endif
   glDisable(l);
-  if (l == next_light - 1) {
+  if (l == (GL_LIGHT0 + next_light) - 1) {
     --next_light;
   }
   else {
+    WARN_ONCE("If possible, it's better to remove the lights in the "
+	      "opposite order than allocating them, i.e. to remove "
+	      "the last allocated light first.");
     removed_lights = gc_protected(scm_cons(light, removed_lights));
   }
   return SCM_UNSPECIFIED;
