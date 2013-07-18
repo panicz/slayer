@@ -832,6 +832,40 @@ vector containing three or four elements, or an integer, interpreted as in
 the @code{rectangle} function from @code{(slayer image)}.
 @end deffn
 
+@deffn {Procedure} make-light- 
+Allocate new light. Once the light is allocated, various properties can be
+set using @code{set-light-property!} procedure. When the light is no longer
+needed, it is desirable to remove it using @code{remove-light!}.
+@end deffn
+
+@deffn {Procedure} remove-light! light
+Remove @var{light} allocated by @code{make-light-} procedure (or its
+derivatives). It is desirable to remove lights in the opposite order
+to their allocation order.
+@end deffn
+
+@deffn {Procedure} set-light-property! light property value
+Set the @var{light}'s @var{property} to @var{value}.  The supported
+properties (symbols) are similar to parameters of @code{glLightf*},
+but the @code{'position} and @code{'direction} parameters differ slightly.
+
+@multitable @columnfractions .33 .33 .33
+@item *property*  @tab *value type*  @tab *description*
+@item 'ambient    @tab @code{#f32(r g b a)} @tab ambient intensity
+@item 'diffuse    @tab @code{#f32(r g b a)} @tab diffuse intensity
+@item 'specular   @tab @code{#f32(r g b a)} @tab specular intensity
+@item 'position   @tab @code{#f32(x y z)} or @code{#f} @tab light position; if
+ @code{#f}, then the light is directional
+@item 'direction  @tab @code{#f32(x y z)} @tab direction of light
+@item 'cutoff @tab @code{real} @tab spotlight cutoff angle in degrees (for 
+ positional lights). The value of 180.0 causes spherical, non-directiona light.
+@item 'exponent @tab @code{real} @tab
+@item 'constant-attenuation @tab @code{real} @tab 
+@item 'linear-attenuation @tab @code{real} @tab 
+@item 'quadratic-attenuation @tab @code{real} @tab 
+@end multitable
+@end deffn
+
 I realize that the above list of procedures might be insufficient for certain
 purposes. If you notice that an essential procedure is lacking here, don't
 hesitate to let me know about it, and we can try to work out a solution.
