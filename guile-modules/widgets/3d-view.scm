@@ -8,7 +8,7 @@
   #:use-module (slayer 3d)
   #:export (<3d-view> 
 	    add-object! 
-	    draw-mesh 
+	    draw-mesh! 
 	    draw-objects
 	    relative-turn!
 	    relative-twist!
@@ -34,71 +34,121 @@
 	#;(generate-circle #:radius 0.2)
 	#;(with-input-from-file "3d/basket.3d" read)))
 
+(define (transform-matrix! transform-spec)
+  (for-each (match-lambda
+	     (('load-identity!)
+	      (load-identity!))
+	     (('translate-view! (? array? vector))
+	      (translate-view! vector))
+	     (('rotate-view! quaternion)
+	      (rotate-view! quaternion))
+	     (else
+	      (<< "unrecognised transformation: "else)))
+	    transform-spec))
 
+(let-syntax ((process-mesh
+	      (syntax-rules ()
+		((_ mesh-processor arg pattern+actions ...)
+		 (match arg
+		   (('mesh . definition)
+		    (for-each (match-lambda
+			       (('with-transforms transformas . actions)
+				(push-matrix!)
+				(transform-matrix! transformations)
+				(mesh-processor `(mesh ,actions))
+				(pop-matrix!))
+			       pattern+actions ...
+			       (else
+				(display `(mesh-processor 
+					   match-failure: ,else)))
+			       ) definition)
+		    (for-each forget-array! 
+			      '(vertex-array 
+				color-array 
+				normal-array 
+				texture-coord-array)))
+		   (else
+		    (display `(mesh-processor invalid-mesh: ,else))))))))
 
-(define *lights* '())
+  (define (draw-mesh! mesh)
+    (process-mesh draw-mesh! mesh
+		  (('vertices (? array? array))
+		   (set-vertex-array! array))
+		  (('color color)
+		   (set-color! color))
+		  (('colors (? array? array))
+		   (set-color-array! array))
+		  (('normals (? array? array))
+		   (set-normal-array! array))
+		  (('faces . faces)
+		   (for-each (match-lambda ((type array)
+					    (draw-faces! type array)))
+			     faces))))
 
-(use-modules (extra common))
+  (define (setup-lights! mesh)
+    (process-mesh setup-lights! mesh
+		  (('light . properties)
+		   (let ((light (make-light))) 
+		     (for (property value) in (map-n 2 list properties)
+			  (set-light-property! 
+			   light
+			   (keyword->symbol property)
+			   value))
+		     ;; the lights created here
+		     ;; should be removed by the caller
+		     (demand 'remove-light light)))))
+  )
 
-(define-method (draw-mesh mesh (context <3d-view>))
-  (define (transform transformation-spec)
-    (for-each (match-lambda
-	       (('load-identity!)
-		(load-identity!))
-	       (('translate-view! (? array? vector))
-		(translate-view! vector))
-	       (('rotate-view! quaternion)
-		(rotate-view! quaternion))
-	       (else
-		(<< "unrecognised transformation: "else)))
-	      transformation-spec))
-  (match mesh
-    (('mesh . definition)
-     (for-each (match-lambda
-		(('vertices (? array? array))
-		 (set-vertex-array! array))
-		(('color color)
-		 (set-color! color))
-		(('colors (? array? array))
-		 (set-color-array! array))
-		(('normals (? array? array))
-		 (set-normal-array! array))
-		(('light . properties)
-		 (let ((light (make-light)))
-		   (for (property value) in (map-n 2 list properties)
-			(set-light-property! 
-			 light
-			 (keyword->symbol property)
-			 value))
-		   #;(set! *lights* (cons light *lights*))))
-		(('faces . faces)
-		 (for-each (match-lambda ((type array)
-					  (draw-faces! type array)))
-			   faces))
-		(('with-transformations 
-		  transformations actions ...)
-		 (push-matrix!)
-		 (transform transformations)
-		 (draw-mesh `(mesh ,@actions #;...))
-		 (pop-matrix!))
-		(else
-		 (<< "no mathing pattern: "else))
-		)
-	       definition)
-     (for-each forget-array! 
-	       '(vertex-array color-array normal-array texture-coord-array)))
-    (else
-     (display `(no-match ,else)))))
+(let-syntax ((mesh-extractor
+	      (syntax-rules ()
+		((_ extractor-name arg pattern+actions ...)
+		 (match arg
+		   (('mesh . definition)
+		    `(mesh ,@(filter-map extractor-name definition)))
+		   (('with-transforms transforms . actions)
+		    (let ((subdefinition (filter-map extractor-name actions)))
+		      (if (null? subdefinition)
+			  #f
+			  `(with-transforms ,transforms
+					    ,@subdefinition))))
+		   pattern+actions ...
+		   (else
+		    #f))))))
+  
+  (define-method (extract-lights (mesh <list>))
+    (mesh-extractor extract-lights mesh 
+      (('light . properties) 
+       `(light ,@properties))))
 
-(define-method (draw (object <3d-mesh>)(view <3d-view>))
+  (define-method (skip-lights (mesh <list>))
+    (mesh-extractor skip-lights mesh 
+      (((? (lambda(x)(not (equal? x 'light))) command) . properties)
+       `(,command ,@properties))))
+  )
+
+(define-method (extract-lights (object <3d-mesh>))
+  (extract-lights #[object 'mesh]))
+
+(define-method (draw (object <3d-mesh>))
   (push-matrix!)
   (translate-view! #[object 'position])
   (rotate-view! #[object 'orientation])
-  (draw-mesh #[object 'mesh] view)
+  (draw-mesh! (skip-lights #[object 'mesh]))
   (pop-matrix!))
 
 (define-method (draw-objects (view <3d-view>))
-  (for-each (lambda(object)(draw object view)) #[view 'objects]))
+  (let ((lights '()))
+    (supply
+     (((remove-light l)
+       (push! lights l)))
+     (let ((light-defs (map extract-lights #[view 'objects])))
+       ;; lights need to be set up before the scene is rendered,
+       ;; but they can be positioned in the same place as the vertices,
+       ;; so we need to extract the lights (along with any matrix
+       ;; transformations) from the mesh definition first
+       (for-each setup-lights! light-defs)
+       (for-each draw #[view 'objects])
+       (for-each remove-light! lights)))))
 
 (define-method (draw (view <3d-view>))
   (let ((original-viewport (current-viewport)))
@@ -111,6 +161,7 @@
     (draw-objects view)
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
+
 
 (define-method (add-object! (view <3d-view>) (object <3d>))
   (set! #[view 'objects] (cons object #[view 'objects])))
