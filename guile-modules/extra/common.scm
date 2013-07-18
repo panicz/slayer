@@ -19,36 +19,6 @@
 		)
 
   ;;  #:use-module ((rnrs) #:version (6))
-  #:export (
-	    expand ?not ?and ?or in? 
-	    hash-keys hash-values hash-copy hash-size
-	    union intersection difference adjoin unique
-	    map-n for-each-n
-	    atom?
-	    insert rest
-	    tree-find tree-map
-	    depth array-map array-append
-	    kw-list->hash-map
-	    list->uniform-vector list->uniform-array
-	    contains-duplicates?
-	    module->hash-map module->list module-symbols
-	    symbol->list hash-map->alist 
-	    alist->hash-map
-	    last-sexp-starting-position
-	    properize flatten
-	    cart all-tuples all-pairs all-triples
-	    take-at-most drop-at-most
-	    remove-keyword-args
-	    array-size
-	    random-array
-	    read-string write-string
-	    with-output-to-utf8
-	    list-directory shell
-	    << die
-	    real->integer
-	    make-locked-mutex
-	    last-index
-	    )
   #:re-export (;; srfi-1
 	       iota
 	       proper-list? dotted-list? null-list? not-pair?
@@ -73,15 +43,76 @@
 	       bytevector-fill!
 	       pretty-print format
 	       )
-  #:export-syntax (TODO \ for if* matches?
+  #:export (
+	    expand ?not ?and ?or in? 
+	    hash-keys hash-values hash-copy hash-size
+	    union intersection difference adjoin unique
+	    map-n for-each-n
+	    atom?
+	    insert rest
+	    tree-find tree-map
+	    depth array-map array-append
+	    kw-list->hash-map
+	    list->uniform-vector list->uniform-array
+	    contains-duplicates?
+	    module->hash-map module->list module-symbols
+	    symbol->list hash-map->alist 
+	    alist->hash-map
+	    last-sexp-starting-position
+	    properize flatten
+	    cart all-tuples all-pairs all-triples
+	    take-at-most drop-at-most split-where
+	    remove-keyword-args
+	    array-size
+	    random-array
+	    read-string write-string
+	    with-output-to-utf8
+	    list-directory shell
+	    << die
+	    real->integer
+	    make-locked-mutex
+	    last-index
+	    demand
+	    )
+  #:export-syntax (TODO \ for if* matches? equals?
 		   safely export-types
 		   define-curried
+		   supply
 		   rec
 		   transform! increase! decrease! multiply!
 		   push! pop!)
   #:replace ((cdefine . define)
 	     (cdefine* . define*))
   )
+
+
+(define (demand to-do-something-with . args)
+  (call/cc (lambda(go-on)
+	     (apply throw 'demand go-on to-do-something-with args)))
+  ;; for some reason, the code fails to work without the following
+  ;; empty (begin) form
+  (begin))
+
+(define-syntax supply
+  (syntax-rules ()
+    ((_ (((do-something-with . args) do-what ...) ...) 
+	actions ...)
+     (let ((handlers (make-hash-table))
+	   (unsupported (lambda details
+			  (apply throw 'unsupported-reminder
+				 details))))
+       (hash-set! handlers (quote do-something-with)
+		  (lambda args do-what ...))
+       ...
+       (catch 'demand
+	 (lambda () actions ...)
+	 (lambda (key go-on memorandum . subjects)
+	   (apply (hash-ref handlers memorandum unsupported) subjects)
+	   (go-on)))))))
+
+(define (split-where criterion list)
+  (split-at list (or (list-index criterion list)
+		     (length list))))
 
 (define-syntax cdefine
   (syntax-rules ()
@@ -119,13 +150,17 @@
 		(() '())
 		((first ... last)
 		 (cons `((_ ,@first #;...)
-			 (lambda(,last)(,name ,@args* #;...)))
+			 (lambda(,last)(,name ,@args*)))
 		       (loop first #;...))))))))))
+
 
 (define-curried (matches? pattern x)
   (match x 
     (pattern #t)
     (else #f)))
+
+(define-curried (equals? value x)
+  (equal? value x))
 
 (define-syntax rec
   (syntax-rules ()
@@ -274,7 +309,8 @@
      (for-each (lambda(x) body ...) 
 	       (iota (1+ (floor (- last first))) first)))
     ((_ (key => value) in hash-map body ...)
-     (for-each (match-lambda ((key . value) body ...))
+     (for-each (match-lambda ((key . value) body ...) 
+		 (else (throw 'invalid-for-clause else)))
 	       (hash-map->list cons hash-map)))
     ((_ x in list body ...)
      (for-each (match-lambda (x body ...)
@@ -622,16 +658,15 @@
   (drop lst (min i (length lst))))
 
 (define remove-keyword-args
-  (letrec ((self (lambda(list)
-		   (match list
-		     (((? keyword?) (? (?not keyword?)) . rest)
-		      (self rest))
-		     (((? (?not keyword?) x) . rest)
-		      (cons x (self rest)))
-		     (((? keyword?) . rest)
-		      (self rest))
-		     (() '())))))
-    self))
+  (rec (self list)
+       (match list
+	 (((? keyword?) (? (?not keyword?)) . rest)
+	  (self rest))
+	 (((? (?not keyword?) x) . rest)
+	  (cons x (self rest)))
+	 (((? keyword?) . rest)
+	  (self rest))
+	 (() '()))))
 
 (define* (random-array #:key (range 1.0)(type #t)(mean 0) #:rest dims)
   (let ((dims (remove-keyword-args dims)))
