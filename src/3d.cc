@@ -820,7 +820,7 @@ static void
 export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc)		\
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc);	\
-  scm_c_export(name,NULL);
+  scm_c_export(name,NULL)
 
   EXPORT_PROCEDURE("z-index", 2, 0, 0, z_index);
   EXPORT_PROCEDURE("multiply-matrix!", 1, 0, 0, multiply_matrix_x);
