@@ -88,12 +88,7 @@
   (define (setup-lights! mesh)
     (process-mesh setup-lights! mesh
 		  (('light . properties)
-		   (let ((light (make-light))) 
-		     (for (property value) in (map-n 2 list properties)
-			  (set-light-property! 
-			   light
-			   (keyword->symbol property)
-			   value))
+		   (let ((light (apply make-light properties)))
 		     ;; the lights created here
 		     ;; should be removed by the caller
 		     (demand 'remove-light light)))))

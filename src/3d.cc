@@ -861,7 +861,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-light-property!", 3, 0, 0, set_light_property_x);
   EXPORT_PROCEDURE("light-property", 2, 0, 0, light_property);
 
-  EXPORT_PROCEDURE("make-light", 0, 0, 0, make_light);
+  EXPORT_PROCEDURE("make-light-", 0, 0, 0, make_light);
   EXPORT_PROCEDURE("remove-light!", 1, 0, 0, remove_light_x);
 
 #undef EXPORT_PROCEDURE

@@ -10,6 +10,7 @@
 	   <3d-cam> 
 	   <3d-shape>
 	   <3d-mesh>
+	   make-light
 	   generate-circle
 	   generate-wheel
 	   generate-hemisphere
@@ -26,6 +27,11 @@
 	   )
   ;;:re-export (distance)
   )
+
+(define (make-light . properties)
+  (let ((light (make-light-)))
+    (for (property value) in (map-n 2 list properties)
+	 (set-light-property! light (keyword->symbol property) value))))
 
 ;(use-modules (extra common) (extra math))
 
@@ -481,7 +487,7 @@
 			'f32 2 
 			(map normalized (array->list new-vertices))))
 	     (colors ,(array-append colors colors))
-	     (light #:position #f #:direction #f32(0 0 1)
+	     #;(light #:position #f #:direction #f32(0 0 1)
 		    #:ambient #f32(1 1 1 1))
 	     (faces (quad-strip ,quad-strip)
 		    (triangle-fan ,triangle-fan)
@@ -496,7 +502,6 @@
 				(iota points))))
 		    (triangle-fan 
 		     ,(list->uniform-array bottom-fan)))))))
-
 
 (define* (generate-sphere #:key (radius 1.0) (stacks 20) (points 20))
   (generate-capsule #:points points #:stacks stacks #:radius radius
