@@ -7,6 +7,7 @@
   #:use-module (extra math)
   #:use-module (extra common)
   #:use-module (extra ref)
+  #:use-module (extra figures)
   #:use-module (slayer)
   #:use-module (slayer 3d)
   #:export (<ode-view>)

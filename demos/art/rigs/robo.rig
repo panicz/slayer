@@ -1,0 +1,90 @@
+(rig
+ (bodies
+  (head (trimesh 
+	 #:mesh '(#2f32() . #u8())
+	 #:position #f32()
+	 #:mass 8.26 
+   ))
+
+  (upper-torso (trimesh #:mass 22.0
+   ))
+
+  (lower-torso (trimesh #:mass 11.18
+			))
+
+  (pelvis (trimesh #:mass 13.66
+		   ))
+
+  (left-forearm (trimesh #:mass 3.25
+			 ))
+  (left-arm (trimesh #:mass 1.87
+		     ))
+  (left-palm (trimesh #:mass 0.65
+		      ))
+
+  (right-forearm (trimesh #:mass 3.25
+			  ))
+  (right-arm (trimesh #:mass 1.87
+		      ))
+  (right-palm (trimesh #:mass 0.65
+		       ))
+
+  (left-tight (trimesh #:mass 10.5
+		       ))
+  (left-calf (trimesh #:mass 4.75
+		      ))
+  (left-foot (trimesh #:mass 1.2
+		      ))
+  (left-toes (trimesh #:mass 0.23
+		      ))
+
+  (right-tight (trimesh #:mass 10.5
+			))
+  (right-calf (trimesh #:mass 4.75
+		       ))
+  (right-foot (trimesh #:mass 1.2
+		       ))
+  (right-toes (trimesh #:mass 0.23
+		       ))
+  )
+
+ (joints
+  (neck (ball-socket #:body-1 head #:body-2 upper-torso
+		     #:anchor ...))
+  (diaphragm (hinge #:body-1 upper-torso #:body-2 lower-torso
+		    #:axis ...))
+  (abdomen (ball-socket #:body-1 lower-torso #:body-2 pelvis
+			#:anchor ...))
+
+  (left-shoulder (ball-socket #:body-1 upper-torso #:body-2 left-forearm
+			      #:anchor ...))
+  (left-elbow (hinge #:body-1 left-forearm #:body-2 left-arm
+		     #:axis ...))
+  (left-wrist (ball-socket #:body-1 left-arm #:body-2 left-palm
+			   #:anchor ...))
+
+  (right-shoulder (ball-socket #:body-1 upper-torso #:body-2 right-forearm
+			       #:anchor ...))
+  (right-elbow (hinge #:body-1 right-forearm #:body-2 right-arm
+		      #:axis ...))
+  (right-wrist (ball-socket #:body-1 right-arm #:body-2 right-palm
+			    #:anchor ...))
+
+  (left-hip (ball-socket #:body-1 pelvis #:body-2 left-tight
+			 #:anchor ...))
+  (left-knee (hinge #:body-1 left-tight #:body-2 left-calf
+		    #:axis ...))
+  (left-ankle (ball-socket #:body-1 left-calf #:body-2 left-foot
+		     #:anchor ...))
+  (left-knuckles (hinge #:body-1 left-foot #:body-2 left-toes
+			#:axis ...))
+  
+  (right-hip (ball-socket #:body-1 pelvis #:body-2 right-tight
+			 #:anchor ...))
+  (right-knee (hinge #:body-1 right-tight #:body-2 right-calf
+		    #:axis ...))
+  (right-ankle (ball-socket #:body-1 right-calf #:body-2 right-foot
+		     #:anchor ...))
+  (right-knuckles (hinge #:body-1 right-foot #:body-2 right-toes
+			#:axis ...))
+  ))

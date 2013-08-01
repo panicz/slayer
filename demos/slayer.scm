@@ -11,7 +11,8 @@ exit # prevent from executing the rest of the file by the shell
  (oop goops)
  (extra ref)
  (extra common)
- (extra math))
+ (extra math)
+ (extra figures))
 
 (keydn 'esc quit)
 (set-window-title! "WELCOME TO SLAYER")
@@ -27,8 +28,8 @@ exit # prevent from executing the rest of the file by the shell
 (define-syntax-rule (utimer mutex usecs action ...)
   (let ((tick (register-userevent (lambda () action ...))))
     (call-with-new-thread (lambda () (while #t
-				       ;; powinniśmy wisieć, dopóki jakiś klawisz
-				       ;; nie zostanie wciśnięty
+				       ;; we are hanging on the mutex until
+				       ;; some key is pressed
 				       (lock-mutex mutex)
 				       (generate-userevent tick)
 				       (unlock-mutex mutex)
@@ -43,13 +44,13 @@ exit # prevent from executing the rest of the file by the shell
 (define (key name fun)
   (keydn name 
 	 (lambda()
-	   ;; jezeli muteks nie jest zwolniony, to go zwolnij
+	   ;; if the mutex is locked, unlock it
 	   (if (equal? (mutex-owner *mutex*) (current-thread))
 	       (unlock-mutex *mutex*))
 	   (hash-set! *modes* name fun)))
   (keyup name 
 	 (lambda()
-	   ;; jezeli muteks nie jest zajety (przez ten proces), to go zajmij
+	   ;; if the mutex isn't taken (by this process), then lock it
 	   (hash-remove! *modes* name)
 	   (if (zero? (hash-size *modes*))
 	       (lock-mutex *mutex*))
@@ -57,7 +58,10 @@ exit # prevent from executing the rest of the file by the shell
 
 (cond-expand (slayer-3d
 
-(define 3d-object (make <3d-mesh>))
+(define *sphere* (generate-capsule #:height 0))
+
+(define 3d-object (make <3d-model> 
+		    #:mesh *sphere*))
 (define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400))
 (add-child! *stage* view)
 (add-object! view 3d-object)
@@ -117,8 +121,10 @@ exit # prevent from executing the rest of the file by the shell
 (set! #[view 'right-mouse-down]
       (lambda(x y)
 	(add-object! view 
-		     (make <3d-mesh> 
-		       #:position (mouse->3d view x y)))))
+		     (make <3d-model> 
+		       #:position (mouse->3d view x y)
+		       #:mesh *sphere*
+		       ))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))

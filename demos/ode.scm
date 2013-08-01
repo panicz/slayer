@@ -30,7 +30,6 @@ exit # this prevents from executing the rest of the file by the shell
 	    (generate-userevent tick)
 	    (wait usecs))))))))
 
-
 (define *modes* #[])
 
 (utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
@@ -80,11 +79,10 @@ exit # this prevents from executing the rest of the file by the shell
 	 (set-joint-property! front 'velocity w)
 	 (set-joint-property! front 'velocity-2 v))))
 
-
 #;(let* ((buggy (make-rig *sim* 'buggy))
        (controls (rig-controls rig))
        (one (char->integer #\1)))
-  (for i in 0 .. (1- (vector-length controls))
+  (for i in 0 .. (last-index controls)
        (key (list->string (integer->char (+ one i)))
 	    (lambda () (rig-add-control! 
 			buggy 
@@ -101,7 +99,6 @@ exit # this prevents from executing the rest of the file by the shell
 (add-child! *stage* *view*)
 
 ;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
-
 
 (utimer 25000 (simulation-step! *sim*))
 

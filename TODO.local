@@ -1,3 +1,20 @@
+Kolejne kroki
+
+
+
+
+cel nadrzedny: stworzyc projekt robota humanoidalnego
+srodki (cele posrednie):
+- obsluga trimeshow z ODE
+- wyswietlanie trimeshow
+  - obsluga swiatel
+    - wektory normalne
+    - ustawianie wlasnosci swiatel
+    - kolejnosc: czy trzeba ustawic swiatla przed wyrenderowaniem sceny?
+- zaprojektowanie modeli (poszczegolnych czesci)
+- polaczenie czesci ze soba
+- dodanie opcji przesuwania i obracania rigow przy ich instancjalizacji
+
 - rozkminić kwestię sterowania (położeniowego) oraz macierzowy opis stanu
 więzów (chcemy mieć takie cudo, że podajemy okreslony stan, a sterownik sam
 wylicza optymalne sterowanie, mając na względzie wielorakie sprzężenia zwrotne

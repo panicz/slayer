@@ -10,6 +10,7 @@
   #:use-module (ice-9 format)
   #:use-module (ice-9 popen)
   #:use-module (ice-9 rdelim)
+  #:use-module (ice-9 optargs)
   #:use-module (system base compile)
 
   #:use-module ((rnrs) :version (6) 
@@ -38,6 +39,9 @@
 	       ;; ice-9 regex
 	       string-match match:substring regexp-substitute
 	       regexp-substitute/global
+	       ;; ice-9 optargs
+	       let-keywords let-keywords* let-optional let-optional*
+	       ;; r6rs
 	       make-bytevector 
 	       utf8->string string->utf8 
 	       bytevector-fill!
@@ -77,7 +81,7 @@
   #:export-syntax (TODO \ for if* matches? equals?
 		   safely export-types
 		   define-curried
-		   supply
+		   assure
 		   rec
 		   transform! increase! decrease! multiply!
 		   push! pop!)
@@ -91,24 +95,23 @@
 	     (apply throw 'demand go-on to-do-something-with args)))
   ;; for some reason, the code fails to work without the following
   ;; empty (begin) form
-  (begin))
+  #;(begin))
 
-(define-syntax supply
+(define-syntax assure
   (syntax-rules ()
-    ((_ (((do-something-with . args) do-what ...) ...) 
+    ((_ (((to-do-something-with . args) do-what ...) ...) 
 	actions ...)
      (let ((handlers (make-hash-table))
 	   (unsupported (lambda details
-			  (apply throw 'unsupported-reminder
+			  (apply throw 'unsatisfied-demand
 				 details))))
-       (hash-set! handlers (quote do-something-with)
+       (hash-set! handlers (quote to-do-something-with)
 		  (lambda args do-what ...))
        ...
        (catch 'demand
 	 (lambda () actions ...)
-	 (lambda (key go-on memorandum . subjects)
-	   (apply (hash-ref handlers memorandum unsupported) subjects)
-	   (go-on)))))))
+	 (lambda (key go-on demand . args*)	   
+	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
 
 (define (split-where criterion list)
   (split-at list (or (list-index criterion list)
@@ -152,7 +155,6 @@
 		 (cons `((_ ,@first #;...)
 			 (lambda(,last)(,name ,@args*)))
 		       (loop first #;...))))))))))
-
 
 (define-curried (matches? pattern x)
   (match x 
@@ -636,7 +638,7 @@
 		 (#t
 		  (throw 'mismatch-braces)))))))
 
-#;(define (cart . args)
+(define (cart . args)
   (let ((n (length args)))
     (cond ((= n 0) '())
 	  ((= n 1) (map list (car args)))
@@ -702,6 +704,23 @@
 	    (else
 	     (loop (cons line lines)
 		   (read-line pipe)))))))
+
+;; fantastyczne makro od Dercza Stanisława :
+(define-macro (define-accessors tree)
+  (letrec ((gather-leaves 
+	    (lambda (arg subtree)
+	      (cond ((null? subtree) '())
+		    ((symbol? subtree) (list (cons subtree arg)))
+		    ((pair? subtree) (append (gather-leaves `(car ,arg)
+							    (car subtree))
+					     (gather-leaves `(cdr ,arg)
+							    (cdr subtree))))
+		    (else (error "invalid accessor definition"))))))
+    `(begin ,@(map (match-lambda((name . value)
+				 `(define (,name s) ,value)))
+		   (gather-leaves 's tree)))))
+
+;; (expand '(define-accessors (a (b c 2))))
 
 ;; do dalszej rozkminki
 ;; (define (collatz n)

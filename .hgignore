@@ -25,3 +25,4 @@ push
 INSTALL
 aclocal.m4
 configure
+*.local

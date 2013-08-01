@@ -1,11 +1,7 @@
 (define-module (extra math)
-  :use-module (ice-9 optargs)
-  :use-module (srfi srfi-1)
-  :use-module (srfi srfi-17)
   :use-module (extra common)
   :use-module (extra ref)
   :use-module (oop goops)
-  :duplicates (merge-generics);; replace warn-override-core warn first)
   :use-module ((rnrs) :version (6))  
   :export (eye transpose reciprocal
 	   rows columns row column

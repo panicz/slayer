@@ -24,3 +24,5 @@ and later perhaps
 The other question which rises is: where should the plugins
 be put?
 Should there be anything like SLAYER_PLUGINS_PATH?
+
+Test how make-install works
