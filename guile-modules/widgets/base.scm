@@ -154,7 +154,7 @@
 	   (#[ *nearby-widget* 'mouse-over ] x y xrel yrel)))
      (#[ *active-widget* 'drag ] x y xrel yrel)))
 
-(keydn 'mouse1 select-widget-at)
-(keyup 'mouse1 unselect-widget-at)
-(keydn 'mouse2 right-click-widget-at)
+(keydn 'mouse-left select-widget-at)
+(keyup 'mouse-left unselect-widget-at)
+(keydn 'mouse-right right-click-widget-at)
 (mousemove drag-over-widget)

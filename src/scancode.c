@@ -139,10 +139,25 @@ static struct scancode keymap[] = {
   { "power", SDLK_POWER },
   { "euro", SDLK_EURO },  
 
-  { "mouse1", SDLK_LAST + SDL_BUTTON_LEFT },
-  { "mouse2", SDLK_LAST + SDL_BUTTON_RIGHT },
-  { "mouse3", SDLK_LAST + SDL_BUTTON_MIDDLE },
+  { "mouse0", SDLK_LAST + 0 },
+  { "mouse1", SDLK_LAST + 1 },
+  { "mouse2", SDLK_LAST + 2 },
+  { "mouse3", SDLK_LAST + 3 },
+  { "mouse4", SDLK_LAST + 4 },
+  { "mouse5", SDLK_LAST + 5 },
+  { "mouse6", SDLK_LAST + 6 },
+  { "mouse7", SDLK_LAST + 7 },
+  { "mouse8", SDLK_LAST + 8 },
+  { "mouse9", SDLK_LAST + 9 },
+  { "mouse10", SDLK_LAST + 10 },
+  { "mouse11", SDLK_LAST + 11 },
+
+  { "mouse-left", SDLK_LAST + SDL_BUTTON_LEFT },
+  { "mouse-right", SDLK_LAST + SDL_BUTTON_RIGHT },
+  { "mouse-middle", SDLK_LAST + SDL_BUTTON_MIDDLE },
   { "mwheelup", SDLK_LAST + SDL_BUTTON_WHEELUP },
   { "mwheeldown", SDLK_LAST + SDL_BUTTON_WHEELDOWN },
+
+
   { "", 0 }
 };

@@ -395,9 +395,9 @@ be generated (in direct mode).
 @multitable @columnfractions .33 .33 .33
 @item  *SLAYER NAME*         @tab  *ASCII VALUE*      @tab *COMMON NAME (SDL)*
 @item                        @tab                     @tab
-@item "mouse1"               @tab                     @tab left mouse button
-@item "mouse2"               @tab                     @tab right mouse button
-@item "mouse3"               @tab                     @tab middle mouse button
+@item "mouse-left"           @tab                     @tab left mouse button
+@item "mouse-right"          @tab                     @tab right mouse button
+@item "mouse-middle"         @tab                     @tab middle mouse button
 @item "mwheelup"             @tab                     @tab mouse wheel up
 @item "mwheeldown"           @tab                     @tab mouse wheel down
 @item                        @tab                     @tab

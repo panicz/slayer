@@ -4,7 +4,7 @@
 #include "video.h"
 #include <SDL/SDL.h>
 
-#define SDL_NBUTTONS 6
+#define SDL_NBUTTONS 12
 
 enum input_modes {
   DIRECT_MODE = 0,
