@@ -191,10 +191,9 @@
 ;; of a procedure being defined, it places them in a closure accessible
 ;; from the newly defined procedure. Therefore, e.g.
 ;;
-(expand 
-(define-delimited (f x)
-  (define k (random 10))
-  (* x k)))
+;; (define-delimited (f x)
+;;   (define k (random 10))
+;;   (* x k))
 ;;
 ;; is equivalent to:
 ;;
