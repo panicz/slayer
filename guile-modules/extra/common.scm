@@ -11,6 +11,7 @@
   #:use-module (ice-9 popen)
   #:use-module (ice-9 rdelim)
   #:use-module (ice-9 optargs)
+  #:use-module (ice-9 expect)
   #:use-module (system base compile)
 
   #:use-module ((rnrs) :version (6) 
@@ -38,9 +39,16 @@
 	       match match-let match-let* match-lambda match-lambda*
 	       ;; ice-9 regex
 	       string-match match:substring regexp-substitute
-	       regexp-substitute/global
+	       regexp-substitute/global regexp/icase regexp/newline
+	       regexp/basic regexp/extended regexp/notbol regexp/noteol
+	       regexp? list-matches fold-matches regexp-match?
 	       ;; ice-9 optargs
 	       let-keywords let-keywords* let-optional let-optional*
+	       ;; ice-9 expect
+	       expect expect-strings expect-port expect-timeout
+	       expect-timeout-proc expect-eof-proc expect-char-proc
+	       expect-strings-compile-flags expect-strings-exec-flags
+	       expect-select expect-regexec
 	       ;; r6rs
 	       make-bytevector 
 	       utf8->string string->utf8 
@@ -48,7 +56,7 @@
 	       pretty-print format
 	       )
   #:export (
-	    expand ?not ?and ?or in? 
+	    expand-form ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy hash-size
 	    union intersection difference adjoin unique
 	    map-n for-each-n
@@ -61,7 +69,7 @@
 	    contains-duplicates?
 	    module->hash-map module->list module-symbols
 	    symbol->list hash-map->alist 
-	    alist->hash-map
+	    alist->hash-map hash-table
 	    last-sexp-starting-position
 	    properize flatten
 	    cart all-tuples all-pairs all-triples
@@ -80,9 +88,9 @@
 	    )
   #:export-syntax (TODO \ for if* matches? equals?
 		   safely export-types
-		   define-curried
-		   assure
-		   rec
+		   define-curried define-delimited
+		   supply
+		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
 		   push! pop!)
   #:replace ((cdefine . define)
@@ -92,14 +100,11 @@
 
 (define (demand to-do-something-with . args)
   (call/cc (lambda(go-on)
-	     (apply throw 'demand go-on to-do-something-with args)))
-  ;; for some reason, the code fails to work without the following
-  ;; empty (begin) form
-  #;(begin))
+	     (apply throw 'demand go-on to-do-something-with args))))
 
-(define-syntax assure
+(define-syntax supply
   (syntax-rules ()
-    ((_ (((to-do-something-with . args) do-what ...) ...) 
+    ((_ (((to-do-something-with . args) do-what ...) ...)
 	actions ...)
      (let ((handlers (make-hash-table))
 	   (unsupported (lambda details
@@ -110,8 +115,14 @@
        ...
        (catch 'demand
 	 (lambda () actions ...)
-	 (lambda (key go-on demand . args*)	   
+	 (lambda (key go-on demand . args*)
 	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
+
+(define-syntax-rule (hash-table (key value) ...)
+  (let ((new-hash-table (make-hash-table)))
+    (hash-set! new-hash-table key value)
+    ...
+    new-hash-table))
 
 (define (split-where criterion list)
   (split-at list (or (list-index criterion list)
@@ -139,7 +150,11 @@
     ((_ . rest)
      (define* . rest))))
 
-;(use-modules (srfi srfi-1) (srfi srfi-2) (srfi srfi-11) (ice-9 match) (ice-9 regex) (ice-9 syncase))
+;; `define-curried' is not a curried definition!
+;; It defines a new macro which generates an appropreate
+;; procedure, if insufficient number of arguments is given.
+;; A good example is given below, in the `matches?' macro
+;; definition
 
 (define-macro (define-curried signature . body)
   (match signature
@@ -156,6 +171,13 @@
 			 (lambda(,last)(,name ,@args*)))
 		       (loop first #;...))))))))))
 
+;; If the `matches?' macro is called with two arguments, it behaves
+;; as a regular binary predicate, which returns true if the second
+;; argument matches the first (in terms of Wright/Shinn pattern matcher,
+;; a.k.a. (ice-9 match) module). If the last argument is omitted,
+;; it returns a procedure which checks whether its argument matches
+;; a given pattern.
+
 (define-curried (matches? pattern x)
   (match x 
     (pattern #t)
@@ -163,6 +185,75 @@
 
 (define-curried (equals? value x)
   (equal? value x))
+
+;; `define-delimited' is similar to `define', but it treats internal
+;; definitions differently -- instead of defining them at each invocation
+;; of a procedure being defined, it places them in a closure accessible
+;; from the newly defined procedure. Therefore, e.g.
+;;
+(expand 
+(define-delimited (f x)
+  (define k (random 10))
+  (* x k)))
+;;
+;; is equivalent to:
+;;
+;; (define f #f)
+;; (letrec ((k (random 10)))
+;;   (set! f (lambda(x)(* x k))))
+;;
+;; The main differences are that the internal definitions don't have
+;; access to the parameters of newly defined procedures, but they are
+;; initialized only once, unlike in the example below, where each
+;; invocation causes a new random number to be generated:
+;;
+;; (define (g x)
+;;   (define k (random 10))
+;;   (* x k))
+;;
+;; The macro supports curried definitions as well, so it is ok to write
+;; (define-delimited (((f x) y) z)
+;;   (define ((g a) b) ...) ...)
+;;
+(let-syntax 
+    ((define-delimited-definition-macro-variant
+       (syntax-rules ()
+	 ((_ macro-name main-lambda)
+	  (define-macro (macro-name interface . body)
+	    (define (interface-name interface)
+	      (match interface
+		((head . tail)
+		 (interface-name head))
+		((? symbol? name)
+		 name)))
+	    (define (uncurried lambda-word interface . body)
+	      (match interface
+		((expression . args)
+		 `(,lambda-word ,args ,(apply uncurried lambda-word 
+					      expression body)))
+		((? symbol? name)
+		 `(begin ,@body))))
+	    (let ((name (interface-name interface)))
+	      (let-values (((definitions statements)
+			    (partition (matches? 
+					((or 'define 'define*) _ . _))
+				       body)))
+		`(begin
+		   (define ,name #f)
+		   (letrec ,(map (match-lambda
+				     ((define interface . body)
+				      `(,(interface-name interface)
+					,(apply uncurried 
+						(case define
+						  ((define) 'lambda)
+						  ((define*) 'lambda*))
+						interface body)))
+				   (else #f))
+				 definitions)
+		     (set! ,name ,(apply uncurried 'main-lambda 
+					 interface statements)))))))))))
+  (define-delimited-definition-macro-variant define*-delimited lambda*)
+  (define-delimited-definition-macro-variant define-delimited lambda))
 
 (define-syntax rec
   (syntax-rules ()
@@ -172,6 +263,18 @@
      (letrec ( (NAME EXPRESSION) ) NAME))))
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
+
+;; `letrec-macros' behaves similar to `let-syntax', but it is restricted
+;; to take `macro' keyword in place of the latter's `syntax-rules' (or its
+;; equivalents), because unlike syntax-transformers, macros in guile are
+;; no longer first-class objects
+(define-syntax letrec-macros
+  (syntax-rules (macro)
+    ((_ ((name (macro args definition ...)) ...) body ...)
+     (let ()
+       (define-macro (name . args) definition ...)
+       ...
+       body ...))))
 
 (define (make-locked-mutex)
   (let ((m (make-mutex)))
@@ -196,8 +299,6 @@
 
 (define (read-string string)
   (with-input-from-string string read))
-
-(read-string (write-string '(1 a 2 b 3 c 4 d)))
 
 (define (unique lst)
   (let ((result (make-hash-table)))
@@ -495,7 +596,7 @@
 		`(apply ,f ,@args ,rest)
 		`(,f ,@args)))))))
 
-(define* (expand e #:key (opts '()))
+(define* (expand-form e #:key (opts '()))
   (let-values (((exp env) (decompile 
 			   (compile e #:from 'scheme 
 				    #:to 'tree-il 
@@ -504,6 +605,9 @@
 			   #:to 'scheme 
 			   #:opts opts)))
     exp))
+
+(define-syntax-rule (expand expression)
+  (expand-form 'expression))
 
 (define (unix-environment)
   (let ((env (make-hash-table)))
