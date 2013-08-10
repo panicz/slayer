@@ -23,9 +23,9 @@
 
 (define-method (draw-objects (view <3d-view>))
   (let ((lights '()))
-    (assure
-     (#;to ((remove-light l #;after-rendering)
-	    #;by-doing (push! lights l)))
+    (supply
+     (((remove-light l #;after-rendering)
+       #;by-doing (push! lights l)))
      (for model in #[view 'objects]
 	  (setup-lights! #[model '%lights]))
      ;; lights need to be set up before the scene is rendered,
