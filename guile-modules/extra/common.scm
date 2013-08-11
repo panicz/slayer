@@ -58,9 +58,10 @@
   #:export (
 	    expand-form ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy hash-size
+	    make-applicable-hash-table
 	    union intersection difference adjoin unique
-	    map-n for-each-n
-	    atom?
+	    map-n for-each-n equivalence-classes
+	    atom? symbol<
 	    insert rest
 	    tree-find tree-map
 	    depth array-map array-append
@@ -69,7 +70,7 @@
 	    contains-duplicates?
 	    module->hash-map module->list module-symbols
 	    symbol->list hash-map->alist 
-	    alist->hash-map hash-table
+	    alist->hash-map
 	    last-sexp-starting-position
 	    properize flatten
 	    cart all-tuples all-pairs all-triples
@@ -89,7 +90,8 @@
   #:export-syntax (TODO \ for if* matches? equals?
 		   safely export-types
 		   define-curried define-delimited
-		   supply
+		   supply applicable-hash
+		   hash-table
 		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
 		   push! pop!)
@@ -326,6 +328,9 @@
     (()
      (append prefix (list new)))))
 
+(define (symbol< a b)
+  (string< (symbol->string a) (symbol->string b)))
+
 (define (atom? x)
   (and (not (pair? x)) (not (null? x))))
 
@@ -364,6 +369,27 @@
 	     (proc item)))
        tree))
 
+(define (equivalence-classes equivalent? set)
+  (let next-item ((set set)(result '()))
+    (match set
+      (()
+       result)
+      ((item . set)
+       (match result
+	 (()
+	  (next-item set `((,item) ,@result)))
+	 ((this . next)
+	  (let next-class ((past '()) (present this) (future next))
+	    (match present
+	      ((paradigm . _)
+	       (if (equivalent? item paradigm)
+		   (next-item set (cons (cons item present)
+					(append past future)))
+		   (match future
+		     (()
+		      (next-item set (cons (list item) result)))
+		     ((this . next)
+		      (next-class (cons present past) this next)))))))))))))
 
 (define-syntax safely 
   (syntax-rules ()
@@ -408,15 +434,15 @@
 (define-syntax for
   (syntax-rules (in .. =>)
     ((_ x in first .. last body ...)
-     (for-each (lambda(x) body ...) 
+     (for-each (lambda(x) body ...)
 	       (iota (1+ (floor (- last first))) first)))
-    ((_ (key => value) in hash-map body ...)
-     (for-each (match-lambda ((key . value) body ...) 
-		 (else (throw 'invalid-for-clause else)))
-	       (hash-map->list cons hash-map)))
-    ((_ x in list body ...)
-     (for-each (match-lambda (x body ...)
-		 (else (throw 'invalid-for-clause else))) list))))
+     ((_ (key => value) in hash-map body ...)
+      (for-each (match-lambda ((key . value) body ...) 
+		  (else (throw 'invalid-for-clause else)))
+		(hash-map->list cons hash-map)))
+     ((_ x in list body ...)
+      (for-each (match-lambda (x body ...)
+		  (else (throw 'invalid-for-clause else))) list))))
 
 (define (hash-size hash-map)
   (length (hash-values hash-map)))
@@ -432,6 +458,18 @@
     (for (key . value) in (hash-map->list cons h)
 	 (hash-set! result key value))
     result))
+
+(define (make-applicable-hash-table . initial-values)
+  (let ((hash (make-hash-table)))
+    (for (key value) in initial-values
+	 (hash-set! hash key value))
+    (case-lambda
+      (() (hash-map->list list hash))
+      ((key) (hash-ref hash key))
+      ((key value) (hash-set! hash key value)))))
+
+(define-syntax-rule (applicable-hash (key value) ...)
+  (apply make-applicable-hash-table '((key value) ...)))
 
 (define-syntax if*
   (syntax-rules (in)
