@@ -377,19 +377,19 @@
       ((item . set)
        (match result
 	 (()
-	  (next-item set `((,item) ,@result)))
+	  (next-item set `((,item) . ,result)))
 	 ((this . next)
 	  (let next-class ((past '()) (present this) (future next))
 	    (match present
 	      ((paradigm . _)
 	       (if (equivalent? item paradigm)
-		   (next-item set (cons (cons item present)
-					(append past future)))
+		   (next-item set `((,item . ,present)
+				    . (,@past ,@future)))
 		   (match future
 		     (()
-		      (next-item set (cons (list item) result)))
+		      (next-item set `((,item) ,@result)))
 		     ((this . next)
-		      (next-class (cons present past) this next)))))))))))))
+		      (next-class `(,present . ,past) this next)))))))))))))
 
 (define-syntax safely 
   (syntax-rules ()
@@ -434,12 +434,16 @@
 (define-syntax for
   (syntax-rules (in .. =>)
     ((_ x in first .. last body ...)
-     (for-each (lambda(x) body ...)
-	       (iota (1+ (floor (- last first))) first)))
+     (let ((final last))
+       (let loop ((x first))
+	 (if (<= x final)
+	     (begin
+	       body ...
+	       (loop (1+ x)))))))
      ((_ (key => value) in hash-map body ...)
-      (for-each (match-lambda ((key . value) body ...) 
-		  (else (throw 'invalid-for-clause else)))
-		(hash-map->list cons hash-map)))
+      (hash-for-each (match-lambda* ((key value) body ...) 
+		       (else (throw 'invalid-for-clause else)))
+		     hash-map))
      ((_ x in list body ...)
       (for-each (match-lambda (x body ...)
 		  (else (throw 'invalid-for-clause else))) list))))
@@ -469,7 +473,7 @@
       ((key value) (hash-set! hash key value)))))
 
 (define-syntax-rule (applicable-hash (key value) ...)
-  (apply make-applicable-hash-table '((key value) ...)))
+  (apply make-applicable-hash-table `((,key ,value) ...)))
 
 (define-syntax if*
   (syntax-rules (in)
