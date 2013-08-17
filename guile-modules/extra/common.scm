@@ -74,7 +74,7 @@
 	    last-sexp-starting-position
 	    properize flatten
 	    cart all-tuples all-pairs all-triples
-	    take-at-most drop-at-most split-where
+	    take-at-most drop-at-most split-before
 	    remove-keyword-args
 	    array-size
 	    random-array
@@ -84,13 +84,13 @@
 	    << die
 	    real->integer
 	    make-locked-mutex
-	    last-index
+	    last-index indexed
 	    demand
 	    )
   #:export-syntax (TODO \ for if* matches? equals?
 		   safely export-types
-		   define-curried define-delimited
-		   supply applicable-hash
+		   define-curried publish define-accessors
+		   supply applicable-hash applicable-hash-with-default
 		   hash-table
 		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
@@ -98,7 +98,6 @@
   #:replace ((cdefine . define)
 	     (cdefine* . define*))
   )
-
 
 (define (demand to-do-something-with . args)
   (call/cc (lambda(go-on)
@@ -126,7 +125,7 @@
     ...
     new-hash-table))
 
-(define (split-where criterion list)
+(define (split-before criterion list)
   (split-at list (or (list-index criterion list)
 		     (length list))))
 
@@ -188,73 +187,54 @@
 (define-curried (equals? value x)
   (equal? value x))
 
-;; `define-delimited' is similar to `define', but it treats internal
-;; definitions differently -- instead of defining them at each invocation
-;; of a procedure being defined, it places them in a closure accessible
-;; from the newly defined procedure. Therefore, e.g.
+;; The `publish' macro is used to provide means to separate public
+;; definitions from private ones (such that are visible only from within
+;; the public procedures and from within themselves).
+;; For example, the form
+;; 
+;; (publish
+;;   (define (f x) (+ a x))
+;;   (define (g y) (* a y))
+;;  where
+;;   (define a 5))
 ;;
-;; (define-delimited (f x)
-;;   (define k (random 10))
-;;   (* x k))
+;; is equivalent to
 ;;
-;; is equivalent to:
-;;
-;; (define f #f)
-;; (letrec ((k (random 10)))
-;;   (set! f (lambda(x)(* x k))))
-;;
-;; The main differences are that the internal definitions don't have
-;; access to the parameters of newly defined procedures, but they are
-;; initialized only once, unlike in the example below, where each
-;; invocation causes a new random number to be generated:
-;;
-;; (define (g x)
-;;   (define k (random 10))
-;;   (* x k))
-;;
-;; The macro supports curried definitions as well, so it is ok to write
-;; (define-delimited (((f x) y) z)
-;;   (define ((g a) b) ...) ...)
-;;
-(let-syntax 
-    ((define-delimited-definition-macro-variant
-       (syntax-rules ()
-	 ((_ macro-name main-lambda)
-	  (define-macro (macro-name interface . body)
-	    (define (interface-name interface)
-	      (match interface
-		((head . tail)
-		 (interface-name head))
-		((? symbol? name)
-		 name)))
-	    (define (uncurried lambda-word interface . body)
-	      (match interface
-		((expression . args)
-		 `(,lambda-word ,args ,(apply uncurried lambda-word 
-					      expression body)))
-		((? symbol? name)
-		 `(begin ,@body))))
-	    (let ((name (interface-name interface)))
-	      (let-values (((definitions statements)
-			    (partition (matches? 
-					((or 'define 'define*) _ . _))
-				       body)))
-		`(begin
-		   (define ,name #f)
-		   (letrec ,(map (match-lambda
-				     ((define interface . body)
-				      `(,(interface-name interface)
-					,(apply uncurried 
-						(case define
-						  ((define) 'lambda)
-						  ((define*) 'lambda*))
-						interface body)))
-				   (else #f))
-				 definitions)
-		     (set! ,name ,(apply uncurried 'main-lambda 
-					 interface statements)))))))))))
-  (define-delimited-definition-macro-variant define*-delimited lambda*)
-  (define-delimited-definition-macro-variant define-delimited lambda))
+;; (begin
+;;   (define f #f)
+;;   (define g #f)
+;;   (let ()
+;;     (define a 5)
+;;     (set! f (let () (define (f x) (+ a x)) f))
+;;     (set! g (let () (define (g x) (* a y)) g))))
+
+
+(define-macro (publish . definitions)
+  (define (interface-name interface)
+    (match interface
+      ((head . tail)
+       (interface-name head))
+      ((? symbol? name)
+       name)))
+  (let-values (((public-definitions where&private-definitions)
+		(split-before (equals? 'where) definitions)))
+    `(begin ,@(map (match-lambda
+		       ((define-variant interface . body)
+			`(define ,(interface-name interface) #f)))
+		   public-definitions)
+	    (let ()
+	      ,@(match where&private-definitions
+		  (('where . private-definitions)
+		   private-definitions)
+		  (() '()))
+	      ,@(map (match-lambda
+			 ((define-variant interface . body)
+			  (let ((name (interface-name interface)))
+			    `(set! ,name
+				   (let () 
+				     (,define-variant ,interface . ,body)
+				     ,name)))))
+		     public-definitions)))))
 
 (define-syntax rec
   (syntax-rules ()
@@ -431,6 +411,9 @@
 (define (last-index array)
   (1- (vector-length array)))
 
+(define (indexed list)
+  (zip (iota (length list)) list))
+
 (define-syntax for
   (syntax-rules (in .. =>)
     ((_ x in first .. last body ...)
@@ -463,17 +446,20 @@
 	 (hash-set! result key value))
     result))
 
-(define (make-applicable-hash-table . initial-values)
+(define* (make-applicable-hash-table #:optional (default #f) . initial-values)
   (let ((hash (make-hash-table)))
     (for (key value) in initial-values
 	 (hash-set! hash key value))
     (case-lambda
       (() (hash-map->list list hash))
-      ((key) (hash-ref hash key))
+      ((key) (hash-ref hash key default))
       ((key value) (hash-set! hash key value)))))
 
+(define-syntax-rule (applicable-hash-with-default default (key value) ...)
+  (make-applicable-hash-table default `(,key ,value) ...))
+
 (define-syntax-rule (applicable-hash (key value) ...)
-  (apply make-applicable-hash-table `((,key ,value) ...)))
+  (applicable-hash-with-default #f (key value) ...))
 
 (define-syntax if*
   (syntax-rules (in)
@@ -850,7 +836,18 @@
 	     (loop (cons line lines)
 		   (read-line pipe)))))))
 
-;; fantastyczne makro od Dercza Stanisława :
+;; a tremendous macro from Stchislav Dertch.
+;; The idea is that if we represent an entity using a list,
+;; say (property-a property-b property-c ...),
+;; then instead of writing
+;; (define (property-a entity) (car entity))
+;; (define (property-b entity) (cadr entity))
+;; (define (property-c entity) (caddr entity))
+;; ...
+;; one can simply write
+;; (define-accessors (property-a property-b property-c ...))
+;; The macro also works for trees, so it is ok to do things like
+;; (define-accessors ((a b) ((c) d) e))
 (define-macro (define-accessors tree)
   (letrec ((gather-leaves 
 	    (lambda (arg subtree)
