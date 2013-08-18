@@ -25,4 +25,8 @@ push
 INSTALL
 aclocal.m4
 configure
+*-local
 *.local
+ignore*
+*-ignore
+*.ignore
