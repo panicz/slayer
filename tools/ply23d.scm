@@ -14,6 +14,18 @@
 ;; reads the rest of the contents, according to a specification given
 ;; in the header. This "according to" is the most tricky part
 
+(define (main args)
+  (match args
+    ((program-name input-file-names ...)
+     (for input-file-name in input-file-names
+	  (let* ((base-name (string-remove-suffix ".ply" input-file-name))
+		 (output-file-name (string-append base-name ".3d")))
+	    (with-output-to-file output-file-name
+	      (lambda ()
+		(pretty-print 
+		 (remove (matches? ('texture-coords . _))
+			 (process-ply-ascii-file input-file-name))))))))))
+
 ;; helper function to construct regular expressions -- it takes a list
 ;; of patterns an returns a regular expression that matches a sequence
 ;; consisting of those patterns, separated by one or more spaces, and
@@ -24,7 +36,7 @@
 ;; regexp that captures a label (used throughout the code)
 (define label "([_a-zA-Z0-9]+)")
 
-;; generates procedure to be called on error
+;; generates procedure to be called for malformed input
 (define ((cry message) expression)
   (error message expression))
 
@@ -282,5 +294,3 @@
 	 (list-ref order next-index))
        (last #;in order)))
  )
-
-(process-ply-ascii-file "../demos/art/humanoid/foot.ply")
