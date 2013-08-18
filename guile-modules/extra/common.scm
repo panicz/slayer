@@ -79,6 +79,7 @@
 	    array-size
 	    random-array
 	    read-string write-string
+	    string-remove-prefix string-remove-suffix
 	    with-output-to-utf8
 	    list-directory shell
 	    << die
@@ -87,7 +88,7 @@
 	    last-index indexed
 	    demand
 	    )
-  #:export-syntax (TODO \ for if* matches? equals?
+  #:export-syntax (TODO \ for matches? equals?
 		   safely export-types
 		   define-curried publish define-accessors
 		   supply applicable-hash applicable-hash-with-default
@@ -118,12 +119,6 @@
 	 (lambda () actions ...)
 	 (lambda (key go-on demand . args*)
 	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
-
-(define-syntax-rule (hash-table (key value) ...)
-  (let ((new-hash-table (make-hash-table)))
-    (hash-set! new-hash-table key value)
-    ...
-    new-hash-table))
 
 (define (split-before criterion list)
   (split-at list (or (list-index criterion list)
@@ -281,6 +276,14 @@
 (define (read-string string)
   (with-input-from-string string read))
 
+(define (string-remove-suffix suffix string)
+  (let ((regex (string-append (regexp-quote suffix) "$")))
+    (regexp-substitute #f (string-match regex string) 'pre)))
+
+(define (string-remove-prefix prefix string)
+  (let ((regex (string-append "^" (regexp-quote prefix))))
+    (regexp-substitute #f (string-match regex string) 'post)))
+
 (define (unique lst)
   (let ((result (make-hash-table)))
     (for-each (lambda(item)(hash-set! result item #t)) lst)
@@ -431,6 +434,12 @@
       (for-each (match-lambda (x body ...)
 		  (else (throw 'invalid-for-clause else))) list))))
 
+(define-syntax-rule (hash-table (key value) ...)
+  (let ((new-hash-table (make-hash-table)))
+    (hash-set! new-hash-table key value)
+    ...
+    new-hash-table))
+
 (define (hash-size hash-map)
   (length (hash-values hash-map)))
 
@@ -460,19 +469,6 @@
 
 (define-syntax-rule (applicable-hash (key value) ...)
   (applicable-hash-with-default #f (key value) ...))
-
-(define-syntax if*
-  (syntax-rules (in)
-    ((_ condition then else)
-     (let ((value condition))
-       (if (not (unspecified? value))
-	   (if value
-	       then
-	       else))))
-    ((_ condition then)
-     (let ((value condition))
-       (if (not (unspecified? value))
-	   (if value then))))))
 
 (define (<< . messages)
   (if #t
@@ -635,16 +631,6 @@
 
 (define-syntax-rule (expand expression)
   (expand-form 'expression))
-
-(define (unix-environment)
-  (let ((env (make-hash-table)))
-	(for-each 
-	 (lambda(s)
-	   (match-let (((name . values)
-			(string-split s #\=)))
-	     (hash-set! env name (string-join values "="))))
-	 (environ))
-	env))
 
 (define (cart . lists)
   (match lists
@@ -835,6 +821,16 @@
 	    (else
 	     (loop (cons line lines)
 		   (read-line pipe)))))))
+
+(define (unix-environment)
+  (let ((env (make-hash-table)))
+	(for-each 
+	 (lambda(s)
+	   (match-let (((name . values)
+			(string-split s #\=)))
+	     (hash-set! env name (string-join values "="))))
+	 (environ))
+	env))
 
 ;; a tremendous macro from Stchislav Dertch.
 ;; The idea is that if we represent an entity using a list,
