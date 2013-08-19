@@ -23,16 +23,16 @@ exit # this prevents from executing the rest of the file by the shell
 (define-syntax utimer
   (syntax-rules ()
     ((_ usecs action ...)
-     (let ((tick (register-userevent (lambda () action ...))))
+     (let ((tick (register-userevent! (lambda () action ...))))
        (call-with-new-thread
 	(lambda ()
 	  (while #t
-	    (generate-userevent tick)
+	    (generate-userevent! tick)
 	    (wait usecs))))))))
 
 (define *modes* #[])
 
-(utimer 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
+(add-timer! 30 (lambda()(for-each (lambda(f)(f)) (hash-values *modes*))))
 
 (define (key name fun)
   (keydn name (lambda()(hash-set! *modes* name fun)))
@@ -100,7 +100,7 @@ exit # this prevents from executing the rest of the file by the shell
 
 ;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
 
-(utimer 25000 (simulation-step! *sim*))
+(add-timer! 25 (lambda()(simulation-step! *sim*)))
 
 (key 'q (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 -0.02))))

@@ -106,45 +106,46 @@
     (if (> usecs 0) 
 	(loop (usleep usecs)))))
 
-(define-syntax-rule (utimer usecs action ...)
-  (let ((tick (register-userevent (lambda () action ...))))
+#;(define-syntax-rule (utimer usecs action ...)
+  (let ((tick (register-userevent! (lambda () action ...))))
     (call-with-new-thread (lambda () (while #t
-				       (generate-userevent tick)
+				       (generate-userevent! tick)
 				       (wait usecs))))))
 
-(utimer 
- 30000
- (increase! ball-x ball-vx)
- (increase! ball-y ball-vy)
- (increase! paddle-a-y paddle-a-v)
- (increase! paddle-b-y paddle-b-v)
- (if (or (<= ball-y 1)
-	 (>= ball-y (- board-height 2)))
-     (begin 
-       (play-sound! bounce-sound)
-       (multiply! ball-vy -1)))
- (if (or (and (= ball-x (1- paddle-b-x))
-	      (> ball-vx 0)
-	      (<= paddle-b-y ball-y (+ paddle-b-y paddle-b-size)))
-	 (and (= ball-x (1+ paddle-a-x))
-	      (< ball-vx 0)
-	      (<= paddle-a-y ball-y (+ paddle-a-y paddle-a-size))))
-     (begin 
-       (play-sound! bounce-sound)
-       (multiply! ball-vx -1)))
- (if (> ball-x board-width)
-     (begin
-       (play-sound! score-sound)
-       (increase! points-a 1)
-       (reset-ball!)))
- (if (< ball-x 0)
-     (begin
-       (play-sound! score-sound)
-       (increase! points-b 1)
-       (reset-ball!)))
- (if (or (> points-a 9)
-	 (> points-b 9))
-     (quit)))
+(add-timer!
+ 30
+ (lambda ()
+   (increase! ball-x ball-vx)
+   (increase! ball-y ball-vy)
+   (increase! paddle-a-y paddle-a-v)
+   (increase! paddle-b-y paddle-b-v)
+   (if (or (<= ball-y 1)
+	   (>= ball-y (- board-height 2)))
+       (begin 
+	 (play-sound! bounce-sound)
+	 (multiply! ball-vy -1)))
+   (if (or (and (= ball-x (1- paddle-b-x))
+		(> ball-vx 0)
+		(<= paddle-b-y ball-y (+ paddle-b-y paddle-b-size)))
+	   (and (= ball-x (1+ paddle-a-x))
+		(< ball-vx 0)
+		(<= paddle-a-y ball-y (+ paddle-a-y paddle-a-size))))
+       (begin 
+	 (play-sound! bounce-sound)
+	 (multiply! ball-vx -1)))
+   (if (> ball-x board-width)
+       (begin
+	 (play-sound! score-sound)
+	 (increase! points-a 1)
+	 (reset-ball!)))
+   (if (< ball-x 0)
+       (begin
+	 (play-sound! score-sound)
+	 (increase! points-b 1)
+	 (reset-ball!)))
+   (if (or (> points-a 9)
+	   (> points-b 9))
+       (quit))))
 
 (keydn 'a (lambda()(decrease! paddle-a-v 1)))
 (keyup 'a (lambda()(increase! paddle-a-v 1)))
@@ -155,3 +156,5 @@
 (keyup ";" (lambda()(increase! paddle-b-v 1)))
 (keydn "." (lambda()(increase! paddle-b-v 1)))
 (keyup "." (lambda()(decrease! paddle-b-v 1)))
+
+(keydn 'g gc)

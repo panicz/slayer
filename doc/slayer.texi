@@ -366,19 +366,29 @@ and brought back to normal by passing @code{#f} as @var{state}.
 When @var{state} is not given, the procedure only returns the current state.
 @end deffn
 
-@deffn {Procedure} register-userevent proc
+@deffn {Procedure} register-userevent! proc
 Register a new user event. The @var{proc} procedure will be called with zero,
 one or two arguments, depending on the way the corresponding
-@code{generate-userevent} procedure is called. @code{register-userevent}
+@code{generate-userevent!} procedure is called. @code{register-userevent!}
 returns an identifier of user event (which happens to be an integer). Up to
-255 user events can be registered.
+255 user events can be registered. Note also, that the procedure
+@code{add-timer!} can be used to generate an user event periodically.
 @end deffn
 
-@deffn {Procedure} generate-userevent identifier [data1] [data2]
+@deffn {Procedure} generate-userevent! identifier [data1] [data2]
 Generate user event identified with @code{identifier}, obtained with a previous 
 call to @code{register-userevent}. The @var{data1} and @var{data2} arguments
 are passed to event handler if provided.
 @end deffn
+
+@deffn {Procedure} add-timer! ms proc
+Generate a new user-event to be called periodically at interval of @var{ms}
+miliseconds, and install @var{proc} as a handler for the newly-created event.
+Returns the id of this new event.
+
+@deffn {Procedure} remove-timer! id
+Remove a timer with the id @var{id} obtained by prior call to @code{add-timer!}.
+Returns @code{#t} on success and @code{#f} on failute.
 
 @node Key names
 @subsection Key names
@@ -545,25 +555,11 @@ as a given key is pressed.
 
 SLAYER itself doesn't provide such procedures, because they frequently depend
 on a specific application. However, this document provides a general solution
-that can be taylored to one's needs. The purpose is not only to show how the
-feature can be implemented, but also to set the paradigm, which perhaps would 
-make any future programs easier to read. It also shows how to use the
-@code{register-userevent} and @code{generate-userevent} procedures.
-
+that can be taylored to one's needs. 
 
 @pindex Persistent input
 @lisp
 (use-modules (slayer))
-
-;; first, we might find it useful to have a timer, which would generate
-;; an event from time to time, and sleep for the most of the time, in an
-;; infinite loop
-
-(define-syntax-rule (utimer usecs action ...)
-  (let ((tick (register-userevent (lambda () action ...))))
-    (call-with-new-thread (lambda () (while #t
-				       (generate-userevent tick)
-				       (usleep usecs))))))
 
 ;; we need to keep track on which keys are pressed, in the *modes* hash table.
 ;; its keys are the names of pressed keys, and values -- the procedures that
@@ -579,9 +575,9 @@ make any future programs easier to read. It also shows how to use the
   (keyup name (lambda()(hash-remove! *modes* name))))
 
 ;; lastly, we shall invoke procedures corresponding to the pressed keys with
-;; a certain regularity, say, 30000 micro-seconds:
+;; a certain period, say, 30 miliseconds:
 
-(utimer 30000 (hash-for-each (lambda(key thunk)(thunk)) *modes*))
+(add-timer! 30 (hash-for-each (lambda(key thunk)(thunk)) *modes*))
 
 ;; now we can bind keys to persistent procedures:
 (key 'return 

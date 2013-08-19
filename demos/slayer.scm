@@ -25,35 +25,23 @@ exit # prevent from executing the rest of the file by the shell
  (slayer-audio (use-modules (slayer audio)))
  (else (begin)))
 
-(define-syntax-rule (utimer mutex usecs action ...)
-  (let ((tick (register-userevent (lambda () action ...))))
-    (call-with-new-thread (lambda () (while #t
-				       ;; we are hanging on the mutex until
-				       ;; some key is pressed
-				       (lock-mutex mutex)
-				       (generate-userevent tick)
-				       (unlock-mutex mutex)
-				       (usleep usecs))))))
 
 (define *modes* #[])
-(define *mutex* (make-mutex))
-(lock-mutex *mutex*)
+(define *mutex* (make-locked-mutex))
 
-(utimer *mutex* 30000 (for-each (lambda(f)(f)) (hash-values *modes*)))
+(add-timer! 
+ 30 #;ms
+ (lambda()
+   (for (key => proc) in *modes*
+	(proc))))
 
 (define (key name fun)
   (keydn name 
 	 (lambda()
-	   ;; if the mutex is locked, unlock it
-	   (if (equal? (mutex-owner *mutex*) (current-thread))
-	       (unlock-mutex *mutex*))
 	   (hash-set! *modes* name fun)))
   (keyup name 
 	 (lambda()
-	   ;; if the mutex isn't taken (by this process), then lock it
 	   (hash-remove! *modes* name)
-	   (if (zero? (hash-size *modes*))
-	       (lock-mutex *mutex*))
 	   )))
 
 (cond-expand (slayer-3d
