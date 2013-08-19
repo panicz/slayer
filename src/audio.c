@@ -11,19 +11,6 @@ static Mix_Music *now_playing = NULL;
 static Mix_Chunk **used_channels;
 static int nchannels;
 
-struct list {
-  void *data;
-  struct list *next;
-};
-
-static inline struct list *
-cons(void *data, struct list *next) {
-  struct list *cell = malloc(sizeof(struct list));
-  cell->data = data;
-  cell->next = next;
-  return cell;
-}
-
 // these are needed to sync with garbage collector
 static struct list *purge_music = NULL;
 static struct list *purge_sounds = NULL;
@@ -70,7 +57,7 @@ channel_finish(int channel) {
   }
   
   struct list *p, *prev = NULL;
-  for(p = purge_sounds; p; p = p->next) {
+  for(p = purge_sounds; p; prev = p, p = p->next) {
     if(((Mix_Chunk *) p->data) == sound) {
       if(prev) {
 	prev->next = p->next;
@@ -82,7 +69,6 @@ channel_finish(int channel) {
       free(p);
       return;
     }
-    prev = p;
   }
 }
 

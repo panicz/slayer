@@ -5,6 +5,19 @@
 #include <stdlib.h>
 #include <time.h>
 
+struct list {
+  void *data;
+  struct list *next;
+};
+
+static inline struct list *
+cons(void *data, struct list *next) {
+  struct list *cell = (struct list *) malloc(sizeof(struct list));
+  cell->data = data;
+  cell->next = next;
+  return cell;
+}
+
 static inline
 unsigned int now() {
   return (unsigned int) (100 * clock() / CLOCKS_PER_SEC);
