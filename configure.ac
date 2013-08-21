@@ -17,7 +17,7 @@ PKG_CHECK_MODULES([GUILE], [guile-2.0])
 
 AC_ARG_WITH([guilesitedir],
             [AS_HELP_STRING([--with-guilesitedir],
-                            [use the specified installation path for Guile modules])],
+              [use the specified installation path for Guile modules])],
             [case "x$withval" in
              xyes|xno) guilesitedir="";;
              *)        guilesitedir="$withval";;
@@ -25,6 +25,15 @@ AC_ARG_WITH([guilesitedir],
              [guilesitedir=""])
 
 PKG_CHECK_MODULES([SDL], [sdl])
+
+
+AC_CHECK_LIB([c], [asprintf], 
+  [AC_DEFINE([HAVE_ASPRINTF], [1], [`asprintf' is available in libc])], 
+  [AC_DEFINE([HAVE_ASPRINTF], [0], [Define own version of `asprintf'])])
+
+AC_CHECK_LIB([c], [vasprintf], 
+  [AC_DEFINE([HAVE_VASPRINTF], [1], [`vasprintf' is available in libc])], 
+  [AC_DEFINE([HAVE_VASPRINTF], [0], [Define own version of `vasprintf'])])
 
 AC_ARG_WITH([opengl], 
   AS_HELP_STRING([--with-opengl], 
