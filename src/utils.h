@@ -5,6 +5,18 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#if !HAVE_ASPRINTF
+int asprintf(char **strp, const char *fmt, ...);
+#endif
+
+#if !HAVE_VASPRINTF
+int vasprintf(char **strp, const char *fmt, va_list ap);
+#endif
+
 struct list {
   void *data;
   struct list *next;

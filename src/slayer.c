@@ -4,6 +4,29 @@
 #include "slayer.h"
 #include "video.h"
 #include "symbols.h"
+#include "utils.h"
+
+
+#if !HAVE_VASPRINTF
+int vasprintf(char **strp, const char *fmt, va_list ap) {
+  int size = vsnprintf(*strp = NULL, 0, fmt, ap);
+  if((size < 0) || ((*strp = malloc(size+1)) == NULL))
+    return -1;
+  
+  return vsprintf(*strp, fmt, ap);
+}
+#endif
+
+#if !HAVE_ASPRINTF
+int asprintf(char **strp, const char *fmt, ...) {
+  int retval;
+  va_list ap;
+  va_start(ap, fmt);
+  retval = vasprintf(strp, fmt, ap);
+  va_end(ap);
+  return retval;
+}
+#endif
 
 SCM 
 scm_catch_handler(void *data, SCM key, SCM args) {
@@ -35,22 +58,6 @@ typedef struct {
   int sound;
 } arg_t;
 
-static void 
-finish(int status, arg_t *arg) {
-  scm_call_1(exit_procedure, scm_from_locale_string(arg->outfile));
-
-  scm_gc();
-#ifdef USE_SDL_MIXER
-  if(arg->sound) {
-    audio_finish();
-  }
-#endif
-  SDL_WM_GrabInput(SDL_GRAB_OFF);
-  SDL_ShowCursor(SDL_ENABLE);
-
-  SDL_Quit();
-}
-
 static SCM 
 set_window_title_x(SCM title) {
   char *str = scm_to_locale_string(title);
@@ -74,7 +81,26 @@ export_symbols(void *unused) {
 }
 
 static void 
+finish(arg_t *arg) {
+  scm_call_1(exit_procedure, scm_from_locale_string(arg->outfile));
+
+  scm_gc();
+#ifdef USE_SDL_MIXER
+  if(arg->sound) {
+    audio_finish();
+  }
+#endif
+  SDL_WM_GrabInput(SDL_GRAB_OFF);
+  SDL_ShowCursor(SDL_ENABLE);
+
+  SDL_Quit();
+}
+
+static void 
 init(arg_t *arg) {
+  // we need to store the argument persistently in order
+  // to be able to bind it in the local _finish function below
+  static arg_t *_arg = NULL;
   symbols_init();
 
   exit_procedure = noop;
@@ -110,7 +136,13 @@ init(arg_t *arg) {
   }
 
   LOGTIME(file_eval(arg->infile));
-  on_exit((void (*)(int, void *)) finish, (void *) arg);
+
+  _arg = arg;
+  void _finish() {
+    finish(_arg);
+  }
+
+  atexit(_finish);
 }
 
 static void *
@@ -288,10 +320,12 @@ process_command_line_options(int argc,
   }
 }
 
+// the arg needs to be shared 
+
 int 
 main(int argc, char *argv[]) {
 
-  arg_t arg = {
+  static arg_t arg = {
     .infile = NULL,
     .outfile = NULL,
     .w = 0,
@@ -317,13 +351,13 @@ main(int argc, char *argv[]) {
   process_command_line_options(argc, argv, &arg, filename);
 
 #ifdef NDEBUG
-  setenv("GUILE_WARN_DEPRECATED", "no", 1);
+  putenv("GUILE_WARN_DEPRECATED=no");
 #else
-  setenv("GUILE_WARN_DEPRECATED", "detailed", 1);
+  putenv("GUILE_WARN_DEPRECATED=detailed");
 #endif
-  setenv("GUILE_LOAD_PATH", ".:./scum:../guile-modules", 1);
-  setenv("LTDL_LIBRARY_PATH", ".:./scum", 1);
-  setenv("LC_ALL", "C.UTF8", 1); // discard locale
+  putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules");
+  putenv("LTDL_LIBRARY_PATH=.:./scum");
+  putenv("LC_ALL=C.UTF8"); // discard locale
 
   if (!arg.infile) {
     arg.infile = 
