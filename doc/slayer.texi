@@ -385,10 +385,12 @@ are passed to event handler if provided.
 Generate a new user-event to be called periodically at interval of @var{ms}
 miliseconds, and install @var{proc} as a handler for the newly-created event.
 Returns the id of this new event.
+@end deffn
 
 @deffn {Procedure} remove-timer! id
 Remove a timer with the id @var{id} obtained by prior call to @code{add-timer!}.
 Returns @code{#t} on success and @code{#f} on failute.
+@end deffn
 
 @node Key names
 @subsection Key names
