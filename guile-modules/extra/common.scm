@@ -215,7 +215,9 @@
 		(split-before (equals? 'where) definitions)))
     `(begin ,@(map (match-lambda
 		       ((define-variant interface . body)
-			`(define ,(interface-name interface) #f)))
+			(let ((name (interface-name interface)))
+			  `(define ,name
+			     (and (defined? ',name) ,name)))))
 		   public-definitions)
 	    (let ()
 	      ,@(match where&private-definitions
@@ -265,10 +267,10 @@
   (quit))
 
 (define (real->integer number)
-  (let ((near (round number)))
-    (if (exact? number)
-	number
-	(inexact->exact number))))
+  (let ((lower (floor number)))
+    (if (exact? lower)
+	lower
+	(inexact->exact lower))))
 
 (define (write-string object)
   (with-output-to-string (lambda()(write object))))
