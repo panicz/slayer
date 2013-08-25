@@ -305,10 +305,12 @@ Sets the window caption to @var{string}. This can only be visible if SLAYER
 is run in a window manager, in non-fullscreen mode.
 @end deffn
 
-@deffn {Procedure} keydn key thunk
+@deffn {Procedure} keydn key [thunk]
 Set @var{thunk} to be invoked whenever @var{key} is pressed (including mouse
-buttons). @var{key} can either be a string or a symbol. @ref{Key names}
-table to get the names of specific keys.
+buttons). @var{key} can either be a string or a symbol. If @var{thunk}
+is not given, or is given but is not a procedure, it returns the current
+procedure set for a given @var{key}.
+@ref{Key names} table to get the names of specific keys.
 @end deffn
 
 @deffn {Procedure} keyup key thunk
@@ -320,7 +322,7 @@ invoked on @var{key} release.
 Set @var{proc} to be invoked whenever mouse is moved. @var{proc} takes four
 arguments: @code{(x y dx dy)}, where @code{(x y)} is the current mouse position
 and @code{(dx dy)} is the difference between the previous and the current
-position.
+position. If @var{proc} not given, returns the current procedure.
 @end deffn
 
 @deffn {Procedure} modifier-pressed? modifier

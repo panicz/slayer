@@ -349,10 +349,11 @@ modifier_pressed_p(SCM name) {
   return SCM_BOOL_F;
 }
 
-static void 
+static SCM
 bind_key(SCM *keytab, SDLKey key, SCM function) {
-  if(!is_scm_procedure(function))
-    return;
+  if(!is_scm_procedure(function)) {
+    return keytab[key];
+  }
 
   if(keytab[key] != SCM_UNSPECIFIED) {
     release_scm(keytab[key]);
@@ -360,13 +361,14 @@ bind_key(SCM *keytab, SDLKey key, SCM function) {
 
   keytab[key] = function;
   hold_scm(keytab[key]);
+  return SCM_UNSPECIFIED;
 }
 
 static SCM 
 bind_keydown(SCM key, SCM function) {
   int scancode = get_scancode(key);
   if(scancode > -1)
-    bind_key(keydown, scancode, function);
+    return bind_key(keydown, scancode, function);
   return SCM_UNSPECIFIED;
 }
 
@@ -374,15 +376,14 @@ static SCM
 bind_keyup(SCM key, SCM function) {
   int scancode = get_scancode(key);
   if(scancode > -1)
-    bind_key(keyup, scancode, function);
+    return bind_key(keyup, scancode, function);
   return SCM_UNSPECIFIED;
 }
 
 static SCM 
 bind_mousemove(SCM function) {
   WARN("function should check for arity of its argument");
-  bind_key(&mousemove, 0, function); 
-  return SCM_UNSPECIFIED;
+  return bind_key(&mousemove, 0, function); 
 }
 
 static SCM 
@@ -447,9 +448,9 @@ export_symbols(void *unused) {
 
   EXPORT_PROCEDURE("handle-input", 0, 0, 0, input_handle_events);
   EXPORT_PROCEDURE("grab-input!", 0, 1, 0, grab_input_x);
-  EXPORT_PROCEDURE("keydn", 2, 0, 0, bind_keydown);
-  EXPORT_PROCEDURE("keyup", 2, 0, 0, bind_keyup);
-  EXPORT_PROCEDURE("mousemove", 1, 0, 0, bind_mousemove);  
+  EXPORT_PROCEDURE("keydn", 1, 1, 0, bind_keydown);
+  EXPORT_PROCEDURE("keyup", 1, 1, 0, bind_keyup);
+  EXPORT_PROCEDURE("mousemove", 0, 1, 0, bind_mousemove);  
   EXPORT_PROCEDURE("input-mode", 0, 0, 0, get_input_mode);
   EXPORT_PROCEDURE("set-typing-input-mode!", 0, 0, 0, set_typing_input_mode_x);
   EXPORT_PROCEDURE("set-direct-input-mode!", 0, 0, 0, set_direct_input_mode_x);
