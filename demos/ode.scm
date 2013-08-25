@@ -15,21 +15,6 @@ exit # this prevents from executing the rest of the file by the shell
 
 (keydn 'esc quit)
 
-(define (wait usecs)
-  (let loop ((usecs (usleep usecs)))
-    (if (> usecs 0) 
-	(loop (usleep usecs)))))
-
-(define-syntax utimer
-  (syntax-rules ()
-    ((_ usecs action ...)
-     (let ((tick (register-userevent! (lambda () action ...))))
-       (call-with-new-thread
-	(lambda ()
-	  (while #t
-	    (generate-userevent! tick)
-	    (wait usecs))))))))
-
 (define *modes* #[])
 
 (add-timer! 30 (lambda()(for-each (lambda(f)(f)) (hash-values *modes*))))
