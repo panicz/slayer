@@ -88,7 +88,7 @@
 	    last-index indexed
 	    demand
 	    )
-  #:export-syntax (TODO \ for matches? equals?
+  #:export-syntax (TODO \ for matches? equals? prototype
 		   safely export-types
 		   define-curried publish define-accessors
 		   supply applicable-hash applicable-hash-with-default
@@ -196,8 +196,8 @@
 ;; is equivalent to
 ;;
 ;; (begin
-;;   (define f #f)
-;;   (define g #f)
+;;   (define f (and (defined? 'f) f))
+;;   (define g (and (defined? 'g) g))
 ;;   (let ()
 ;;     (define a 5)
 ;;     (set! f (let () (define (f x) (+ a x)) f))
@@ -880,3 +880,19 @@
 ;;      (let loop ()
 ;;        body  ... 
 ;;        (if condition (loop))))))
+
+;; (define-syntax prototype
+;;   (syntax-rules (-> :)
+;;     ((_ (name . arg-types) -> result-type)
+;;      (TODO))
+;;     ((_ (name : arg-types ... -> result-type))
+;;      (TODO))))
+
+;; ;;(prototype (give! : <any> x <queue> -> <unknown>))
+;; (prototype (give! item #;to (medium <queue>)))
+;; ;; natomiast odbiorca chciałby albo sprawdzić, czy dane
+;; ;; w kolejce są dostępne,
+;; (prototype (item-available? (medium <queue>)) -> <boolean>)
+;; ;; albo po prostu na owe dane czekać:
+;; (prototype (get! #;from (qmedium <queue>)) -> <any>)
+(define-syntax-rule (prototype . args) (TODO))
