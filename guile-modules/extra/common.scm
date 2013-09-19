@@ -22,7 +22,7 @@
 
   ;;  #:use-module ((rnrs) #:version (6))
   #:re-export (;; srfi-1
-	       iota
+	       iota circular-list 
 	       proper-list? dotted-list? null-list? not-pair?
 	       first second third fourth fifth sixth seventh eighth ninth tenth
 	       car+cdr take drop take-right drop-right split-at last
@@ -62,7 +62,7 @@
 	    union intersection difference adjoin unique
 	    map-n for-each-n equivalence-classes
 	    atom? symbol<
-	    insert rest
+	    insert rest head tail
 	    tree-find tree-map
 	    depth array-map array-append
 	    kw-list->hash-map
@@ -73,24 +73,27 @@
 	    alist->hash-map
 	    last-sexp-starting-position
 	    properize flatten
-	    cart all-tuples all-pairs all-triples
+	    cart cart-pow all-tuples all-pairs all-triples
 	    take-at-most drop-at-most split-before
 	    remove-keyword-args
 	    array-size
 	    random-array
 	    read-string write-string
 	    string-remove-prefix string-remove-suffix
+	    string-matches
 	    with-output-to-utf8
 	    list-directory shell
 	    << die
 	    real->integer
 	    make-locked-mutex
 	    last-index indexed
-	    demand
+	    demand *context*
+	    #;compose iterations
 	    )
   #:export-syntax (TODO \ for matches? equals? prototype
 		   safely export-types
 		   define-curried publish define-accessors
+		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
 		   rec expand letrec-macros
@@ -120,9 +123,50 @@
 	 (lambda (key go-on demand . args*)
 	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
 
-(define (split-before criterion list)
-  (split-at list (or (list-index criterion list)
-		     (length list))))
+(define *context* (make-hash-table))
+
+(define-macro (with-default bindings . actions)
+  (match bindings
+    (((names values) ...)
+     `(let-syntax 
+	  ((specific 
+	    (syntax-rules ,names 
+	      ,@(map (match-lambda 
+			 ((name value)
+			  `((_ ,name)
+			    (let ((default (hash-ref *context*
+						     ',name '())))
+			      (if (null? default)
+				  ,value
+				  (first default))))))
+		     bindings))))
+	,@actions))))
+
+(define-syntax specify
+  (syntax-rules ()
+    ((_ ((name value) ...)
+	actions ...)
+     (dynamic-wind
+       (lambda ()
+	 (hash-set! *context* 'name
+		    (cons value (hash-ref *context* 'name '())))
+	 ...)
+       (lambda ()
+	 actions ...)
+       (lambda ()
+	 (hash-set! *context* 'name
+		    (rest (hash-ref *context* 'name)))
+	 ...)))))
+
+(define-syntax define-fluid
+  (syntax-rules ()
+    #;((_ ((head . tail) . rest) body ...)
+     (define-fluid (head . tail)
+       (lambda rest body ...)))
+    ((_ (name . args) body ...)
+     (define name (make-fluid (lambda args body ...))))
+    ((_ name value)
+     (define name (make-fluid value)))))
 
 (define-syntax cdefine
   (syntax-rules ()
@@ -182,6 +226,14 @@
 (define-curried (equals? value x)
   (equal? value x))
 
+(define-curried (string-matches pattern s)
+  (let ((match-struct (string-match pattern s)))
+    (if match-struct
+	(let ((count (match:count match-struct)))
+	  (map (lambda(n)(match:substring match-struct n))
+	       (iota (1- count) 1)))
+	#f)))
+
 ;; The `publish' macro is used to provide means to separate public
 ;; definitions from private ones (such that are visible only from within
 ;; the public procedures and from within themselves).
@@ -203,6 +255,10 @@
 ;;     (set! f (let () (define (f x) (+ a x)) f))
 ;;     (set! g (let () (define (g x) (* a y)) g))))
 
+
+(define (split-before criterion list)
+  (split-at list (or (list-index criterion list)
+		     (length list))))
 
 (define-macro (publish . definitions)
   (define (interface-name interface)
@@ -321,6 +377,10 @@
 
 (define rest cdr)
 
+(define head (make-procedure-with-setter car set-car!))
+
+(define tail (make-procedure-with-setter cdr set-cdr!))
+
 (define (symbol->list s)
   (string->list (symbol->string s)))
 
@@ -354,11 +414,12 @@
 	     (proc item)))
        tree))
 
+;; equivalence classes with partial order preserved
 (define (equivalence-classes equivalent? set)
   (let next-item ((set set)(result '()))
     (match set
       (()
-       result)
+       (reverse (map reverse result)))
       ((item . set)
        (match result
 	 (()
@@ -634,6 +695,7 @@
 (define-syntax-rule (expand expression)
   (expand-form 'expression))
 
+
 (define (cart . lists)
   (match lists
     (() '())
@@ -643,6 +705,9 @@
 		   (map (lambda(y) (cons y x))
 			first))
 		 (apply cart rest)))))
+
+(define (cart-pow set n)
+  (apply cart (make-list n set)))
 
 (define (all-tuples n l)
   (cond
@@ -660,6 +725,17 @@
 
 (define (all-triples l)
   (all-tuples 3 l))
+
+#;(define (compose . fns)
+  (let ((make-chain (lambda (fn chains)
+		      (lambda args
+			(call-with-values 
+			    (lambda () (apply fn args)) 
+			  chains)))))
+    (reduce make-chain values fns)))
+
+(define (iterations n f)
+  (apply compose (make-list n f)))
 
 (define (?not pred)(lambda(x)(not (pred x))))
 
@@ -772,11 +848,11 @@
     (append-map flatten l)
     (list l)))
 
-(define (take-at-most lst i)
-  (take lst (min i (length lst))))
+(define (take-at-most n from-list)
+  (take from-list (min n (length from-list))))
 
-(define (drop-at-most lst i)
-  (drop lst (min i (length lst))))
+(define (drop-at-most n from-list)
+  (drop from-list (min n (length list))))
 
 (define remove-keyword-args
   (rec (self list)
@@ -846,19 +922,26 @@
 ;; (define-accessors (property-a property-b property-c ...))
 ;; The macro also works for trees, so it is ok to do things like
 ;; (define-accessors ((a b) ((c) d) e))
+;;
+;; Furthermore, the accessors also contain setter
+;; procedures, so one can (set! (property-c entity) value)
 (define-macro (define-accessors tree)
-  (letrec ((gather-leaves 
-	    (lambda (arg subtree)
-	      (cond ((null? subtree) '())
-		    ((symbol? subtree) (list (cons subtree arg)))
-		    ((pair? subtree) (append (gather-leaves `(car ,arg)
-							    (car subtree))
-					     (gather-leaves `(cdr ,arg)
-							    (cdr subtree))))
-		    (else (error "invalid accessor definition"))))))
-    `(begin ,@(map (match-lambda((name . value)
-				 `(define (,name s) ,value)))
-		   (gather-leaves 's tree)))))
+  (define (gather-leaves arg subtree)
+    (cond ((null? subtree) '())
+	  ((symbol? subtree) (list (cons subtree arg)))
+	  ((pair? subtree) (append (gather-leaves `(head ,arg)
+						  (head subtree))
+				   (gather-leaves `(tail ,arg)
+						  (tail subtree))))
+	  (else (error "invalid accessor definition"))))
+  `(begin ,@(map (match-lambda((name . body)
+			       `(define ,name
+				  (make-procedure-with-setter
+				   (lambda (s)
+				     ,body)
+				   (lambda (s v)
+				     (set! ,body v))))))
+		 (gather-leaves 's tree))))
 
 ;; (expand '(define-accessors (a (b c 2))))
 
