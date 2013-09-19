@@ -12,7 +12,20 @@
 	    make-image))
 
 (define-class <bitmap> (<widget>)
-  (image #:init-keyword #:image))
+  (%image #:init-value #f)
+  (image #:allocation #:virtual
+	 #:slot-ref (lambda(self)
+		      #[self '%image])
+	 #:slot-set! (lambda (self image)
+		       (set! #[self '%image] image)
+		       (match-let (((w h) (image-size image)))
+			 (set! #[self 'w] w)
+			 (set! #[self 'h] h)))))
+(define-method (initialize (bitmap <bitmap>) init-args)
+  (next-method)
+  (let-keywords init-args #t ((image #f))
+    (if image
+	(set! #[bitmap 'image] image))))
 
 (define-method (draw (i <bitmap>))
   (draw-image! #[ i 'image ]
