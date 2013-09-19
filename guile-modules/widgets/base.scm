@@ -17,6 +17,7 @@
 
 	    <widget>
 	    <extended-widget>
+	    <stage>
 
 	    *stdout*
 	    *stdin*
@@ -34,6 +35,8 @@
 	    *default-font*
 	    ))
 
+(use-modules (oop goops) (extra ref) (extra common))
+
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
@@ -48,7 +51,8 @@
 
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
-  (children #:init-value '() #:init-keyword #:children)
+  (children #:allocation #:virtual #:slot-ref (lambda _ '())
+	    #:slot-set! noop)
   (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
   (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
   (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
@@ -74,7 +78,7 @@
       '()))
 
 (define-method (area (w <widget>))
-  (list #[ w 'x ] #[ w 'y ] #[ w 'w ] #[ w 'h ]))
+ (list #[ w 'x ] #[ w 'y ] #[ w 'w ] #[ w 'h ]))
 
 (define-method (absolute-area (w <widget>))
   (let ((widgets (cons w (ancestors w))))
@@ -96,9 +100,8 @@
   (set! #[ parent 'children ] (delete child #[ parent 'children ])))
 
 (define (in-area? point area)
-  (match-let
-   (((x y w h) area)
-    ((px py) point))
+  (match-let (((x y w h) area)
+	      ((px py) point))
    (and (<= x px (+ x w)) (<= y py (+ y h)))))
 
 (define (widget-nested-find condition widget)
@@ -110,7 +113,10 @@
 	    (let ((c (widget-nested-find condition w)))
 	      (if (not c) w c))))))
 
-(define *stage* (make <widget> #:w (screen-width) #:h (screen-height)))
+(define-class <stage> (<widget>)
+  (children #:init-value '()))
+
+(define *stage* (make <stage> #:w (screen-width) #:h (screen-height)))
 
 (define *input-widget* #f)
 (define *active-widget* *stage*)
@@ -128,9 +134,8 @@
     (set! *active-widget* w))
   (if *active-widget* (#[*active-widget* 'left-mouse-down ] x y)))
 
-
 (define (unselect-widget-at x y)
-  (if *active-widget* (#[*active-widget* 'right-mouse-up] x y))
+  (if *active-widget* (#[*active-widget* 'left-mouse-up] x y))
   (set! *active-widget* *stage*))
 
 (define (right-click-widget-at x y)
@@ -145,13 +150,13 @@
    (let ((mouseover-widget 
 	  (widget-nested-find 
 	   (lambda (w) 
-	     (in-area? (list x y) (absolute-area w))) 
+	     (and (not (eq? w *active-widget*))
+		  (in-area? (list x y) (absolute-area w))))
 	   *stage*)))
-     (if (and mouseover-widget (not (equal? mouseover-widget *nearby-widget*)))
-	 (begin
-	   (if *nearby-widget* (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
-	   (set! *nearby-widget* mouseover-widget)
-	   (#[ *nearby-widget* 'mouse-over ] x y xrel yrel)))
+     (when (and mouseover-widget (not (equal? mouseover-widget *nearby-widget*)))
+       (if *nearby-widget* (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
+       (set! *nearby-widget* mouseover-widget)
+       (#[ *nearby-widget* 'mouse-over ] x y xrel yrel))
      (#[ *active-widget* 'drag ] x y xrel yrel)))
 
 (keydn 'mouse-left select-widget-at)
