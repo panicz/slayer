@@ -37,6 +37,12 @@ load_image(SCM path) {
   if(!image) {
     return SCM_BOOL_F;
   }
+  if (image->format->BitsPerPixel != 32) {
+    SDL_Surface *new_image = sdl_surface(image->w, image->h, 4);
+    SDL_BlitSurface(image, NULL, new_image, NULL);
+    SDL_FreeSurface(image);
+    image = new_image;
+  }
   SCM_NEWSMOB(smob, image_tag, image);
   return smob;
 }
