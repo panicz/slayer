@@ -64,7 +64,7 @@
 	    atom? symbol<
 	    insert rest head tail
 	    tree-find tree-map
-	    depth array-map array-append
+	    depth array-map array-map/typed array-append
 	    kw-list->hash-map
 	    list->uniform-vector list->uniform-array
 	    contains-duplicates?
@@ -553,11 +553,14 @@
 	(else 
 	 (reverse (cons src dst)))))
 
-(define (array-map proc first . rest)
-  (let ((dest (apply make-typed-array (array-type first) (if #f #f) 
-		     (array-dimensions first))))
-    (apply array-map! dest proc first rest)
-    dest))
+(define (array-map/typed type proc arg1 . args)
+  (let ((result (apply make-typed-array type (if #f #f) 
+		       (array-dimensions arg1))))
+    (apply array-map! result proc arg1 args)
+    result))
+
+(define (array-map proc arg1 . args)
+  (apply array-map/typed (array-type arg1) proc arg1 args))
 
 (define (array-append first . rest)
   (list->typed-array 
