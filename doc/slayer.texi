@@ -608,7 +608,8 @@ The following sections describe how to perform those activities in SLAYER.
 @node Loading and displaying images
 @subsection Loading and displaying images
 In order to be able to use the procedures documented here, one shall 
-@code{(use-modules (slayer image))}.
+@code{(use-modules (slayer image))}. The module provides a symbol
+@code{slayer-image} to use with @code{cond-expand} (srfi-0).
 
 @deffn {Procedure} load-image path
 Loads an image from an external file, indicated by @var{path}. The supported 
@@ -643,6 +644,18 @@ Converts @var{image} to two-dimensional uniform array of integers.
 Converts two-dimensional uniform @var{array} of integers to image.
 @end deffn
 
+@deffn {Procedure} decompose-color-to-rgba color
+Return a list of @code{(red green blue alpha)} components of 32-bit integer
+@var{color}. The returned values range between 0 and 255, the higher being
+more intensive.
+@end deffn
+
+@deffn {Procedure} compose-color-from-rgba red green blue alpha
+Return a 32-bit integer value (as elements of the array returned by
+@code{image->array} are) that represents color with @var{red}, @var{green},
+@var{blue} and @var{alpha} components.
+@end deffn
+
 @node Rendering and displaying text
 @subsection Rendering and displaying text
 In order to be able to use the procedures documented here, one shall 
@@ -669,7 +682,8 @@ Returns the line skip (integer) defined by the @var{font}.
 @node Loading and playing sounds
 @subsection Loading and playing sounds
 In order to be able to use the procedures documented here, one needs to
-@code{(use-modules (slayer audio))}.
+@code{(use-modules (slayer audio))}. The module provides a symbol
+@code{slayer-audio} for @code{cond-expand} (srfi-0).
 
 @deffn {Procedure} load-sound path
 Loads a sound file indicated by @var{path}. It ought to be a wave file.
@@ -702,6 +716,16 @@ Resumes previously paused music track (if any).
 @section Diving into 3D graphics
 Apart from the elementary support for images, SLAYER also allows to use OpenGL
 display context and exports some of the OpenGL/GLU procedures.
+
+In order to use it, SLAYER needs to operate in 3d mode. This can be achieved
+by running it with @code{-e3d} or @code{--extension 3d} command line argument,
+provided that SLAYER has been built with OpenGL support. It is also possible
+to compile SLAYER so that it runs in 3d mode by default.
+
+To recognise whether or not the 3d mode is available, one can check for the
+presence of @code{slayer-3d-available} symbol within @code{cond-expand} form
+(srfi-0). Furthermore, if 3d mode is enabled, the @code{slayer-3d} is provided.
+
 If you're not familiar with the OpenGL library, I recommend you to read at
 least the first three chapters of the OpenGL Programming Guide, also known as
 The Red Book@footnote{@url{http://www.glprogramming.com/red/}}.

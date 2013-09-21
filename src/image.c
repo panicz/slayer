@@ -47,6 +47,25 @@ load_image(SCM path) {
   return smob;
 }
 
+static SCM
+decompose_color_to_rgba(SCM rgba) {
+  SDL_Color c = sdl_color(scm_to_uint32(rgba));
+  return scm_list_4(scm_from_uint8(c.r),
+		    scm_from_uint8(c.g),
+		    scm_from_uint8(c.b),
+		    scm_from_uint8(c.unused));
+}
+
+static SCM
+compose_color_from_rgba(SCM r, SCM g, SCM b, SCM a) {
+  SDL_Color c;
+  c.r = scm_to_uint8(r);
+  c.g = scm_to_uint8(g);
+  c.b = scm_to_uint8(b);
+  c.unused = scm_to_uint8(a);
+  return scm_from_uint32(rgba_color(c));
+}
+
 SCM 
 draw_image_x(SCM image_smob, SCM x, SCM y) {
   scm_assert_smob_type(image_tag, image_smob);  
@@ -122,7 +141,6 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   return smob;
 }
 
-
 SCM 
 image_to_array(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
@@ -146,22 +164,18 @@ image_to_array(SCM image_smob) {
     WARN("Illegal BytesPerPixel count: %d", image->format->BytesPerPixel);
     return SCM_UNSPECIFIED;
   }
-
   SCM array = scm_make_typed_array(type, SCM_UNSPECIFIED, 
 				   scm_list_2(scm_from_int(image->w),
 					      scm_from_int(image->h)));
-
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
   void *data = scm_array_handle_uniform_writable_elements(&handle);
   memcpy(data, image->pixels, 
 	 image->w * image->h * image->format->BytesPerPixel);
-
   scm_array_handle_release(&handle);
   scm_remember_upto_here_1(image_smob);
   return array;
 }
-
 
 #define NOT_SUPPORTED -1
 static int bytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_LAST+1];
@@ -189,7 +203,6 @@ init_bytesPerPixel() {
 #undef SET_SDL_INT_SIZE
 #undef SET_TYPE_SIZE
 }
-
 
 SCM 
 array_to_image(SCM array) {
@@ -240,8 +253,15 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);
   EXPORT_PROCEDURE("image->array", 1, 0, 0, image_to_array);
   EXPORT_PROCEDURE("array->image", 1, 0, 0, array_to_image);
+  EXPORT_PROCEDURE("decompose-color-to-rgba", 1, 0, 0, decompose_color_to_rgba);
+  EXPORT_PROCEDURE("compose-color-from-rgba", 4, 0, 0, compose_color_from_rgba);
   
 #undef EXPORT_PROCEDURE
+}
+
+static void
+cond_expand_provide(void *unused) {
+  eval("(cond-expand-provide (current-module) '(slayer-image))");
 }
 
 void 
@@ -251,4 +271,5 @@ image_init() {
   scm_set_smob_print(image_tag, print_image);
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
+  scm_c_define_module("slayer", cond_expand_provide, NULL);
 }
