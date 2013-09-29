@@ -97,11 +97,21 @@ finish(arg_t *arg) {
 }
 
 static void 
+setup_port_encodings() {
+  SCM utf8 = scm_from_utf8_string("utf8");
+  scm_set_port_encoding_x(scm_current_output_port(), utf8);
+  scm_set_port_encoding_x(scm_current_input_port(), utf8);
+  scm_set_port_encoding_x(scm_current_error_port(), utf8);
+  eval("(fluid-set! %default-port-encoding \"utf-8\")");
+}
+
+static void 
 init(arg_t *arg) {
   // we need to store the argument persistently in order
   // to be able to bind it in the local _finish function below
   static arg_t *_arg = NULL;
   symbols_init();
+  setup_port_encodings();
 
   exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
@@ -320,8 +330,6 @@ process_command_line_options(int argc,
   }
 }
 
-// the arg needs to be shared 
-
 int 
 main(int argc, char *argv[]) {
 
@@ -355,7 +363,7 @@ main(int argc, char *argv[]) {
 #else
   putenv("GUILE_WARN_DEPRECATED=detailed");
 #endif
-  putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules");
+  putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules:./guile-modules");
   putenv("LTDL_LIBRARY_PATH=.:./scum");
   putenv("LC_ALL=C.UTF8"); // discard locale
 
