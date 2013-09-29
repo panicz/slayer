@@ -70,7 +70,7 @@
 	    contains-duplicates?
 	    module->hash-map module->list module-symbols
 	    symbol->list hash-map->alist 
-	    alist->hash-map
+	    alist->hash-map assoc? assoc->hash assoc->hash/deep
 	    last-sexp-starting-position
 	    properize flatten
 	    cart cart-pow all-tuples all-pairs all-triples
@@ -78,7 +78,7 @@
 	    remove-keyword-args
 	    array-size
 	    random-array
-	    read-string write-string
+	    read-string write-string ->string
 	    string-remove-prefix string-remove-suffix
 	    string-matches
 	    with-output-to-utf8
@@ -88,7 +88,7 @@
 	    make-locked-mutex
 	    last-index indexed
 	    demand *context*
-	    #;compose iterations
+	    iterations
 	    )
   #:export-syntax (TODO \ for matches? equals? prototype
 		   safely export-types
@@ -99,7 +99,8 @@
 		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
 		   push! pop!)
-  #:replace ((cdefine . define)
+  #:replace (compose
+	     (cdefine . define)
 	     (cdefine* . define*))
   )
 
@@ -330,6 +331,8 @@
 
 (define (write-string object)
   (with-output-to-string (lambda()(write object))))
+
+(define ->string write-string)
 
 (define (read-string string)
   (with-input-from-string string read))
@@ -618,6 +621,25 @@
     (for-each (lambda(kv)(hash-set! h (car kv) (cdr kv))) alist)
     h))
 
+(define (assoc? l)
+  (matches? ((key . value) ...) l))
+
+(define (assoc->hash assoc)
+  (let ((hash (make-hash-table)))
+     (for (key . value) in assoc
+	  (hash-set! hash key value))
+     hash))
+
+(define (assoc->hash/deep l)
+  (cond ((assoc? l)
+	 (assoc->hash (map (match-lambda ((key . value)
+					  `(,key . ,(assoc->hash/deep value))))
+			   l)))
+	((list? l)
+	 (map assoc->hash/deep l))
+	(else
+	 l)))
+
 ;; (define (contains-duplicates? l)
 ;;   (call/cc (lambda(break)
 ;; 	     (let ((keys (make-hash-table)))
@@ -729,7 +751,7 @@
 (define (all-triples l)
   (all-tuples 3 l))
 
-#;(define (compose . fns)
+(define (compose . fns)
   (let ((make-chain (lambda (fn chains)
 		      (lambda args
 			(call-with-values 
