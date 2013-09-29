@@ -20,8 +20,10 @@
 		       (set! #[self '%image] image)
 		       (match-let (((w h) (image-size image)))
 			 (set! #[self 'w] w)
-			 (set! #[self 'h] h)))))
-(define-method (initialize (bitmap <bitmap>) init-args)
+			 (set! #[self 'h] h)))
+	 #:init-keyword #:image))
+
+#;(define-method (initialize (bitmap <bitmap>) init-args)
   (next-method)
   (let-keywords init-args #t ((image #f))
     (if image
