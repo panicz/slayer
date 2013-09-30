@@ -126,6 +126,7 @@
 			 (set! #[*stage* 'w] w)
 			 (set! #[*stage* 'h] h)))
 (define (select-widget-at x y)
+  (set! *nearby-widget* #f)
   (and-let* ((w (widget-nested-find 
 		 (lambda(w)
 		   (in-area? (list x y)
