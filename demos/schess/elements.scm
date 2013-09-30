@@ -4,12 +4,13 @@
   #:export (rect? rect-height rect-width rect-size take-subrect take-from-rect
 	    upper-left-corner lower-right-corner upper-right-corner
 	    lower-left-corner
-	    fit? subrect-indices displacement complements
+	    subrect-indices displacement complements
 	    rotate-left rotate-right flip-horizontally flip-vertically
 	    all-rotations any-direction
 	    flip-arrow-vertically flip-arrow-horizontally
 	    rotate-arrow-right rotate-arrow-left
-	    with-context-for-arrows))
+	    with-context-for-arrows
+	    possible-destinations))
 
 (use-modules (extra common) (extra ref))
 
@@ -64,11 +65,9 @@
 
 (with-default ((fit? (lambda(field pattern)(eq? pattern '?))))
   (define (rect-match? rect pattern)
-    (cond ((atom? pattern)
-	   (or ((specific fit?) rect pattern)
-	       (equal? rect pattern)))
-	  ((atom? rect)
-	   (or (in? rect pattern)
+    (cond ((atom? rect)
+	   (or (eq? rect pattern)
+	       (and (list? pattern) (in? rect pattern))
 	       ((specific fit?) rect pattern)))
 	  ((and (list? rect) (list? pattern))
 	   (every rect-match? rect pattern))
@@ -90,8 +89,12 @@
 	  (iota (- (rect-height rect) h -1))))))
 
 (define (displacement #;of figure #;from source #;to dest)
-  (map - (match (subrect-indices dest `((,figure))) ((x) x))
-       (match (subrect-indices source `((,figure))) ((x) x))))
+  (let ((dest-position (subrect-indices dest `((,figure))))
+	(source-position (subrect-indices source `((,figure)))))
+    (if (or (null? source-position) (null? dest-position))
+	#f
+	(map - (match dest-position ((x) x))
+	     (match source-position ((x) x))))))
 
 (define (transpose rect)
   (apply map list rect))
@@ -294,7 +297,6 @@
 			  (- board-height (rect-height desc))))))))
  ) ; publish complements
 
-
 #;(publish 
  (define (field-name->coords name)
    (let ((name-string (symbol->string name)))
@@ -316,9 +318,9 @@
  (define (char+ char n)
    (integer->char (+ (char->integer char) n))))
 
-(define (possible-destinations board field-position allowed-moves)
+(define (possible-destinations board/rect field-position allowed-moves)
   (match-let (((x y) field-position))
-    (and-let* ((figure (take-from-rect board x y))
+    (and-let* ((figure (take-from-rect board/rect x y))
 	       (moves #[allowed-moves figure]))
       (unique
        (filter-map
@@ -328,9 +330,10 @@
 	       (((dx dy))
 		(and 
 		 (not (null? (filter (equals? `(,(- x dx) ,(- y dy)))
-				     (subrect-indices board 
+				     (subrect-indices board/rect
 						      initial-state))))
 		 (map + (list x y) 
 		      (displacement #;of figure #;from initial-state
-					 #;to final-state)))))))
+					 #;to final-state))))
+	       #;(else #f))))
 	moves)))))

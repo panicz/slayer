@@ -2,9 +2,11 @@
 ./slayer -d3d -i$0
 exit
 !#
+
 (use-modules (slayer) (slayer image)
-	     (widgets base) (widgets bitmap)
-	     (oop goops) 
+	     (widgets base) (widgets bitmap))
+
+(use-modules (oop goops) 
 	     (extra common) (extra ref)
 	     (schess elements))
 
@@ -75,6 +77,10 @@ exit
 (define-class <checker> (<bitmap>)
   (type #:init-value #f #:init-keyword #:type))
 
+(define-syntax-rule (LOG actions ...)
+  (begin (pretty-print 'actions) ...
+	 actions ...))
+
 (define-method (initialize (checker <checker>) init-args)
   (next-method)
   (set! #[checker 'left-mouse-down] ;; powinno być start-dragging
@@ -85,9 +91,8 @@ exit
 		     ((is-a? grandpa <board>)))
 	    ;; tutaj jakoś chcielibyśmy może sprawdzić, które ruchy
 	    ;; są dozwolone, i odpowiednio je oznaczyć
-	    (<< #[parent 'position])
-	    (<< (current-board-state/rect grandpa))
-
+	    (<< (possible-destinations #[parent 'position] grandpa))
+	    ;;(take! checker #;from parent #;to grandpa)
 	    (set! #[checker 'x] #[parent 'x])
 	    (set! #[checker 'y] #[parent 'y])
 	    (set! #[parent 'content] #f)
@@ -97,10 +102,11 @@ exit
   (set! #[checker 'left-mouse-up] ;; powinno być stop-dragging
 	(lambda (x y)
 	  (and-let* (((is-a? *nearby-widget* <field>))
-		     (parent #[checker 'parent])
-		     ((is-a? parent <board>)))
-	    (set! #[parent 'above-fields] (delete checker
-						  #[parent 'above-fields]))
+		     (grandpa #[checker 'parent])
+		     ((is-a? grandpa <board>)))
+	    ;;(put-back! checker #;from grandpa #;to field)
+	    (set! #[grandpa 'above-fields] (delete checker
+						  #[grandpa 'above-fields]))
 	    (set! #[*nearby-widget* 'content] checker)
 	    (set! #[checker 'x] 0)
 	    (set! #[checker 'y] 0)
@@ -113,6 +119,8 @@ exit
 (define-class <board> (<widget>)
   (fields #:init-value #f)
   (above-fields #:init-value '())
+  (allowed-moves #:init-keyword #:allowed-moves)
+  (wildcards #:init-keyword #:wildcards)
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
 			 (append #[self 'above-fields] 
@@ -156,6 +164,21 @@ exit
 (define-method (current-board-state/rect (board <board>))
   (array->list (current-board-state/array board)))
 
+(define-generic possible-destinations)
+
+(define-method (possible-destinations field-position (board <board>))
+  (and-let* (;;(current-player #[board 'current-player])
+	     (allowed-moves #[board : 'allowed-moves : 'player-1])
+	     (wildcards #[board 'wildcards])
+	     (board-rect (current-board-state/rect board)))
+    (specify ((fit? (lambda (field pattern)
+		      ;;(<< field" vs "pattern)
+		      (or (eq? pattern '?)
+			  (eq? field pattern)
+			  (and-let* ((possible-values #[wildcards pattern]))
+			    (in? field possible-values))))))
+      (possible-destinations board-rect field-position allowed-moves))))
+
 (publish 
  (define (load-board-game game-description)
    (let ((description (with-input-from-file game-description read)))
@@ -175,9 +198,10 @@ exit
 		(height (rect-height initial-board)))
 	    (specify ((wildcards wildcards))
 		     (let ((allowed-moves (extract-moves moves width height)))
-		       ;;(<< allowed-moves)
 		       (make <board> #:initial-state initial-board
 			     #:images images
+			     #:allowed-moves allowed-moves
+			     #:wildcards wildcards
 			     ;;#:dimensions `(,width ,height)
 		       #;(rules allowed-moves))))))))))
  where
@@ -190,7 +214,7 @@ exit
 	(value atomic-value))
        (else
 	(list term))))
-   (map (match-lambda ((name definition) `(,name ,(value name)))) wildcards))
+   (map (match-lambda ((name definition) `(,name ,@(value name)))) wildcards))
 
  (define (extract-moves movement-description board-width board-height)
    (let ((player-moves (make-hash-table)))
@@ -235,6 +259,5 @@ exit
 (define b (load-board-game "chess.scm"))
 
 (keydn 's (lambda()(pretty-print (current-board-state/array b))))
-(keydn 'e (lambda()(pretty-print (port-encoding (current-output-port)))))
 
 (add-child! *stage* b)
