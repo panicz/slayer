@@ -159,16 +159,6 @@
 		    (rest (hash-ref *context* 'name)))
 	 ...)))))
 
-(define-syntax define-fluid
-  (syntax-rules ()
-    #;((_ ((head . tail) . rest) body ...)
-     (define-fluid (head . tail)
-       (lambda rest body ...)))
-    ((_ (name . args) body ...)
-     (define name (make-fluid (lambda args body ...))))
-    ((_ name value)
-     (define name (make-fluid value)))))
-
 (define-syntax cdefine
   (syntax-rules ()
     ((_ ((head . tail) . rest) body body* ...)
