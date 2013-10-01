@@ -6,7 +6,7 @@
 	    lower-left-corner
 	    subrect-indices displacement complements
 	    rotate-left rotate-right flip-horizontally flip-vertically
-	    all-rotations any-direction
+	    all-rotations any-direction horizontal vertical
 	    flip-arrow-vertically flip-arrow-horizontally
 	    rotate-arrow-right rotate-arrow-left
 	    with-context-for-arrows
@@ -117,6 +117,12 @@
 
 (define (all-rotations rect)
   (map (lambda(n)((iterations n rotate-left) rect)) (iota 4)))
+
+(define (horizontal rect)
+  (list rect (flip-horizontally rect)))
+
+(define (vertical rect)
+  (list rect (flip-vertically rect)))
 
 (define (any-direction before after)
   (unique
@@ -296,27 +302,6 @@
 	  (iota (+ 3 (min (- board-width (rect-width desc))
 			  (- board-height (rect-height desc))))))))
  ) ; publish complements
-
-#;(publish 
- (define (field-name->coords name)
-   (let ((name-string (symbol->string name)))
-     (match (string-matches "^([A-Z])([0-9])$" name-string)
-       ((X N)
-	`(,(1- (string->number N)) ,(letter->value X))))))
- where
- (define (letter->value letter-as-string)
-   (match (string->list letter-as-string)
-     ((char)
-      (- (char->integer char) (char->integer #\A))))))
-
-#;(publish
- (define (coords->field-name coords)
-   (match coords
-     ((x y)
-      (symbol (char+ #\A y) (char+ #\1 x)))))
- where
- (define (char+ char n)
-   (integer->char (+ (char->integer char) n))))
 
 (define (possible-destinations board/rect field-position allowed-moves)
   (match-let (((x y) field-position))

@@ -85,7 +85,7 @@
       ((_ ? ?)
        (? ? ♞))
       (symmetries: 
-       all-rotations (all-rotations flip-horizontal))))
+       all-rotations (all-rotations flip-horizontally))))
 
     (♛ ;; HETMAN
      (((♛ _ → □/_))
@@ -152,6 +152,6 @@
 			  (♛ ♕)
 			  (♚ ♔)))
 			(transformations:
-			 flip-vertical)))
+			 flip-vertically)))
    ) ;D moves
   ) ;D define-game-rules
