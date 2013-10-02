@@ -10,6 +10,7 @@
   #:use-module (oop goops)
   #:export (load-board-game
 	    current-board-state/array
+	    <board> <field> <checker>
 	    ))
 
 (define empty-field (load-image "art/chess/b.png"))
@@ -85,6 +86,7 @@
   (fields #:init-value #f)
   (above-fields #:init-value '())
   (allowed-moves #:init-keyword #:allowed-moves)
+  (current-player #:init-keyword #:first-player)
   (wildcards #:init-keyword #:wildcards)
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
@@ -145,7 +147,8 @@
 
 (define-method (possible-destinations field-position (board <board>))
   (and-let* (;;(current-player #[board 'current-player])
-	     (allowed-moves #[board : 'allowed-moves : 'player-1])
+	     (allowed-moves #[board : 'allowed-moves : 
+				    #[board : 'current-player]])
 	     (wildcards #[board 'wildcards])
 	     (board-rect (current-board-state/rect board)))
     (specify ((fit? (lambda (field pattern)
@@ -179,36 +182,61 @@
 		       (make <board> #:initial-state initial-board
 			     #:images images
 			     #:allowed-moves allowed-moves
+			     #:first-player 'player-2 #;(first #[description 'begins:])
 			     #:wildcards wildcards
 			     ;;#:dimensions `(,width ,height)
 		       #;(rules allowed-moves))))))))))
  where
  (define (expand-wildcards wildcards)
    (define (value term)
-     (match (find (match-lambda ((name value)(equal? name term))) wildcards)
+     (match (find (match-lambda ((name value)
+				 (equal? name term))) 
+		  wildcards)
        ((name (values ...))
 	(append-map value values))
        ((name atomic-value)
 	(value atomic-value))
        (else
 	(list term))))
-   (map (match-lambda ((name definition) `(,name ,@(value name)))) wildcards))
+   (map (match-lambda ((name definition) 
+		       `(,name ,@(value name))))
+	wildcards))
 
  (define (extract-moves movement-description board-width board-height)
    (let ((player-moves (make-hash-table)))
      (for (player . description) in movement-description
 	  (match description
 	    ((('transform player-name . details))
-	     (<< description))
+	     (let ((moves #[player-moves player-name])
+		   (opposite (let* ((opposites (or #[details 'opposites:] '()))
+				    (reciprocal `(,@(map reverse opposites)
+						  ,@opposites)))
+			       (lambda(figure)
+				 (first (or #[reciprocal figure]
+					    (list figure))))))
+		   (transformations (map (lambda(name)
+					   #[board-transformations name])
+					 (or #[details 'transformations:] '())))
+		   (new-moves #[]))
+	       (for (figure => move-description) in moves
+		    (set! #[new-moves (opposite figure)]
+			  (map (match-lambda 
+				   ((initial-state final-state)
+				    (map (lambda(state-description)
+					   ((apply compose transformations) 
+					    (tree-map opposite
+						      state-description)))
+					 (list initial-state final-state))))
+			       move-description)))
+	       (set! #[player-moves player] new-moves)))
 	    (((figures . moves) ...)
 	     (let ((figure-moves (make-hash-table)))
-	       (hash-set! player-moves player figure-moves)
+	       (set! #[player-moves player] figure-moves)
 	       (for (figure moves) in (zip figures moves)
-		    (hash-set! figure-moves figure
-			       (expand-moves #;for figure #;from moves #;at
-						   board-width 
-						   board-height)))))))
-	  #;return player-moves))
+		    (set! #[figure-moves figure]
+			  (expand-moves #;for figure #;from moves
+					   #;at board-width board-height)))))))
+     #;return player-moves))
 
  (define (expand-moves #;for figure #;from definitions 
 			     #;at board-width #;and board-height)
@@ -237,11 +265,11 @@
       (#[known-symmetries symmetry-name] state-description))
      (((? symbol? symmetry-name) procedures ...)
       (#[known-symmetries symmetry-name]
-       ((apply compose (map (lambda(p) #[transformations p]) procedures))
+       ((apply compose (map (lambda(p) #[board-transformations p]) procedures))
 	state-description))))
     symmetries))
 
- (define transformations
+ (define board-transformations
    `((flip-horizontally . ,flip-horizontally)
      (flip-vertically . ,flip-vertically)))
 

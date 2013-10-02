@@ -145,13 +145,10 @@
     );D player-1 
    (player-2 (transform player-1
 			(opposites:
-			 ((♟ ♙)
-			  (♜ ♖)
-			  (♞ ♘)
-			  (♝ ♗)
-			  (♛ ♕)
-			  (♚ ♔)))
+			 (♟ ♙) (♜ ♖) (♞ ♘) (♝ ♗) (♛ ♕) (♚ ♔) (■ □)
+			 (■/_ □/_) (_/■ _/□))
 			(transformations:
 			 flip-vertically)))
    ) ;D moves
+  (begins: player-1)
   ) ;D define-game-rules
