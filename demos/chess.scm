@@ -150,5 +150,5 @@
 			(transformations:
 			 flip-vertically)))
    ) ;D moves
-  (begins: player-1)
+  (order-of-play: player-1 player-2)
   ) ;D define-game-rules

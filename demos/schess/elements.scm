@@ -1,7 +1,8 @@
 (define-module (schess elements)
   #:use-module (extra common)
   #:use-module (extra ref)
-  #:export (rect? rect-height rect-width rect-size take-subrect take-from-rect
+  #:export (
+	    rect? rect-height rect-width rect-size take-subrect take-from-rect
 	    upper-left-corner lower-right-corner upper-right-corner
 	    lower-left-corner
 	    subrect-indices displacement complements
