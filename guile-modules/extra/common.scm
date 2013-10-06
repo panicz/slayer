@@ -1,6 +1,5 @@
 (define-module (extra common)
   #:use-module (srfi srfi-1)
-  #:use-module (srfi srfi-2)
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-18)
   #:use-module (srfi srfi-31)
@@ -33,8 +32,8 @@
 	       delete delete! delete-duplicates delete-duplicates!
 	       lset<= lset= lset-adjoin lset-union lset-intersection
 	       lset-difference lset-xor lset-diff+intersection
-	       ;; srfi-2, srfi-11
-	       and-let* let-values let*-values
+	       ;; srfi-11
+	       let-values let*-values
 	       ;; ice-9 match
 	       match match-let match-let* match-lambda match-lambda*
 	       ;; ice-9 regex
@@ -56,6 +55,7 @@
 	       pretty-print format
 	       )
   #:export (
+	    and-let*
 	    expand-form ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy hash-size
 	    make-applicable-hash-table
@@ -87,7 +87,7 @@
 	    real->integer
 	    make-locked-mutex
 	    last-index indexed
-	    demand *context*
+	    demand ***context***
 	    iterations
 	    )
   #:export-syntax (TODO \ for matches? equals? prototype
@@ -101,8 +101,31 @@
 		   push! pop!)
   #:replace (compose
 	     (cdefine . define)
-	     (cdefine* . define*))
+	     (cdefine* . define*)
+	     (xdefine-syntax . define-syntax))
   )
+
+;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
+;; "define-macro", and as such doesn't seem to be referentially transparent,
+;; so here's "my own" version
+(define-syntax and-let*
+  (syntax-rules ()
+    ((_)
+     #t)
+    ((_ ())
+     #t)
+    ((_ () body ...)
+     (let () body ...))
+    ((_ ((value binding) rest ...) body ...)
+     (let ((value binding))
+       (and value
+	    (and-let* (rest ...)
+	      body ...))))
+    ((_ ((condition) rest ...)
+	body ...)
+     (and condition
+	  (and-let* (rest ...)
+	    body ...)))))
 
 (define (demand to-do-something-with . args)
   (call/cc (lambda(go-on)
@@ -124,7 +147,7 @@
 	 (lambda (key go-on demand . args*)
 	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
 
-(define *context* (make-hash-table))
+(define ***context*** (make-hash-table))
 
 (define-macro (with-default bindings . actions)
   (match bindings
@@ -135,7 +158,7 @@
 	      ,@(map (match-lambda 
 			 ((name value)
 			  `((_ ,name)
-			    (let ((default (hash-ref *context*
+			    (let ((default (hash-ref ***context***
 						     ',name '())))
 			      (if (null? default)
 				  ,value
@@ -149,14 +172,14 @@
 	actions ...)
      (dynamic-wind
        (lambda ()
-	 (hash-set! *context* 'name
-		    (cons value (hash-ref *context* 'name '())))
+	 (hash-set! ***context*** 'name
+		    (cons value (hash-ref ***context*** 'name '())))
 	 ...)
        (lambda ()
 	 actions ...)
        (lambda ()
-	 (hash-set! *context* 'name
-		    (rest (hash-ref *context* 'name)))
+	 (hash-set! ***context*** 'name
+		    (rest (hash-ref ***context*** 'name)))
 	 ...)))))
 
 (define-syntax cdefine
@@ -181,11 +204,40 @@
     ((_ . rest)
      (define* . rest))))
 
+(define-syntax xdefine-syntax
+  (syntax-rules ()
+    ((_ (name . args) body ...)
+     (define-syntax name
+       (lambda args
+	 body ...)))
+    ((_ name value)
+     (define-syntax name value))))
+
 ;; `define-curried' is not a curried definition!
 ;; It defines a new macro which generates an appropreate
 ;; procedure, if insufficient number of arguments is given.
 ;; A good example is given below, in the `matches?' macro
 ;; definition
+
+(define-syntax define-curried
+  (lambda (def)
+    (syntax-case def ()
+      ((_ (name . args) . body)
+       #`(define-syntax name
+	   (syntax-rules ()
+	     ((_ . args)
+	      (begin . body))
+	     #,@(datum->syntax
+		 def
+		 (let loop ((args* (syntax->datum #'args)))
+		   (match args*
+		     (() '())
+		     ((first ... last)
+		      (cons `((_ ,@first #;...)
+			      (lambda(,last)
+				(,(syntax->datum #'name) ,@args*)))
+			    (loop first #;...))))))))))))
+
 
 (define-macro (define-curried signature . body)
   (match signature
@@ -217,13 +269,11 @@
 (define-curried (equals? value x)
   (equal? value x))
 
-(define-curried (string-matches pattern s)
-  (let ((match-struct (string-match pattern s)))
-    (if match-struct
-	(let ((count (match:count match-struct)))
-	  (map (lambda(n)(match:substring match-struct n))
-	       (iota (1- count) 1)))
-	#f)))
+(define-curried (string-matches pattern string)
+  (and-let* ((match-struct (string-match pattern string))
+                (count (match:count match-struct)))
+     (map (lambda(n)(match:substring match-struct n))
+        (iota (1- count) 1))))
 
 ;; The `publish' macro is used to provide means to separate public
 ;; definitions from private ones (such that are visible only from within
@@ -430,17 +480,15 @@
 		     ((this . next)
 		      (next-class `(,present . ,past) this next)))))))))))))
 
-(define-syntax safely 
-  (syntax-rules ()
-    ((_ sexp) 
-     (catch #t (lambda () (values sexp #t))
-       (lambda (key . args)
-	 (with-output-to-port (current-output-port)
-	   (lambda()
-	     ;;(backtrace)
-	     (display `(error calling sexp : ,key ,args))
-	     (values (if #f #f) #f))))
-       (lambda args (backtrace))))))
+(define-syntax-rule (safely sexp)
+  (catch #t (lambda () (values sexp #t))
+    (lambda (key . args)
+      (with-output-to-port (current-output-port)
+	(lambda()
+	  ;;(backtrace)
+	  (display `(error calling sexp : ,key ,args))
+	  (values (if #f #f) #f))))
+    (lambda args (backtrace))))
 
 (define-syntax-rule (export-types symbol ...)
   `((symbol ,symbol) ...))
@@ -709,7 +757,6 @@
 
 (define-syntax-rule (expand expression)
   (expand-form 'expression))
-
 
 (define (cart . lists)
   (match lists
