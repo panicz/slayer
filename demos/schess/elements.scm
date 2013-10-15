@@ -11,6 +11,7 @@
 	    flip-arrow-vertically flip-arrow-horizontally
 	    rotate-arrow-right rotate-arrow-left
 	    with-context-for-arrows
+	    possible-moves
 	    possible-destinations))
 
 (use-modules (extra common) (extra ref))
@@ -304,7 +305,7 @@
 			  (- board-height (rect-height desc))))))))
  ) ; publish complements
 
-(define (possible-destinations board/rect field-position allowed-moves)
+(define (possible-moves board/rect field-position allowed-moves)
   (match-let (((x y) field-position))
     (and-let* ((figure (take-from-rect board/rect x y))
 	       (moves #[allowed-moves figure]))
@@ -318,8 +319,15 @@
 		 (not (null? (filter (equals? `(,(- x dx) ,(- y dy)))
 				     (subrect-indices board/rect
 						      initial-state))))
-		 (map + (list x y) 
-		      (displacement #;of figure #;from initial-state
-					 #;to final-state))))
-	       #;(else #f))))
+		 `(,initial-state ,final-state (,dx ,dy)))))))
 	moves)))))
+
+(define (possible-destinations board/rect field-position allowed-moves)
+  (map (match-lambda 
+	   ((initial-state final-state position)
+	    (map + field-position
+		 (displacement #;of (apply take-from-rect board/rect 
+					   field-position)
+				    #;from initial-state 
+					   #;to final-state))))
+       (or (possible-moves board/rect field-position allowed-moves) '())))
