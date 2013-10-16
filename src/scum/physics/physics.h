@@ -98,9 +98,9 @@ typedef struct rig_t {
 typedef struct sim_t {
   dWorldID world;
   dSpaceID space;
-  list<rig_t *> rigs;
+  std::list<rig_t *> rigs;
   dJointGroupID contact_group;
-  list<dJointID> contacts;
+  std::list<dJointID> contacts;
   dReal dt;
   general_scm_map_t rig_defs;
 } sim_t;

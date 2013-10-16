@@ -15,7 +15,7 @@ static SCM
 simulation_rigs(SCM x_sim) {
   SCM result = SCM_EOL;
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, result);
-  list<rig_t *>::iterator rig;
+  std::list<rig_t *>::iterator rig;
   for(rig = sim->rigs.begin(); rig != sim->rigs.end(); ++rig) {
     result = scm_cons(rig_to_smob(*rig), result);
   }
