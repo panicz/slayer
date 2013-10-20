@@ -4,17 +4,15 @@
   #:export (
 	    rect? rect-height rect-width rect-size take-subrect take-from-rect
 	    upper-left-corner lower-right-corner upper-right-corner
-	    lower-left-corner
+	    lower-left-corner rect-map
 	    subrect-indices displacement complements
 	    rotate-left rotate-right flip-horizontally flip-vertically
 	    all-rotations any-direction horizontal vertical
 	    flip-arrow-vertically flip-arrow-horizontally
 	    rotate-arrow-right rotate-arrow-left
 	    with-context-for-arrows
-	    possible-moves
+	    possible-moves fit-wildcards
 	    possible-destinations))
-
-(use-modules (extra common) (extra ref))
 
 (define (rect? x)
   (and (list? x)
@@ -54,6 +52,11 @@
 (define (rect-size rect)
   (list (rect-width rect) (rect-height rect)))
 
+(define (rect-map f rect)
+  (map (lambda (row)
+	 (map f row))
+       rect))
+
 (define (take-subrect rect x y w h)
   (upper-left-corner
    (lower-right-corner rect 
@@ -63,7 +66,8 @@
 
 (define (take-from-rect rect x y)
   (match (take-subrect rect x y 1 1)
-    (((x)) x)))
+    (((x)) x))) ; tutaj możnaby równoważnie napisać (first (take-subrect ...)),
+;; ale wówczas nie zaakcentowalibyśmy jedyności elementu, który pobieramy
 
 (with-default ((fit? (lambda(field pattern)(eq? pattern '?))))
   (define (rect-match? rect pattern)
@@ -75,6 +79,12 @@
 	   (every rect-match? rect pattern))
 	  (else
 	   (error "invalid rect or pattern given")))))
+
+(define ((fit-wildcards wildcards) field pattern)
+  (or (eq? pattern '?)
+      (eq? field pattern)
+      (and-let* ((possible-values #[wildcards pattern]))
+	(in? field possible-values))))
 
 ;; Powiemy, że s jest podtablicą r wtedy, gdy istnieją takie i oraz j,
 ;; że dla każdego n ∈ [0, (height r)) oraz dla każdego m ∈ [0, (width r)),
@@ -303,7 +313,7 @@
 		  BR)))
 	  (iota (+ 3 (min (- board-width (rect-width desc))
 			  (- board-height (rect-height desc))))))))
- ) ; publish complements
+ ) ;D publish complements
 
 (define (possible-moves board/rect field-position allowed-moves)
   (match-let (((x y) field-position))
@@ -319,15 +329,15 @@
 		 (not (null? (filter (equals? `(,(- x dx) ,(- y dy)))
 				     (subrect-indices board/rect
 						      initial-state))))
-		 `(,initial-state ,final-state (,dx ,dy)))))))
+		 `(,initial-state ,final-state ,figure (,dx ,dy)))))))
 	moves)))))
 
 (define (possible-destinations board/rect field-position allowed-moves)
-  (map (match-lambda 
-	   ((initial-state final-state position)
-	    (map + field-position
-		 (displacement #;of (apply take-from-rect board/rect 
-					   field-position)
-				    #;from initial-state 
-					   #;to final-state))))
-       (or (possible-moves board/rect field-position allowed-moves) '())))
+  (and-let* ((moves (possible-moves board/rect field-position allowed-moves)))
+    (map (match-lambda 
+	     ((initial-state final-state figure position)
+	      (map + field-position
+		   (displacement #;of figure
+				      #;from initial-state 
+					     #;to final-state))))
+	 moves)))

@@ -12,62 +12,11 @@
   #:export (load-board-game
 	    gameplay
 	    current-board-state/array
+	    set-board-state!
 	    <board> <field> <checker>
 	    ))
 
-(define (gameplay board)
-  (let turn ((n 0) (player #[board 'current-player]))
-    (let ((checker (choose-checker #;from board)))
-      (move! checker #;to (choose-destination #;on board) #;on board)
-      (if (final? board)
-	  (wins! player #;in-round n)
-       #;else
-	  (turn (1+ n) (next-player! #;on board))))))
-
-(define (choose-checker #;from board)
-  ;; czekamy, aż na planszy pojawi się jakiś wybór
-  (get! #;from #[board 'selected-checker]))
-
-(define (choose-destination #;on board)
-  (get! #;from #[board 'chosen-destination]))
-
-(define (select-destination! #;of checker #;as field #;on board)
-  (give! field #;via #[board 'chosen-destination])
-  (give! checker #;via #[board 'selected-checker]))
-
-(define ((put-to-nearby-widget! checker) . _)
-  (and-let* ((field (cond ((is-a? *nearby-widget* <field>)
-			   *nearby-widget*)
-			  ((and-let* (((is-a? *nearby-widget* <checker>))
-				      (parent #[*nearby-widget* 'parent]) 
-				      ((is-a? parent <field>)))
-			     parent))
-			  (else
-			   #f)))
-	     (board #[checker 'parent])
-	     ((is-a? board <board>)))
-    (cond (#[field 'allowed]
-	   (select-destination! #;of checker #;as field #;on board))
-	  (else #;(eq? *nearby-widget* #[checker 'origin])
-	   (move! checker #;to #[checker 'origin] #;on board)))))
-
-(define-method (move! checker #;to field #;on board)
-  (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
-  (set! #[field 'content] checker)
-  (set! #[checker 'x] 0)
-  (set! #[checker 'y] 0)
-  (set! #[checker 'parent] field)
-  (set! #[checker 'origin] #f)
-  (reset! board))
-
-(define-method (next-player! #;on board)
-  (set! #[board 'order-of-play] (rest #[board 'order-of-play]))
-  #[board 'current-player])
-
-(define empty-field (load-image "art/chess/b.png"))
-
-(define empty-field* (load-image "art/chess/w.png"))
-
+;; class definitions 
 (define-class <field> (<bitmap>)
   (%content #:init-value #f)
   (content #:allocation #:virtual
@@ -78,6 +27,7 @@
 			 (set! #[object 'parent] self)))
   (position #:init-keyword #:position #;(x y))
   (allowed #:init-value #f)
+  (move #:init-value #f)
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
 			 (if #[self 'content] 
@@ -88,45 +38,20 @@
 			      (for x in value
 				   (set! #[self 'content] x))))))
 
-(define-method (draw (field <field>))
-  (next-method)
-  (if #[field 'content]
-      (draw #[field 'content])))
-
 (define-class <checker> (<bitmap>)
   (origin #:init-value #f)
   (type #:init-value #f #:init-keyword #:type))
 
-(define ((pick! checker) . _)
-  (and-let* ((field #[checker 'parent])
-	     ((is-a? field <field>))
-	     (board #[field 'parent])
-	     ((is-a? board <board>)))
-    ;; tutaj jakoś chcielibyśmy może sprawdzić, które ruchy
-    ;; są dozwolone, i odpowiednio je oznaczyć
-    (for (x y) in (possible-destinations #[field 'position] board)
-	 (allow! #[ #[board 'fields] y x ]))
-    ;;(take! checker #;from field #;to board)
-    (set! #[checker 'x] #[field 'x])
-    (set! #[checker 'y] #[field 'y])
-    (set! #[field 'content] #f)
-    (set! #[checker 'parent] board)
-    (set! #[checker 'origin] field)
-    (push! #[board 'above-fields] checker)))
-
-
 (define-method (initialize (checker <checker>) init-args)
   (next-method)
-  (set! #[checker 'left-mouse-down] ;; powinno być start-dragging
+  (set! #[checker 'left-mouse-down]
 	(pick! checker))
-  (set! #[checker 'left-mouse-up] ;; powinno być stop-dragging
+  (set! #[checker 'left-mouse-up]
 	(put-to-nearby-widget! checker))
-
   (set! #[checker 'drag]
 	(lambda (x y dx dy)
 	  (increase! #[checker 'x] dx)
 	  (increase! #[checker 'y] dy))))
-
 
 (define-class <board> (<widget>)
   (fields #:init-value #f)
@@ -135,7 +60,8 @@
   (order-of-play #:init-keyword #:order-of-play)
   (selected-checker #:init-thunk make-queue)
   (chosen-destination #:init-thunk make-queue)
-
+  (chosen-move #:init-thunk make-queue)
+  (images #:init-keyword #:images #:init-thunk make-hash-table)
   (current-player #:allocation #:virtual
 		  #:slot-ref (lambda (self)
 			       (first #[self 'order-of-play]))
@@ -144,27 +70,13 @@
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
 			 (append #[self 'above-fields] 
-				 (flatten (array->list #[self 'fields]))))
+				 (concatenate (array->list #[self 'fields]))))
 	    #:slot-set! noop))
 
-(define-method (allow! (field <field>))
-  (set! #[field 'allowed] #t)
-  (set! #[field 'image] (highlighted #[field 'image] #:green +50)))
-
-(define-method (reset! (board <board>))
-  (match-let (((h w) (array-dimensions #[board 'fields])))
-    (for x in 0 .. (- w 1)
-	 (for y in 0 .. (- h 1)
-	      (set! #[ #[ #[ board 'fields ] y x ] 'allowed] #f)
-	      (set! #[ #[ #[board 'fields] y x ] 'image ]
-		    (if (= 0 (modulo (+ x y) 2))
-			empty-field
-			empty-field*))))))
 
 (define-method (initialize (board <board>) init-args)
   (next-method)
-  (let-keywords init-args #t ((initial-state '((_)))
-			      (images #[]))
+  (let-keywords init-args #t ((initial-state '((_))))
     (match-let (((w h) (rect-size initial-state)))
       (set-screen-size! (* w (image-width empty-field)) 
 			(* h (image-height empty-field)))
@@ -183,7 +95,7 @@
 		  (set! #[field 'x] (* x w))
 		  (set! #[field 'y] (* y h))
 		  (set! #[#[board 'fields] y x] field)
-		  (and-let* ((image #[images checker])
+		  (and-let* ((image #[board : 'images : checker])
 			     (checker (make <checker> #:image image 
 					    #:type checker)))
 		    (add-child! field checker))
@@ -198,6 +110,59 @@
 (define-method (current-board-state/rect (board <board>))
   (array->list (current-board-state/array board)))
 
+(define (gameplay board)
+  (let turn ((n 0) (player #[board 'current-player]))
+    (let ((checker (choose-checker #;from board)))
+      (apply-move! (choose-move #;on board) #;of checker #;to board)
+      #;(move! checker #;to (choose-destination #;on board) #;on board)
+      (if (final? board)
+	  (wins! player #;in-round n)
+       #;else
+	  (turn (1+ n) (next-player! #;on board))))))
+
+(define (choose-checker #;from board)
+  ;; czekamy, aż na planszy pojawi się jakiś wybór
+  (get! #;from #[board 'selected-checker]))
+
+(define (choose-move #;from board)
+  (get! #;from #[board 'chosen-move]))
+
+(define (choose-destination #;on board)
+  (get! #;from #[board 'chosen-destination]))
+
+(define (select-destination! #;of checker #;as field #;on board)
+  (give! field #;via #[board 'chosen-destination])
+  (give! #[field 'move] #[board 'chosen-move])
+  (give! checker #;via #[board 'selected-checker]))
+
+(define ((put-to-nearby-widget! checker) . _)
+  (and-let* ((field (cond ((is-a? *nearby-widget* <field>)
+			   *nearby-widget*)
+			  ((and-let* (((is-a? *nearby-widget* <checker>))
+				      (parent #[*nearby-widget* 'parent]) 
+				      ((is-a? parent <field>)))
+			     parent))
+			  (else
+			   #f)))
+	     (board #[checker 'parent])
+	     ((is-a? board <board>)))
+    (cond (#[field 'allowed]
+	   (select-destination! #;of checker #;as field #;on board))
+	  (else ;; put the checker back to the origin
+	   (move! checker #;to #[checker 'origin] #;on board)))))
+
+(define-generic possible-moves)
+
+(define-method (possible-moves field-position (board <board>))
+  (and-let* ((allowed-moves #[board : 'allowed-moves : 
+				    #[board : 'current-player]])
+	     (wildcards #[board 'wildcards])
+	     (board-rect (current-board-state/rect board)))
+    (specify ((fit? (fit-wildcards wildcards)))
+	     (or (possible-moves #;on board-rect #;from field-position 
+				      #;using allowed-moves)
+		 '()))))
+
 (define-generic possible-destinations)
 
 (define-method (possible-destinations field-position (board <board>))
@@ -205,14 +170,121 @@
 				    #[board : 'current-player]])
 	     (wildcards #[board 'wildcards])
 	     (board-rect (current-board-state/rect board)))
-    (specify ((fit? (lambda (field pattern)
-		      (or (eq? pattern '?)
-			  (eq? field pattern)
-			  (and-let* ((possible-values #[wildcards pattern]))
-			    (in? field possible-values))))))
+    (specify ((fit? (fit-wildcards wildcards)))
 	     (or (possible-destinations #;on board-rect #;from field-position 
 					#;using allowed-moves)
 		 '()))))
+
+(define ((pick! checker) . _)
+  (and-let* ((field #[checker 'parent])
+	     ((is-a? field <field>))
+	     (board #[field 'parent])
+	     ((is-a? board <board>))
+	     (position #[field 'position]))
+    ;; tutaj jakoś chcielibyśmy może sprawdzić, które ruchy
+    ;; są dozwolone, i odpowiednio je oznaczyć
+    (for (initial final figure place) in (possible-moves position board)
+	 (match (map + position 
+		     (displacement #;of figure #;from initial #;to final))
+	   ((x y)
+	   ;;(for (x y) in (possible-destinations #[field 'position] board)
+	    (allow! #[ #[board 'fields] y x ]
+		    `(,initial ,final ,figure ,place)))))
+    (take! checker #;from field #;to board)))
+
+(define-method (allowed-figures board)
+  (let ((result #[]))
+    (for (player => rules) in #[board 'allowed-moves]
+	 (for (figure => moves) in rules
+	      (set! #[result figure] #t)))
+    (hash-keys result)))
+
+(define* (set-board-state! board rect #:optional (x 0) (y 0))
+  (match-let (((w h) (rect-size rect)))
+    (for r in x .. (- (+ w x) 1)
+	 (for c in y .. (- (+ h y) 1)
+	      (let ((field #[#[ board 'fields] c r])
+		    (checker (take-from-rect rect (- r x) (- c y))))
+		(if (not (equal? checker '?))
+		    (set! #[field 'content]
+			  (and-let* ((image #[board : 'images : checker]))
+			    (make <checker> #:image image 
+				  #:type checker)))))))))
+
+(define-method (apply-move! move #;of checker #;on (board <board>))
+  ;; stosowanie ruchu polega na tym, że bierzemy sobie dany fragment
+  ;; planszy i zastępujemy go nowym
+  (let ((figures (allowed-figures board))
+	(wildcards (map first #[board 'wildcards]))
+	(current-state (current-board-state/rect board)))
+    (match-let* (((initial-state final-state figure (dx dy)) move)
+		 ((x0 y0) #[checker : 'origin : 'position])
+		 ((x y) `(,(- x0 dx) ,(- y0 dy)))
+		 ((w h) (rect-size initial-state))
+		 (current-substate (take-subrect current-state x y w h))
+		 (wildcard-substitutions 
+		  (filter-map (lambda (state pattern)
+				(and (in? pattern wildcards)
+				     (in? state #[board : 'wildcards : pattern])
+				     `(,pattern . ,state)))
+			      (concatenate current-substate)
+			      (concatenate initial-state)))
+		 (final-state* (rect-map
+				(lambda(x)
+				  (or #[wildcard-substitutions x] x))
+				final-state)))
+      (set-board-state! board final-state* x y)
+      (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
+      (reset! board)
+      (force-redisplay!))))
+
+(define-method (move! (checker <checker>) #;to (field <field>) 
+		      #;on (board <board>))
+  (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
+  (set! #[field 'content] checker)
+  (set! #[checker 'x] 0)
+  (set! #[checker 'y] 0)
+  (set! #[checker 'parent] field)
+  (set! #[checker 'origin] #f)
+  (reset! board))
+
+(define-method (take! (checker <checker>) #;from (field <field>) 
+		      #;on (board <board>))
+  (set! #[checker 'x] #[field 'x])
+  (set! #[checker 'y] #[field 'y])
+  (set! #[field 'content] #f)
+  (set! #[checker 'parent] board)
+  (set! #[checker 'origin] field)
+  (push! #[board 'above-fields] checker))
+
+(define-method (next-player! #;on board)
+  (set! #[board 'order-of-play] (rest #[board 'order-of-play]))
+  #[board 'current-player])
+
+(define empty-field (load-image "art/chess/b.png"))
+
+(define empty-field* (load-image "art/chess/w.png"))
+
+(define-method (draw (field <field>))
+  (next-method)
+  (if #[field 'content]
+      (draw #[field 'content])))
+
+(define-method (allow! (field <field>) move)
+  (set! #[field 'allowed] #t)
+  (set! #[field 'move] move)
+  (set! #[field 'image] (highlighted #[field 'image] #:green +50)))
+
+(define-method (reset! (board <board>))
+  (match-let (((h w) (array-dimensions #[board 'fields])))
+    (for x in 0 .. (- w 1)
+	 (for y in 0 .. (- h 1)
+	      (set! #[ #[ #[board 'fields] y x ] 'allowed] #f)
+	      (set! #[ #[ #[board 'fields] y x ] 'move] #f)
+	      (set! #[ #[ #[board 'fields] y x ] 'image ]
+		    (if (= 0 (modulo (+ x y) 2))
+			empty-field
+			empty-field*))))))
 
 (publish 
  (define (load-board-game game-description)
@@ -289,12 +361,14 @@
 	       (set! #[player-moves player] figure-moves)
 	       (for (figure moves) in (zip figures moves)
 		    (set! #[figure-moves figure]
-			  (expand-moves #;for figure #;from moves
-					   #;at board-width board-height)))))))
+			  (expand-moves 
+			   #;for figure #;from moves
+				 #;up-to board-width 
+					 #;times board-height)))))))
      #;return player-moves))
 
  (define (expand-moves #;for figure #;from definitions 
-			     #;at board-width #;and board-height)
+			     #;up-to board-width #;times board-height)
    (append-map
     (match-lambda 
 	((initial-state final-state . extra)
@@ -327,11 +401,14 @@
  (define board-transformations
    `((flip-horizontally . ,flip-horizontally)
      (flip-vertically . ,flip-vertically)))
+
  (define known-symmetries
    `((all-rotations . ,all-rotations)
      (identity . ,list)
      (horizontal . ,horizontal)
-     (vertical . ,vertical))))
+     (vertical . ,vertical)))
+
+ ) ;D publish load-board-game
 
 (define (wins! player round)
   (quit))
