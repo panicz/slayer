@@ -2,7 +2,7 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (extra common)
-  #:export (rgba highlighted subtract-image))
+  #:export (rgba highlighted subtract-image force-redisplay!))
 
 (define rgba
   (case-lambda 
@@ -30,3 +30,8 @@
 			x))))  ;; or leave it as it is
 	      (image->array subtrahend)
 	      (image->array minuend))))
+
+(define redisplay-event (register-userevent! noop))
+
+(define (force-redisplay!)
+  (generate-userevent! redisplay-event))
