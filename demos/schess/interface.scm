@@ -57,6 +57,7 @@
   (fields #:init-value #f)
   (above-fields #:init-value '())
   (allowed-moves #:init-keyword #:allowed-moves)
+  (after-move-rules #:init-keyword #:after-move #:init-thunk make-hash-table)
   (order-of-play #:init-keyword #:order-of-play)
   (selected-checker #:init-thunk make-queue)
   (chosen-destination #:init-thunk make-queue)
@@ -211,32 +212,56 @@
 			    (make <checker> #:image image 
 				  #:type checker)))))))))
 
-(define-method (apply-move! move #;of checker #;on (board <board>))
-  ;; stosowanie ruchu polega na tym, że bierzemy sobie dany fragment
-  ;; planszy i zastępujemy go nowym
-  (let ((figures (allowed-figures board))
-	(wildcards (map first #[board 'wildcards]))
-	(current-state (current-board-state/rect board)))
-    (match-let* (((initial-state final-state figure (dx dy)) move)
-		 ((x0 y0) #[checker : 'origin : 'position])
-		 ((x y) `(,(- x0 dx) ,(- y0 dy)))
-		 ((w h) (rect-size initial-state))
-		 (current-substate (take-subrect current-state x y w h))
-		 (wildcard-substitutions 
-		  (filter-map (lambda (state pattern)
-				(and (in? pattern wildcards)
-				     (in? state #[board : 'wildcards : pattern])
-				     `(,pattern . ,state)))
-			      (concatenate current-substate)
-			      (concatenate initial-state)))
-		 (final-state* (rect-map
-				(lambda(x)
-				  (or #[wildcard-substitutions x] x))
-				final-state)))
-      (set-board-state! board final-state* x y)
-      (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
-      (reset! board)
-      (force-redisplay!))))
+(publish
+ (define-method (apply-move! move #;of checker #;on (board <board>))
+   ;; stosowanie ruchu polega na tym, że bierzemy sobie dany fragment
+   ;; planszy i zastępujemy go nowym
+   (let ((figures (allowed-figures board))
+	 (wildcards (map first #[board 'wildcards]))
+	 (current-state (current-board-state/rect board)))
+     (match-let* (((initial-state final-state figure (dx dy)) move)
+		  ((x0 y0) #[checker : 'origin : 'position])
+		  ((x y) `(,(- x0 dx) ,(- y0 dy)))
+		  ((w h) (rect-size initial-state))
+		  (current-substate (take-subrect current-state x y w h))
+		  (final-state* (substitute #[board 'wildcards] 
+					    #;from initial-state
+						   #;within current-substate
+							    #;in final-state)))
+       (set-board-state! board final-state* x y)
+       (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
+       (reset! board)
+       (apply-after-move-rules! board)
+       (force-redisplay!))))
+
+ (define-method (apply-after-move-rules! (board <board>))
+   (and-let* ((rules #[board : 'after-move-rules : #[board 'current-player]])
+	      (fields (current-board-state/rect board)))
+     (specify ((fit? (fit-wildcards #[board 'wildcards])))
+       (for (initial-state final-state) in rules
+	    (match-let (((w h) (rect-size initial-state)))
+	      (for (x y) in (subrect-indices fields initial-state)
+		   (let* ((current-substate (take-subrect fields x y w h))
+			  (final-state* (substitute 
+					 #[board 'wildcards] 
+					 #;from initial-state
+						#;within current-substate
+							 #;in final-state)))
+		     (set-board-state! board final-state* x y))))))))
+ where
+ (define (substitute wildcards #;from subrect #;within rect #;in state)
+   (let ((substitutions (filter-map 
+			 (lambda (state pattern)
+			   (and (in? pattern 
+				     (map first wildcards))
+				(in? state #[wildcards pattern])
+				`(,pattern . ,state)))
+			 (concatenate rect)
+			 (concatenate subrect))))
+     (rect-map (lambda(x)
+		 (or #[substitutions x] x))
+	       state))))
+
 
 (define-method (move! (checker <checker>) #;to (field <field>) 
 		      #;on (board <board>))
@@ -295,6 +320,7 @@
 	(let ((initial-board (first #[description 'initial-board:]))
 	      (wildcards #[description 'wildcards:])
 	      (moves #[description 'moves:])
+	      (after-move-rules (or #[description 'after-move:] '()))
 	      (images (map (match-lambda 
 			       ((figure name)
 				`(,figure . ,(subtract-image (load-image name)
@@ -304,13 +330,16 @@
 		(width (rect-width initial-board))
 		(height (rect-height initial-board)))
 	    (specify ((wildcards wildcards))
-		     (let ((allowed-moves (extract-moves moves width height)))
+		     (let* ((allowed-moves (extract-moves moves width height))
+			    (order-of-play (or #[description 'order-of-play:]
+					       (hash-keys allowed-moves))))
 		       (make <board> #:initial-state initial-board
 			     #:images images
 			     #:allowed-moves allowed-moves
-			     #:order-of-play (apply 
-					      circular-list
-					      #[description 'order-of-play:])
+			     #:order-of-play (apply circular-list
+						    order-of-play)
+			     #:after-move (extract-after-move-rules
+					   after-move-rules width height)
 			     #:wildcards wildcards
 			     )))))))))
  where
@@ -328,6 +357,14 @@
    (map (match-lambda ((name definition) 
 		       `(,name ,@(value name))))
 	wildcards))
+ 
+ (define (extract-after-move-rules description board-width board-height)
+   (let ((result #[]))
+     (for (player rules ...) in description
+	  (set! #[result player]
+		(expand-moves #;from rules #;up-to board-width
+				     #;times board-height)))
+     result))
 
  (define (extract-moves movement-description board-width board-height)
    (let ((player-moves (make-hash-table)))
@@ -362,13 +399,13 @@
 	       (for (figure moves) in (zip figures moves)
 		    (set! #[figure-moves figure]
 			  (expand-moves 
-			   #;for figure #;from moves
-				 #;up-to board-width 
-					 #;times board-height)))))))
+			   #;from moves
+				  #;up-to board-width 
+					  #;times board-height)))))))
      #;return player-moves))
 
- (define (expand-moves #;for figure #;from definitions 
-			     #;up-to board-width #;times board-height)
+ (define (expand-moves #;from definitions 
+			      #;up-to board-width #;times board-height)
    (append-map
     (match-lambda 
 	((initial-state final-state . extra)
