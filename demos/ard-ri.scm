@@ -1,46 +1,49 @@
 (define-game-rules ard-ri
 
   (initial-board:
-   ((X _ ♟ ♟ ♟ _ X)
-    (_ _ _ ♟ _ _ _)
-    (♟ _ ♙ ♙ ♙ _ ♟)
-    (♟ ♟ ♙ ♔ ♙ ♟ ♟)
-    (♟ _ ♙ ♙ ♙ _ ♟)
-    (_ _ _ ♟ _ _ _)
-    (X _ ♟ ♟ ♟ _ X)))
+   ((X _ i i i _ X)
+    (_ _ _ i _ _ _)
+    (i _ o o o _ i)
+    (i i o Q o i i)
+    (i _ o o o _ i)
+    (_ _ _ i _ _ _)
+    (X _ i i i _ X)))
 
-  (wildcards: (□ (♙ ♔))
-	      (♟/_ (_ ♟))
-	      (_/♟ ♟/_)
+  (wildcards: (O (o Q))
+	      (i/_ (_ i))
+	      (_/i i/_)
 	      (_/X (_ X))
 	      (X/_ _/X)
-	      (□/_ (_ □))
-	      (_/□ □/_))
+	      (_/X/T (_ X T))
+	      (X/T (X T))
+	      (O/_ (_ O))
+	      (_/O O/_))
 
-  (images: 
-   (♟ "art/chess/bpb.png")
-   (♙ "art/chess/wpb.png")
-   (♔ "art/chess/wkb.png")
+  (images:
+   (i "art/chess/bpb.png")
+   (o "art/chess/wpb.png")
+   (Q "art/chess/wkb.png")
+   (T "art/chess/wlw.png")
    (X "art/chess/blbp.png"))
 
   (moves:   
    (player-1
-    (♙
-     (((♙ _ → _))
+    (o
+     (((o _ → _))
       ;;=========
-      ((_ _ → ♙))
+      ((_ _ → o))
       (symmetries: all-rotations)))
-    (♔
-     (((♔ _ → _/X))
+    (Q
+     (((Q _/X/T → _/X/T))
       ;;=========
-      ((_ _ → ♔))
+      ((_ _/X/T → Q))
       (symmetries: all-rotations))))
 
    (player-2
-    (♟ 
-     (((♟ _ → _))
+    (i 
+     (((i _ → _))
       ;;=========
-      ((_ _ → ♟))
+      ((_ _ → i))
       (symmetries: all-rotations)))))
 
   (order-of-play: player-1 player-2)
@@ -55,21 +58,26 @@
      ((X ? ? ?)
       (? ? ? ?)
       (? ? ? ?)
-      (? ? ? X)))
+      (? ? ? T)))
 
-    (((♙ ♟ □))
+    (((o i O))
      ;;======
-     ((♙ _ □))
+     ((o _ O))
      (symmetries: all-rotations))
 
-    (((□ ♟ X))
+    (((O i X/T))
      ;;======
-     ((□ _ X))
+     ((O _ X/T))
      (symmetries: all-rotations)))
 
    (player-2
-    (((♟ ♙ ♟))
+    (((i o i))
      ;;======
-     ((♟ _ ♟))
+     ((i _ i))
+     (symmetries: all-rotations))
+
+    (((i o X))
+     ;;======
+     ((i _ X))
      (symmetries: all-rotations))
 )))
