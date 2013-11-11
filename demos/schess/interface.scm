@@ -9,8 +9,9 @@
   #:use-module (extra ref)
   #:use-module (extra threads)
   #:use-module (oop goops)
+  #:use-module (ice-9 q)
   #:export (load-board-game
-	    gameplay
+	    gameplay start-gameplay
 	    current-board-state/array
 	    set-board-state!
 	    <board> <field> <checker>
@@ -113,13 +114,17 @@
 
 (define (gameplay board)
   (let turn ((n 0) (player #[board 'current-player]))
-    (let ((checker (choose-checker #;from board)))
-      (apply-move! (choose-move #;on board) #;of checker #;to board)
-      #;(move! checker #;to (choose-destination #;on board) #;on board)
+    (let ((checker (choose-checker #;from board))
+	  (move (choose-move #;on board)))
+      (apply-move! move #;of checker #;to board)
       (if (final? board)
 	  (wins! player #;in-round n)
        #;else
 	  (turn (1+ n) (next-player! #;on board))))))
+
+#|
+(define (start-gameplay board)
+  (call-with-new-thread (lambda()(gameplay board))))
 
 (define (choose-checker #;from board)
   ;; czekamy, aż na planszy pojawi się jakiś wybór
@@ -128,13 +133,35 @@
 (define (choose-move #;from board)
   (get! #;from #[board 'chosen-move]))
 
-(define (choose-destination #;on board)
-  (get! #;from #[board 'chosen-destination]))
-
 (define (select-destination! #;of checker #;as field #;on board)
-  (give! field #;via #[board 'chosen-destination])
   (give! #[field 'move] #[board 'chosen-move])
   (give! checker #;via #[board 'selected-checker]))
+|#
+
+(publish
+ (define (start-gameplay board)
+   (call-with-prompt 
+    schess-prompt-tag
+    (lambda ()(gameplay board))
+    save-stage!))
+ (define (choose-checker #;from board)
+   (abort-to-prompt schess-prompt-tag))
+ (define (choose-move #;from board)
+   (abort-to-prompt schess-prompt-tag))
+ (define (select-destination! #;of checker #;as field #;on board)
+   (yield checker)
+   (yield #[field 'move]))
+ where
+ (define game-stage (make-q))
+ (define (save-stage! stage)
+   (enq! game-stage stage))
+ (define ((next-stage! . values))
+   (apply (deq! game-stage) values))
+ (define schess-prompt-tag (make-prompt-tag "schess"))
+ (define (yield . values)
+   (call-with-prompt schess-prompt-tag
+		     (apply next-stage! values)
+		     save-stage!)))
 
 (define ((put-to-nearby-widget! checker) . _)
   (and-let* ((field (cond ((is-a? *nearby-widget* <field>)

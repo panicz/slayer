@@ -2,13 +2,15 @@
 ./slayer -d3d -i$0
 exit
 !#
-(use-modules (slayer) (slayer image) (extra slayer)
+(use-modules (slayer) (slayer image) (extra slayer) (extra common)
 	     (widgets base) (widgets bitmap) (schess interface))
 
 (keydn 'esc quit)
 
-(define *board* (load-board-game "chess.scm"))
+(define *board* (load-board-game "ard-ri.scm"))
 
 (add-child! *stage* *board*)
 
-(call-with-new-thread (lambda()(gameplay *board*)))
+(start-gameplay *board*)
+
+  
