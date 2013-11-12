@@ -13,6 +13,12 @@ GNU build system, running build tests and for standing my whinings regarding
 hosting at puszcza.gnu.org.ua. Exchanging thoughts with him has been a source
 of pure joy and priceless knowldege.
 
+To Eli Zaretskii, Laura Michaels and Jan Schukat, for helping me 
+to build Windows version of SLAYER (including their spiritual support). 
+To Mike MacFerrin, for allowing me to use his implementation of glWindowPos* 
+function, which was lacking in the library supplied with Windows operating 
+system.
+
 Finally, I'd like to thank my dear friends, in particular Ścisław Dercz,
 whose spring of creativity has been a constant inspiration for me, and 
 Adrian Gruntkowski for his sober insight and concise suggestions.

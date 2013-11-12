@@ -5,6 +5,30 @@
 #include <limits.h>
 #include "vmx.hh"
 
+#if !HAVE_GL_WINDOW_POS2I
+// code borrowed from https://code.google.com/p/lasermission/source/browse/trunk/source/Emulation/glWindowPos.cpp
+// (modified)
+// courtesy of Mike MacFerrin
+void 
+glWindowPos2i(int x, int y)
+{
+  glPushAttrib(GL_TRANSFORM_BIT | GL_VIEWPORT_BIT);
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+  glViewport(x-1, y-1, 2, 2);
+  glRasterPos3f(0, 0, 0);
+  glPopMatrix();
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glPopAttrib();
+}
+#endif // !HAVE_GL_WINDOW_POS2I
+
+
 static SCM s_f32;
 static SCM s_f64;
 

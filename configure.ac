@@ -45,11 +45,12 @@ unless --enable-default-3d is passed to the configure script)]),
 if test "x$with_opengl" != xno; then
   PKG_CHECK_MODULES([OPENGL], [gl glu], 
     [AC_DEFINE([USE_OPENGL], [1], [Use OpenGL])
-     AC_CHECK_LIB([GL], [glWindowPos2i], [with_opengl=yes],
-       [if test "x$with_opengl" = xyes; then
-          AC_MSG_FAILURE([glWindowPos2i not found in OpenGL (required)])
-	fi
-       ])],
+     with_opengl=yes
+     AC_CHECK_LIB([GL], [glWindowPos2i], 
+       [AC_DEFINE([HAVE_GL_WINDOW_POS2I], [1], 
+       		  [`glWindowPos2i' is available from OpenGL])],
+       [AC_DEFINE([HAVE_GL_WINDOW_POS2I], [0], 
+       	          [Define own version of `glWindowPos2i'])])],
     [if test "x$with_opengl" != xcheck; then
        AC_MSG_FAILURE([OpenGL not found])
      fi]);
