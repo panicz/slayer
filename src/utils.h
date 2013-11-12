@@ -9,6 +9,13 @@
 #include "config.h"
 #endif
 
+#ifdef __MINGW32__
+#include <windows.h>
+#undef OUT
+#undef near
+#undef far
+#endif
+
 #if !HAVE_ASPRINTF
 int asprintf(char **strp, const char *fmt, ...);
 #endif
