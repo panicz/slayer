@@ -113,6 +113,13 @@ init(arg_t *arg) {
   symbols_init();
   setup_port_encodings();
 
+#ifdef __MINGW32__
+  // there are no stdin nor stdout available on Windows,
+  // so it's best to redirect stdout and stderr to unbuffered files
+  eval("(set-current-output-port (open-file \"slayer.stdout\" \"a0\"))");
+  eval("(set-current-error-port (open-file \"slayer.stderr\" \"a0\"))");
+#endif
+
   exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
   video_init(arg->w, arg->h, arg->video_mode);
