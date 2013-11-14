@@ -181,17 +181,16 @@ show_version() {
   printf("%s\n", COPYRIGHT);
 }
 
-
 static void
 show_usage(const char *program, const char *file_name) {
 #define TABS "\t\t\t\t" //"                             "
-  printf("Usage: %s [OPTION] ...\n", program);
+  printf("Usage: %s [OPTIONS] [PROGRAM]\n", program);
   printf("Run specified program in SLAYER environment. "
-	 "Unless -i option given, it\n");
+	 "Unless PROGRAM is given, it\n");
   printf("attempts to run a program named %s%s"
 	 " from current working directory.\n\n", file_name, SLAYER_SUFFIX);
   printf("Available options:\n");
-  printf("  -i FILE,   --input FILE\texecute FILE (guile scheme source)\n");
+  printf("  PROGRAM,               \texecute PROGRAM (guile scheme source)\n");
 
 #if defined(USE_OPENGL) || defined(USE_SDL_MIXER)
   printf("  -e EXT, --extension EXT\tload extension EXT."
@@ -235,7 +234,6 @@ process_command_line_options(int argc,
   static struct option long_options[] = {
     {"help",      no_argument,       0,  0 },
     {"version",   no_argument,       0,  0 },
-    {"input",     required_argument, 0, 'i'},
     {"output",    required_argument, 0, 'o'},
     {"extension", required_argument, 0, 'e'},
     {"disable",   required_argument, 0, 'd'},
@@ -248,7 +246,7 @@ process_command_line_options(int argc,
   };
   
   int opt;
-  while ((opt = getopt_long(argc, argv, "i:o:w:h:rfe:d:",
+  while ((opt = getopt_long(argc, argv, "o:w:h:rfe:d:",
 			    long_options, &option_index)) != -1) {
     switch (opt) {
     case 0:
@@ -270,12 +268,6 @@ process_command_line_options(int argc,
 	printf("Unrecognised option: %s\n", long_options[option_index].name);
 	show_usage(argv[0], exec_file_name);
 	exit(-1);
-      }
-      break;
-    case 'i': // input file
-      arg->infile = malloc(strlen(optarg) + 1);
-      if (arg->infile) {
-	sprintf(arg->infile, "%s", optarg);
       }
       break;
     case 'o': // output file
@@ -328,6 +320,29 @@ process_command_line_options(int argc,
       break;
     }
   }
+  if (optind < argc) {
+    arg->infile = malloc(strlen(argv[optind]) + 1);
+    if (arg->infile) {
+      sprintf(arg->infile, "%s", argv[optind]);
+    }
+  }
+}
+
+char *
+base(char *filename) {
+  int i;
+  for(i = 0; filename[i]; ++i) {
+    if(filename[i] == '/') {
+      filename = &filename[i+1];
+    }
+  }
+  for(i = strlen(filename) - 1; i > 0; --i) {
+    if(filename[i] == '.') {
+      filename[i] = 0;
+      break;
+    }
+  }
+  return filename;
 }
 
 int 
@@ -343,14 +358,7 @@ main(int argc, char *argv[]) {
   };
 
   // get the name of current file, skipping any slashes
-  char *filename = argv[0];
-
-  int i;
-  for(i = 0; argv[0][i]; ++i) {
-    if(argv[0][i] == '/') {
-      filename = &argv[0][i+1];
-    }
-  }
+  char *filename = base(argv[0]);
 
 #ifdef ENABLE_DEFAULT_3D
   arg.video_mode |= SDL_OPENGL;
@@ -363,19 +371,24 @@ main(int argc, char *argv[]) {
 #else
   putenv("GUILE_WARN_DEPRECATED=detailed");
 #endif
+
+#ifdef __MINGW32__
+  putenv("GUILE_LOAD_PATH=./;../;./scm;../scm");
+  putenv("GUILE_LOAD_COMPILED_PATH=./ccache;../ccache");
+  putenv("XDG_CACHE_HOME=./ccache");
+#else
   putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules:./guile-modules");
   putenv("LTDL_LIBRARY_PATH=.:./scum");
+#endif
   putenv("LC_ALL=C.UTF8"); // discard locale
 
   if (!arg.infile) {
-    arg.infile = 
-      malloc(strlen(filename) + strlen(SLAYER_SUFFIX) + 1);
+    arg.infile = malloc(strlen(filename) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.infile, "%s" SLAYER_SUFFIX, filename);
   }
 
   if (!arg.outfile) {
-    arg.outfile = 
-      malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
+    arg.outfile = malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
 

@@ -1,6 +1,4 @@
-#!/bin/sh
-./slayer -e3d -i $0
-exit # prevent from executing the rest of the file by the shell
+#!./slayer -e3d
 !#
 (use-modules 
  (slayer image)

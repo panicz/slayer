@@ -1,5 +1,4 @@
-#! /bin/sh
-./slayer -d3d -i$0
+#!./slayer -d3d
 exit
 !#
 (use-modules (slayer) (slayer image) (extra slayer) (extra common)
@@ -7,7 +6,7 @@ exit
 
 (keydn 'esc quit)
 
-(define *board* (load-board-game "ard-ri.scm"))
+(define *board* (load-board-game "chess.scm"))
 
 (add-child! *stage* *board*)
 

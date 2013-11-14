@@ -1,4 +1,4 @@
-#!./slayer -i
+#!./slayer
 !#
 (use-modules (slayer) (slayer image)
 	     (extra common))
