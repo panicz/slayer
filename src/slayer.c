@@ -5,7 +5,7 @@
 #include "video.h"
 #include "symbols.h"
 #include "utils.h"
-
+#include <stdbool.h>
 
 #if !HAVE_VASPRINTF
 int vasprintf(char **strp, const char *fmt, va_list ap) {
@@ -112,13 +112,6 @@ init(arg_t *arg) {
   static arg_t *_arg = NULL;
   symbols_init();
   setup_port_encodings();
-
-#ifdef __MINGW32__
-  // there are no stdin nor stdout available on Windows,
-  // so it's best to redirect stdout and stderr to unbuffered files
-  eval("(set-current-output-port (open-file \"slayer.stdout\" \"a0\"))");
-  eval("(set-current-error-port (open-file \"slayer.stderr\" \"a0\"))");
-#endif
 
   exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
@@ -335,21 +328,65 @@ process_command_line_options(int argc,
   }
 }
 
-char *
-base(char *filename) {
-  int i;
-  for(i = 0; filename[i]; ++i) {
-    if(filename[i] == '/') {
-      filename = &filename[i+1];
-    }
-  }
-  for(i = strlen(filename) - 1; i > 0; --i) {
-    if(filename[i] == '.') {
-      filename[i] = 0;
+static inline char *
+substring(const char *string, int start, int end) {
+  int n = end - start;
+  char *copy = malloc(n+1);
+  strncpy(copy, &string[start], n);
+  copy[n] = 0;
+  return copy;
+}
+
+#ifdef __MINGW32__
+
+static inline char *
+directory(const char *path) {
+  int i, end = strlen(path);
+  for (i = end-1; i > 0; --i) {
+    if ((path[i] == '/') || (path[i] == '\\')) {
+      end = i;
       break;
     }
   }
-  return filename;
+  return substring(path, 0, end);
+}
+
+static inline bool
+is_absolute_path(const char *path) {
+  size_t i, l = strlen(path);
+  for (i = 0; i < l; ++i) {
+    if (path[i] == ':') {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
+
+
+char *
+base(char *filename) {
+  int i, start = 0, end = strlen(filename);
+  // discard info about directory
+  for(i = 0; filename[i]; ++i) {
+    if(filename[i] == '/' || filename[i] == '\\') {
+      start = i+1;
+    }
+  }
+  // remove possible extensions
+  for(i = end - 1; i > 0; --i) {
+    switch(filename[i]) {
+    case '.':
+      end = i;
+      /* FALLTHROUGH */
+    case '/':
+    case '\\':
+    case ':':
+      goto end;
+    }
+  }
+  end:
+  return substring(filename, start, end); 
 }
 
 int 
@@ -399,6 +436,14 @@ main(int argc, char *argv[]) {
     sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
 
+#ifdef __MINGW32__
+  char *cwd;
+  if (is_absolute_path(arg.infile)) {
+    cwd = directory(arg.infile);
+    SetCurrentDirectory(cwd);
+  }
+#endif
+
   if (arg.w == 0) {
     arg.w = 640;
   }
@@ -412,8 +457,14 @@ main(int argc, char *argv[]) {
 
   scm_with_guile((void *(*)(void *))&io, &arg);
 
+#ifdef __MINGW32__
+  free(cwd);
+#endif
+
   free(arg.outfile);
   free(arg.infile);
+
+  free(filename);
 
   return 0;
 }
