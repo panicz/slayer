@@ -79,5 +79,10 @@
     (((i o X))
      ;;======
      ((i _ X))
-     (symmetries: all-rotations))
-)))
+     (symmetries: all-rotations)))
+   )
+  (finish:
+   
+
+   )
+) ;D define-game-rules

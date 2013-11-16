@@ -21,18 +21,18 @@
   ;; symbole specjalne: ← ↑ → ↓ ↖ ↗ ↘ ↙ 
 
   (images: 
-   (♟ "art/chess/bpb.png")
-   (♜ "art/chess/brb.png")
-   (♞ "art/chess/bnb.png")
-   (♝ "art/chess/bbb.png")
-   (♛ "art/chess/bqb.png")
-   (♚ "art/chess/bkb.png")
-   (♙ "art/chess/wpb.png")
-   (♖ "art/chess/wrb.png")
-   (♘ "art/chess/wnb.png")
-   (♗ "art/chess/wbb.png")
-   (♕ "art/chess/wqb.png")
-   (♔ "art/chess/wkb.png"))
+   (♟ "art/chess/wpb.png")
+   (♜ "art/chess/wrb.png")
+   (♞ "art/chess/wnb.png")
+   (♝ "art/chess/wbb.png")
+   (♛ "art/chess/wqb.png")
+   (♚ "art/chess/wkb.png")
+   (♙ "art/chess/bpb.png")
+   (♖ "art/chess/brb.png")
+   (♘ "art/chess/bnb.png")
+   (♗ "art/chess/bbb.png")
+   (♕ "art/chess/bqb.png")
+   (♔ "art/chess/bkb.png"))
   
   (moves:
    (player-1
@@ -130,7 +130,10 @@
        (♚)
        (♜)
        (_))
-      (conditions: #;"król ani wieża nie mogły być ruszane"))
+      (conditions: #;"król ani wieża nie mogły być ruszane"
+       ;; albo: nie istnieje
+
+       ))
      
      (((♚)
        (_)
@@ -151,4 +154,16 @@
 			 flip-vertically)))
    ) ;D moves
   (order-of-play: player-1 player-2)
+ 
+  (finish: 
+   ;; dla każdego ruchu przeciwnika istnieje taki ruch aktualnego
+   ;; gracza, który bije króla przeciwnika
+   ;; moglibyśmy chcieć zakodować regułę finalizującą następująco:
+   (let ((opponent's-king (if (equal? current-player 'player-1) ♔ ♚)))
+     (for-all x in (moves #;of next-player)
+	      (let ((next-state (apply-move x #;to current-state)))
+		(exists y in (moves #;of current-player)
+			(let ((last-state (apply-move y #;to next-state)))
+			  (not (in-rect? last-state `((opponent's-king)))))))))
+   )
   ) ;D define-game-rules

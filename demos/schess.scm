@@ -6,10 +6,10 @@ exit
 
 (keydn 'esc quit)
 
-(define *board* (load-board-game "chess.scm"))
+(define rule-book (if (defined? '$1) $1 "chess.scm"))
+
+(define *board* (load-board-game rule-book))
 
 (add-child! *stage* *board*)
 
 (start-gameplay *board*)
-
-  
