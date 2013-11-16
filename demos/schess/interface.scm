@@ -7,7 +7,7 @@
   #:use-module (extra slayer)
   #:use-module (extra common)
   #:use-module (extra ref)
-  #:use-module (extra threads)
+  ;;#:use-module (extra threads)
   #:use-module (oop goops)
   #:use-module (ice-9 q)
   #:export (load-board-game
@@ -60,9 +60,9 @@
   (allowed-moves #:init-keyword #:allowed-moves)
   (after-move-rules #:init-keyword #:after-move #:init-thunk make-hash-table)
   (order-of-play #:init-keyword #:order-of-play)
-  (selected-checker #:init-thunk make-queue)
-  (chosen-destination #:init-thunk make-queue)
-  (chosen-move #:init-thunk make-queue)
+  ;;(selected-checker #:init-thunk make-queue)
+  ;;(chosen-destination #:init-thunk make-queue)
+  ;;(chosen-move #:init-thunk make-queue)
   (images #:init-keyword #:images #:init-thunk make-hash-table)
   (current-player #:allocation #:virtual
 		  #:slot-ref (lambda (self)
@@ -123,6 +123,7 @@
 	  (turn (1+ n) (next-player! #;on board))))))
 
 #|
+
 (define (start-gameplay board)
   (call-with-new-thread (lambda()(gameplay board))))
 
@@ -136,6 +137,7 @@
 (define (select-destination! #;of checker #;as field #;on board)
   (give! #[field 'move] #[board 'chosen-move])
   (give! checker #;via #[board 'selected-checker]))
+
 |#
 
 (publish
