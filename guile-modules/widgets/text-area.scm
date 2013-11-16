@@ -99,6 +99,7 @@
 	 (r (substring s (min sl col))))
     (set! #[w : 'lines : line] (string-append l r))))
 
+
 (define* (make-text-area #:key (text "hi! :)\n") (x 0)(y 0))
   (let* ((t (make <text-area>))
 	 (put-string (lambda(s)
@@ -118,7 +119,8 @@
 		       (lambda(c) 
 			 (put-string (list->string (list c))))
 		       put-string
-		       (lambda()
+		       noop
+		       #;(lambda()
 			 (for-each display 
 				   (vector->list #[t 'lines])))
 		       #f
