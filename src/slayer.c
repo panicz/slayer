@@ -56,6 +56,8 @@ typedef struct {
   Uint16 h;
   int video_mode;
   int sound;
+  char **args; // the remaining args from command line
+  int arg_num; // and their number
 } arg_t;
 
 static SCM 
@@ -80,6 +82,24 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
+static struct list *resources = NULL;
+
+static void
+release_resources() {
+  while(resources) {
+    struct list *next = resources->next;
+    free(resources->data);
+    free(resources);
+    resources = next;
+  }
+}
+
+void *
+remember_to_release(void *resource) {
+  resources = cons(resource, resources);
+  return resource;
+}
+
 static void 
 finish(arg_t *arg) {
   scm_call_1(exit_procedure, scm_from_locale_string(arg->outfile));
@@ -94,6 +114,7 @@ finish(arg_t *arg) {
   SDL_ShowCursor(SDL_ENABLE);
 
   SDL_Quit();
+  release_resources();
 }
 
 static void 
@@ -105,6 +126,24 @@ setup_port_encodings() {
   eval("(fluid-set! %default-port-encoding \"UTF-8\")");
 }
 
+static void
+bind_labels_to_args(char *args[], int arg_num) {
+  // we want the command line arguments to be available
+  // in the $* variable, and each individual argument
+  // -- in $0, $1, $2, ...
+  int i;
+  SCM list = SCM_EOL;
+  for (i = arg_num - 1; i >= 0; --i) {
+    char *label;
+    SCM arg = scm_from_locale_string(args[i]);
+    list = scm_cons(arg, list);
+    TRY(asprintf(&label, "$%d", i));
+    scm_c_define(label, arg);
+    free(label);
+  }
+  scm_c_define("$*", list);
+}
+
 static void 
 init(arg_t *arg) {
   // we need to store the argument persistently in order
@@ -112,6 +151,7 @@ init(arg_t *arg) {
   static arg_t *_arg = NULL;
   symbols_init();
   setup_port_encodings();
+  bind_labels_to_args(arg->args, arg->arg_num);
 
   exit_procedure = noop;
   scm_c_define_module("slayer", export_symbols, NULL);
@@ -225,7 +265,7 @@ show_usage(const char *program, const char *file_name) {
 #undef TABS
 }
 
-static void
+static arg_t *
 process_command_line_options(int argc, 
 			     char *argv[], 
 			     arg_t *arg, 
@@ -271,10 +311,7 @@ process_command_line_options(int argc,
       }
       break;
     case 'o': // output file
-      arg->outfile = malloc(strlen(optarg) + 1);
-      if (arg->outfile) {
-	sprintf(arg->outfile, "%s", optarg);
-      }
+      TRY(asprintf(&arg->outfile, "%s", optarg));
       break;
     case 'w': // screen width
       arg->w = atoi(optarg);
@@ -321,11 +358,11 @@ process_command_line_options(int argc,
     }
   }
   if (optind < argc) {
-    arg->infile = malloc(strlen(argv[optind]) + 1);
-    if (arg->infile) {
-      sprintf(arg->infile, "%s", argv[optind]);
-    }
+    TRY(asprintf(&arg->infile, "%s", argv[optind]));
+    arg->arg_num = argc - optind;
+    arg->args = &argv[optind];
   }
+  return arg;
 }
 
 static inline char *
@@ -361,8 +398,8 @@ is_absolute_path(const char *path) {
   }
   return false;
 }
-#endif
 
+#endif
 
 char *
 base(char *filename) {
@@ -398,17 +435,19 @@ main(int argc, char *argv[]) {
     .w = 0,
     .h = 0,
     .video_mode = SDL_HWSURFACE | SDL_DOUBLEBUF,
-    .sound = 1
+    .sound = 1,
+    .args = NULL,
+    .arg_num = 0
   };
 
   // get the name of current file, skipping any slashes
-  char *filename = base(argv[0]);
+  char *filename = (char *) remember_to_release(base(argv[0]));
 
 #ifdef ENABLE_DEFAULT_3D
   arg.video_mode |= SDL_OPENGL;
 #endif
 
-  process_command_line_options(argc, argv, &arg, filename);
+  arg = *process_command_line_options(argc, argv, &arg, filename);
 
 #ifdef NDEBUG
   putenv("GUILE_WARN_DEPRECATED=no");
@@ -416,32 +455,59 @@ main(int argc, char *argv[]) {
   putenv("GUILE_WARN_DEPRECATED=detailed");
 #endif
 
-#ifdef __MINGW32__
-  putenv("GUILE_LOAD_PATH=./;../;./scm;../scm");
-  putenv("GUILE_LOAD_COMPILED_PATH=./ccache;../ccache");
-  putenv("XDG_CACHE_HOME=./ccache");
-#else
-  putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules:./guile-modules");
-  putenv("LTDL_LIBRARY_PATH=.:./scum");
-#endif
   putenv("LC_ALL=C.UTF8"); // discard locale
 
   if (!arg.infile) {
     arg.infile = malloc(strlen(filename) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.infile, "%s" SLAYER_SUFFIX, filename);
   }
+  remember_to_release(arg.infile);
 
   if (!arg.outfile) {
     arg.outfile = malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
+  remember_to_release(arg.outfile);
 
 #ifdef __MINGW32__
-  char *cwd;
   if (is_absolute_path(arg.infile)) {
-    cwd = directory(arg.infile);
-    SetCurrentDirectory(cwd);
+    char *infile_directory = directory(arg.infile);
+    SetCurrentDirectory(infile_directory);
+    free(infile_directory);
   }
+
+# if defined(XDG_CACHE_HOME) || defined(GULE_LOAD_PATH) \
+  || defined(GUILE_LOAD_COMPILED_PATH)
+#  error "local variable name conflicts with global macro definition"
+# endif
+
+  char *slayer_directory;
+  char *XDG_CACHE_HOME, *GUILE_LOAD_PATH, *GUILE_LOAD_COMPILED_PATH;
+  if (is_absolute_path(argv[0])) {
+    slayer_directory = (char *) remember_to_release(directory(argv[0]));
+  }
+  else {
+    slayer_directory = ".";
+  }
+
+  TRY(asprintf(&XDG_CACHE_HOME, "XDG_CACHE_HOME=%s/ccache", slayer_directory));
+  remember_to_release(XDG_CACHE_HOME);
+  putenv(XDG_CACHE_HOME);
+
+  TRY(asprintf(&GUILE_LOAD_PATH, "GUILE_LOAD_PATH=./;../;./guile-modules;"
+	       "../guile-modules;%s;%s/guile-modules", 
+	       slayer_directory, slayer_directory));
+  remember_to_release(GUILE_LOAD_PATH);
+  putenv(GUILE_LOAD_PATH);
+
+  TRY(asprintf(&GUILE_LOAD_COMPILED_PATH, "GUILE_LOAD_COMPILED_PATH="
+	       "%s/ccache;./ccache;../ccache", slayer_directory));
+  remember_to_release(GUILE_LOAD_COMPILED_PATH);
+  putenv(GUILE_LOAD_COMPILED_PATH);
+
+#else
+  putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules:./guile-modules");
+  putenv("LTDL_LIBRARY_PATH=.:./scum");
 #endif
 
   if (arg.w == 0) {
@@ -456,15 +522,6 @@ main(int argc, char *argv[]) {
       arg.w, arg.h);
 
   scm_with_guile((void *(*)(void *))&io, &arg);
-
-#ifdef __MINGW32__
-  free(cwd);
-#endif
-
-  free(arg.outfile);
-  free(arg.infile);
-
-  free(filename);
 
   return 0;
 }

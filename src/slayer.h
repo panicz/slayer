@@ -22,6 +22,7 @@
 
 // SLAYER
 #define SLAYER_SUFFIX ".scm"
+DECLARE void *remember_to_release(void *resource);
 
 // AUDIO
 #ifdef USE_SDL_MIXER
