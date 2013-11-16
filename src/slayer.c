@@ -98,11 +98,11 @@ finish(arg_t *arg) {
 
 static void 
 setup_port_encodings() {
-  SCM utf8 = scm_from_utf8_string("utf8");
+  SCM utf8 = scm_from_utf8_string("UTF-8");
   scm_set_port_encoding_x(scm_current_output_port(), utf8);
   scm_set_port_encoding_x(scm_current_input_port(), utf8);
   scm_set_port_encoding_x(scm_current_error_port(), utf8);
-  eval("(fluid-set! %default-port-encoding \"utf-8\")");
+  eval("(fluid-set! %default-port-encoding \"UTF-8\")");
 }
 
 static void 
