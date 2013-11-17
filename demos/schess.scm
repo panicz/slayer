@@ -6,7 +6,7 @@ exit
 
 (keydn 'esc quit)
 
-(define rule-book (if (defined? '$1) $1 "chess.scm"))
+(define rule-book (if (defined? '$1) $1 "chess.lsp"))
 
 (define *board* (load-board-game rule-book))
 

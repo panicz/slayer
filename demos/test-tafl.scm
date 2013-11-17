@@ -2,12 +2,15 @@
 (use-modules (schess elements)
 	     (extra common)(extra ref))
 
-(displacement #;of '♞ #;from '((_ ?)
-			       (? ?)
-			       (? ♞))  #;to '((♞ ?)
-					      (? ?)
-					      (? _)))
-
+(equal?
+ (displacement #;of '♞ #;from '((_ ?)
+				(? ?)
+				(? ♞))  #;to '((♞ ?)
+					       (? ?)
+					       (? _)))
+ '(-1 -2))
+ 
+ 
 (e.g. (lset= equal? (complements '((♜ _ → □/_)) 8 8)
 	     '(((♜ □/_))
 	       ((♜ _ □/_))
@@ -57,30 +60,80 @@
 (complements '((a b)
 	       (c d)) 8 8)
 
-(e.g.
- (lset= equal?
-	(possible-destinations
-	 #;on
-	 ;; 1 2 3 4 5 6 7 8  ;
-	 '((♜ ♟ _ _ ♙ _ _ ♖) ;A
-	   (_ ♟ _ _ _ _ ♙ ♘) ;B
-	   (♝ ♟ _ _ _ _ ♙ ♗) ;C
-	   (♛ ♟ _ _ _ _ ♙ ♕) ;D
-	   (♚ ♟ _ ♞ _ _ ♙ ♔) ;E
-	   (_ _ _ _ _ _ ♙ ♗) ;F
-	   (♞ _ _ _ _ ♙ _ ♘) ;G
-	   (_ _ _ _ _ _ ♙ ♖));H
-	 #;for   
-	 '(3 4)
-	 #;from-set
-	 `((♞
-	    ,@(any-direction '((♞ ? ?)
-			       (? ? _))
-			     #;=======
-			     '((_ ? ?)
-			       (? ? ♞))))))
-	'((2 2) (4 2) (5 3) (5 5) (4 6) (2 6) (1 5)))
- )
+(lset= equal?
+       (possible-destinations
+	#;on
+	;; 1 2 3 4 5 6 7 8  ;
+	'((♜ ♟ _ _ ♙ _ _ ♖) ;A
+	  (_ ♟ _ _ _ _ ♙ ♘) ;B
+	  (♝ ♟ _ _ _ _ ♙ ♗) ;C
+	  (♛ ♟ _ _ _ _ ♙ ♕) ;D
+	  (♚ ♟ _ ♞ _ _ ♙ ♔) ;E
+	  (_ _ _ _ _ _ ♙ ♗) ;F
+	  (♞ _ _ _ _ ♙ _ ♘) ;G
+	  (_ _ _ _ _ _ ♙ ♖));H
+	#;for   
+	'(3 4)
+	#;from-set
+	`((♞
+	   ,@(any-direction '((♞ ? ?)
+			      (? ? _))
+			    #;=======
+			    '((_ ? ?)
+			      (? ? ♞))))))
+       '((2 2) (4 2) (5 3) (5 5) (4 6) (2 6) (1 5)))
+
+(lset= equal?
+       (possible-moves
+	#;on
+	;; 1 2 3 4 5 6 7 8  ;
+	'((♜ ♟ _ _ ♙ _ _ ♖) ;A
+	  (_ ♟ _ _ _ _ ♙ ♘) ;B
+	  (♝ ♟ _ _ _ _ ♙ ♗) ;C
+	  (♛ ♟ _ _ _ _ ♙ ♕) ;D
+	  (♚ ♟ _ ♞ _ _ ♙ ♔) ;E
+	  (_ _ _ _ _ _ ♙ ♗) ;F
+	  (♞ _ _ _ _ ♙ _ ♘) ;G
+	  (_ _ _ _ _ _ ♙ ♖));H
+	#;for   
+	'(3 4)
+	#;from-set
+	`((♞
+	   ,@(any-direction '((♞ ? ?)
+			      (? ? _))
+			    #;=======
+			    '((_ ? ?)
+			      (? ? ♞))))))
+       '((((_ ?) 
+	   (? ?) 
+	   (? ♞))   #;==> ((♞ ?) 
+			   (? ?) 
+			   (? _)) #;at (1 2)) 
+	 (((♞ ?) 
+	   (? ?) 
+	   (? _))   #;==> ((_ ?) 
+			   (? ?) 
+			   (? ♞)) #;at (0 0)) 
+	 (((? ♞) 
+	   (? ?) 
+	   (_ ?))   #;==> ((? _) 
+			   (? ?) 
+			   (♞ ?)) #;at (1 0)) 
+	 (((♞ ? ?) 
+	   (? ? _)) #;==> ((_ ? ?) 
+			   (? ? ♞)) #;at (0 0)) 
+	 (((? ? _) 
+	   (♞ ? ?)) #;==> ((? ? ♞) 
+			   (_ ? ?)) #;at (0 1)) 
+	 (((? ? ♞) 
+	   (_ ? ?)) #;==> ((? ? _) 
+			   (♞ ? ?)) #;at (2 0)) 
+	 (((? _) 
+	   (? ?) 
+	   (♞ ?))   #;==> ((? ♞) 
+			   (? ?) 
+			   (_ ?)) #;at (0 2))))
+
 
 
 (rect-let
@@ -321,3 +374,26 @@ lists, maps, appends and applies below:"
 					  ((? ? ? ? _ _ ? ?) 
 					   (? ? ? ? _ ♟ _ ?))))
 				       ))))
+
+
+
+
+(define (possible-destinations board/rect field-position allowed-moves)
+  (match-let (((x y) field-position))
+    (and-let* ((figure (take-from-rect board/rect x y))
+	       (moves #[allowed-moves figure]))
+      (unique
+       (filter-map
+	(match-lambda 
+	    ((initial-state final-state)
+	     (match (subrect-indices initial-state `((,figure)))
+	       (((dx dy))
+		(and 
+		 (not (null? (filter (equals? `(,(- x dx) ,(- y dy)))
+				     (subrect-indices board/rect
+						      initial-state))))
+		 (map + (list x y) 
+		      (displacement #;of figure #;from initial-state
+					 #;to final-state))))
+	       #;(else #f))))
+	moves)))))
