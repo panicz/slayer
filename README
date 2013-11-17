@@ -4,64 +4,8 @@ The following programs/libraries are required to accomplish the build process:
 - SDL 1.2 + SDL_image + SDL_ttf + SDL_mixer (with headers)
 - OpenGL implementation with headers
 
-These are checked for using the ./configure script. However,
-automake and autoconf >= 2.68 is required to generate the script.
-This is done by typing
+If those are provided, just type ./configure && make (or see the INSTALL
+file for more details)
 
-  $ autoreconf -i
-
-Once the ./configure script is generated, one can view available build
-options using ./configure --help.
-If the build process goes well, then it is sufficient to type
-
-  $ make
-
-in order to build the program. 
-
-The configure script isn't yet adjusted to make install. Instead,
-it can be distributed as a standalone executable (on systems that
-provide the guile interpreter)
-
-If you want to try out some of the demos, you need to use the
-code from the SLAYER repository, which can be obtained via mercurial:
-
-  $ hg clone http://hg.gnu.org.ua/hgweb/slayer
-
-To run the demos, one needs to copy the executable to the demos
-directory. This is typically done (provided the cwd is the main
-slayer directory)
-
-  $ cp src/slayer demos/
-
-but there's also a symlink now from src/slayer to demos/slayer.
-In order to play with the demos, one shall enter the demos directory
-
-  $ cd demos
-
-and run
-
-  $ ./slayer -e3d
-
-The above command tells slayer to load the 3d (OpenGL) extension,
-which is required by the slayer.scm file from the repository. The
-slayer.scm is a tiny 3D demo which is controlled using mouse and 
-WSAD keys. If it fails to work, it's probably because the configure
-script didn't find the OpenGL library. It should still be able
-to run the other demo.
-
-As an example, there is a demo of the classical PONG game, which
-can be run using
-
-  $ ./slayer -i pong.scm
-
-or alternatively
-
-  $ ./slayer --input pong.scm
-
-Should anything be wrong with the audio driver, it is possible to
-bypass the audio system using the --nosound option:
-
-  $ ./slayer -i pong.scm --nosound
-
-However, rather than watching various demos, you are encouraged to read
-the source code and to implement your own ideas.
+If you want to try out some of the demos, enter the "demos"
+directory and see the included README file.
