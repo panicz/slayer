@@ -90,8 +90,8 @@
 
 (cond-expand (slayer-audio
 
-(define newtra (load-music "art/newtra.mp3"))
-(define alert (load-sound "art/alert.wav"))
+(define newtra (load-music "art/sounds/newtra.mp3"))
+(define alert (load-sound "art/sounds/alert.wav"))
 
 (keydn 'm (lambda()(play-music! newtra)))
 (keydn 'n (lambda()(play-sound! alert)))

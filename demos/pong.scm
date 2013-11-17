@@ -98,8 +98,8 @@
 			      (inexact->exact (floor (* 1.5 glyph-width)))))
 	       (* 3 ball-height))))
 
-(define bounce-sound (load-sound "art/alert.wav"))
-(define score-sound (load-sound "art/explode.wav"))
+(define bounce-sound (load-sound "art/sounds/alert.wav"))
+(define score-sound (load-sound "art/sounds/explode.wav"))
 
 (define (wait usecs)
   (let loop ((usecs (usleep usecs)))
