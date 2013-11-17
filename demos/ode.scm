@@ -1,4 +1,4 @@
-#!./slayer -e3d
+#!../src/slayer -e3d
 exit # this prevents from executing the rest of the file by the shell
 !#
 (use-modules (slayer)

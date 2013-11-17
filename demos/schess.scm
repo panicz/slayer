@@ -1,4 +1,4 @@
-#!./slayer -d3d
+#!../src/slayer -d3d
 exit
 !#
 (use-modules (slayer) (slayer image) (extra slayer) (extra common)
