@@ -8,5 +8,3 @@ physics.so:
 clean:
 	rm -f *.o *.go *~
 	cd physics && make clean
-	cd legacy && make clean
-	cd paradigm && make clean
