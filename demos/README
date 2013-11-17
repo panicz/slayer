@@ -1,0 +1,10 @@
+In order to run the ode.scm demo, you'll need to build the scum physics module,
+which requires Open Dynamics Engine (http://www.ode.org/) and g++ 4 compiler
+(to support the c++0x language standard)
+
+If these preconditions are satisfied, it should be sufficient to type "make"
+in this (i.e. "demos") directory.
+
+Running the remaining demos requires only that slayer is build in the "src"
+directory. There's no need to "make install". To run e.g. pong.scm, just type
+"./pong.scm"
