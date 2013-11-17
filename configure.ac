@@ -1,5 +1,5 @@
-AC_INIT([slayer], [1.0.1], [bugs-slayer@gnu.org.ua])
-AC_PREREQ([2.68])
+AC_INIT([slayer], [1.0.0], [bugs-slayer@gnu.org.ua])
+AC_PREREQ([2.69])
 AC_CONFIG_AUX_DIR([build-aux])
 
 AC_CONFIG_HEADERS([config.h])
