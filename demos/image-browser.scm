@@ -1,4 +1,4 @@
-#!./slayer -i
+#!./slayer
 !#
 (use-modules (slayer) (slayer image) 
 	     (srfi srfi-1) (srfi srfi-2))
@@ -11,7 +11,8 @@
 
 (define (file? f) (eq? 'regular (stat:type (stat f))))
 
-(define *image-names* (filter file? (list-directory "/usr/share/pixmaps/")))
+(define *directory* (if (defined? '$1) $1 "/usr/share/pixmaps/"))
+(define *image-names* (filter file? (list-directory *directory*)))
 (define *current-image* #f)
 (define *image-index* 0)
 

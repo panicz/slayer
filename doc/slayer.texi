@@ -162,7 +162,8 @@ the following content:
 
 (define (file? f) (eq? 'regular (stat:type (stat f))))
 
-(define *image-names* (filter file? (list-directory "/usr/share/pixmaps/")))
+(define *directory* (if (defined? '$1) $1 "/usr/share/pixmaps/"))
+(define *image-names* (filter file? (list-directory *directory*)))
 (define *current-image* #f)
 (define *image-index* 0)
 
@@ -187,7 +188,7 @@ the following content:
 
 In order to execute the program, one shall type:
 
-@code{$ slayer -i image-browser.scm}
+@code{$ slayer image-browser.scm}
 
 @findex set-display-procedure!
 The argument to @code{set-display-procedure!} is executed after a series of
@@ -217,11 +218,11 @@ the release tarball.
 If you manage to build SLAYER (even without installing it), you can run the
 demos with the following commands (assuming you're in the ``demos'' dir):
 
-@code{$ ./slayer # equivalent to ./slayer -i slayer.scm}
+@code{$ ./slayer # equivalent to ./slayer slayer.scm}
 
 @code{$ ./slayer -e3d}
 
-@code{$ ./slayer -i pong.scm}
+@code{$ ./slayer pong.scm}
 
 If you have Open Dynamics Engine installed on your system, you can also
 try building the @code{(scum physics)} module by entering ``src/scum'' dir and
@@ -232,7 +233,7 @@ typing
 If you manage to build it successfully, then, back in the ``demos'' dir,
 you can try it out by typing:
 
-@code{$ ./slayer -e3d -i ode.scm}
+@code{$ ./slayer -e3d ode.scm}
 
 Note however, that the @code{(scum physics)} module isn't bundled with the
 tarball and needs to be obtained from the mercurial repository:
