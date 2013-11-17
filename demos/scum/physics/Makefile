@@ -1,6 +1,6 @@
 CC = gcc
 CXX = g++ -std=c++0x
-CFLAGS = `pkg-config --cflags guile-2.0 ode` -I. -I../.. -Wall -O3
+CFLAGS = `pkg-config --cflags guile-2.0 ode` -I. -I../../../src -Wall -O3
 LIBODE = `pkg-config --libs ode`
 
 .PHONY:	clean
