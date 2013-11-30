@@ -102,7 +102,8 @@
   #:replace (compose
 	     (cdefine . define)
 	     (cdefine* . define*)
-	     (xdefine-syntax . define-syntax))
+	     (xdefine-syntax . define-syntax)
+	     (mlambda . lambda))
   )
 
 ;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
@@ -182,14 +183,26 @@
 		    (rest (hash-ref ***context*** 'name)))
 	 ...)))))
 
+(define-syntax mlambda
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ (first-arg ... last-arg . rest-args) body ...)
+       (and (every identifier? #'(first-arg ... last-arg))
+	    (or (identifier? #'rest-args) (null? #'rest-args)))
+       #'(lambda (first-arg ... last-arg . rest-args) body ...))
+      ((_ arg body ...)
+       (or (identifier? #'arg) (null? #'arg))
+       #'(lambda arg body ...))
+      ((_ args body ...)
+       #'(match-lambda* (args body ...))))))
+
 (define-syntax cdefine
   (syntax-rules ()
-    ((_ ((head . tail) . rest) body body* ...)
+    ((_ ((head . tail) . args) body ...)
      (cdefine (head . tail)
-       (lambda rest body body* ...)))
-    ((_ (head . rest) body body* ...)
-     (define head
-       (lambda rest body body* ...)))
+       (mlambda args body ...)))
+    ((_ (name . args) body ...)
+     (define name (mlambda args body ...)))
     ((_ . rest)
      (define . rest))))
 
