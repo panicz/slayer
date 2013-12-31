@@ -1,4 +1,4 @@
-AC_INIT([slayer], [1.0.0], [bugs-slayer@gnu.org.ua])
+AC_INIT([slayer], [1.0.1], [bugs-slayer@gnu.org.ua])
 AC_PREREQ([2.69])
 AC_CONFIG_AUX_DIR([build-aux])
 
@@ -26,6 +26,11 @@ AC_ARG_WITH([guilesitedir],
 
 PKG_CHECK_MODULES([SDL], [sdl])
 
+AC_CHECK_LIB([SDL], [SDL_SetMouseRange],
+ [AC_DEFINE([HAVE_SDL_SETMOUSERANGE], [1],
+  [`SDL_SetMouseRange' is available from SDL])],
+ [AC_DEFINE([HAVE_SDL_SETMOUSERANGE], [0],
+  [cannot remove mouse cropping bug after window resize in 3d mode])])
 
 AC_CHECK_LIB([c], [asprintf], 
   [AC_DEFINE([HAVE_ASPRINTF], [1], [`asprintf' is available in libc])], 

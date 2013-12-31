@@ -74,26 +74,36 @@ screen_size() {
 }
 
 static SCM 
-set_screen_size_x(SCM w, SCM h) {
-  screen = SDL_SetVideoMode(scm_to_int(w), scm_to_int(h), 
-			    screen->format->BitsPerPixel, video_mode);
+set_screen_size_x(SCM W, SCM H) {
+  int w = scm_to_int(W);
+  int h = scm_to_int(H);
+  screen = SDL_SetVideoMode(w, h, screen->format->BitsPerPixel, video_mode);
+#if HAVE_SDL_SETMOUSERANGE
+  SDL_SetMouseRange((Uint16) w, (Uint16) h);
+#endif
   return SCM_UNSPECIFIED;
 }
 
 static SCM
-set_screen_width_x(SCM w) {
+set_screen_width_x(SCM W) {
+  int w = scm_to_int(W);
   int h = screen ? screen->h : 1;
-  screen = SDL_SetVideoMode(scm_to_int(w), h, screen->format->BitsPerPixel, 
-			    video_mode);
+  screen = SDL_SetVideoMode(w, h, screen->format->BitsPerPixel, video_mode);
+#if HAVE_SDL_SETMOUSERANGE
+  SDL_SetMouseRange((Uint16) w, (Uint16) h);
+#endif
   return SCM_UNSPECIFIED;
   
 }
 
 static SCM
-set_screen_height_x(SCM h) {
+set_screen_height_x(SCM H) {
   int w = screen ? screen->w : 1;
-  screen = SDL_SetVideoMode(w, scm_to_int(h), screen->format->BitsPerPixel, 
-			    video_mode);
+  int h = scm_to_int(H);
+  screen = SDL_SetVideoMode(w, h, screen->format->BitsPerPixel, video_mode);
+#if HAVE_SDL_SETMOUSERANGE
+  SDL_SetMouseRange((Uint16) w, (Uint16) h);
+#endif
   return SCM_UNSPECIFIED;
 }
 
