@@ -73,12 +73,9 @@ export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc)	    \
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
-  
   EXPORT_PROCEDURE("set-exit-procedure!", 1, 0, 0, 
 		   set_exit_procedure_x);
-
   EXPORT_PROCEDURE("set-window-title!", 1, 0, 0, set_window_title_x);
-
 #undef EXPORT_PROCEDURE
 }
 
@@ -103,7 +100,6 @@ remember_to_release(void *resource) {
 static void 
 finish(arg_t *arg) {
   scm_call_1(exit_procedure, scm_from_locale_string(arg->outfile));
-
   scm_gc();
 #ifdef USE_SDL_MIXER
   if(arg->sound) {
@@ -112,7 +108,6 @@ finish(arg_t *arg) {
 #endif
   SDL_WM_GrabInput(SDL_GRAB_OFF);
   SDL_ShowCursor(SDL_ENABLE);
-
   SDL_Quit();
   release_resources();
 }
@@ -186,12 +181,10 @@ init(arg_t *arg) {
   }
 
   LOGTIME(file_eval(arg->infile));
-
   _arg = arg;
   void _finish() {
     finish(_arg);
   }
-
   atexit(_finish);
 }
 
@@ -217,7 +210,12 @@ io(arg_t *arg) {
 
 static void
 show_version() {
+  
   printf("%s\n", PACKAGE_STRING);
+  printf("built with Guile %d.%d.%d, SDL %d.%d.%d\n", 
+	 SCM_MAJOR_VERSION, SCM_MINOR_VERSION, SCM_MICRO_VERSION,
+	 SDL_MAJOR_VERSION, SDL_MINOR_VERSION, SDL_PATCHLEVEL);
+
   printf("%s\n", COPYRIGHT);
 }
 
