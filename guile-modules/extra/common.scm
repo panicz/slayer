@@ -47,7 +47,7 @@
 	       expect expect-strings expect-port expect-timeout
 	       expect-timeout-proc expect-eof-proc expect-char-proc
 	       expect-strings-compile-flags expect-strings-exec-flags
-	       expect-select expect-regexec
+	       expect-select expect-regexec	       
 	       ;; r6rs
 	       make-bytevector 
 	       utf8->string string->utf8 
@@ -59,7 +59,7 @@
 	    expand-form ?not ?and ?or in? 
 	    hash-keys hash-values hash-copy hash-size
 	    make-applicable-hash-table
-	    union intersection difference adjoin unique
+	    union intersection difference adjoin unique same-set?
 	    map-n for-each-n equivalence-classes
 	    atom? symbol<
 	    insert rest head tail
@@ -89,9 +89,10 @@
 	    last-index indexed
 	    demand ***context***
 	    iterations
+	    RUN-TESTS TEST-RESULTS
 	    )
-  #:export-syntax (TODO \ for matches? equals? prototype
-		   safely export-types
+  #:export-syntax (TODO \ for for-all exists matches? equals? prototype
+		   safely export-types e.g. observation:
 		   define-curried publish define-accessors
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
@@ -250,7 +251,6 @@
 			      (lambda(,last)
 				(,(syntax->datum #'name) ,@args*)))
 			    (loop first #;...))))))))))))
-
 
 (define-macro (define-curried signature . body)
   (match signature
@@ -452,6 +452,9 @@
 (define (adjoin lset . elements)
   (apply lset-adjoin equal? lset elements))
 
+(define (same-set? lset . lsets)
+  (apply lset= equal? lset lsets))
+
 (define (depth x)
   (if (list? x)
       (1+ (apply max (map depth x)))
@@ -551,6 +554,12 @@
       (for-each (match-lambda (x body ...)
 		  (else (throw 'invalid-for-clause else))) list))))
 
+(define-syntax-rule (for-all var in set predicate)
+  (every (match-lambda (var predicate)) set))
+
+(define-syntax-rule (exists var in set predicate)
+  (any (match-lambda (var predicate)) set))
+
 (define-syntax-rule (hash-table (key value) ...)
   (let ((new-hash-table (make-hash-table)))
     (hash-set! new-hash-table key value)
@@ -587,13 +596,26 @@
 (define-syntax-rule (applicable-hash (key value) ...)
   (applicable-hash-with-default #f (key value) ...))
 
+(define (->strings object)
+  (cond ((list? object)
+	 (map ->strings object))
+	((hash-table? object)
+	 `(#:< ,@(map ->strings (hash-map->list list object)) #:>))
+	((pair? object)
+	 (cons (->strings (car object)) (->strings (cdr object))))
+	(else
+	 object)))
+
 (define (<< . messages)
   (if #t
-      (with-output-to-port (current-error-port) ;(current-error-port)
+      (with-output-to-port (current-output-port) ;(current-error-port)
 	(lambda ()
 	  (for message in messages
-	       (display message))
-	  (newline)
+	       (cond
+		((hash-table? message)
+		 (pretty-print (->strings message)))
+		(else
+		 (pretty-print message))))
 	  (flush-all-ports)))))
 
 (define* (in? obj list #:key (compare equal?))
@@ -1018,6 +1040,7 @@
 				     (set! ,body v))))))
 		 (gather-leaves 's tree))))
 
+
 ;; (expand '(define-accessors (a (b c 2))))
 
 ;; do dalszej rozkminki
@@ -1053,4 +1076,22 @@
 ;; (prototype (item-available? (medium <queue>)) -> <boolean>)
 ;; ;; albo po prostu na owe dane czekać:
 ;; (prototype (get! #;from (qmedium <queue>)) -> <any>)
-(define-syntax-rule (prototype . args) (TODO))
+(define RUN-TESTS (make-fluid))
+(define TEST-RESULTS (make-fluid '()))
+
+(define-syntax-rule (prototype . args) 
+  (TODO))
+
+(define-syntax-rule (e.g. expression comparison value . rest) 
+  (if (fluid-ref RUN-TESTS)
+      (let ((result expression))
+	(fluid-set! TEST-RESULTS
+		    (cons `(,(if (comparison result value) 'pass: 'fail:)
+			    expression
+			    ,result
+			    comparison 
+			    value
+			    ,(current-source-location))
+			  (fluid-ref TEST-RESULTS))))))
+
+(define-syntax-rule (observation: . args) (TODO))
