@@ -3,6 +3,7 @@ syntax: glob
 \#*
 .\#*
 *.o
+*.so
 *.Po
 autom4te.cache/*
 build-aux/*
@@ -34,3 +35,5 @@ configure
 ignore*
 *-ignore
 *.ignore
+*.trs
+*.log
