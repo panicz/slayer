@@ -12,22 +12,42 @@
 	    rotate-arrow-right rotate-arrow-left
 	    with-context-for-arrows
 	    possible-moves fit-wildcards
-	    possible-destinations))
+	    ))
 
 (define (rect? x)
   (and (list? x)
        (every list? x)
        (apply = (map length x))))
 
+(prototype upper-left-corner : <rect> <natural> <natural> -> <rect>)
+
 (define (upper-left-corner rect w h)
   (map (lambda (row)
 	 (take row w))
        (take rect h)))
 
+(e.g.
+ (upper-left-corner
+  '((a b c)
+    (d e f)
+    (g h i)) 2 2)
+ equal?
+ '((a b)
+   (d e)))
+
 (define (lower-right-corner rect w h)
   (map (lambda (row)
 	 (take-right row w))
        (take-right rect h)))
+
+(e.g.
+ (lower-right-corner
+  '((a b c)
+    (d e f)
+    (g h i)) 2 2)
+ equal?
+ '((e f)
+   (h i)))
 
 (define (upper-right-corner rect w h)
   (map (lambda (row)
@@ -38,6 +58,8 @@
   (map (lambda (row)
 	 (take row w))
        (take-right rect h)))
+
+(prototype rect-height : <rect> -> <natural>)
 
 (define (rect-height rect)
   (length rect))
@@ -51,6 +73,12 @@
 
 (define (rect-size rect)
   (list (rect-width rect) (rect-height rect)))
+
+(e.g.
+ (rect-size '((a b c)
+	      (d e f)))
+ equal?
+ '(3 2))
 
 (define (rect-map f rect)
   (map (lambda (row)
@@ -91,14 +119,20 @@
 ;; r[i+n][j+m] = s[n][m]. Wówczas parę (i, j) nazwiemy współrzędnymi
 ;; podtablicy s w tablicy r.
 
+(prototype (subrect-indices (rect <rect>) (sub <rect>))
+	   (assert (and (<= (rect-width sub) (rect-width rect))
+			(<= (rect-height sub) (rect-height rect))))
+	   -> ((<integer> <integer>) ...))
+
 (define (subrect-indices rect sub)
   (let ((w (rect-width sub))
 	(h (rect-height sub)))
-    (filter 
-     (match-lambda ((left top)
-		    (rect-match? (take-subrect rect left top w h) sub)))
-    (cart (iota (- (rect-width rect) w -1)) 
-	  (iota (- (rect-height rect) h -1))))))
+    (filter (lambda ((left top))
+	      (rect-match? (take-subrect rect left top w h) sub))
+	    (cart (iota (- (rect-width rect) w -1)) 
+		  (iota (- (rect-height rect) h -1))))))
+
+(prototype (displacement <symbol> <rect> <rect>) -> (<integer> <integer>))
 
 (define (displacement #;of figure #;from source #;to dest)
   (let ((dest-position (subrect-indices dest `((,figure))))
@@ -108,27 +142,109 @@
 	(map - (match dest-position ((x) x))
 	     (match source-position ((x) x))))))
 
+(e.g. 
+ (displacement #;of '♞ #;from '((_ ?)
+				(? ?)
+				(? ♞))  #;to '((♞ ?)
+					       (? ?)
+					       (? _)))
+ equal?
+ '(-1 -2))
+
+;; the procedures in the following section are used during
+;; the parsing of game's rules
+
 (define (transpose rect)
   (apply map list rect))
+
+(e.g.
+ (transpose '((a b c)
+	      (d e f)))
+ equal?
+ '((a d)
+   (b e)
+   (c f)))
+
+(observation: 
+ (for-all <rect> (equal? <rect> (transpose (transpose <rect>)))))
 
 (with-default ((rotate-item-left identity))
   (define (rotate-left rect)
     (reverse (transpose (tree-map (specific rotate-item-left) rect)))))
 
+(e.g.
+ (rotate-left '((a b c)
+		(d e f)))
+ equal?
+ '((c f)
+   (b e)
+   (a d)))
+
+(observation:
+ (for-all <procedure>
+     (if (and (allows-arity? <procedure> 1)
+	      (for-all <symbol> 
+		  (equal? <symbol> 
+			  ((iterations 4 <procedure>) <symbol>))))
+	 #;then
+	 (specify ((rotate-item-left <procedure>))
+	   (for-all <rect> (equal? <rect> 
+				   ((iterations 4 rotate-left) <rect>)))))))
+
 (with-default ((rotate-item-right identity))
   (define (rotate-right rect)
     (transpose (reverse (tree-map (specific rotate-item-right) rect)))))
 
+(e.g.
+ (rotate-right '((a b c)
+		 (d e f)))
+ equal?
+ '((d a)
+   (e b)
+   (f c)))
+
 (with-default ((flip-item-horizontally identity))
   (define (flip-horizontally rect)
-    (reverse (tree-map (specific flip-item-horizontally) rect))))
+    (map reverse (tree-map (specific flip-item-horizontally) rect))))
+
+(e.g.
+ (flip-horizontally '((a b)
+		      (c d)
+		      (e f)))
+ equal?
+ '((b a)
+   (d c)
+   (f e)))
 
 (with-default ((flip-item-vertically identity))
   (define (flip-vertically rect)
-    (map reverse (tree-map (specific flip-item-vertically) rect))))
+    (reverse (tree-map (specific flip-item-vertically) rect))))
+
+(e.g.
+ (flip-vertically '((a b)
+		    (c d)
+		    (e f)))
+ equal?
+ '((e f)
+   (c d)
+   (a b)))
+
+(prototype (all-rotations <rect>) -> (<rect> <rect> <rect> <rect>))
 
 (define (all-rotations rect)
   (map (lambda(n)((iterations n rotate-left) rect)) (iota 4)))
+
+(e.g.
+ (all-rotations '((a b c)
+		  (d e f)))
+ same-set?
+ '(((a b c)
+    (d e f)) ((c f)
+	      (b e)
+	      (a d)) ((f e d)
+		      (c b a)) ((d a)
+				(e b)
+				(f c))))
 
 (define (horizontal rect)
   (list rect (flip-horizontally rect)))
@@ -136,13 +252,16 @@
 (define (vertical rect)
   (list rect (flip-vertically rect)))
 
+(prototype (any-direction (before <rect>) (after <rect>))
+	   -> (<move> ...))
+
 (define (any-direction before after)
   (unique
    (append
     (zip (all-rotations before)
 	 (all-rotations after))
-    (zip (all-rotations (flip-horizontally before))
-	 (all-rotations (flip-horizontally after))))))
+    (zip (all-rotations (flip-vertically before))
+	 (all-rotations (flip-vertically after))))))
 
 (publish
  (define (rotate-arrow-right arrow)
@@ -159,6 +278,8 @@
      (list-ref list (modulo (+ i n) (length list)))))
  (define orthogonal-arrows '(← ↑ → ↓))
  (define diagonal-arrows '(↖ ↗ ↘ ↙)))
+
+(e.g. (rotate-arrow-right '↖) eq? '↗)
 
 (publish 
  (define (flip-arrow-vertically arrow)
@@ -182,6 +303,8 @@
  #;(define transpose-1 '(← → ↗))
  #;(define transpose-2 '(↑ ↓ ↙)))
 
+(e.g. (flip-arrow-horizontally '←) eq? '→)
+
 (define-syntax with-context-for-arrows
   (syntax-rules ()
     ((_ actions ...)
@@ -190,15 +313,22 @@
 	       (rotate-item-right rotate-arrow-right)
 	       (flip-item-horizontally flip-arrow-horizontally)
 	       (flip-item-vertically flip-arrow-vertically))
-	      actions ...))))
+       actions ...))))
+
+(e.g.
+ (with-context-for-arrows
+  (rotate-right '((↖ ↑ ↗)
+		  (↙ ↓ ↘))))
+ equal?
+ '((↖ ↗)
+   (← →)
+   (↙ ↘)))
 
 (publish 
  (define (complements state-description board-width board-height)
    (let ((arrow-position (subrect-indices state-description
 					  '(((← ↑ → ↓ ↖ ↗ ↘ ↙))))))
      (match arrow-position
-       (((x1 y1) (x2 y2) . _)
-	(error "Non-unique repetition symbol!"))
        (()
 	(list state-description))
        (((x y))
@@ -221,7 +351,20 @@
 	     ((↓ ↘) (twisted-complements rotate-left rotate-right
 					 arrow y x
 					 state-description
-					 board-height board-width)))))))))
+					 board-height board-width))))))
+       (((x y) rest ...)
+	(unless (or (every (lambda ((x y))
+			     (in? (take-from-rect state-description x y)
+				  '(← →)))
+			   `((,x ,y) ,@rest))
+		    (every (lambda ((x y))
+			     (in? (take-from-rect state-description x y)
+				  '(↑ ↓)))
+			   `((,x ,y) ,@rest)))
+	  (error "Unsupported configuration of arrows")))
+       (else
+	(error "No match: " arrow-position)))))
+
  where
  (define (twisted-complements transform-there transform-back arrow 
 			      x y state-description board-width board-height)
@@ -235,16 +378,25 @@
  (define (right-complements desc x y board-width -board-height-)
    (let ((w (rect-width desc))
 	 (h (rect-height desc)))
+     (<< "filling-column: "(take-subrect desc (- x 1) y 1 h)
+	 "suffix: "(take-subrect desc (+ x 1) 0 (- w x 1) h)
+	 "prefix: "(take-subrect desc 0 0 (- x 1) h)
+	 )
+     (if #f
      (match-let (((filling-column) (take-subrect desc (- x 1) y 1 h))
 		 (suffix (take-subrect desc (+ x 1) 0 (- w x 1) h))
 		 (prefix (take-subrect desc 0 0 (- x 1) h)))
+       (format #t "prefix: ~ysuffix: ~yfilling-column: ~y"
+	       prefix suffix filling-column)
        (map (lambda (n)
 	      (map append prefix
 		   (if (zero? n)
-		       '(())
+		       (make-list h '())
 		       (transpose (make-list n filling-column)))
 		   suffix))
 	    (iota (- board-width w -3))))))
+   '()
+   )
  (define (slice-rect rect x y)
    ;; the column (x *) and the row (* y) are dismissed
    (let ((w (rect-width rect))
@@ -315,29 +467,119 @@
 			  (- board-height (rect-height desc))))))))
  ) ;D publish complements
 
-(define (possible-moves board/rect field-position allowed-moves)
-  (match-let (((x y) field-position))
-    (and-let* ((figure (take-from-rect board/rect x y))
-	       (moves #[allowed-moves figure]))
-      (unique
-       (filter-map
-	(match-lambda 
-	    ((initial-state final-state)
-	     (match (subrect-indices initial-state `((,figure)))
-	       (((dx dy))
-		(and 
-		 (not (null? (filter (equals? `(,(- x dx) ,(- y dy)))
-				     (subrect-indices board/rect
-						      initial-state))))
-		 `(,initial-state ,final-state ,figure (,dx ,dy)))))))
-	moves)))))
 
-(define (possible-destinations board/rect field-position allowed-moves)
-  (and-let* ((moves (possible-moves board/rect field-position allowed-moves)))
-    (map (match-lambda 
-	     ((initial-state final-state figure position)
-	      (map + field-position
-		   (displacement #;of figure
-				      #;from initial-state 
-					     #;to final-state))))
-	 moves)))
+
+(e.g. ; that uses right-complements
+ (complements '((♜ _ → □/_)) 6 6)
+ same-set?
+ '(((♜ □/_))
+   ((♜ _ □/_))
+   ((♜ _ _ □/_))
+   ((♜ _ _ _ □/_))
+   ((♜ _ _ _ _ □/_))))
+
+(complements '((x _ → y)
+	       (x _ - y)) 6 6)
+
+(e.g. ; with multiple ellipsis
+ (complements '((x _ → y _ → x)) 6 6)
+ same-set?
+ '(((x y x))
+   ((x _ y x))
+   ((x _ _ y x))
+   ((x _ _ _ y x))
+   ((x y _ x))
+   ((x _ y _ x))
+   ((x _ _ y _ x))
+   ((x y _ _ x))
+   ((x _ y _ _ x))))
+
+#| w przypadku jak powyżej sprawa jest prosta:
+(complements '((x _ → y _ → x)) n m)
+== (append-map (lambda (R)
+		 (complements `((x _ → ,@R)) n m))
+	       (complements '((y _ → x)) n m))
+|#
+
+(e.g. ; that uses top-right-complements
+ (complements 
+  '((? ? … □/_)
+    (⁝ ⁝ ↗  ⁝ )
+    (? _ …  ? )
+    (♝ ? …  ? ))
+  5 5)
+ same-set?
+ '(((? □/_)
+    (♝  ? ))  ((? ? □/_)
+	       (? _  ? )
+	       (♝ ?  ? ))  ((? ? ? □/_)
+			    (? ? _  ? )
+			    (? _ ?  ? )
+			    (♝ ? ?  ? ))  ((? ? ? ? □/_)
+					   (? ? ? _  ? )
+					   (? ? _ ?  ? )
+					   (? _ ? ?  ? )
+					   (♝ ? ? ?  ? ))))
+
+(prototype (possible-moves #;on <rect> #;at (<natural> <natural>) 
+			   ((<figure> <move> ...) ...))	   
+	   -> ((<rect> <rect>) ...))
+
+(define (possible-moves #;on board/rect #;at (x y) #;among allowed-moves)
+  (and-let* ((figure (take-from-rect board/rect x y))
+	     (moves #[allowed-moves figure]))
+    (unique
+     (filter-map
+      (lambda ((initial-state final-state))
+	(match (subrect-indices initial-state `((,figure)))
+	  (((dx dy))
+	   (and 
+	    (not (null? (filter 
+			 (equals? `(,(- x dx) ,(- y dy)))
+			 (subrect-indices board/rect initial-state))))
+	    `(,initial-state ,final-state)))))
+      moves))))
+
+(e.g.
+ (possible-moves
+  #;on
+  ;;x0 1 2 3 4 5 6 7   y
+  '((♜ ♟ _ _ ♙ _ _ ♖) ;0
+    (_ ♟ _ _ _ _ ♙ ♘) ;1
+    (♝ ♟ _ _ _ _ ♙ ♗) ;2
+    (♛ ♟ _ _ _ _ ♙ ♕) ;3
+    (♚ ♟ _ ♞ _ _ ♙ ♔) ;4
+    (_ ♟ _ _ _ _ ♙ ♗) ;5
+    (♞ _ _ _ ♟ ♙ _ ♘) ;6
+    (_ _ _ _ _ _ ♙ ♖));7
+  #;at
+  '(3 4)
+  #;among
+  `((♞
+     ,@(any-direction '((♞ ? ?)
+			(? ? _))
+		      #;=======
+		      '((_ ? ?)
+			(? ? ♞))))))
+ same-set?
+ '((((_ ?) 
+     (? ?) 
+     (? ♞)) ((♞ ?) 
+	     (? ?) 
+	     (? _))) 
+   (((♞ ? ?) 
+     (? ? _)) ((_ ? ?) 
+	       (? ? ♞))) 
+   (((? ♞) 
+     (? ?) 
+     (_ ?)) ((? _) 
+	     (? ?) 
+	     (♞ ?))) 
+   (((? ? _) 
+     (♞ ? ?)) ((? ? ♞) 
+	       (_ ? ?))) 
+   (((? _) 
+     (? ?) 
+     (♞ ?)) ((? ♞)
+	     (? ?) 
+	     (_ ?)))))

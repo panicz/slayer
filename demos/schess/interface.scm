@@ -15,6 +15,7 @@
 	    current-board-state/array
 	    set-board-state!
 	    <board> <field> <checker>
+	    display-last-moves
 	    ))
 
 ;; class definitions 
@@ -29,6 +30,7 @@
   (position #:init-keyword #:position #;(x y))
   (allowed #:init-value #f)
   (move #:init-value #f)
+  (last-move #:init-value #f)
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
 			 (if #[self 'content] 
@@ -58,8 +60,16 @@
   (fields #:init-value #f)
   (above-fields #:init-value '())
   (allowed-moves #:init-keyword #:allowed-moves)
+  ;;#:type #[<player> => #[<figure> => <move>]]
+  ;; 
+  #;assert 
+  #;(for-all (player => moves) in #[this 'allowed-moves]
+	   (for-all (figure => move) in moves
+		    (matches? (state-before state-after . extra) move)))
   (after-move-rules #:init-keyword #:after-move #:init-thunk make-hash-table)
   (order-of-play #:init-keyword #:order-of-play)
+  (final-condition #:init-keyword #:final-condition)
+  (turn #:init-value 0)
   ;;(selected-checker #:init-thunk make-queue)
   ;;(chosen-destination #:init-thunk make-queue)
   ;;(chosen-move #:init-thunk make-queue)
@@ -68,6 +78,10 @@
 		  #:slot-ref (lambda (self)
 			       (first #[self 'order-of-play]))
 		  #:slot-set! noop)
+  (next-player #:allocation #:virtual
+	       #:slot-ref (lambda (self)
+			    (first (rest #[self 'order-of-play])))
+	       #:slot-set! noop)
   (wildcards #:init-keyword #:wildcards)
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
@@ -75,11 +89,18 @@
 				 (concatenate (array->list #[self 'fields]))))
 	    #:slot-set! noop))
 
+(define-method (figure #;at position #;on (board <board>))
+  (match position
+    ((x y)
+     #[#[board 'fields] y x])))
 
 (define-method (initialize (board <board>) init-args)
   (next-method)
   (let-keywords init-args #t ((initial-state '((_))))
     (match-let (((w h) (rect-size initial-state)))
+      (<<"setting screen size to "
+	 (* w (image-width empty-field))", "
+	    (* h (image-height empty-field)))
       (set-screen-size! (* w (image-width empty-field)) 
 			(* h (image-height empty-field)))
       (set! #[board 'w] (screen-width))
@@ -87,10 +108,11 @@
       (set! #[board 'fields] (make-array 2 h w))
       (for x in 0 .. (- w 1)
 	   (for y in 0 .. (- h 1)
-		(match-let* ((field (make <field> #:position `(,x ,y)
-					  #:image (if (= 0 (modulo (+ x y) 2))
-						      empty-field
-						      empty-field*)))
+		(match-let* ((field (make <field> 
+				      #:position `(,x ,y)
+				      #:image (if (= 0 (modulo (+ x y) 2))
+						  empty-field
+						  empty-field*)))
 			     (checker (take-from-rect initial-state x y))
 			     ((w h) (image-size #[field 'image])))
 		  (set! #[field 'parent] board)
@@ -114,13 +136,38 @@
 
 (define (gameplay board)
   (let turn ((n 0) (player #[board 'current-player]))
+    (set! #[board 'turn] n)
     (let ((checker (choose-checker #;from board))
 	  (move (choose-move #;on board)))
-      (apply-move! move #;of checker #;to board)
+      (apply-move! move #;of checker #;to board #;in-turn n)
       (if (final? board)
 	  (wins! player #;in-round n)
        #;else
 	  (turn (1+ n) (next-player! #;on board))))))
+
+(define-method (final? board)
+  (let ((state (current-board-state/rect board))
+	(condition #[board 'final-condition]))
+    (eval `(let ((current-turn ,#[board 'turn])
+		 (current-player ',#[board 'current-player])
+		 (next-player ',#[board 'next-player]))
+	     ,condition)
+	  (current-module))))
+
+; środowicho!
+
+#;(define (moves #;of player)
+  ...)
+
+
+;;gdzieś tutaj trzeba jeszcze dokonać ewaluacji dopuszczalności ruchu,
+;;tzn. chcemy tylko takich ruchów, które spełniają narzucone warunki
+;;(satisfy? board (x y) (initial final figure (dx dy)) condition)
+	 
+#;(sarisfies? `(,move #;on ,board #;at ,position) condition)
+
+#;(define (satisfies? (move #;on board #;at position) condition)
+  ...)
 
 #|
 
@@ -144,7 +191,7 @@
  (define (start-gameplay board)
    (call-with-prompt 
     schess-prompt-tag
-    (lambda ()(gameplay board))
+    (lambda () (gameplay board))
     save-stage!))
  (define (choose-checker #;from board)
    (abort-to-prompt schess-prompt-tag))
@@ -183,93 +230,107 @@
 
 (define-generic possible-moves)
 
-(define-method (possible-moves field-position (board <board>))
+(define-method (possible-moves #;at field-position #;on (board <board>))
   (and-let* ((allowed-moves #[board : 'allowed-moves : 
 				    #[board : 'current-player]])
 	     (wildcards #[board 'wildcards])
 	     (board-rect (current-board-state/rect board)))
     (specify ((fit? (fit-wildcards wildcards)))
-	     (or (possible-moves #;on board-rect #;from field-position 
-				      #;using allowed-moves)
-		 '()))))
-
-(define-generic possible-destinations)
-
-(define-method (possible-destinations field-position (board <board>))
-  (and-let* ((allowed-moves #[board : 'allowed-moves : 
-				    #[board : 'current-player]])
-	     (wildcards #[board 'wildcards])
-	     (board-rect (current-board-state/rect board)))
-    (specify ((fit? (fit-wildcards wildcards)))
-	     (or (possible-destinations #;on board-rect #;from field-position 
-					#;using allowed-moves)
-		 '()))))
+      (or (possible-moves #;on board-rect #;from field-position 
+			       #;using allowed-moves)
+	  '()))))
 
 (define ((pick! checker) . _)
   (and-let* ((field #[checker 'parent])
 	     ((is-a? field <field>))
+	     (figure #[ checker 'type ])
 	     (board #[field 'parent])
 	     ((is-a? board <board>))
 	     (position #[field 'position]))
     ;; tutaj jakoś chcielibyśmy może sprawdzić, które ruchy
     ;; są dozwolone, i odpowiednio je oznaczyć
-    (for (initial final figure place) in (possible-moves position board)
-	 (match (map + position 
-		     (displacement #;of figure #;from initial #;to final))
-	   ((x y)
-	   ;;(for (x y) in (possible-destinations #[field 'position] board)
-	    (allow! #[ #[board 'fields] y x ]
-		    `(,initial ,final ,figure ,place)))))
+    (for (initial final . _) in (possible-moves position board)
+	 (match-let (((place) (subrect-indices initial `((,figure)))))
+	   (match (map + position 
+		       (displacement #;of figure #;from initial #;to final))
+	     ((x y)
+	      ;;(for (x y) in (possible-destinations #[field 'position] board)
+	      (allow! #[ #[board 'fields] y x ]
+		      `(,initial ,final))))))
     (take! checker #;from field #;to board)))
-
+  
 (define-method (allowed-figures board)
+  "all the figures that have their associated definitions of moves
+ (regardless of particular players that can control those figures)"
   (let ((result #[]))
     (for (player => rules) in #[board 'allowed-moves]
 	 (for (figure => moves) in rules
 	      (set! #[result figure] #t)))
     (hash-keys result)))
 
-(define* (set-board-state! board rect #:optional (x 0) (y 0))
+(define* (set-board-state! board rect #:optional (x 0) (y 0) (move #f))
   (match-let (((w h) (rect-size rect)))
     (for r in x .. (- (+ w x) 1)
 	 (for c in y .. (- (+ h y) 1)
 	      (let ((field #[#[ board 'fields] c r])
 		    (checker (take-from-rect rect (- r x) (- c y))))
-		(if (not (equal? checker '?))
-		    (set! #[field 'content]
-			  (and-let* ((image #[board : 'images : checker]))
-			    (make <checker> #:image image 
-				  #:type checker)))))))))
+		(when (not (equal? checker '?))
+		  (if (equal? checker '_) 
+		      (set! #[field 'last-move] #f)
+		  #;else
+		      (if move 
+			  (set! #[field 'last-move] move)))
+		  (set! #[field 'content]
+			(and-let* ((image #[board : 'images : checker]))
+			  (make <checker> #:image image 
+				#:type checker)))))))))
+
+(define-method (display-last-moves (board <board>))
+  (match-let (((h w) (array-dimensions #[board 'fields])))
+    (for x in 0 .. (- w 1)
+	 (for y in 0 .. (- h 1)
+	      (and-let* ((last-move #[#[#[board 'fields] y x] 'last-move]))
+		(<< `(,x ,y) last-move))))))
 
 (publish
- (define-method (apply-move! move #;of checker #;on (board <board>))
-   ;; stosowanie ruchu polega na tym, że bierzemy sobie dany fragment
-   ;; planszy i zastępujemy go nowym
+ (define-method (apply-move move #;of (checker <checker>) #;on (board <board>))
    (let ((figures (allowed-figures board))
+	 (figure #[checker 'type])
 	 (wildcards (map first #[board 'wildcards]))
 	 (current-state (current-board-state/rect board)))
-     (match-let* (((initial-state final-state figure (dx dy)) move)
+     (match-let* (((initial-state final-state) move)
+		  (((dx dy)) (subrect-indices initial-state `((,figure))))
 		  ((x0 y0) #[checker : 'origin : 'position])
 		  ((x y) `(,(- x0 dx) ,(- y0 dy)))
 		  ((w h) (rect-size initial-state))
-		  (current-substate (take-subrect current-state x y w h))
-		  (final-state* (substitute #[board 'wildcards] 
-					    #;from initial-state
-						   #;within current-substate
-							    #;in final-state)))
-       (set-board-state! board final-state* x y)
-       (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
-       (reset! board)
-       (apply-after-move-rules! board)
-       (force-redisplay!))))
+		  (current-substate (take-subrect current-state x y w h)))
+       (values
+	(substitute #[board 'wildcards] 
+		    #;from initial-state
+			   #;within current-substate
+				    #;in final-state)
+	`(,x ,y)))))
 
- (define-method (apply-after-move-rules! (board <board>))
+ (define-method (apply-move! move #;of (checker <checker>) 
+			     #;on (board <board>) #;in-turn n)
+   (let*-values (((new-state x&y) (apply-move move #;of checker #;on board))
+		 ((x y) (apply values x&y)))
+     (set-board-state! board new-state x y `((turn . ,n) 
+					     (move . ,move)))
+     (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
+     (reset! board)
+     (apply-after-move-rules! board #;in-turn n)
+     (force-redisplay!)))
+
+ (define-method (apply-after-move-rules! (board <board>) #;in-turn n)
    (and-let* ((rules #[board : 'after-move-rules : #[board 'current-player]])
 	      (fields (current-board-state/rect board)))
      (specify ((fit? (fit-wildcards #[board 'wildcards])))
        (for (initial-state final-state) in rules
 	    (match-let (((w h) (rect-size initial-state)))
 	      (for (x y) in (subrect-indices fields initial-state)
+		   (<< "post applying "`(,initial-state ,final-state)
+		       " at "`(,x ,y)" in turn "n)
 		   (let* ((current-substate (take-subrect fields x y w h))
 			  (final-state* (substitute 
 					 #[board 'wildcards] 
@@ -290,7 +351,6 @@
      (rect-map (lambda(x)
 		 (or #[substitutions x] x))
 	       state))))
-
 
 (define-method (move! (checker <checker>) #;to (field <field>) 
 		      #;on (board <board>))
@@ -350,10 +410,10 @@
 	      (wildcards #[description 'wildcards:])
 	      (moves #[description 'moves:])
 	      (after-move-rules (or #[description 'after-move:] '()))
-	      (images (map (match-lambda 
-			       ((figure name)
-				`(,figure . ,(subtract-image (load-image name)
-							     empty-field))))
+	      (final-condition #[description 'finish:])
+	      (images (map (lambda ((figure name))
+			     `(,figure . ,(subtract-image (load-image name)
+							  empty-field)))
 			   #[description 'images:])))
 	  (let ((wildcards (expand-wildcards wildcards))
 		(width (rect-width initial-board))
@@ -369,13 +429,16 @@
 						    order-of-play)
 			     #:after-move (extract-after-move-rules
 					   after-move-rules width height)
+			     #:final-condition (if (list? final-condition)
+						   `(begin ,@final-condition)
+						   final-condition)
 			     #:wildcards wildcards
 			     )))))))))
  where
  (define (expand-wildcards wildcards)
    (define (value term)
-     (match (find (match-lambda ((name value)
-				 (equal? name term))) 
+     (match (find (lambda ((name value)) 
+		    (equal? name term))
 		  wildcards)
        ((name (values ...))
 	(append-map value values))
@@ -383,8 +446,8 @@
 	(value atomic-value))
        (else
 	(list term))))
-   (map (match-lambda ((name definition) 
-		       `(,name ,@(value name))))
+   (map (lambda ((name definition))
+	  `(,name ,@(value name)))
 	wildcards))
  
  (define (extract-after-move-rules description board-width board-height)
@@ -406,20 +469,19 @@
 						  ,@opposites)))
 			       (lambda(figure)
 				 (first (or #[reciprocal figure]
-					    (list figure))))))
+					    `(,figure))))))
 		   (transformations (map (lambda(name)
 					   #[board-transformations name])
 					 (or #[details 'transformations:] '())))
 		   (new-moves #[]))
 	       (for (figure => move-description) in moves
 		    (set! #[new-moves (opposite figure)]
-			  (map (match-lambda 
-				   ((initial-state final-state)
-				    (map (lambda(state-description)
-					   ((apply compose transformations) 
-					    (tree-map opposite
-						      state-description)))
-					 (list initial-state final-state))))
+			  (map (lambda ((initial-state final-state))
+				 (map (lambda (state-description)
+					((apply compose transformations) 
+					 (tree-map opposite
+						   state-description)))
+				      `(,initial-state ,final-state)))
 			       move-description)))
 	       (set! #[player-moves player] new-moves)))
 	    (((figures . moves) ...)
@@ -436,21 +498,21 @@
  (define (expand-moves #;from definitions 
 			      #;up-to board-width #;times board-height)
    (append-map
-    (match-lambda 
-	((initial-state final-state . extra)
-	 (let ((symmetries (or #[extra 'symmetries:]
-			       '(identity)))
-	       (conditions (or #[extra 'conditions:]
-			       'none))) ;; na razie pana nie obsługujemy
-	   (unique (zip 
-		    (append-map (employ symmetries)
-				(complements initial-state
-					     board-width
-					     board-height))
-		    (append-map (employ symmetries)
-				(complements final-state
-					     board-width
-					     board-height)))))))
+    (lambda ((initial-state final-state . extra))
+      (let ((symmetries (or #[extra 'symmetries:]
+			    '(identity)))
+	    (conditions (or #[extra 'conditions:]
+			    'none))) ;; na razie pana nie obsługujemy
+	(<< conditions)
+	(unique (zip 
+		 (append-map (employ symmetries)
+			     (complements initial-state
+					  board-width
+					  board-height))
+		 (append-map (employ symmetries)
+			     (complements final-state
+					  board-width
+					  board-height))))))
     definitions))
 
  (define ((employ symmetries) state-description)
@@ -477,10 +539,11 @@
  ) ;D publish load-board-game
 
 (define (wins! player round)
-  (quit))
-
-(define (final? board)
   #;(window #:name 'winner-announcement
 	  (message #[board 'current-player]" wins!")
 	  (button "Play again"))
-  #f)
+  (<< player " wins!")
+  (quit))
+
+
+    
