@@ -56,7 +56,7 @@
 	       )
   #:export (
 	    and-let*
-	    expand-form ?not ?and ?or in? 
+	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
@@ -74,7 +74,7 @@
 	    last-sexp-starting-position
 	    properize flatten
 	    cart cart-pow all-tuples all-pairs all-triples
-	    take-at-most drop-at-most split-before
+	    take-at-most drop-at-most
 	    remove-keyword-args
 	    array-size
 	    random-array
@@ -106,6 +106,41 @@
 	     (xdefine-syntax . define-syntax)
 	     (mlambda . lambda))
   )
+
+;; (define-syntax prototype
+;;   (syntax-rules (-> :)
+;;     ((_ (name . arg-types) -> result-type)
+;;      (TODO))
+;;     ((_ (name : arg-types ... -> result-type))
+;;      (TODO))))
+
+;; ;;(prototype (give! : <any> x <queue> -> <unknown>))
+;; (prototype (give! item #;to (medium <queue>)))
+;; ;; natomiast odbiorca chciałby albo sprawdzić, czy dane
+;; ;; w kolejce są dostępne,
+;; (prototype (item-available? (medium <queue>)) -> <boolean>)
+;; ;; albo po prostu na owe dane czekać:
+;; (prototype (get! #;from (qmedium <queue>)) -> <any>)
+(define RUN-TESTS (make-fluid))
+
+(define TEST-RESULTS (make-fluid '()))
+
+(define-syntax-rule (prototype . args) 
+  (TODO))
+
+(define-syntax-rule (e.g. expression comparison value . rest) 
+  (if (fluid-ref RUN-TESTS)
+      (let ((result expression))
+	(fluid-set! TEST-RESULTS
+		    (cons `(,(if (comparison result value) 'pass: 'fail:)
+			    expression
+			    ,result
+			    comparison 
+			    value
+			    ,(current-source-location))
+			  (fluid-ref TEST-RESULTS))))))
+
+(define-syntax-rule (observation: . args) (TODO))
 
 ;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
 ;; "define-macro", and as such doesn't seem to be referentially transparent,
@@ -230,42 +265,55 @@
 ;; `define-curried' is not a curried definition!
 ;; It defines a new macro which generates an appropreate
 ;; procedure, if insufficient number of arguments is given.
-;; A good example is given below, in the `matches?' macro
-;; definition
-
+;; For example,
+;;
+;; (define-curried (f a b c d) (list a b c d))
+;; 
+;; would expand to
+;;
+;; (define-syntax f 
+;;   (syntax-rules () 
+;;     ((_ a b c d) 
+;;      (begin (list a b c d))) 
+;;     ((_ a b c) 
+;;      (lambda(d) 
+;;        (f a b c d))) 
+;;     ((_ a b) 
+;;      (lambda(c) 
+;;        (f a b c))) 
+;;     ((_ a) 
+;;      (lambda(b) 
+;;        (f a b))) 
+;;     ((_) 
+;;      (lambda(a) 
+;;        (f a)))))
+;;
+;; A more realistic example is given below, in the `matches?' macro
+;; definition. 
+;;
+;; The macro is a modified version of a define-macro based one and I think
+;; it would do good to rewrite it from scratch with a better understanding
+;; of syntax-case
 (define-syntax define-curried
   (lambda (def)
+    (define (definitions name args)
+      (datum->syntax
+       def
+       (let loop ((args* (syntax->datum args)))
+	 (match args*
+	   (() '())
+	   ((first ... last)
+	    (cons `((_ ,@first #;...)
+		    (lambda(,last)
+		      (,(syntax->datum name) ,@args*)))
+		  (loop first #;...)))))))
     (syntax-case def ()
       ((_ (name . args) . body)
        #`(define-syntax name
 	   (syntax-rules ()
 	     ((_ . args)
 	      (begin . body))
-	     #,@(datum->syntax
-		 def
-		 (let loop ((args* (syntax->datum #'args)))
-		   (match args*
-		     (() '())
-		     ((first ... last)
-		      (cons `((_ ,@first #;...)
-			      (lambda(,last)
-				(,(syntax->datum #'name) ,@args*)))
-			    (loop first #;...))))))))))))
-
-(define-macro (define-curried signature . body)
-  (match signature
-    ((name args ...)	  
-     `(define-syntax ,name
-	(syntax-rules ()
-	  ((_ ,@args)
-	   (begin ,@body))
-	  ,@(let loop ((args* args))
-	      (match args*
-		(() '())
-		((first ... last)
-		 (cons `((_ ,@first #;...)
-			 (lambda(,last)(,name ,@args*)))
-		       (loop first #;...))))))))))
+	     #,@(definitions #'name #'args)))))))
 
 ;; If the `matches?' macro is called with two arguments, it behaves
 ;; as a regular binary predicate, which returns true if the second
@@ -309,39 +357,57 @@
 ;;     (set! f (let () (define (f x) (+ a x)) f))
 ;;     (set! g (let () (define (g x) (* a y)) g))))
 
+(define-syntax-rule (publish definitions ...)
+  (publisher (definitions ...) ()))
 
-(define (split-before criterion list)
-  (split-at list (or (list-index criterion list)
-		     (length list))))
+(define-syntax publisher 
+  (syntax-rules (where)
+    ((_ (where private ...) (public ...))
+     (private+public (private ...) (public ...)))
+    ((_ (new defs ...) (approved ...))
+     (publisher (defs ...) 
+		(approved ... new)))))
 
-(define-macro (publish . definitions)
-  (define (interface-name interface)
-    (match interface
-      ((head . tail)
-       (interface-name head))
-      ((? symbol? name)
-       name)))
-  (let-values (((public-definitions where&private-definitions)
-		(split-before (equals? 'where) definitions)))
-    `(begin ,@(map (match-lambda
-		       ((define-variant interface . body)
-			(let ((name (interface-name interface)))
-			  `(define ,name
-			     (and (defined? ',name) ,name)))))
-		   public-definitions)
-	    (let ()
-	      ,@(match where&private-definitions
-		  (('where . private-definitions)
-		   private-definitions)
-		  (() '()))
-	      ,@(map (match-lambda
-			 ((define-variant interface . body)
-			  (let ((name (interface-name interface)))
-			    `(set! ,name
-				   (let () 
-				     (,define-variant ,interface . ,body)
-				     ,name)))))
-		     public-definitions)))))
+(define-syntax private+public
+  (lambda (stx)
+    (define (interface+name+body specs lexical-context)
+      ;; the second argument is the lexical context that we
+      ;; want to preserve while extracting the specs
+      (define (interface-name interface)
+	(match interface
+	  ((head . tail)
+	   (interface-name head))
+	  ((? symbol? name)
+	   name)))
+      `(,(datum->syntax stx (syntax->datum lexical-context))
+	;; for some reason we need to deconstruct and reconstruct
+	;; lexical-context here
+	,(map (lambda(spec)
+		(syntax-case spec ()
+		  ((interface . body)
+		   (datum->syntax stx `(,(syntax->datum #'interface)
+					,(interface-name 
+					  (syntax->datum #'interface))
+					,(syntax->datum #'body))))))
+	      specs)))
+    (syntax-case stx ()
+      ((_ (private ...) ((define-variant . spec) ...))
+       ;; we pass the private definitions to the interface+name+body,
+       ;; because we want to be able to refer to private definitions
+       ;; from within the public ones (otherwise the macro processor
+       ;; would treat them as if they were within separate contexts)
+       (with-syntax ((((private ...) ((interface name body) ...))
+		      (interface+name+body #'(spec ...) #'(private ...))))
+	 #'(begin
+	     (define name (and (defined? 'name) name))
+	     ...
+	     (let ()
+	       private ...
+	       (set! name
+		     (let ()
+		       (define-variant interface . body)
+		       name))
+	       ...)))))))
 
 (define-syntax rec
   (syntax-rules ()
@@ -513,7 +579,7 @@
   (syntax-rules ()
     ((_ fx x args ...)
      (set! x (fx x args ...)))))
-  
+
 (define-macro (increase! x . args)
   `(transform! + ,x ,@args))
 
@@ -1062,36 +1128,3 @@
 ;;        body  ... 
 ;;        (if condition (loop))))))
 
-;; (define-syntax prototype
-;;   (syntax-rules (-> :)
-;;     ((_ (name . arg-types) -> result-type)
-;;      (TODO))
-;;     ((_ (name : arg-types ... -> result-type))
-;;      (TODO))))
-
-;; ;;(prototype (give! : <any> x <queue> -> <unknown>))
-;; (prototype (give! item #;to (medium <queue>)))
-;; ;; natomiast odbiorca chciałby albo sprawdzić, czy dane
-;; ;; w kolejce są dostępne,
-;; (prototype (item-available? (medium <queue>)) -> <boolean>)
-;; ;; albo po prostu na owe dane czekać:
-;; (prototype (get! #;from (qmedium <queue>)) -> <any>)
-(define RUN-TESTS (make-fluid))
-(define TEST-RESULTS (make-fluid '()))
-
-(define-syntax-rule (prototype . args) 
-  (TODO))
-
-(define-syntax-rule (e.g. expression comparison value . rest) 
-  (if (fluid-ref RUN-TESTS)
-      (let ((result expression))
-	(fluid-set! TEST-RESULTS
-		    (cons `(,(if (comparison result value) 'pass: 'fail:)
-			    expression
-			    ,result
-			    comparison 
-			    value
-			    ,(current-source-location))
-			  (fluid-ref TEST-RESULTS))))))
-
-(define-syntax-rule (observation: . args) (TODO))
