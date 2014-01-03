@@ -14,17 +14,15 @@
 ;; reads the rest of the contents, according to a specification given
 ;; in the header. This "according to" is the most tricky part
 
-(define (main args)
-  (match args
-    ((program-name input-file-names ...)
-     (for input-file-name in input-file-names
-	  (let* ((base-name (string-remove-suffix ".ply" input-file-name))
-		 (output-file-name (string-append base-name ".3d")))
-	    (with-output-to-file output-file-name
-	      (lambda ()
-		(pretty-print 
-		 (remove (matches? ('texture-coords . _))
-			 (process-ply-ascii-file input-file-name))))))))))
+(define (main (program-name input-file-names ...))
+  (for input-file-name in input-file-names
+       (let* ((base-name (string-remove-suffix ".ply" input-file-name))
+	      (output-file-name (string-append base-name ".3d")))
+	 (with-output-to-file output-file-name
+	   (lambda ()
+	     (pretty-print 
+	      (remove (matches? ('texture-coords . _))
+		      (process-ply-ascii-file input-file-name))))))))
 
 ;; helper function to construct regular expressions -- it takes a list
 ;; of patterns an returns a regular expression that matches a sequence
@@ -164,6 +162,7 @@
     (($".*") => (cry "invalid list elements"))))
  )
 
+
 (publish
  (define (process-elements count type properties)
    (match properties
@@ -270,6 +269,7 @@
 ;; given two formats (e.g. "char" and "ushort") return a smallest format
 ;; large enought to store all values that can be stored in any of those two
 ;; (in the above example the result would be "int")
+
 (publish
  (define (broader-format a b)
    (let ((a-index (list-index (equals? a) order))
