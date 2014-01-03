@@ -378,16 +378,9 @@
  (define (right-complements desc x y board-width -board-height-)
    (let ((w (rect-width desc))
 	 (h (rect-height desc)))
-     (<< "filling-column: "(take-subrect desc (- x 1) y 1 h)
-	 "suffix: "(take-subrect desc (+ x 1) 0 (- w x 1) h)
-	 "prefix: "(take-subrect desc 0 0 (- x 1) h)
-	 )
-     (if #f
-     (match-let (((filling-column) (take-subrect desc (- x 1) y 1 h))
+     (match-let ((((filling-column) ...) (take-subrect desc (- x 1) y 1 h))
 		 (suffix (take-subrect desc (+ x 1) 0 (- w x 1) h))
 		 (prefix (take-subrect desc 0 0 (- x 1) h)))
-       (format #t "prefix: ~ysuffix: ~yfilling-column: ~y"
-	       prefix suffix filling-column)
        (map (lambda (n)
 	      (map append prefix
 		   (if (zero? n)
@@ -395,8 +388,6 @@
 		       (transpose (make-list n filling-column)))
 		   suffix))
 	    (iota (- board-width w -3))))))
-   '()
-   )
  (define (slice-rect rect x y)
    ;; the column (x *) and the row (* y) are dismissed
    (let ((w (rect-width rect))
@@ -467,7 +458,13 @@
 			  (- board-height (rect-height desc))))))))
  ) ;D publish complements
 
+#| w przypadku jak powyżej sprawa jest prosta:
+(complements '((x _ → y _ → x)) n m)
+== (append-map (lambda (R)
+		 (complements `((x _ → ,@R)) n m))
+	       (complements '((y _ → x)) n m))
 
+|#
 
 (e.g. ; that uses right-complements
  (complements '((♜ _ → □/_)) 6 6)
@@ -478,28 +475,16 @@
    ((♜ _ _ _ □/_))
    ((♜ _ _ _ _ □/_))))
 
-(complements '((x _ → y)
-	       (x _ - y)) 6 6)
-
-(e.g. ; with multiple ellipsis
- (complements '((x _ → y _ → x)) 6 6)
+(e.g. ; should work for multi-dimensional cases as well
+ (complements '((x _ → y)
+		(z _ … v)) 4 4)
  same-set?
- '(((x y x))
-   ((x _ y x))
-   ((x _ _ y x))
-   ((x _ _ _ y x))
-   ((x y _ x))
-   ((x _ y _ x))
-   ((x _ _ y _ x))
-   ((x y _ _ x))
-   ((x _ y _ _ x))))
-
-#| w przypadku jak powyżej sprawa jest prosta:
-(complements '((x _ → y _ → x)) n m)
-== (append-map (lambda (R)
-		 (complements `((x _ → ,@R)) n m))
-	       (complements '((y _ → x)) n m))
-|#
+ '(((x y) 
+    (z v)) 
+   ((x _ y) 
+    (z _ v)) 
+   ((x _ _ y) 
+    (z _ _ v)) ))
 
 (e.g. ; that uses top-right-complements
  (complements 
