@@ -19,6 +19,12 @@
        (every list? x)
        (apply = (map length x))))
 
+(e.g. (rect? '((a b c)
+	       (d e f))))
+
+#;(define-type <rect>
+  rect?)
+
 (prototype upper-left-corner : <rect> <natural> <natural> -> <rect>)
 
 (define (upper-left-corner rect w h)
@@ -26,28 +32,20 @@
 	 (take row w))
        (take rect h)))
 
-(e.g.
- (upper-left-corner
-  '((a b c)
-    (d e f)
-    (g h i)) 2 2)
- equal?
- '((a b)
-   (d e)))
+(e.g. (upper-left-corner '((a b c)
+			   (d e f)
+			   (g h i)) 2 2) ===> ((a b)
+					       (d e)))
 
 (define (lower-right-corner rect w h)
   (map (lambda (row)
 	 (take-right row w))
        (take-right rect h)))
 
-(e.g.
- (lower-right-corner
-  '((a b c)
-    (d e f)
-    (g h i)) 2 2)
- equal?
- '((e f)
-   (h i)))
+(e.g. (lower-right-corner '((a b c)
+			    (d e f)
+			    (g h i)) 2 2) ===> ((e f)
+						(h i)))
 
 (define (upper-right-corner rect w h)
   (map (lambda (row)
@@ -74,11 +72,8 @@
 (define (rect-size rect)
   (list (rect-width rect) (rect-height rect)))
 
-(e.g.
- (rect-size '((a b c)
-	      (d e f)))
- equal?
- '(3 2))
+(e.g. (rect-size '((a b c)
+		   (d e f))) ===> (3 2))
 
 (define (rect-map f rect)
   (map (lambda (row)
@@ -142,14 +137,11 @@
 	(map - (match dest-position ((x) x))
 	     (match source-position ((x) x))))))
 
-(e.g. 
- (displacement #;of '♞ #;from '((_ ?)
-				(? ?)
-				(? ♞))  #;to '((♞ ?)
-					       (? ?)
-					       (? _)))
- equal?
- '(-1 -2))
+(e.g. (displacement #;of '♞ #;from '((_ ?)
+				     (? ?)
+				     (? ♞))  #;to '((♞ ?)
+						    (? ?)
+						    (? _))) ===> (-1 -2))
 
 ;; the procedures in the following section are used during
 ;; the parsing of game's rules
@@ -157,13 +149,10 @@
 (define (transpose rect)
   (apply map list rect))
 
-(e.g.
- (transpose '((a b c)
-	      (d e f)))
- equal?
- '((a d)
-   (b e)
-   (c f)))
+(e.g. (transpose '((a b c)
+		   (d e f))) ===> ((a d)
+				   (b e)
+				   (c f)))
 
 (observation: 
  (for-all <rect> (equal? <rect> (transpose (transpose <rect>)))))
@@ -172,13 +161,10 @@
   (define (rotate-left rect)
     (reverse (transpose (tree-map (specific rotate-item-left) rect)))))
 
-(e.g.
- (rotate-left '((a b c)
-		(d e f)))
- equal?
- '((c f)
-   (b e)
-   (a d)))
+(e.g. (rotate-left '((a b c)
+		     (d e f))) ===> ((c f)
+				     (b e)
+				     (a d)))
 
 (observation:
  (for-all <procedure>
@@ -195,56 +181,135 @@
   (define (rotate-right rect)
     (transpose (reverse (tree-map (specific rotate-item-right) rect)))))
 
-(e.g.
- (rotate-right '((a b c)
-		 (d e f)))
- equal?
- '((d a)
-   (e b)
-   (f c)))
-
-(with-default ((flip-item-horizontally identity))
-  (define (flip-horizontally rect)
-    (map reverse (tree-map (specific flip-item-horizontally) rect))))
-
-(e.g.
- (flip-horizontally '((a b)
-		      (c d)
-		      (e f)))
- equal?
- '((b a)
-   (d c)
-   (f e)))
-
-(with-default ((flip-item-vertically identity))
-  (define (flip-vertically rect)
-    (reverse (tree-map (specific flip-item-vertically) rect))))
-
-(e.g.
- (flip-vertically '((a b)
-		    (c d)
-		    (e f)))
- equal?
- '((e f)
-   (c d)
-   (a b)))
+(e.g. (rotate-right '((a b c)
+		      (d e f))) ===> ((d a)
+				      (e b)
+				      (f c)))
 
 (prototype (all-rotations <rect>) -> (<rect> <rect> <rect> <rect>))
 
 (define (all-rotations rect)
   (map (lambda(n)((iterations n rotate-left) rect)) (iota 4)))
 
-(e.g.
- (all-rotations '((a b c)
-		  (d e f)))
+;; Suppose that we have an element of a rect at coordinates (x y).
+;; The example below shows the element X at initial position (1 1).
+;; We would like to obtain the coordinates of the element X on
+;; a rotated board.
+
+(e.g. 
+ (all-rotations '((_ _ _ _ _)
+		  (_ X _ _ _)
+		  (_ _ _ _ _)
+		  (_ _ _ _ _)))
  same-set?
- '(((a b c)
-    (d e f)) ((c f)
-	      (b e)
-	      (a d)) ((f e d)
-		      (c b a)) ((d a)
-				(e b)
-				(f c))))
+ '(((_ _ _ _ _) 
+    (_ X _ _ _) 
+    (_ _ _ _ _) 
+    (_ _ _ _ _)) 
+   #;=========
+   ((_ _ _ _) 
+    (_ _ _ _) 
+    (_ _ _ _) 
+    (_ X _ _) 
+    (_ _ _ _))
+   #;=========
+   ((_ _ _ _ _) 
+    (_ _ _ _ _) 
+    (_ _ _ X _) 
+    (_ _ _ _ _)) 
+   #;=========
+   ((_ _ _ _) 
+    (_ _ X _) 
+    (_ _ _ _) 
+    (_ _ _ _) 
+    (_ _ _ _))))
+
+;; Clearly, the transformed coordinates depend on the size of a given rect:
+
+(e.g.
+ (append-map (lambda(rect)
+	       (subrect-indices rect '((X))))
+	     (all-rotations '((_ _ _ _ _)
+			      (_ X _ _ _)
+			      (_ _ _ _ _)
+			      (_ _ _ _ _))))
+ same-set?
+ '((1 1) (1 3) (3 2) (2 1)))
+
+;; where of course
+
+(e.g. (rect-size '((_ _ _ _ _)
+		   (_ X _ _ _)
+		   (_ _ _ _ _)
+		   (_ _ _ _ _))) ===> (5 4))
+
+(observation:
+ (for-all <rect>
+     (let ((x <integer>) (y <integer>))
+       (if (and (<= 0 x (- (rect-width <rect>) 1))
+		(<= 0 y (- (rect-height <rect>) 1)))
+	   (let ((R* (rotate-left <rect>))
+		 (x* y)
+		 (y* (- (rect-height <rect>) x 1)))
+	     (equal? (take-from-rect <rect> x y)
+		     (take-from-rect R* x* y*)))))))
+
+;; and hence
+
+(define (rotate-rect-coords-left x y w h)
+  `(,y ,(- w x 1)))
+
+(e.g. (rotate-rect-coords-left 1 1 5 4) ===> (1 3))
+
+(define (rotate-rect-coords-right x y w h)
+  `(,(- h y 1) ,x))
+
+(e.g. (rotate-rect-coords-right 1 1 5 4) ===> (2 1))
+
+;; likewise
+
+(with-default ((flip-item-horizontally identity))
+  (define (flip-horizontally rect)
+    (map reverse (tree-map (specific flip-item-horizontally) rect))))
+
+(e.g. (flip-horizontally '((a b)
+			   (c d)
+			   (e f))) ===> ((b a)
+					 (d c)
+					 (f e)))
+
+(with-default ((flip-item-vertically identity))
+  (define (flip-vertically rect)
+    (reverse (rect-map (specific flip-item-vertically) rect))))
+
+(e.g. (flip-vertically '((a b)
+			 (c d)
+			 (e f))) ===> ((e f)
+				       (c d)
+				       (a b)))
+
+(define (flip-rect-coords x y w h)
+  `(,(- w x 1) ,(- h y 1)))
+
+(e.g. (flip-rect-coords 1 1 5 4) ===> (3 2))
+
+(observation:
+ (for-all (x y w h) in <integer>
+   (if (and (<= 0 x (- w 1))
+	    (<= 0 y (- h 1)))
+       (equal?
+	(match-let (((x* y*) (rotate-rect-coords-left x y w h)))
+	  (rotate-rect-coords-left x* y* h w))
+	,(rotate-rect-coords-right ,@(rotate-rect-coords-right x y w h) h w)
+	(flip-rect-coords x y w h)
+	))))
+
+#;(let ((x 1) (y 1) (w 5) (h 4))
+  (equal?
+   (match-let (((x* y*) (rotate-rect-coords-left x y w h)))
+     (rotate-rect-coords-left x* y* h w))
+   ,(rotate-rect-coords-right ,@(rotate-rect-coords-right x y w h) h w)
+   (flip-rect-coords x y w h)))
 
 (define (horizontal rect)
   (list rect (flip-horizontally rect)))
@@ -315,89 +380,155 @@
 	       (flip-item-vertically flip-arrow-vertically))
        actions ...))))
 
-(e.g.
- (with-context-for-arrows
-  (rotate-right '((↖ ↑ ↗)
-		  (↙ ↓ ↘))))
- equal?
- '((↖ ↗)
-   (← →)
-   (↙ ↘)))
+(e.g. (with-context-for-arrows
+       (rotate-right '((↖ ↑ ↗)
+		       (↙ ↓ ↘)))) ===> ((↖ ↗)
+					(← →)
+					(↙ ↘)))
+
+(define (append-columns rect . rects)
+  (apply map append rect rects))
+
+(e.g. (append-columns '((a b)
+			(c d)) '((e)
+				 (f))) ===> ((a b e)
+					     (c d f)))
+
+(define (append-rows . rects)
+  (apply append rects))
+
+(e.g. (append-rows '((a b c)) '((d e f))) ===> ((a b c)
+						(d e f)))
 
 (publish 
  (define (complements state-description board-width board-height)
-   (let ((arrow-position (subrect-indices state-description
-					  '(((← ↑ → ↓ ↖ ↗ ↘ ↙))))))
-     (match arrow-position
+   (let ((arrow-positions (subrect-indices state-description
+					   '(((← ↑ → ↓ ↖ ↗ ↘ ↙)))))
+	 (D state-description) (W board-width) (H board-height)
+	 (w (rect-width state-description)) (h (rect-height state-description)))
+     (match arrow-positions
        (()
-	(list state-description))
-       (((x y))
-	(let ((arrow (take-from-rect state-description x y))
-	      (flip (iterations 2 rotate-left)))
+	(list D))
+       (((x y) . rest)
+	(let ((arrow (take-from-rect D x y))
+	      (flip (iterations 2 rotate-left))
+	      (actual-complements (if (null? rest) 
+				      proper-complements
+				      recursive-complements)))
 	  (with-context-for-arrows
 	   (case arrow
-	     ((→ ↗) (twisted-complements identity identity
-					 arrow x y
-					 state-description
-					 board-width board-height))
-	     ((↑ ↖) (twisted-complements rotate-right rotate-left
-					 arrow y x
-					 state-description
-					 board-height board-width))
-	     ((← ↙) (twisted-complements flip flip
-					 arrow x y
-					 state-description
-					 board-width board-height))
-	     ((↓ ↘) (twisted-complements rotate-left rotate-right
-					 arrow y x
-					 state-description
-					 board-height board-width))))))
-       (((x y) rest ...)
-	(unless (or (every (lambda ((x y))
-			     (in? (take-from-rect state-description x y)
-				  '(← →)))
-			   `((,x ,y) ,@rest))
-		    (every (lambda ((x y))
-			     (in? (take-from-rect state-description x y)
-				  '(↑ ↓)))
-			   `((,x ,y) ,@rest)))
-	  (error "Unsupported configuration of arrows")))
+	     ((→ ↗) 
+	      (twisted actual-complements identity identity arrow D 
+		       (list x y) W H))
+	     ((↑ ↖)
+	      (twisted actual-complements rotate-right rotate-left arrow D
+		       (rotate-rect-coords-right x y w h) H W))
+	     ((← ↙)
+	      (twisted actual-complements flip flip arrow D 
+		       (flip-rect-coords x y w h) W H))
+	     ((↓ ↘)
+	      (twisted actual-complements rotate-left rotate-right arrow D
+		       (rotate-rect-coords-left x y w h) H W))
+	     ))))
        (else
-	(error "No match: " arrow-position)))))
+	(error "No match: " arrow-positions (current-source-location))))))
 
  where
- (define (twisted-complements transform-there transform-back arrow 
-			      x y state-description board-width board-height)
+ (define (twisted actual-complements transform-there transform-back arrow 
+		  state-description (x y) board-width board-height)
    (map transform-back
-	((proper-complements #;for arrow) (transform-there state-description)
+	((actual-complements #;for arrow) (transform-there state-description)
 	 x y board-width board-height)))
  (define (proper-complements #;for arrow)
    (if (in? arrow '(← ↑ → ↓))
        right-complements
        top-right-complements))
- (define (right-complements desc x y board-width -board-height-)
-   (let ((w (rect-width desc))
-	 (h (rect-height desc)))
-     (match-let ((((filling-column) ...) (take-subrect desc (- x 1) y 1 h))
-		 (suffix (take-subrect desc (+ x 1) 0 (- w x 1) h))
-		 (prefix (take-subrect desc 0 0 (- x 1) h)))
+ (define (recursive-complements #;for arrow)
+   (if (in? arrow '(← ↑ → ↓))
+       recursive-right-complements
+       (throw 'not-implemented)))
+ (define (recursive-right-complements D x -y- W H)
+   (match-let (((((left ... repeat-column) 
+		  #;-        ...          )  arrow-column right)
+		(split-rect-vertically D x)))
+     (let ((right-complements (complements right W H))
+	   (left-complements (complements left W H)))
+       (filter (lambda(state)
+		 (and (<= (rect-width state) W)
+		      (<= (rect-height state) H)))
+	       (append-map (lambda (state)
+			     (complements state W H))
+			   (map (lambda ((left right))
+				  (map append left `(,repeat-column)
+				       arrow-column right))
+				(cart left-complements 
+				      right-complements)))))))
+ (define (right-complements D x y W -H-)
+   (let ((w (rect-width D))
+	 (h (rect-height D)))
+     (match-let ((((filling-column) 
+		   #;-    ...      ) (take-subrect D (- x 1) y 1 h))
+		 (suffix (take-subrect D (+ x 1) 0 (- w x 1) h))
+		 (prefix (take-subrect D 0 0 (- x 1) h)))
        (map (lambda (n)
 	      (map append prefix
 		   (if (zero? n)
 		       (make-list h '())
 		       (transpose (make-list n filling-column)))
 		   suffix))
-	    (iota (- board-width w -3))))))
+	    (iota (- W w -3))))))
+ (define (split-rect-vertically rect col)
+   (transpose 
+    (map (lambda(row)
+	   (let-values (((left right) (split-at row col)))
+	     `(,left ,(take right 1) ,(drop right 1))))
+	 rect)))
+ (e.g.
+  (split-rect-vertically '((a b c d e)
+			   (f g h i j)
+			   (k l m n o)) 2) 
+  ===> (((a b)
+	 (f g)
+	 (k l)) ((c)
+		 (h)
+		 (m)) ((d e)
+		       (i j)
+		       (n o))))
+ (define (split-rect-horizontally rect row)
+   (let-values (((top bottom) (split-at rect row)))
+     `(,top ,(take bottom 1) ,(drop bottom 1))))
+ (e.g.
+  (split-rect-horizontally '((a b c)
+			     (d e f)
+			     (g h i)
+			     (j k l)
+			     (m n o)) 2) 
+  ===> (((a b c)
+	 (d e f)) ((g h i)) ((j k l)
+			     (m n o))))
  (define (slice-rect rect x y)
    ;; the column (x *) and the row (* y) are dismissed
    (let ((w (rect-width rect))
 	 (h (rect-height rect)))
      (let ((top-left (upper-left-corner rect x y))
+	   (top-center (take-subrect rect x 0 1 y))
 	   (top-right (upper-right-corner rect (- w x 1) y))
+	   (middle-left (take-subrect rect 0 y x 1))
+	   (middle-center (take-subrect rect x y 1 1))
+	   (middle-right (take-subrect rect (+ x 1) y (- w x 1) 1))
 	   (bottom-left (lower-left-corner rect x (- h y 1)))
+	   (bottom-center (take-subrect rect x (+ y 1) 1 (- h y 1)))
 	   (bottom-right (lower-right-corner rect (- w x 1) (- h y 1))))
-       `((,top-left       ,top-right)
-	 (,bottom-left ,bottom-right)))))
+       `((,top-left      ,top-center     ,top-right)
+	 (,middle-left ,middle-center ,middle-right)
+	 (,bottom-left ,bottom-center ,bottom-right)))))
+ (e.g. 
+  (slice-rect '((a b c d e)
+		(f g h i j)
+		(k l m n o)) 2 1)
+  ===> ((((a b))   ((c))   ((d e)))
+	(((f g))   ((h))   ((i j)))
+	(((k l))   ((m))   ((n o)))))
  (define (diagonal n top mid bot)
    ;; generates a square list-of-lists/matrix of size n that looks like this:
    ;; ((top top ... top mid)
@@ -410,13 +541,16 @@
 		  (list mid) 
 		  (make-list k bot)))
 	(iota n)))
- (define (top-right-complements desc x y board-width board-height)
-   (match-let* (([(((TL ... tc) ...)     TR )
-		  (((lc ... re) 
-		    (BL ... bc) ...)    (rc 
-					 BR 
-					 ...))]  (slice-rect desc x y))
-		((_ ... lc*) lc)
+ (define (top-right-complements D x y W H)
+   (match-let* (([(((TL ... tc) 
+		    #;- ...    ) _      TR   )
+		  (     _        _      _    )
+		  (((ml ... mc)
+		    (BL ... bc)
+		    #;- ...    ) _     (mr 
+					BR 
+					...))]  (slice-rect D x y))
+		((_ ... ml*) ml)
 		((bc* _ ...) bc))
      ;; Maybe some day some brilliant hacker will figure out the way to
      ;; write it like that, but until then we're doomed to analyse all those
@@ -425,18 +559,18 @@
      ;; (sequence (_)
      ;; ((TL TR)
      ;;  (BL BR))  ((TL tc TR)
-     ;;             (lc re rc)
+     ;;             (ml mc mr)
      ;;             (BL bc BR))  ((TL tc  tc  TR)
-     ;;                           (lc lc* re  rc)
-     ;; 			  (lc re  bc* rc)
+     ;;                           (ml ml* mc  mr)
+     ;; 			  (ml mc  bc* mr)
      ;; 			  (BL bc  bc  BR))  ((TL  tc  tc  tc  TR)
-     ;; 					     (lc  lc* lc* re  rc)
-     ;; 					     (lc  lc* re  bc* rc)
-     ;; 					     (lc  re  bc* bc* rc)
+     ;; 					     (ml  ml* ml* mc  mr)
+     ;; 					     (ml  ml* mc  bc* mr)
+     ;; 					     (ml  mc  bc* bc* mr)
      ;; 					     (BL  bc  bc  bc  BR))
      ;; 				...
-     ;;  (until (or (= (rect-height _) board-height)
-     ;; 	    (= (rect-width _) board-width))))
+     ;;  (until (or (= (rect-height _) H)
+     ;; 	    (= (rect-width _) W))))
      (map (lambda (n)
 	    (append
 	     (map append TL 
@@ -445,29 +579,35 @@
 			     (list (make-list (length TL) '()))
 			     (make-list n (map list tc)))) 
 		  TR)
-	     (map append (make-list n lc)
-		  (diagonal n lc* re bc*)
-		  (make-list n rc))
+	     (map append (make-list n ml)
+		  (diagonal n ml* mc bc*)
+		  (make-list n mr))
 	     (map append BL 
 		  (apply map append 
 			 (if (zero? n)
 			     (list (make-list (length BL) '()))
 			     (make-list n (map list bc)))) 
 		  BR)))
-	  (iota (+ 3 (min (- board-width (rect-width desc))
-			  (- board-height (rect-height desc))))))))
+	  (iota (+ 3 (min (- W (rect-width D))
+			  (- H (rect-height D))))))))
  ) ;D publish complements
 
-#| w przypadku jak powyżej sprawa jest prosta:
-(complements '((x _ → y _ → x)) n m)
-== (append-map (lambda (R)
-		 (complements `((x _ → ,@R)) n m))
-	       (complements '((y _ → x)) n m))
-
-|#
+(e.g.
+ (complements '((a _ → b _ → c)) 6 1)
+ same-set?
+ '(((a b c))
+   ((a b _ c))
+   ((a b _ _ c))
+   ((a b _ _ _ c))
+   ((a _ b c))
+   ((a _ b _ c))
+   ((a _ b _ _ c))
+   ((a _ _ b c))
+   ((a _ _ b _ c))
+   ((a _ _ _ b c))))
 
 (e.g. ; that uses right-complements
- (complements '((♜ _ → □/_)) 6 6)
+ (complements '((♜ _ → □/_)) 6 1)
  same-set?
  '(((♜ □/_))
    ((♜ _ □/_))
@@ -477,7 +617,7 @@
 
 (e.g. ; should work for multi-dimensional cases as well
  (complements '((x _ → y)
-		(z _ … v)) 4 4)
+		(z _ … v)) 4 2)
  same-set?
  '(((x y) 
     (z v)) 
