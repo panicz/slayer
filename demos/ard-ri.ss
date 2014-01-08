@@ -33,10 +33,19 @@
       ;;=========
       ((_ _ → o))
       (symmetries: all-rotations)))
+
     (Q
-     (((Q _/X/T → _/X/T))
+     (((Q _/X → _/X))
       ;;=========
-      ((_ _/X/T → Q))
+      ((_ _/X → Q))
+      (symmetries: all-rotations))
+     (((Q _ → T))
+      #;========
+      ((_ _ → Q))
+      (symmetries: all-rotations))
+     (((Q _ → T _ → _))
+      #;=============
+      ((_ _ → T _ → Q))
       (symmetries: all-rotations))))
 
    (player-2
@@ -46,7 +55,7 @@
       ((_ _ → i))
       (symmetries: all-rotations)))))
 
-  (order-of-play: player-1 player-2)
+  (order-of-play: player-2 player-1)
 
   (after-move:
    (player-1
@@ -63,6 +72,7 @@
     (((o i O))
      ;;======
      ((o _ O))
+     (conditions: (= (turn (last-move i)) (- current-turn 1)))
      (symmetries: all-rotations))
 
     (((O i X/T))
@@ -81,7 +91,7 @@
      ((i _ X))
      (symmetries: all-rotations)))
    )
-  (finish:
+  #;(finish:
    
 
    )
