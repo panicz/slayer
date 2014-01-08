@@ -87,17 +87,17 @@
 	    real->integer
 	    make-locked-mutex
 	    last-index indexed
-	    demand ***context***
+	    demand SPECIFIC-CONTEXT
 	    iterations
 	    RUN-TESTS TEST-RESULTS
 	    )
-  #:export-syntax (TODO \ for for-all exists matches? equals? prototype
+  #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation:
 		   define-curried publish define-accessors
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
-		   rec expand letrec-macros
+		   rec expand letrec-macros unquote
 		   transform! increase! decrease! multiply!
 		   push! pop!)
   #:replace (compose
@@ -106,6 +106,31 @@
 	     (xdefine-syntax . define-syntax)
 	     (mlambda . lambda))
   )
+
+(define* (expand-form e #:key (opts '()))
+  (let-values (((exp env) (decompile 
+			   (compile e #:from 'scheme 
+				    #:to 'tree-il 
+				    #:env (current-module))
+			   #:from 'tree-il 
+			   #:to 'scheme 
+			   #:opts opts)))
+    exp))
+
+(define-syntax-rule (expand expression)
+  (expand-form 'expression))
+
+(define-syntax-rule (define-fluid name value)
+  (define name (make-fluid value)))
+
+(define-syntax rec
+  (syntax-rules ()
+    ((rec (NAME . VARIABLES) . BODY)
+     (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
+    ((rec NAME EXPRESSION)
+     (letrec ( (NAME EXPRESSION) ) NAME))))
+
+(define-syntax-rule (TODO something ...) (rec (f . x) f))
 
 ;; (define-syntax prototype
 ;;   (syntax-rules (-> :)
@@ -121,26 +146,63 @@
 ;; (prototype (item-available? (medium <queue>)) -> <boolean>)
 ;; ;; albo po prostu na owe dane czekać:
 ;; (prototype (get! #;from (qmedium <queue>)) -> <any>)
-(define RUN-TESTS (make-fluid))
+(define-fluid RUN-TESTS #f)
 
-(define TEST-RESULTS (make-fluid '()))
+(define-fluid TEST-RESULTS '())
+
+(define-syntax-rule (define-type name . properties)
+  (TODO))
 
 (define-syntax-rule (prototype . args) 
   (TODO))
 
-(define-syntax-rule (e.g. expression comparison value . rest) 
-  (if (fluid-ref RUN-TESTS)
-      (let ((result expression))
-	(fluid-set! TEST-RESULTS
-		    (cons `(,(if (comparison result value) 'pass: 'fail:)
-			    expression
-			    ,result
-			    comparison 
-			    value
-			    ,(current-source-location))
-			  (fluid-ref TEST-RESULTS))))))
+(define-syntax e.g. 
+  (syntax-rules (===>)
+    ((_ expression ===> value)
+     (e.g. expression equal? 'value))
+    ((_ expression comparison value)
+     (if (fluid-ref RUN-TESTS)
+	 (let ((result expression))
+	   (fluid-set! TEST-RESULTS
+		       (cons `(,(if (comparison result value) 'pass: 'fail:)
+			       expression
+			       ,result
+			       comparison 
+			       value
+			       ,(current-source-location))
+			     (fluid-ref TEST-RESULTS))))))
+    ((_ expression)
+     (e.g. (not expression) eq? #f))))
 
 (define-syntax-rule (observation: . args) (TODO))
+
+(define-syntax unquote
+  (lambda (stx)
+    (define (disquote expressions)
+      (define (disquoted expression)
+	(match expression
+	  (((or 'unquote 'unquote-splicing) something)
+	   expression)
+	  ((head . tail)
+	   (list 'unquote (list 'apply head 
+				(list 'quasiquote (map disquoted tail)))))
+	  (else
+	   (list 'unquote expression))))
+      (datum->syntax stx (map disquoted (map syntax->datum expressions))))
+    (syntax-case stx ()
+      ((_ (f x ...))
+       (with-syntax (((x ...) (disquote #'(x ...))))
+	 #'(apply f `(x ...)))))))
+
+;; the "unquote" syntax (outside of "quasisyntax") is to allow splicing
+;; arguments to function calls:
+
+#;(e.g.
+ (let ((x '(2 3))
+       (y 4))
+   ,(+ 1 ,@x (+ 4 5 ,@x)))
+ =
+ (+ 1 2 3 4))
 
 ;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
 ;; "define-macro", and as such doesn't seem to be referentially transparent,
@@ -184,7 +246,16 @@
 	 (lambda (key go-on demand . args*)
 	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
 
-(define ***context*** (make-hash-table))
+(e.g.
+ (let ((people '()))
+   (supply (((free person)
+	     (set! people (cons person people))))
+     (demand 'free 'Nelson-Mandela))
+   people)
+ eq?
+ '(Nelson-Mandela))
+
+(define-fluid SPECIFIC-CONTEXT (make-hash-table))
 
 (define-macro (with-default bindings . actions)
   (match bindings
@@ -195,7 +266,8 @@
 	      ,@(map (match-lambda 
 			 ((name value)
 			  `((_ ,name)
-			    (let ((default (hash-ref ***context***
+			    (let ((default (hash-ref (fluid-ref
+						      SPECIFIC-CONTEXT)
 						     ',name '())))
 			      (if (null? default)
 				  ,value
@@ -209,15 +281,27 @@
 	actions ...)
      (dynamic-wind
        (lambda ()
-	 (hash-set! ***context*** 'name
-		    (cons value (hash-ref ***context*** 'name '())))
+	 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+		    (cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
+					  'name '())))
 	 ...)
        (lambda ()
 	 actions ...)
        (lambda ()
-	 (hash-set! ***context*** 'name
-		    (rest (hash-ref ***context*** 'name)))
+	 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+		    (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
 	 ...)))))
+
+(e.g.
+ (let ()
+   (with-default ((x 10)
+		  (y 20))
+     (define (f)
+       `(,(specific x) ,(specific y))))
+   (specify ((x 30))
+     (f)))
+ equal?
+ '(30 20))
 
 (define-syntax mlambda
   (lambda (stx)
@@ -370,18 +454,27 @@
 
 (define-syntax private+public
   (lambda (stx)
-    (define (interface+name+body specs lexical-context)
-      ;; the second argument is the lexical context that we
-      ;; want to preserve while extracting the specs
+    (define (sorted-private/interfaces+names+bodies private specs)
+      ;; both sorting and name extraction need to take place in the
+      ;; same function called from with-syntax, because only that
+      ;; way we can tell the macro processor that the bindings in
+      ;; the code belong to the same scope
       (define (interface-name interface)
 	(match interface
 	  ((head . tail)
 	   (interface-name head))
 	  ((? symbol? name)
-	   name)))
-      `(,(datum->syntax stx (syntax->datum lexical-context))
-	;; for some reason we need to deconstruct and reconstruct
-	;; lexical-context here
+	   name)))      
+      `(,(datum->syntax ;; this reordering is done, so that the (e.g. ...)
+	  stx ;; forms can be freely mixed with definitions
+	  (let-values (((definitions non-definitions)
+			(partition (match-lambda 
+				       (((? symbol? x) . _)
+					(string-matches "def" 
+							(symbol->string x)))
+				     (else #f))
+				   (syntax->datum private))))
+	    `(,@definitions ,@non-definitions)))
 	,(map (lambda(spec)
 		(syntax-case spec ()
 		  ((interface . body)
@@ -392,12 +485,9 @@
 	      specs)))
     (syntax-case stx ()
       ((_ (private ...) ((define-variant . spec) ...))
-       ;; we pass the private definitions to the interface+name+body,
-       ;; because we want to be able to refer to private definitions
-       ;; from within the public ones (otherwise the macro processor
-       ;; would treat them as if they were within separate contexts)
        (with-syntax ((((private ...) ((interface name body) ...))
-		      (interface+name+body #'(spec ...) #'(private ...))))
+		      (sorted-private/interfaces+names+bodies 
+		       #'(private ...) #'(spec ...))))
 	 #'(begin
 	     (define name (and (defined? 'name) name))
 	     ...
@@ -408,15 +498,6 @@
 		       (define-variant interface . body)
 		       name))
 	       ...)))))))
-
-(define-syntax rec
-  (syntax-rules ()
-    ((rec (NAME . VARIABLES) . BODY)
-     (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
-    ((rec NAME EXPRESSION)
-     (letrec ( (NAME EXPRESSION) ) NAME))))
-
-(define-syntax-rule (TODO something ...) (rec (f . x) f))
 
 ;; `letrec-macros' behaves similar to `let-syntax', but it is restricted
 ;; to take `macro' keyword in place of the latter's `syntax-rules' (or its
@@ -452,7 +533,6 @@
   (with-output-to-string (lambda()(write object))))
 
 (define ->string write-string)
-
 (define (read-string string)
   (with-input-from-string string read))
 
@@ -620,11 +700,19 @@
       (for-each (match-lambda (x body ...)
 		  (else (throw 'invalid-for-clause else))) list))))
 
-(define-syntax-rule (for-all var in set predicate)
-  (every (match-lambda (var predicate)) set))
+(define-syntax for-every 
+  (syntax-rules (in)
+    ((_ var in set predicate)
+     (every (match-lambda (var predicate) (_ #f)) set))))
 
-(define-syntax-rule (exists var in set predicate)
-  (any (match-lambda (var predicate)) set))
+(e.g.
+ (for-every (x y) in '((1 6) (2 5) (3 4))
+   (= (+ x y) 7)))
+
+(define-syntax exists 
+  (syntax-rules (in)
+    ((_ var in set predicate)
+     (any (match-lambda (var predicate) (_ #f)) set))))
 
 (define-syntax-rule (hash-table (key value) ...)
   (let ((new-hash-table (make-hash-table)))
@@ -845,19 +933,6 @@
 	   ,(if (symbol? rest)
 		`(apply ,f ,@args ,rest)
 		`(,f ,@args)))))))
-
-(define* (expand-form e #:key (opts '()))
-  (let-values (((exp env) (decompile 
-			   (compile e #:from 'scheme 
-				    #:to 'tree-il 
-				    #:env (current-module))
-			   #:from 'tree-il 
-			   #:to 'scheme 
-			   #:opts opts)))
-    exp))
-
-(define-syntax-rule (expand expression)
-  (expand-form 'expression))
 
 (define (cart . lists)
   (match lists
