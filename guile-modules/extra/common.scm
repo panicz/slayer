@@ -75,12 +75,13 @@
 	    properize flatten
 	    cart cart-pow all-tuples all-pairs all-triples
 	    take-at-most drop-at-most
-	    remove-keyword-args
+	    remove-keyword-args keyword-ref
 	    array-size
 	    random-array
 	    read-string write-string ->string
 	    string-remove-prefix string-remove-suffix
 	    string-matches
+	    nonblocking
 	    with-output-to-utf8
 	    list-directory shell
 	    << die
@@ -93,7 +94,8 @@
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation:
-		   define-curried publish define-accessors
+		   define-curried-syntax publish define-accessors
+		   publish-with-fluids
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
@@ -120,8 +122,79 @@
 (define-syntax-rule (expand expression)
   (expand-form 'expression))
 
-(define-syntax-rule (define-fluid name value)
-  (define name (make-fluid value)))
+(define-syntax mlambda
+  (lambda (stx)
+    (define (keyword-args* args body)
+      (define (keyword-args args normal keyword)
+	(match args
+	  (()
+	   `(,normal ,keyword))
+	  (((? keyword? k) (? symbol? s) . rest)
+	   (keyword-args rest normal `((,s #f ,k) ,@keyword)))
+	  (((? keyword? k) ((and (? symbol?) 
+				 (not (or 'quote 'quasiquote)) s) val) . rest)
+	   (keyword-args rest normal `((,s ,val ,k) ,@keyword)))
+	  (((? keyword? k) val . rest)
+	   (keyword-args rest normal `((,(keyword->symbol k) ,val ,k) 
+				       ,@keyword)))
+	  (((? (?not keyword?) x) . rest)
+	   (keyword-args rest `(,@normal ,x) keyword))))
+      
+      (datum->syntax stx `(,(syntax->datum body)
+			   ,@(keyword-args (syntax->datum args) '() '()))))
+    (syntax-case stx ()
+      ((_ (first-arg ... last-arg . rest-args) body ...)
+       (and (every identifier? #'(first-arg ... last-arg))
+	    (or (identifier? #'rest-args) (null? #'rest-args)))
+       #'(lambda (first-arg ... last-arg . rest-args) body ...))
+      ((_ arg body ...)
+       (or (identifier? #'arg) (null? #'arg))
+       #'(lambda arg body ...))
+      ((_ (args ...) body ...)
+       (any keyword? (syntax->datum #'(args ...)))
+       (with-syntax ((((body ...) (args ...) (key ...))
+		      (keyword-args* #'(args ...) #'(body ...))))
+	 #'(lambda* (args ... #:key key ...)
+	     body ...)))
+      ((_ args body ...)
+       #'(match-lambda* (args body ...))))))
+
+(define-syntax cdefine
+  (syntax-rules ()
+    ((_ ((head . tail) . args) body ...)
+     (cdefine (head . tail)
+       (mlambda args body ...)))
+    ((_ (name . args) body ...)
+     (define name (mlambda args body ...)))
+    ((_ . rest)
+     (define . rest))))
+
+(define-syntax cdefine*
+  (syntax-rules ()
+    ((_ ((head . tail) . rest) body body* ...)
+     (cdefine* (head . tail)
+       (lambda* rest body body* ...)))
+    ((_ (head . rest) body body* ...)
+     (define* head
+       (lambda* rest body body* ...)))
+    ((_ . rest)
+     (define* . rest))))
+
+(define-syntax xdefine-syntax
+  (syntax-rules ()
+    ((_ (name . args) body ...)
+     (define-syntax name
+       (lambda args
+	 body ...)))
+    ((_ name value)
+     (define-syntax name value))))
+
+(define-syntax define-fluid
+  (syntax-rules ()
+    ((_ (interface . args) body ...)
+     (define-fluid interface (mlambda args body ...)))
+    ((_ name value)
+     (define name (make-fluid value)))))
 
 (define-syntax rec
   (syntax-rules ()
@@ -292,8 +365,8 @@
 		    (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
 	 ...)))))
 
-(e.g.
- (let ()
+(e.g. ; this is how the trio 'with-default', 'specific' and 'specify' 
+ (let () ; can be used
    (with-default ((x 10)
 		  (y 20))
      (define (f)
@@ -303,55 +376,12 @@
  equal?
  '(30 20))
 
-(define-syntax mlambda
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ (first-arg ... last-arg . rest-args) body ...)
-       (and (every identifier? #'(first-arg ... last-arg))
-	    (or (identifier? #'rest-args) (null? #'rest-args)))
-       #'(lambda (first-arg ... last-arg . rest-args) body ...))
-      ((_ arg body ...)
-       (or (identifier? #'arg) (null? #'arg))
-       #'(lambda arg body ...))
-      ((_ args body ...)
-       #'(match-lambda* (args body ...))))))
-
-(define-syntax cdefine
-  (syntax-rules ()
-    ((_ ((head . tail) . args) body ...)
-     (cdefine (head . tail)
-       (mlambda args body ...)))
-    ((_ (name . args) body ...)
-     (define name (mlambda args body ...)))
-    ((_ . rest)
-     (define . rest))))
-
-(define-syntax cdefine*
-  (syntax-rules ()
-    ((_ ((head . tail) . rest) body body* ...)
-     (cdefine* (head . tail)
-       (lambda* rest body body* ...)))
-    ((_ (head . rest) body body* ...)
-     (define* head
-       (lambda* rest body body* ...)))
-    ((_ . rest)
-     (define* . rest))))
-
-(define-syntax xdefine-syntax
-  (syntax-rules ()
-    ((_ (name . args) body ...)
-     (define-syntax name
-       (lambda args
-	 body ...)))
-    ((_ name value)
-     (define-syntax name value))))
-
-;; `define-curried' is not a curried definition!
+;; `define-curried-syntax' is not a curried definition!
 ;; It defines a new macro which generates an appropreate
 ;; procedure, if insufficient number of arguments is given.
 ;; For example,
 ;;
-;; (define-curried (f a b c d) (list a b c d))
+;; (define-curried-syntax (f a b c d) (list a b c d))
 ;; 
 ;; would expand to
 ;;
@@ -378,7 +408,7 @@
 ;; The macro is a modified version of a define-macro based one and I think
 ;; it would do good to rewrite it from scratch with a better understanding
 ;; of syntax-case
-(define-syntax define-curried
+(define-syntax define-curried-syntax
   (lambda (def)
     (define (definitions name args)
       (datum->syntax
@@ -406,15 +436,15 @@
 ;; it returns a procedure which checks whether its argument matches
 ;; a given pattern.
 
-(define-curried (matches? pattern x)
+(define-curried-syntax (matches? pattern x)
   (match x 
     (pattern #t)
     (else #f)))
 
-(define-curried (equals? value x)
+(define-curried-syntax (equals? value x)
   (equal? value x))
 
-(define-curried (string-matches pattern string)
+(define-curried-syntax (string-matches pattern string)
   (and-let* ((match-struct (string-match pattern string))
                 (count (match:count match-struct)))
      (map (lambda(n)(match:substring match-struct n))
@@ -441,6 +471,16 @@
 ;;     (set! f (let () (define (f x) (+ a x)) f))
 ;;     (set! g (let () (define (g x) (* a y)) g))))
 
+;; this procedure `interface-name` is not exported, but it is used internally
+;; by publish and publish-with-fluids macros below. It is used to exctract 
+;; names from definitions, where the definitions can possibly be curried
+(define (interface-name interface)
+  (match interface
+    ((head . tail)
+     (interface-name head))
+    ((? symbol? name)
+     name)))
+
 (define-syntax-rule (publish definitions ...)
   (publisher (definitions ...) ()))
 
@@ -459,12 +499,6 @@
       ;; same function called from with-syntax, because only that
       ;; way we can tell the macro processor that the bindings in
       ;; the code belong to the same scope
-      (define (interface-name interface)
-	(match interface
-	  ((head . tail)
-	   (interface-name head))
-	  ((? symbol? name)
-	   name)))      
       `(,(datum->syntax ;; this reordering is done, so that the (e.g. ...)
 	  stx ;; forms can be freely mixed with definitions
 	  (let-values (((definitions non-definitions)
@@ -497,6 +531,30 @@
 		     (let ()
 		       (define-variant interface . body)
 		       name))
+	       ...)))))))
+
+;; publish-with-fluids is like with-fluids, but it allows internal
+;; definitions only, and 
+(define-syntax publish-with-fluids 
+  (lambda (stx)
+    (define (interfaces+names+bodies specs)
+      (map (lambda (spec)
+	     (syntax-case spec ()
+	       ((interface . body)
+		(datum->syntax stx `(,(syntax->datum #'interface)
+				     ,(interface-name (syntax->datum 
+						       #'interface))
+		   ,(syntax->datum #'body))))))
+	   specs))
+    (syntax-case stx ()
+      ((_ fluids (define-variant . spec) ...)
+       (with-syntax ((((interface name body) ...)
+		      (interfaces+names+bodies #'(spec ...))))
+	 #'(begin
+	     (define name (and (defined? 'name) name)) 
+	     ...
+	     (with-fluids fluids
+	       (set! name (let () (define-variant interface . body) name))
 	       ...)))))))
 
 ;; `letrec-macros' behaves similar to `let-syntax', but it is restricted
@@ -1091,6 +1149,17 @@
 
 (define (drop-at-most n from-list)
   (drop from-list (min n (length list))))
+
+(define (keyword-ref l keyword)
+  (match l
+    (((? keyword? key) value . rest)
+     (if (eq? key keyword)
+	 value
+	 (keyword-ref rest keyword)))
+    ((first . rest)
+     (keyword-ref rest keyword))
+    (()
+     #f)))
 
 (define remove-keyword-args
   (rec (self list)
