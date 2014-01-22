@@ -1,5 +1,5 @@
 #!/usr/bin/guile \
--e main -s
+-L ./guile-modules -L ../guile-modules -e main -s
 !#
 (use-modules (extra common)
 	     (extra ref))

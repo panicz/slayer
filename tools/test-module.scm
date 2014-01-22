@@ -1,5 +1,5 @@
 #!/usr/bin/guile \
--e main -s
+-L ./guile-modules -L ../guile-modules -e main -s
 !#
 (set-port-encoding! (current-input-port) "UTF-8")
 (set-port-encoding! (current-output-port) "UTF-8")
