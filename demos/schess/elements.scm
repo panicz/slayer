@@ -4,7 +4,7 @@
   #:export (
 	    rect? rect-height rect-width rect-size take-subrect take-from-rect
 	    upper-left-corner lower-right-corner upper-right-corner
-	    lower-left-corner rect-map
+	    lower-left-corner rect-map replace-subrect
 	    subrect-indices displacement complements
 	    rotate-left rotate-right flip-horizontally flip-vertically
 	    all-rotations any-direction horizontal vertical
@@ -87,10 +87,89 @@
 		       (- (rect-height rect) y))
    w h))
 
+(e.g. (take-subrect '((a b c d)
+		      (e f g h)) 1 0 2 2) ===> ((b c)
+						(f g)))
+
 (define (take-from-rect rect x y)
   (match (take-subrect rect x y 1 1)
     (((x)) x))) ; tutaj możnaby równoważnie napisać (first (take-subrect ...)),
 ;; ale wówczas nie zaakcentowalibyśmy jedyności elementu, który pobieramy
+
+(e.g. (take-from-rect '((a b c)
+			(d e f)
+			(g h i)) 1 0) ===> b)
+
+(define (take-rows rect n)
+  (take rect n))
+
+(e.g. (take-rows '((a b c)
+		   (d e f)) 1) ===> ((a b c)))
+
+(define (drop-rows rect n)
+  (drop rect n))
+
+(e.g. (drop-rows '((a b c)
+		   (d e f)) 1) ===> ((d e f)))
+
+(define (take-columns rect n)
+  (map (lambda(row)(take row n)) rect))
+
+(e.g. (take-columns '((a b c)
+		      (d e f)) 1) ===> ((a)
+					(d)))
+
+(define (drop-columns rect n)
+  (map (lambda(row)(drop row n)) rect))
+
+(e.g. (drop-columns '((a b c)
+		      (d e f)) 1) ===> ((b c)
+					(e f)))
+
+(define (append-columns rect . rects)
+  (apply map append rect rects))
+
+(e.g. (append-columns '((a b)
+			(c d)) '((e)
+				 (f))) ===> ((a b e)
+					     (c d f)))
+
+(define (append-rows . rects)
+  (apply append rects))
+
+(e.g. (append-rows '((a b c)) '((d e f))) ===> ((a b c)
+						(d e f)))
+
+(define (replace-subrect #;of original #;with replacement #;at x y)
+  (match-let* (((w h) (rect-size replacement))
+	       (TOP (take-rows original y))
+	       (MID (take-rows (drop-rows original y) h))
+	       (LEFT (take-columns MID x))
+	       (ORIG (take-columns (drop-columns MID x) w))
+	       (RIGHT (drop-columns MID (+ x w)))
+	       (BOT (drop-rows original (+ y h))))
+    (append-rows 
+     TOP 
+     (append-columns 
+      LEFT 
+      (map (lambda (old new)
+	     (map (lambda (old new)
+		    (if (equal? new '?) old new))
+		  old
+		  new))
+	   ORIG 
+	   replacement)
+      RIGHT)
+     BOT)))
+
+(e.g. (replace-subrect '((a b c d e)
+			 (f g h i j)
+			 (k l m n o)
+			 (p q r s t)) '((X Y)
+					(Z ?)) 2 1) ===> ((a b c d e)
+							  (f g X Y j)
+							  (k l Z n o)
+							  (p q r s t)))
 
 (with-default ((fit? (lambda(field pattern)(eq? pattern '?))))
   (define (rect-match? rect pattern)
@@ -136,6 +215,16 @@
 	#f
 	(map - (match dest-position ((x) x))
 	     (match source-position ((x) x))))))
+#|
+(match `(,(subrect-indices source `((,figure)))
+	 ,(subrect-indices dest `((,figure))))
+  ((or (() _) (_ ()))
+   #f)
+  ((((xs ys)) ((xd yd)))
+   `(,(- xd xs) ,(- yd yd)))
+  (else
+   (error "non-unique source or dest")))
+|#
 
 (e.g. (displacement #;of '♞ #;from '((_ ?)
 				     (? ?)
@@ -386,21 +475,7 @@
 					(← →)
 					(↙ ↘)))
 
-(define (append-columns rect . rects)
-  (apply map append rect rects))
-
-(e.g. (append-columns '((a b)
-			(c d)) '((e)
-				 (f))) ===> ((a b e)
-					     (c d f)))
-
-(define (append-rows . rects)
-  (apply append rects))
-
-(e.g. (append-rows '((a b c)) '((d e f))) ===> ((a b c)
-						(d e f)))
-
-(publish 
+(publish
  (define (complements state-description board-width board-height)
    (let ((arrow-positions (subrect-indices state-description
 					   '(((← ↑ → ↓ ↖ ↗ ↘ ↙)))))
@@ -432,7 +507,6 @@
 	     ))))
        (else
 	(error "No match: " arrow-positions (current-source-location))))))
-
  where
  (define (twisted actual-complements transform-there transform-back arrow 
 		  state-description (x y) board-width board-height)
@@ -592,21 +666,7 @@
 			  (- H (rect-height D))))))))
  ) ;D publish complements
 
-(e.g.
- (complements '((a _ → b _ → c)) 6 1)
- same-set?
- '(((a b c))
-   ((a b _ c))
-   ((a b _ _ c))
-   ((a b _ _ _ c))
-   ((a _ b c))
-   ((a _ b _ c))
-   ((a _ b _ _ c))
-   ((a _ _ b c))
-   ((a _ _ b _ c))
-   ((a _ _ _ b c))))
-
-(e.g. ; that uses right-complements
+(e.g.                                   ; that one uses right-complements
  (complements '((♜ _ → □/_)) 6 1)
  same-set?
  '(((♜ □/_))
@@ -615,9 +675,9 @@
    ((♜ _ _ _ □/_))
    ((♜ _ _ _ _ □/_))))
 
-(e.g. ; should work for multi-dimensional cases as well
- (complements '((x _ → y)
-		(z _ … v)) 4 2)
+(e.g.                                   ; should work for multi-dimensional 
+ (complements '((x _ → y)               ; cases as well (but only one arrow
+		(z _ … v)) 4 2)         ; per row/column may appear)
  same-set?
  '(((x y) 
     (z v)) 
@@ -626,7 +686,21 @@
    ((x _ _ y) 
     (z _ _ v)) ))
 
-(e.g. ; that uses top-right-complements
+(e.g.                                   ; it is also possible to use multiple 
+ (complements '((a _ → b _ → c)) 6 1)   ; arrows (but currently not the 
+ same-set?                              ; slanting ones). It is an error, if 
+ '(((a b c))                            ; an arrow appears in the same row 
+   ((a b _ c))                          ; (in case of vertical arrows) or column
+   ((a b _ _ c))                        ; (in case of horizontal arrows) or in 
+   ((a b _ _ _ c))                      ; the row or column that will be 
+   ((a _ b c))                          ; repeated, and the result of calling
+   ((a _ b _ c))                        ; complements with such argument is 
+   ((a _ b _ _ c))                      ; unspecified, and it is possible that
+   ((a _ _ b c))                        ; the function will never return,
+   ((a _ _ b _ c))                      ; having fallen into an infinite loop
+   ((a _ _ _ b c))))
+
+(e.g.                                   ; that one uses top-right-complements
  (complements 
   '((? ? … □/_)
     (⁝ ⁝ ↗  ⁝ )
