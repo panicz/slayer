@@ -41,7 +41,7 @@
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
 
-(define *default-font* (load-font "./art/VeraMono.ttf" 12))
+(define *default-font* (load-font "./art/VeraMono.ttf" 18))
 
 (define-generic update!)
 (define-generic draw)
@@ -63,11 +63,21 @@
   (update!  #:init-value noop #:init-keyword #:update)
   (activate #:init-value noop #:init-keyword #:activate)
   (deactivate #:init-value noop #:init-keyword #:deactivate)
-  (resize #:init-value noop #:init-keyword #:resize)
+  (resize #:init-value noop #:init-keyword #:resize); new-w new-h old-w old-h
   (x #:init-value 0 #:init-keyword #:x)
   (y #:init-value 0 #:init-keyword #:y)
-  (w #:init-value 0 #:init-keyword #:w)
-  (h #:init-value 0 #:init-keyword #:h))
+  (%w #:init-value 0 #:init-keyword #:w)
+  (%h #:init-value 0 #:init-keyword #:h)
+  (w #:allocation #:virtual
+     #:slot-ref (lambda(self)#[self '%w])
+     #:slot-set! (lambda(self w)
+		   (set! #[self '%w] w)
+		   (#[self 'resize] w #[self '%h])))
+  (h #:allocation #:virtual
+     #:slot-ref (lambda(self)#[self '%h])
+     #:slot-set! (lambda(self h)
+		   (set! #[self '%h] h)
+		   (#[self 'resize] #[self '%w] h))))
 
 (define-class <extended-widget> (<widget>)
   (data #:init-thunk make-hash-table))
@@ -94,8 +104,9 @@
   (set! #[ parent 'w ] (max #[ parent 'w ] (+ #[ child 'x ] #[ child 'w ])))
   (set! #[ parent 'h ] (max #[ parent 'h ] (+ #[ child 'y ] #[ child 'h ])))
   (set! #[ child 'parent ] parent))
-
+  
 (define-method (remove-child! (parent <widget>) (child <widget>))
+  ;; tutaj trzeba by było jeszcze zmienić rozmiar widgetu
   (set! #[ child 'parent ] #f)
   (set! #[ parent 'children ] (delete child #[ parent 'children ])))
 
