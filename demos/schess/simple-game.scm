@@ -1,4 +1,4 @@
-(define-module (schess simple-board-gameplay)
+(define-module (schess simple-game)
   ;; this module defines the simplest setup, when all players play
   ;; together on one computer
   #:use-module (extra common)
@@ -8,26 +8,28 @@
   #:use-module (schess rules)
   #:use-module (schess game)
   #:use-module (schess widgets)
-  #:export (<simple-board-gameplay>)
+  #:export (<simple-board-game>)
   #:re-export (start-gameplay make)
   )
 
-(define-class <simple-board-gameplay> (<board-game> <board>)
+
+(define-class <simple-board-game> (<board-game> <board>)
   ;; <simple-board-gameplay> represents the simplest setup, namely
   ;; -- n human players playing a game on one computer.
   (on-pick-checker ;; override
    #:init-value 
    (lambda (checker #;at field #;on board)
-     (and-let* ((position #[field 'position])
-		(figure (apply take-from-rect #[board 'board-state] position))
-		(moves (allowed-moves position board)))
+     (and-let* (((is-a? board <board-game>))
+		(position #[field 'position])
+		(figure (apply take-from-rect #[board 'board-state] position)))
        (match-let (((x y) position))
-	 (for (initial final . _) in moves
+	 (for (initial final . _) in (allowed-moves #;for position #;on board)
 	      (match (displacement #;of figure #;from initial #;to final)
 		((dx dy)
 		 (allow! #[ #[board 'fields] (+ y dy) (+ x dx) ]
 			 `(,initial ,final))))))))
    )
+
   (on-drop-checker ;; override
    #:init-value
    (lambda (checker #;at field #;on board)
@@ -42,7 +44,7 @@
      ))
   )
 
-(define-method (initialize (self <simple-board-gameplay>) args)
+(define-method (initialize (self <simple-board-game>) args)
   (next-method)
   (when #[self 'rules]
     (set! #[self 'images] (load-images #[self : 'rules : 'image-names] 

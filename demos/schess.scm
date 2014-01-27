@@ -2,15 +2,17 @@
 exit
 !#
 (use-modules (slayer) (slayer image) (extra slayer) (extra common) (extra ref)
-	     (widgets base) (schess simple-board-gameplay))
+	     (widgets base) (schess simple-game))
 
 (keydn 'esc quit)
 
 (set! %load-path (append '("." "./guile-modules" ".." "../guile-modules") 
 			 %load-path))
 
+;; (use-modules (oop goops)(extra common)(extra ref))
+
 (publish
- (define *game* (make <simple-board-gameplay> #:rule-book rule-book
+ (define *game* (make <simple-board-game> #:rule-book rule-book
 		      #:field-decorator  
 		      (lambda (x y) 
 			(if (= 0 (modulo (+ x y) 2))
@@ -18,13 +20,16 @@ exit
 			    empty-field*))
 		      #:image-transformer
 		      (lambda (image)
-			(subtract-image image empty-field))))
+			(subtract-image image empty-field))
+		      #:resize
+		      (lambda (w h . _)
+			(set-screen-size! w h))))
  where
  (define rule-book (if (defined? '$1) $1 "chess.ss"))
  (define empty-field (load-image "art/chess/b.png"))
  (define empty-field* (load-image "art/chess/w.png")))
 
-(set-screen-size! #[*game* 'w] #[*game* 'h])
+
 
 (set-window-title! (string-append "SCHESS: "
 				  (symbol->string
