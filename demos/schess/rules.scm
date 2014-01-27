@@ -12,6 +12,12 @@
   (game-name #:init-value "" #:init-keyword #:game-name)
   (initial-state #:init-keyword #:initial-state)
   (allowed-moves #:init-keyword #:allowed-moves)
+  (players
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (hash-keys #[self 'allowed-moves]))
+   #:slot-set! noop)
   (allowed-figures
    #:allocation #:virtual
    #:slot-ref ;; tutaj można by było dorobić cache'owanie
