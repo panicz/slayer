@@ -57,7 +57,7 @@
   #:export (
 	    and-let*
 	    expand-form ?not ?and ?or in?
-	    hash-keys hash-values hash-copy hash-size
+	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
 	    map-n for-each-n equivalence-classes
@@ -84,7 +84,7 @@
 	    nonblocking
 	    with-output-to-utf8
 	    list-directory shell
-	    << die
+	    << die first-available-input-port
 	    real->integer
 	    make-locked-mutex
 	    last-index indexed
@@ -108,6 +108,11 @@
 	     (xdefine-syntax . define-syntax)
 	     (mlambda . lambda))
   )
+
+(set-port-encoding! (current-input-port) "UTF-8")
+(set-port-encoding! (current-output-port) "UTF-8")
+(set-port-encoding! (current-error-port) "UTF-8")
+(fluid-set! %default-port-encoding "UTF-8")
 
 (define* (expand-form e #:key (opts '()))
   (let-values (((exp env) (decompile 
@@ -365,8 +370,9 @@
 		    (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
 	 ...)))))
 
-(e.g. ; this is how the trio 'with-default', 'specific' and 'specify' 
- (let () ; can be used
+
+(e.g.                                   ; this is how the trio 'with-default',
+ (let ()                                ; 'specific' and 'specify' can be used
    (with-default ((x 10)
 		  (y 20))
      (define (f)
@@ -450,6 +456,34 @@
      (map (lambda(n)(match:substring match-struct n))
         (iota (1- count) 1))))
 
+
+;; borrowed from http://community.schemewiki.org/?scheme-faq-language
+ (define (curry f n) 
+   (if (zero? n) 
+       (f) 
+       (lambda args 
+         (curry (lambda rest 
+                  (apply f (append args rest))) 
+                (- n (length args))))))
+
+;; tutaj trzeba dopieścić, bo curry zwraca funkcję od dowolnie
+;; wielu argumentów, a my chcielibyśmy case-lambdę
+(define-syntax curried-lambda
+  (syntax-rules ()
+    ((_ (args ...) body body* ...)
+     (letrec ((f (lambda (args ...) body body* ...)))
+       (curry f (length '(args ...)))))))
+
+;; this procedure `interface-name` is not exported, but it is used internally
+;; by publish and publish-with-fluids macros below. It is used to exctract 
+;; names from definitions, where the definitions can possibly be curried
+(define (interface-name interface)
+  (match interface
+    ((head . tail)
+     (interface-name head))
+    ((? symbol? name)
+     name)))
+
 ;; The `publish' macro is used to provide means to separate public
 ;; definitions from private ones (such that are visible only from within
 ;; the public procedures and from within themselves).
@@ -470,16 +504,6 @@
 ;;     (define a 5)
 ;;     (set! f (let () (define (f x) (+ a x)) f))
 ;;     (set! g (let () (define (g x) (* a y)) g))))
-
-;; this procedure `interface-name` is not exported, but it is used internally
-;; by publish and publish-with-fluids macros below. It is used to exctract 
-;; names from definitions, where the definitions can possibly be curried
-(define (interface-name interface)
-  (match interface
-    ((head . tail)
-     (interface-name head))
-    ((? symbol? name)
-     name)))
 
 (define-syntax-rule (publish definitions ...)
   (publisher (definitions ...) ()))
@@ -533,11 +557,10 @@
 		       name))
 	       ...)))))))
 
-;; publish-with-fluids is like with-fluids, but it allows internal
-;; definitions only, and 
-(define-syntax publish-with-fluids 
-  (lambda (stx)
-    (define (interfaces+names+bodies specs)
+
+(define-syntax publish-with-fluids          ; publish-with-fluids is like
+  (lambda (stx)                             ; with-fluids, but it allows
+    (define (interfaces+names+bodies specs) ; internal definitions only
       (map (lambda (spec)
 	     (syntax-case spec ()
 	       ((interface . body)
@@ -560,7 +583,7 @@
 ;; `letrec-macros' behaves similar to `let-syntax', but it is restricted
 ;; to take `macro' keyword in place of the latter's `syntax-rules' (or its
 ;; equivalents), because unlike syntax-transformers, macros in guile are
-;; no longer first-class objects
+;; no longer first-class objects. this is completely pointless.
 (define-syntax letrec-macros
   (syntax-rules (macro)
     ((_ ((name (macro args definition ...)) ...) body ...)
@@ -579,7 +602,16 @@
       (let ((stderr (current-error-port)))
 	(display message stderr)
 	(newline stderr)))
-  (quit))
+  (exit -1))
+
+(define (first-available-input-port . ports)
+  (let again ((descriptors (select ports '() '())))
+    (match descriptors
+      ((read _ _)
+       (if (null? read)
+	   (again (select ports '() '()))
+       #;else
+	   (list-ref read (random (length read))))))))
 
 (define (real->integer number)
   (let ((lower (floor number)))
@@ -792,6 +824,11 @@
     (for (key . value) in (hash-map->list cons h)
 	 (hash-set! result key value))
     result))
+
+(define (merge-hashes! dest . sources)
+  (for source in sources
+       (for (key => value) in source
+	    (hash-set! dest key value))))
 
 (define* (make-applicable-hash-table #:optional (default #f) . initial-values)
   (let ((hash (make-hash-table)))
