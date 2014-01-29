@@ -17,7 +17,6 @@
 
 (define-class <board-network-server> (<board-game>)
   (gateway #:init-value #f) ;; socket
-  (connections #:init-value '()) ;; sockets
   (protocols #:init-thunk make-hash-table) ;; hashmap from sockets to protocols
   (available-players #:init-value #f) 
   (next-available-player!
@@ -69,7 +68,7 @@
   )
 
 (define-method (broadcast (server <board-network-server>) message)
-  (for client in #[server 'connections]
+  (for client in (hash-keys #[server 'protocols])
        (display message client)))
 
 (define-method (initialize (self <board-network-server>) args)

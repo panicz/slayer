@@ -101,13 +101,15 @@
 	     `(choose-move! #;from ,#[checker : 'origin : 'position]
 				   #;as ,#[field 'move])))
 	   (else
-	    (move! checker #;to #[checker 'origin] #;on board)))))
+	    (move! checker #;to #[checker 'origin] #;on board)))
+     (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
+     (reset! board)
   ;; ponadto chcielibyśmy mieć (być może w osobnym wątku) coś, co
   ;; odbiera sygnały od serwera i w określonych okolicznościach aktualizuje
   ;; planszę
   ;; można by też cyklicznie (np. co 3 sekundy) wysyłać żądanie z prośbą
   ;; o podanie aktualnego stanu, żeby nie stracić animuszu
-  )
+  )))
 
 (define-method (initialize (self <board-network-client>) args)
   (next-method)
