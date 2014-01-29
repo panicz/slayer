@@ -17,6 +17,7 @@
 	    reset!
 	    setup-fields!
 	    synchronize-fields!
+	    board-state
 	    <field> 
 	    allow!
 	    <checker>
@@ -86,6 +87,13 @@
 				 (concatenate (array->list #[self 'fields]))))
 	    #:slot-set! noop))
 
+(define-method (board-state (board <board>))
+  (array->list (array-map (lambda (field)
+			    (or (and-let* ((checker #[field 'content]))
+				  #[checker 'type])
+				'_))
+			  #[board 'fields])))
+
 (define ((pick! checker) . _)
   (and-let* ((field #[checker 'parent])
 	     ((is-a? field <field>))
@@ -119,6 +127,7 @@
 	(lambda (x y dx dy)
 	  (increase! #[self 'x] dx)
 	  (increase! #[self 'y] dy))))
+
 
 (define-method (draw (field <field>))
   (next-method)
