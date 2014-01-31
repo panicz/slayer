@@ -1,5 +1,4 @@
 (define-game-rules ard-ri
-
   (initial-board:
    ((X _ i i i _ X)
     (_ _ _ i _ _ _)
@@ -72,27 +71,37 @@
     (((o i O))
      ;;======
      ((o _ O))
-     (conditions: (= (turn (last-move i)) (- current-turn 1)))
+     (conditions:
+      (exists (x y) in (positions 'O 'o)
+	(eq? (field (board-state #:in-turn -1) x y) '_)))
      (symmetries: all-rotations))
 
     (((O i X/T))
      ;;======
      ((O _ X/T))
+     (conditions:
+      (exists (x y) in (positions 'O)
+	(eq? (field (board-state #:in-turn -1) x y) '_)))
      (symmetries: all-rotations)))
 
    (player-2
     (((i o i))
      ;;======
      ((i _ i))
+     (conditions: 
+      (exists (x y) in (positions 'i)
+	(eq? (field (board-state #:in-turn -1) x y) '_)
+      ))
      (symmetries: all-rotations))
 
     (((i o X))
      ;;======
      ((i _ X))
+     (conditions: 
+      (exists (x y) in (positions 'i)
+	(eq? (field (board-state #:in-turn -1) x y) '_)))
      (symmetries: all-rotations)))
    )
   #;(finish:
-   
-
    )
 ) ;D define-game-rules
