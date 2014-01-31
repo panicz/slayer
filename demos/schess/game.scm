@@ -17,6 +17,8 @@
   (order-of-play #:init-value #f)       ; <- circular list copied from rules
 					;    in constructor
   (history #:init-value '())            ; <- list of all moves
+  (past-states #:init-value '())        ; <- previous states of the board
+  (environment #:init-value #f)         ; <- a module to evaluate conditions
   (turn #:init-value 0)
   (current-player 
    #:allocation #:virtual
@@ -29,13 +31,52 @@
 		(first (rest #[self 'order-of-play])))
    #:slot-set! noop))
 
+(define (schess-execution-module game)
+  (let ((module (make-fresh-user-module)))
+    (module-define! module 'the-game game)
+    (within-module module
+      (use-modules (extra common) (extra ref) (oop goops) (schess elements))
+      (define (board-state #:in-turn #f)
+	(if (not in-turn)
+	    #[the-game 'board-state]
+	    (let* ((past-states #[the-game 'past-states])
+		   (number-of-moves (length past-states)))
+	      (if (< in-turn 0)
+		  (let ((n (- 0 in-turn 1)))
+		    (if (< n number-of-moves)
+			#[past-states n]
+			#[the-game : 'rules : 'initial-state]))
+	      #;else
+		  (if (< in-turn number-of-moves)
+		      #[past-states (- number-of-moves in-turn 1)]
+		      #f)))))
+      (define (current-turn) #[the-game 'turn])
+      (define field take-from-rect))
+    module))
+
+(define-method (satisfied? conditions #;with pattern #;at x y
+			   #;in (game <board-game>))
+  (eval
+   `(let ((positions 
+	   (let ((pattern ',pattern))
+	     (lambda figures
+	       (map (lambda ((x y)) `(,(+ x ,x) ,(+ y ,y)))
+		    (append-map (lambda(figure)
+				  (subrect-indices pattern `((,figure))))
+				figures))))))
+      ,@conditions)
+   #[game 'environment]))
+
 (define-method (initialize (self <board-game>) args)
   (next-method)
   (let-keywords args #t ((rule-book #f))
     (when rule-book
       (set! #[self 'rules] (load-board-game rule-book))
       (set! #[self 'board-state] #[self : 'rules : 'initial-state])
-      (set! #[self 'order-of-play] #[self : 'rules : 'order-of-play]))
+      (set! #[self 'order-of-play] 
+	    (apply circular-list #[self : 'rules : 'order-of-play]))
+      )
+    (set! #[self 'environment] (schess-execution-module #;for self))
     ))
 
 (define-method (gameplay (game <board-game>))
@@ -65,6 +106,10 @@
  (define-method (choose-move #;in (game <board-game>))
    (abort-to-prompt schess-prompt-tag))
  (define (select-move! #;from origin #;as move #;in game)
+   (set! #[game 'history] (cons `((origin . ,origin)
+				  (player . ,#[game 'current-player])
+				  (move . ,move))
+				#[game 'history]))
    (yield origin)
    (yield move))
  where
@@ -107,6 +152,7 @@
   (quit))
 
 (define (substitute wildcards #;from subrect #;within rect #;in state)
+  ;;(format #t "(substitute ~a ~a ~a ~a)\n" wildcards subrect rect state)
   (let ((substitutions (filter-map 
 			(lambda (state pattern)
 			  (and (in? pattern 
@@ -137,32 +183,31 @@
 
 (define-method (apply-move! move #;from origin
 			    #;to (game <board-game>) #;in-turn n)
-  (let*-values (((new-state x&y) (apply-move move #;from origin #;to game))
-		((x y) (apply values x&y)))
-    (let* ((old #[game 'board-state])
-	   (new (replace-subrect #[game 'board-state] 
-				 #;with new-state #;at x y)))
-      (set! #[game 'board-state] 
-	    (replace-subrect #[game 'board-state] #;with new-state #;at x y))
-      (apply-after-move-rules! game #;in-turn n))))
+  (let*-values (((new-substate x&y) (apply-move move #;from origin #;to game))
+		((x y) (apply values x&y))
+		((old) #[game 'board-state])
+		((new) (replace-subrect old #;with new-substate #;at x y)))
+    (set! #[game 'past-states] (cons old #[game 'past-states]))
+    (set! #[game 'board-state] new)
+    (apply-after-move-rules! game #;in-turn n)))
 
 (define-method (apply-after-move-rules! (game <board-game>) #;in-turn n)
   (and-let* ((rules #[game : 'rules : 'post-move : #[game 'current-player]])
 	     (fields #[game 'board-state]))
     (specify ((fit? (fit-wildcards #[game : 'rules : 'wildcards])))
-      (for (initial-state final-state) in rules
+      (for (initial-state final-state . conditions) in rules
 	   (match-let (((w h) (rect-size initial-state)))
 	     (for (x y) in (subrect-indices fields initial-state)
-		  #;(<< "post applying "`(,initial-state ,final-state)
-		      " at "`(,x ,y)" in turn "n)
-		  (let* ((current-substate (take-subrect fields x y w h))
-			 (final-state* (substitute 
-					#[game : 'rules : 'wildcards]
-					#;from initial-state
-					       #;within current-substate
-							#;in final-state)))
-		    (set! #[game 'board-state]
-			  (replace-subrect #[game 'board-state]
-					   #;with final-state*
-						  #;at x y)))))))))
-
+		  (if (satisfied? conditions #;with initial-state #;at x y
+				  #;in game)
+		      (let* ((current-substate (take-subrect fields x y w h))
+			     (final-state* (substitute 
+					    #[game : 'rules : 'wildcards]
+					    #;from initial-state
+						   #;within current-substate
+							    #;in final-state)))
+			(set! #[game 'board-state]
+			      (replace-subrect #[game 'board-state]
+					       #;with final-state*
+						      #;at x y))))))))
+    (set! #[game 'past-states] (cons fields #[game 'past-states]))))

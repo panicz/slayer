@@ -74,7 +74,7 @@
 (define-method (initialize (self <board-network-server>) args)
   (next-method)
   (set! #[self 'available-players]
-	#[self : 'rules : 'players])
+	#[self : 'rules : 'order-of-play])
   (let-keywords args #t ((address INADDR_ANY)
 			 (port 7777))
     (let ((gateway (socket PF_INET SOCK_STREAM 0)))

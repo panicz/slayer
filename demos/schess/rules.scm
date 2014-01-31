@@ -58,7 +58,7 @@
 		 #:initial-state initial-board
 		 #:image-names image-names
 		 #:allowed-moves allowed-moves
-		 #:order-of-play (apply circular-list order-of-play)
+		 #:order-of-play order-of-play
 		 #:post-move (extract-after-move-rules
 			      after-move-rules width height)
 		 #:final-condition (if (list? final-condition)
@@ -118,12 +118,13 @@
 		  (new-moves #[]))
 	      (for (figure => move-description) in moves
 		   (set! #[new-moves (opposite figure)]
-			 (map (lambda ((initial-state final-state))
-				(map (lambda (state-description)
-				       ((apply compose transformations) 
-					(tree-map opposite
-						  state-description)))
-				     `(,initial-state ,final-state)))
+			 (map (lambda ((initial-state final-state . extra))
+				`(,@(map (lambda (state-description)
+					   ((apply compose transformations)
+					    (tree-map opposite
+						      state-description)))
+				     `(,initial-state ,final-state))
+				  . ,extra))
 			      move-description)))
 	      (set! #[player-moves player] new-moves)))
 	   (((figures . moves) ...)
@@ -144,16 +145,18 @@
      (let ((symmetries (or #[extra 'symmetries:]
 			   '(identity)))
 	   (conditions (or #[extra 'conditions:]
-			   'none))) ;; na razie pana nie obsługujemy
-       (unique (zip 
-		(append-map (employ symmetries)
-			    (complements initial-state
-					 board-width
-					 board-height))
-		(append-map (employ symmetries)
-			    (complements final-state
-					 board-width
-					 board-height))))))
+			   '(#t))))
+       (map (lambda ((initial final))
+	      `(,initial ,final . ,conditions))
+	    (unique (zip 
+		     (append-map (employ symmetries)
+				 (complements initial-state
+					      board-width
+					      board-height))
+		     (append-map (employ symmetries)
+				 (complements final-state
+					      board-width
+					      board-height)))))))
    definitions))
 
 (define ((employ symmetries) state-description)
