@@ -75,10 +75,16 @@
 (e.g. (rect-size '((a b c)
 		   (d e f))) ===> (3 2))
 
-(define (rect-map f rect)
-  (map (lambda (row)
-	 (map f row))
-       rect))
+(define (rect-map f . rects)
+  (apply map (lambda rows
+	       (apply map f rows))
+	 rects))
+
+(e.g.
+ (rect-map + '((1 2 3)
+	       (4 5 6)) '((6 5 4)
+			  (3 2 1))) ===> ((7 7 7)
+					  (7 7 7)))
 
 (define (take-subrect rect x y w h)
   (upper-left-corner
@@ -149,16 +155,13 @@
 	       (RIGHT (drop-columns MID (+ x w)))
 	       (BOT (drop-rows original (+ y h))))
     (append-rows 
-     TOP 
-     (append-columns 
-      LEFT 
-      (map (lambda (old new)
-	     (map (lambda (old new)
-		    (if (equal? new '?) old new))
-		  old
-		  new))
-	   ORIG 
-	   replacement)
+     TOP
+     (append-columns
+      LEFT
+      (rect-map (lambda (old new)
+		  (if (eq? new '?) old new))
+		ORIG
+		replacement)
       RIGHT)
      BOT)))
 
@@ -729,14 +732,14 @@
 	     (moves #[allowed-moves figure]))
     (unique
      (filter-map
-      (lambda ((initial-state final-state))
+      (lambda ((initial-state final-state . extra))
 	(match (subrect-indices initial-state `((,figure)))
 	  (((dx dy))
 	   (and 
 	    (not (null? (filter 
 			 (equals? `(,(- x dx) ,(- y dy)))
 			 (subrect-indices board/rect initial-state))))
-	    `(,initial-state ,final-state)))))
+	    `(,initial-state ,final-state . ,extra)))))
       moves))))
 
 (e.g.
