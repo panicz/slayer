@@ -67,7 +67,9 @@
 		   (while #t
 		     (let ((message (read #[self 'server])))
 		       (format #t "received ~a\n"message)
-		       (generate-userevent! code message))))))))))
+		       (if (eof-object? message)
+			   (break)
+			   (generate-userevent! code message)))))))))))
 
 (define-class <board-network-client> (<board> <network-client>)
   ;; tutaj zdarzenie on-pick-checker powinno być obsłużone w taki sposób,
