@@ -55,7 +55,7 @@
 	       pretty-print format
 	       )
   #:export (
-	    and-let*
+	    and-let* unknot
 	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
@@ -95,6 +95,7 @@
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation:
 		   define-curried-syntax publish define-accessors
+		   with-literal within-module
 		   publish-with-fluids
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
@@ -207,6 +208,20 @@
      (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
     ((rec NAME EXPRESSION)
      (letrec ( (NAME EXPRESSION) ) NAME))))
+
+(define-syntax with-literal
+  (syntax-rules ()
+    ((_ stx (identifier ...)
+	body . *)
+     (with-syntax ((identifier (datum->syntax stx 'identifier)) ...)
+       body . *))))
+
+(define-syntax within-module
+  (syntax-rules ()
+    ((_ module action ...)
+     (begin
+       (eval 'action module)
+       ...))))
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
@@ -591,6 +606,18 @@
        (define-macro (name . args) definition ...)
        ...
        body ...))))
+
+(define (unknot circular-list)
+  (let loop ((rewrite '()) (pending circular-list) (seen `(,circular-list ())))
+    (match pending
+      ((first . rest)
+       (if (memq rest seen)
+	   (reverse (cons first rewrite))
+	   (loop (cons first rewrite) rest (cons rest seen)))))))
+
+(e.g.
+ (unknot (cons 0 (circular-list 1 2 3)))
+ ===> (0 1 2 3))
 
 (define (make-locked-mutex)
   (let ((m (make-mutex)))
