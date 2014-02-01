@@ -153,8 +153,15 @@ init(arg_t *arg) {
   video_init(arg->w, arg->h, arg->video_mode);
 
   input_init();
+  timer_init();
 
   scm_c_use_module("slayer");
+
+#ifdef USE_OPENGL
+  if(arg->video_mode & SDL_OPENGL) {
+    scm_c_use_module("slayer 3d");
+  }
+#endif
 
 #ifdef USE_SDL_MIXER
   if(arg->sound) {
@@ -162,7 +169,7 @@ init(arg_t *arg) {
     scm_c_use_module("slayer audio");
   }
 #endif
-
+  
   // these calls should be moved to separate libraries
   image_init();
   scm_c_use_module("slayer image");

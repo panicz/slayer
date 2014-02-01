@@ -390,9 +390,14 @@ miliseconds, and install @var{proc} as a handler for the newly-created event.
 Returns the id of this new event.
 @end deffn
 
+@deffn {Procedure} set-timer-period! timer-id ms
+Change the period of timer @var{timer-id} to @var{ms} miliseconds. Returns
+the new period on success or @code{#f} on failure.
+@end deffn
+
 @deffn {Procedure} remove-timer! id
 Remove a timer with the id @var{id} obtained by prior call to @code{add-timer!}.
-Returns @code{#t} on success and @code{#f} on failute.
+Returns @code{#t} on success and @code{#f} on failure.
 @end deffn
 
 @node Key names

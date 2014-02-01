@@ -3,8 +3,6 @@
 #include "symbols.h"
 #include "video.h"
 #include <SDL/SDL.h>
-#include <SDL/SDL_timer.h>
-
 #define SDL_NBUTTONS 12
 
 enum input_modes {
@@ -161,8 +159,8 @@ mousereleased_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static SCM
-register_userevent_x(SCM handler) {
+SCM
+register_userevent(SCM handler) {
   userevent_handlers = realloc(userevent_handlers, next_userevent+1);
   assert(userevent_handlers);
   userevent_handlers[next_userevent] = handler;
@@ -170,8 +168,8 @@ register_userevent_x(SCM handler) {
   return scm_from_int(next_userevent++);
 }
 
-static SCM
-generate_userevent_x(SCM code, SCM data1, SCM data2) {
+SCM
+generate_userevent(SCM code, SCM data1, SCM data2) {
   SDL_Event event;
 
   event.type = SDL_USEREVENT;
@@ -183,75 +181,6 @@ generate_userevent_x(SCM code, SCM data1, SCM data2) {
   return SCM_UNSPECIFIED;
 }
 
-typedef struct timer_data_t {
-  SDL_Event event;
-  Uint32 interval;
-  SDL_TimerID id;
-  //SCM before_event_proc;
-  //SCM after_event_proc;
-} timer_data_t;
-
-static struct list *timers = NULL;
-
-static Uint32
-run_timer(Uint32 interval, timer_data_t *data) {
-  //if(data->before_event_proc) {
-  //  scm_call_0(data->before_event_proc);
-  //}
-  SDL_PeepEvents(&data->event, 1, SDL_ADDEVENT, 0xffffffff);
-  //if(data->after_event_proc) {
-  //  scm_call_0(data->after_event_proc);
-  //}
-  return data->interval;
-}
-
-static SCM
-add_timer_x(SCM interval, SCM handler) {//, SCM before_event, SCM after_event) {
-  timer_data_t *data = malloc(sizeof(timer_data_t));
-  data->event.type = SDL_USEREVENT;
-  data->event.user.code = scm_to_int(register_userevent_x(handler));
-  data->event.user.data1 = data->event.user.data2 = NULL;
-  //data->before_event_proc = is_scm_procedure(before_event) 
-  //  ? gc_protected(before_event) : NULL;
-  //data->after_event_proc = is_scm_procedure(after_event) 
-  //  ? gc_protected(after_event) : NULL;
-  data->interval = scm_to_int(interval);
-  data->id = SDL_AddTimer(data->interval, 
-			  (SDL_NewTimerCallback) run_timer, 
-			  (void *) data);
-  timers = cons((void *) data, timers);
-  return scm_from_int(data->event.user.code);
-}
-
-static SCM
-remove_timer_x(SCM timer) {
-  WARN("the procedure should unregister the userevent handler, which is "
-       "currently not supported");
-  int code = scm_to_int(timer);
-  struct list *p, *prev = NULL;
-  for(p = timers; p; prev = p, p = p->next) {
-    timer_data_t *data = (timer_data_t *) p->data;
-    if(data->event.user.code == code) {
-      if(prev) {
-	prev->next = p->next;
-      }
-      else {
-	timers = p->next;
-      }
-      SDL_bool timer_removed = SDL_RemoveTimer(data->id);
-      //if(data->before_event_proc) {
-      //  scm_gc_unprotect_object(data->before_event_proc);
-      //}
-      //if(data->after_event_proc) {
-      //  scm_gc_unprotect_object(data->after_event_proc);
-      //}
-      free(data);
-      free(p);
-      return timer_removed ? SCM_BOOL_T : SCM_BOOL_F;      
-    }
-  }
-  return SCM_BOOL_F;
-}
 
 static SCM 
 userevent_handler(SDL_Event *e) {
@@ -274,10 +203,6 @@ quit_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
-static SCM 
-get_ticks() {
-  return scm_from_uint32(SDL_GetTicks());
-}
 
 #include "scancode.c" // contains the definition of scancode table
 //struct scancode {
@@ -456,11 +381,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-direct-input-mode!", 0, 0, 0, set_direct_input_mode_x);
   EXPORT_PROCEDURE("key-bindings", 1, 0, 0, key_bindings);
   EXPORT_PROCEDURE("mousemove-binding", 0, 0, 0, mousemove_binding);
-  EXPORT_PROCEDURE("get-ticks", 0, 0, 0, get_ticks);
-  EXPORT_PROCEDURE("generate-userevent!", 0, 3, 0, generate_userevent_x);
-  EXPORT_PROCEDURE("register-userevent!", 1, 0, 0, register_userevent_x);
-  EXPORT_PROCEDURE("add-timer!", 2, 2, 0, add_timer_x);
-  EXPORT_PROCEDURE("remove-timer!", 1, 0, 0, remove_timer_x);
+  EXPORT_PROCEDURE("generate-userevent!", 0, 3, 0, generate_userevent);
+  EXPORT_PROCEDURE("register-userevent!", 1, 0, 0, register_userevent);
   EXPORT_PROCEDURE("set-resize-procedure!", 1, 0, 0, set_resize_procedure_x);
   EXPORT_PROCEDURE("set-typing-special-procedure!", 1, 0, 0, 
 		   set_typing_special_procedure_x);
@@ -504,8 +426,6 @@ input_init() {
   scm_c_define_module("slayer", export_symbols, NULL);
 
   set_direct_input_mode_x();
-  
-  TRY_SDL(SDL_InitSubSystem(SDL_INIT_TIMER));
 }
 
 void (*handle_events)(SDL_Event *e);

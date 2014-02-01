@@ -33,6 +33,11 @@ DECLARE void audio_finish();
 // INPUT
 DECLARE void input_init();
 DECLARE SCM input_handle_events();
+DECLARE SCM register_userevent(SCM handler);
+DECLARE SCM generate_userevent(SCM code, SCM data1, SCM data2);
+
+// TIMER
+DECLARE void timer_init();
 
 // FILE
 DECLARE int file_exists(const char *filename);
