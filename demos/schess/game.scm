@@ -50,22 +50,12 @@
 		  (if (< in-turn number-of-moves)
 		      #[past-states (- number-of-moves in-turn 1)]
 		      #f)))))
+      (define (fits-somewhere? pattern board-state)
+	(not (null? (subrect-indices board-state pattern))))
       (define (current-turn) #[the-game 'turn])
+      (define (current-player) #[the-game 'current-player])
       (define field take-from-rect))
     module))
-
-(define-method (satisfied? conditions #;with pattern #;at x y
-			   #;in (game <board-game>))
-  (eval
-   `(let ((positions 
-	   (let ((pattern ',pattern))
-	     (lambda figures
-	       (map (lambda ((x y)) `(,(+ x ,x) ,(+ y ,y)))
-		    (append-map (lambda(figure)
-				  (subrect-indices pattern `((,figure))))
-				figures))))))
-      ,@conditions)
-   #[game 'environment]))
 
 (define-method (initialize (self <board-game>) args)
   (next-method)
@@ -135,14 +125,24 @@
 			       #;using allowed-moves)
 	  '()))))
 
-(define-method (final? game)
-  (let ((state #[game 'board-state])
-	(condition #[game : 'rules : 'final-condition]))
-    (eval `(let ((current-turn ,#[game 'turn])
-		 (current-player ',#[game 'current-player])
-		 (next-player ',#[game 'next-player]))
-	     ,condition)
-	  (current-module))))
+(define-method (final? (game <board-game>))
+  (eval
+   #[game : 'rules : 'final-condition]
+   #[game 'environment]))
+   
+
+(define-method (satisfied? conditions #;with pattern #;at x y
+			   #;in (game <board-game>))
+  (eval
+   `(let ((positions 
+	   (let ((pattern ',pattern))
+	     (lambda figures
+	       (map (lambda ((x y)) `(,(+ x ,x) ,(+ y ,y)))
+		    (append-map (lambda(figure)
+				  (subrect-indices pattern `((,figure))))
+				figures))))))
+      ,@conditions)
+   #[game 'environment]))
 
 (define (wins! player round)
   #;(window #:name 'winner-announcement

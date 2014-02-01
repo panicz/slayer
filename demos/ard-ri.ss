@@ -90,8 +90,7 @@
      ((i _ i))
      (conditions: 
       (exists (x y) in (positions 'i)
-	(eq? (field (board-state #:in-turn -1) x y) '_)
-      ))
+	(eq? (field (board-state #:in-turn -1) x y) '_)))
      (symmetries: all-rotations))
 
     (((i o X))
@@ -100,8 +99,16 @@
      (conditions: 
       (exists (x y) in (positions 'i)
 	(eq? (field (board-state #:in-turn -1) x y) '_)))
-     (symmetries: all-rotations)))
-   )
-  #;(finish:
-   )
+     (symmetries: all-rotations))))
+
+  (finish:
+   (case (current-player)
+     ((player-1) 
+      (exists pattern in (all-rotations '((Q ? ? ? ? ? X)))
+	(fits-somewhere? pattern (board-state))))
+     ((player-2)
+      (fits-somewhere? '((? i ?)
+			 (i Q i)
+			 (? i ?)) (board-state)))))
 ) ;D define-game-rules
+
