@@ -153,15 +153,21 @@ init(arg_t *arg) {
   video_init(arg->w, arg->h, arg->video_mode);
 
   input_init();
+
+  scm_c_use_module("slayer");
+
 #ifdef USE_SDL_MIXER
   if(arg->sound) {
     audio_init();
-  } 
+    scm_c_use_module("slayer audio");
+  }
 #endif
 
   // these calls should be moved to separate libraries
   image_init();
+  scm_c_use_module("slayer image");
   font_init();
+  scm_c_use_module("slayer font");
 
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
@@ -518,6 +524,9 @@ main(int argc, char *argv[]) {
 
   OUT("infile = %s, outfile = %s, w = %d, h = %d", arg.infile, arg.outfile, 
       arg.w, arg.h);
+
+  //check this out:
+  //GC_allow_register_threads();
 
   scm_with_guile((void *(*)(void *))&io, &arg);
 
