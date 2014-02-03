@@ -1,4 +1,5 @@
-Authors of SLAYER
-=================
+The SLAYER framework and the most of the demos, including schess, pong and ode,
+were written by Maciek Godek <godek.maciek@gmail.com>.
 
-Maciek Godek			<godek.maciek@gmail.com>
+The Functional Snake Demo (demos/snake.scm) was written by Jens Nicolay 
+and adjusted by Maciek Godek to work with SLAYER.
