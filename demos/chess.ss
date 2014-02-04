@@ -50,15 +50,23 @@
       ;;====
       ((_ ?)
        (? ♟))
-      (symmetries: horizontal))
+      (symmetries: vertical))
 
      (((? ? ? ? ♟ _ ? ?)  ;; bicie w przelocie
        (? ? ? ? ♙ _ _ ?))
       ;;================
       ((? ? ? ? _ _ ? ?)
        (? ? ? ? _ ♟ _ ?))
-      (symmetries: horizontal)
-      (conditions: #;"ruch ♙ o dwa pola musiał mieć miejsce w poprzedniej turze")))
+      (symmetries: vertical)
+#|
+      (conditions: 
+       (let ((previous-move (last #;in history)))
+	 (and (equal? (actor previous-move) ♙)
+	      (matches (initial-state previous-move)
+		       ((? ? ? ? _ _ ♙ ?)))))
+       )
+|#
+      ))
     
     (♜ ;; WIEŻA
      (((♜ _ → □/_)) ;; poruszanie się i bicie
@@ -130,10 +138,9 @@
        (♚)
        (♜)
        (_))
-      (conditions: #;"król ani wieża nie mogły być ruszane"
-       ;; albo: nie istnieje
-
-       ))
+      (conditions: 
+       (and (not (last-move ♜)) (not (last-move ♚))))
+      )
      
      (((♚)
        (_)
@@ -144,26 +151,50 @@
        (♜)
        (♚)
        (_))
-      (conditions: #;"król ani wieża nie mogły być ruszane")))
+      (conditions: 
+       (and (not (last-move ♜)) (not (last-move ♚))))
+      ))
     );D player-1 
    (player-2 (transform player-1
 			(opposites:
 			 (♟ ♙) (♜ ♖) (♞ ♘) (♝ ♗) (♛ ♕) (♚ ♔) (■ □)
 			 (■/_ □/_) (_/■ _/□))
 			(transformations:
-			 flip-vertically)))
+			 flip-horizontally)))
    ) ;D moves
   (order-of-play: player-1 player-2)
- 
-  (finish: 
+  
+  #;(finish:
+   (let ((opponents-king (if (equal? current-player 'player-1) '♔ '♚)))
+     ;; jak to zgrabnie "ująć intelektualnie"?
+     ;; w celach wyjaśnienia trzeba sobie co nieco podefiniować:
+     ;; - abstrakcyjny ruch składa się z informacji o:
+     ;;   * stane początkowym
+     ;;   * stanie końcowym
+     ;;   * tym, która figura wykonuje ruch
+     ;;   * tym, ile wyniesie przesunięcie (x,y) figury po ruchu (nadmiarowo!)
+     ;; - konkretny ruch = abstrakcyjny ruch + pozycja na planszy
+     ;; 
+     ;; jaka myśl stoi za poniższym kodem:
+     ;; 
+     
+     (for-every (figure => move) in (moves #;of next-player)
+       (for-every (x y) in (dimensions #;of board)
+	 (let ((moves (possible-moves #;at `(,x ,y) #;on board)))
+	   
+	   ...)
+	 ))))
+
+  #;(finish: 
    ;; dla każdego ruchu przeciwnika istnieje taki ruch aktualnego
    ;; gracza, który bije króla przeciwnika
    ;; moglibyśmy chcieć zakodować regułę finalizującą następująco:
-   (let ((opponent's-king (if (equal? current-player 'player-1) ♔ ♚)))
+   (let ((opponent's-king (if (equal? current-player 'player-1) '♔ '♚)))
      (for-all x in (moves #;of next-player)
 	      (let ((next-state (apply-move x #;to current-state)))
 		(exists y in (moves #;of current-player)
 			(let ((last-state (apply-move y #;to next-state)))
-			  (not (in-rect? last-state `((opponent's-king)))))))))
+			  (not (in-rect? last-state `((,opponents-king)))))))))
    )
   ) ;D define-game-rules
+
