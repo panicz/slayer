@@ -1,9 +1,9 @@
 (define-module (extra shape)
-  #:use-module (ice-9 pretty-print)
   #:use-module (extra ref)
   #:use-module (extra common)
   #:use-module (extra math)
-  #:use-module (extra oop)
+  #:use-module (oop goops)
+  #:use-module (slayer)
   #:duplicates (merge-generics replace warn-override-core warn last)
   #:export 
   (<basic-shape>
@@ -28,11 +28,11 @@
 
 (define-class <basic-shape> ())
 
-(define-method (display (shape <basic-shape>) port)
-  (display (list (class-name (class-of shape))) port))
+;; (define-method (display (shape <basic-shape>) port)
+;;   (display (list (class-name (class-of shape))) port))
 
-(define-method (write (shape <basic-shape>) port)
-  (write (list (class-name (class-of shape))) port))
+;; (define-method (write (shape <basic-shape>) port)
+;;   (write (list (class-name (class-of shape))) port))
 
 (define-generic translated)
 
@@ -195,14 +195,14 @@
 ;(distance: <shape> <shape> -> <real>)
 (define-generic distance)
 
-(define-method (distance a b)
-  (pretty-print 
-   (zip (class-slot-names (class-of distance)) (slot-values distance)))
-  (<< "a: " (map class-name (class-ancestors (class-of a))))
-  (<< "b: " (map class-name (class-ancestors (class-of b))))
-  (<<"distance between "(class-name (class-of a))
-     " and "(class-name (class-of b))" not implemented")
-  +inf.0)
+;; (define-method (distance a b)
+  ;; (pretty-print 
+  ;;  (zip (class-slot-names (class-of distance)) (slot-values distance)))
+  ;; (<< "a: " (map class-name (class-ancestors (class-of a))))
+  ;; (<< "b: " (map class-name (class-ancestors (class-of b))))
+  ;; (<<"distance between "(class-name (class-of a))
+  ;;    " and "(class-name (class-of b))" not implemented")
+;;  +inf.0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;      1        2        3        4        5        6 
