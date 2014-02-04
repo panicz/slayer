@@ -71,7 +71,7 @@ unsigned int now() {
 
 #define TODO(arg, ...)
 
-#define NOTE(msg, ...) WARN_ONCE(msg, ## __VA_ARGS__ )
+#define NOTE(msg, ...) WARN_ONCE("NOTE: " msg, ## __VA_ARGS__ )
 
 #ifdef __cplusplus
 #define WARN_UPTO(n, msg, ...)						\
