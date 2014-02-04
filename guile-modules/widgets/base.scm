@@ -27,21 +27,15 @@
 	    *input-widget*
 	    *active-widget*
 	    *nearby-widget*
-	    select-widget-at
-	    unselect-widget-at
-	    right-click-widget-at
-	    drag-over-widget
 
 	    *default-font*
 	    ))
-
-(use-modules (oop goops) (extra ref) (extra common))
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
 (define *stderr* (current-error-port))
 
-(define *default-font* (load-font "./art/VeraMono.ttf" 18))
+(define *default-font* (load-font "./art/VeraMono.ttf" 10))
 
 (define-generic update!)
 (define-generic draw)
@@ -55,8 +49,10 @@
 	    #:slot-set! noop)
   (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
   (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
+  (left-click #:init-value noop #:init-keyword #:left-click)
   (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
   (right-mouse-up #:init-value noop #:init-keyword #:right-mouse-up)
+  (right-click #:init-value noop #:init-keyword #:right-click)
   (mouse-over #:init-value noop #:init-keyword #:mouse-over)
   (mouse-out #:init-value noop #:init-keyword #:mouse-out)
   (drag #:init-value noop #:init-keyword #:drag)
@@ -139,7 +135,10 @@
 			 (set! #[*stage* 'w] w)
 			 (set! #[*stage* 'h] h)))
 
-(define (select-widget-at x y)
+
+(define left-click-position #f)
+
+(define (left-mouse-down x y)
   (set! *nearby-widget* #f)
   (and-let* ((w (widget-nested-find 
 		 (lambda(w)
@@ -147,15 +146,19 @@
 			     (absolute-area w)))
 		 *stage*)))
     (set! *active-widget* w))
-  (if *active-widget* (#[*active-widget* 'left-mouse-down ] x y))
-  (drag-over-widget x y 0 0))
+  (when *active-widget*
+    (#[*active-widget* 'left-mouse-down ] x y))
+  (drag-over x y 0 0)
+  (set! left-click-position `(,x ,y)))
 
-(define (unselect-widget-at x y)
-  (if *active-widget* 
-      (#[*active-widget* 'left-mouse-up] x y))
+(define (left-mouse-up x y)
+  (when *active-widget* 
+    (#[*active-widget* 'left-mouse-up] x y)
+    (if (equal? left-click-position `(,x ,y))
+	(#[*active-widget* 'left-click] x y)))
   (set! *active-widget* *stage*))
 
-(define (right-click-widget-at x y)
+(define (right-mouse-down x y)
   (and-let* ((w (widget-nested-find 
 		 (lambda(w)
 		   (in-area? (list x y)
@@ -163,7 +166,7 @@
 		 *stage*)))
     (#[ w 'right-mouse-down ] x y)))
 
-(define (drag-over-widget x y xrel yrel)
+(define (drag-over x y xrel yrel)
   (let ((mouseover-widget 
 	 (widget-nested-find 
 	  (lambda (w) 
@@ -176,9 +179,10 @@
 	  (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
       (set! *nearby-widget* mouseover-widget)
       (#[ *nearby-widget* 'mouse-over ] x y xrel yrel))
-    (#[ *active-widget* 'drag ] x y xrel yrel)))
+    (#[ *active-widget* 'drag ] x y xrel yrel)
+    (set! left-click-position #f)))
 
-(keydn 'mouse-left select-widget-at)
-(keyup 'mouse-left unselect-widget-at)
-(keydn 'mouse-right right-click-widget-at)
-(mousemove drag-over-widget)
+(keydn 'mouse-left left-mouse-down)
+(keyup 'mouse-left left-mouse-up)
+(keydn 'mouse-right right-mouse-down)
+(mousemove drag-over)
