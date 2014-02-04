@@ -784,6 +784,13 @@ how quaternions can be used to represent rotations in the 3d space, see e.g.
 @uref{http://www.genesis3d.com/~kdtop/Quaternions-UsingToRepresentRotation.htm}}.
 @end deffn
 
+@deffn {Procedure} scale-view! x [y] [z]
+Scale current view by given factor. If only @var{x} is given, the view is scaled
+uniformly along all the axes. If @var{x} and @var{y} are given, @var{z} defaults
+to @code{1.0}. Otherwise each direction is scaled according @var{x}, @var{y} and
+@var{z} parameters.
+@end deffn
+
 @deffn {Procedure} set-viewport! x y w h
 Set left upper corner of viewport to (@var{x}, @var{y}) and its dimensions to
 (@var{w}, @var{h}). Note that this differs from OpenGL's viewport, because
