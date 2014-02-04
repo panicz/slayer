@@ -772,22 +772,28 @@
 (define-syntax-rule (export-types symbol ...)
   `((symbol ,symbol) ...))
 
-(define-syntax transform!
+(define-syntax-rule (transform! fx x args ...)
+  (set! x (fx x args ...)))
+
+(define-syntax increase!
   (syntax-rules ()
-    ((_ fx x args ...)
-     (set! x (fx x args ...)))))
+    ((_ variable value)
+     (transform! + variable value))
+    ((_ variable)
+     (increase! variable 1))))
 
-(define-macro (increase! x . args)
-  `(transform! + ,x ,@args))
+(define-syntax decrease!
+  (syntax-rules ()
+    ((_ variable value)
+     (transform! - variable value))
+    ((_ variable)
+     (decrease! variable 1))))
 
-(define-macro (decrease! x . args)
-  `(transform! - ,x ,@args))
+(define-syntax-rule (multiply! variable value)
+  (transform! * variable value))
 
-(define-macro (multiply! x . args)
-  `(transform! * ,x ,@args))
-
-(define-macro (push! l e) 
-  `(set! ,l (cons ,e ,l)))
+(define-syntax-rule (push! l e) 
+  (set! l (cons e l)))
 
 (define-syntax-rule (pop! l)
   (let ((result (car l)))
