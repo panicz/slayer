@@ -8,6 +8,8 @@ extern SCM s_u8;
 extern SCM s_u16;
 extern SCM s_u32;
 extern SCM s_u64;
+extern SCM s_f32;
+extern SCM s_f64;
 
 extern SCM s_quit;
 extern SCM s_typing;

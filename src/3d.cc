@@ -4,9 +4,11 @@
 #include "video.h"
 #include <limits.h>
 #include "vmx.hh"
+#include "symbols.h"
 
 #if !HAVE_GL_WINDOW_POS2I
-// code borrowed from https://code.google.com/p/lasermission/source/browse/trunk/source/Emulation/glWindowPos.cpp
+// code borrowed from 
+// https://code.google.com/p/lasermission/source/browse/trunk/source/Emulation/glWindowPos.cpp
 // (modified)
 // courtesy of Mike MacFerrin
 void 
@@ -28,9 +30,6 @@ glWindowPos2i(int x, int y)
 }
 #endif // !HAVE_GL_WINDOW_POS2I
 
-
-static SCM s_f32;
-static SCM s_f64;
 
 #define DEF_SCM_TOFROM_V(n,t,ype,sym)					\
   static inline v##n##t							\
@@ -202,6 +201,21 @@ rotate_view_x(SCM quaternion) {
 }
 
 static SCM
+scale_view_x(SCM X, SCM Y, SCM Z) {
+  float x, y, z;
+  if (!GIVEN(Y)) {
+    x = y = z = (float) scm_to_double(X);
+  }
+  else {
+    x = (float) scm_to_double(X);
+    y = (float) scm_to_double(Y);
+    z = GIVEN(Z) ? (float) scm_to_double(Z) : 1.0;
+  }
+  glScalef(x, y, z);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
 set_viewport_x(SCM X, SCM Y, SCM W, SCM H) {
   GLsizei w = scm_to_int(W);
   GLsizei h = scm_to_int(H);
@@ -227,13 +241,52 @@ current_viewport() {
 static inline double 
 _z_index(int x, int y) {
   float z;
-  glReadPixels(x, y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, (GLvoid *) &z);
+  glReadPixels(x, screen->h - y - 1, 1, 1, 
+	       GL_DEPTH_COMPONENT, 
+	       GL_FLOAT, 
+	       (GLvoid *) &z);
   return (double) z;
 }
 
 static SCM
 z_index(SCM X, SCM Y) {
   return scm_from_double(_z_index(scm_to_int(X), scm_to_int(Y)));
+}
+
+static inline unsigned int
+_display_index(int x, int y) {
+  GLuint di;
+  glReadPixels(x, screen->h - y - 1, 1, 1,
+	       GL_STENCIL_INDEX,
+	       GL_UNSIGNED_INT,
+	       (GLvoid *) &di);
+  return di;
+}
+
+static SCM
+display_index(SCM X, SCM Y) {
+  unsigned int index = _display_index(scm_to_uint(X), scm_to_uint(Y));
+  return index ? scm_from_uint(index - 1) : SCM_BOOL_F;
+}
+
+static SCM
+set_display_index_x(SCM index) {
+  if(isnt(index)) {
+    glStencilFunc(GL_ALWAYS, 0, 0xff);
+    return SCM_UNSPECIFIED;
+  }
+  unsigned char i = 1 + scm_to_uchar(index);
+  if (i == 0) {
+    WARN("Display index was set to 0");
+    ++i;
+  }
+  glStencilFunc(GL_ALWAYS, i, 0xff);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+max_display_index() {
+  return scm_from_uchar(254);
 }
 
 static SCM
@@ -253,11 +306,12 @@ unproject(SCM _x, SCM _y, SCM _z,
 	  SCM _modelview_matrix,
 	  SCM _projection_matrix,
 	  SCM _viewport_list) {
+  NOTE("this function is still experimental and needs to be tested thoroughly");
   v3d m;
   m.x = scm_to_double(_x);
-  m.y = screen->h - scm_to_double(_y);
-  m.z = isnt(_z) ? _z_index((int) m.x, (int) m.y) : scm_to_double(_z);
-  
+  m.y = scm_to_double(_y);
+  m.z = isnt(_z) ?_z_index((int) m.x, (int) m.y) : scm_to_double(_z);
+
   m4x4d modelview_matrix = scm_to_m4x4d(_modelview_matrix);
   m4x4d projection_matrix = scm_to_m4x4d(_projection_matrix);
   struct { GLint x, y, w, h; } s;
@@ -269,7 +323,7 @@ unproject(SCM _x, SCM _y, SCM _z,
   }
   else {
     SCM_LIST_TO_C_ARRAY(int, &s, 4, scm_to_int, _viewport_list);
-    //s.y = screen->h - s.y - s.h;
+    s.y = screen->h - s.y - s.h;
   }
 
   v3d v;
@@ -278,6 +332,7 @@ unproject(SCM _x, SCM _y, SCM _z,
 	       (GLdouble *) &projection_matrix,
 	       (GLint *) &s,
 	       &v.x, &v.y, &v.z);
+  v.z *= -1;
   return scm_from_v3d(v);
 }
 
@@ -650,7 +705,7 @@ enum light_properties_enum {
 static SCM removed_lights = SCM_EOL;
 static int next_light = 0;
 static SCM light_properties; // hash from symbols to light_properties_enum
-// initialzed in init_lights()xo
+// initialzed in init_lights()
 static void(*light_property_setters[NUM_LIGHT_PROPERTIES])(int, SCM);
 static SCM (*light_property_getters[NUM_LIGHT_PROPERTIES])(int);
 
@@ -846,12 +901,21 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc);	\
   scm_c_export(name,NULL)
 
+#define EXPORT_OBJECT(name, c_name) \
+  scm_c_define(name, c_name); \
+  scm_c_export(name, NULL)
+
   EXPORT_PROCEDURE("z-index", 2, 0, 0, z_index);
+  EXPORT_PROCEDURE("display-index", 2, 0, 0, display_index);
+  EXPORT_PROCEDURE("set-display-index!", 1, 0, 0, set_display_index_x);
+  EXPORT_PROCEDURE("max-display-index", 0, 0, 0, max_display_index);
+
   EXPORT_PROCEDURE("multiply-matrix!", 1, 0, 0, multiply_matrix_x);
   EXPORT_PROCEDURE("push-matrix!", 0, 0, 0, push_matrix_x);
   EXPORT_PROCEDURE("pop-matrix!", 0, 0, 0, pop_matrix_x);
   EXPORT_PROCEDURE("translate-view!", 1, 0, 0, translate_view_x);
   EXPORT_PROCEDURE("rotate-view!", 1, 0, 0, rotate_view_x);
+  EXPORT_PROCEDURE("scale-view!", 1, 2, 0, scale_view_x);
   EXPORT_PROCEDURE("load-identity!", 0, 0, 0, load_identity_x);
   EXPORT_PROCEDURE("set-viewport!", 4, 0, 0, set_viewport_x);
   EXPORT_PROCEDURE("current-viewport", 0, 0, 0, current_viewport);
@@ -889,8 +953,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("remove-light!", 1, 0, 0, remove_light_x);
 
 #undef EXPORT_PROCEDURE
+#undef EXPORT_OBJECT
 }
-
 
 void
 init_3d() {
@@ -898,9 +962,6 @@ init_3d() {
   init_GLnames();
   init_color_setters();
   init_lights();
-
-  s_f32 = gc_protected(symbol("f32"));
-  s_f64 = gc_protected(symbol("f64"));
 
   SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
   glEnable(GL_DEPTH_TEST);
@@ -916,8 +977,11 @@ init_3d() {
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glEnable(GL_BLEND);
 
-  TODO("Implement an interface to lights");
-  OUT("There are %d lights available", GL_MAX_LIGHTS);
+  //OUT("There are %d lights available", GL_MAX_LIGHTS);
+
+  glClearStencil(0);
+  glEnable(GL_STENCIL_TEST);
+  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 
   glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT0);

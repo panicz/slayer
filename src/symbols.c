@@ -6,6 +6,8 @@ SCM s_u8;
 SCM s_u16;
 SCM s_u32;
 SCM s_u64;
+SCM s_f32;
+SCM s_f64;
 
 SCM s_quit;
 SCM s_typing;
@@ -52,6 +54,8 @@ symbols_init() {
   INIT_SYMBOL(u16);
   INIT_SYMBOL(u32);
   INIT_SYMBOL(u64);
+  INIT_SYMBOL(f32);
+  INIT_SYMBOL(f64);
 
   INIT_SYMBOL(quit);
   INIT_SYMBOL(typing);

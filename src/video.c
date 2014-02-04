@@ -11,7 +11,7 @@ static SCM
 clear_screen_x() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     SDL_GL_SwapBuffers();
     return SCM_UNSPECIFIED;
   } 
@@ -25,7 +25,7 @@ static SCM
 wipe_screen_x() {
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     return SCM_UNSPECIFIED;
   }
 #endif
