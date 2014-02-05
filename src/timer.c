@@ -5,7 +5,7 @@
 #include <SDL/SDL_timer.h>
 
 static SCM 
-get_ticks() {
+current_microtime() {
   return scm_from_uint32(SDL_GetTicks());
 }
 
@@ -93,7 +93,7 @@ export_symbols(void *unused) {
 
   EXPORT_PROCEDURE("add-timer!", 2, 2, 0, add_timer_x);
   EXPORT_PROCEDURE("remove-timer!", 1, 0, 0, remove_timer_x);
-  EXPORT_PROCEDURE("get-ticks", 0, 0, 0, get_ticks);
+  EXPORT_PROCEDURE("current-microtime", 0, 0, 0, current_microtime);
   EXPORT_PROCEDURE("set-timer-period!", 2, 0, 0, set_timer_period_x);
 
 #undef EXPORT_PROCEDURE
