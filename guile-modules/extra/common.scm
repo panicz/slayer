@@ -60,7 +60,7 @@
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
-	    map-n for-each-n equivalence-classes
+	    map-n for-each-n equivalence-classes argmin argmax
 	    atom? symbol<
 	    insert rest head tail
 	    tree-find tree-map
@@ -606,6 +606,24 @@
        (define-macro (name . args) definition ...)
        ...
        body ...))))
+
+(publish
+ (define (argmin property #;from list-of-elements)
+   (argopt < property #;from list-of-elements))
+ (define (argmax property #;from list-of-elements)
+   (argopt > property #;from list-of-elements))
+ where
+ (define (argopt < property #;from list-of-elements)
+   (if (not (null? list-of-elements))
+       (let next-trial ((champion (first list-of-elements))
+			(elements (rest list-of-elements)))
+	 (if (null? elements)
+	     champion
+	     (if (< (property (first elements)) (property champion))
+		 (next-trial (first elements) (rest elements))
+		 (next-trial champion (rest elements)))))
+   #;else
+       (error "Trying to get optimum of an empty list"))))
 
 (define (unknot circular-list)
   (let loop ((rewrite '()) (pending circular-list) (seen `(,circular-list ())))
