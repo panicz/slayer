@@ -159,6 +159,19 @@ mousereleased_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
+static SCM
+mouse_position() {
+  int x, y;
+  (void) SDL_GetMouseState(&x, &y);
+  return scm_list_2(scm_from_int(x), scm_from_int(y));
+}
+
+static SCM
+set_mouse_position_x(SCM x, SCM y) {
+  SDL_WarpMouse(scm_to_uint16(x), scm_to_uint16(y));
+  return SCM_UNSPECIFIED;  
+}
+
 SCM
 register_userevent(SCM handler) {
   userevent_handlers = realloc(userevent_handlers, next_userevent+1);
@@ -375,7 +388,10 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("grab-input!", 0, 1, 0, grab_input_x);
   EXPORT_PROCEDURE("keydn", 1, 1, 0, bind_keydown);
   EXPORT_PROCEDURE("keyup", 1, 1, 0, bind_keyup);
-  EXPORT_PROCEDURE("mousemove", 0, 1, 0, bind_mousemove);  
+  EXPORT_PROCEDURE("mousemove", 0, 1, 0, bind_mousemove); 
+  EXPORT_PROCEDURE("mouse-position", 0, 0, 0, mouse_position);
+  EXPORT_PROCEDURE("set-mouse-position!", 2, 0, 0, set_mouse_position_x);
+ 
   EXPORT_PROCEDURE("input-mode", 0, 0, 0, get_input_mode);
   EXPORT_PROCEDURE("set-typing-input-mode!", 0, 0, 0, set_typing_input_mode_x);
   EXPORT_PROCEDURE("set-direct-input-mode!", 0, 0, 0, set_direct_input_mode_x);
