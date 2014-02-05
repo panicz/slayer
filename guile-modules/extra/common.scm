@@ -489,16 +489,6 @@
      (letrec ((f (lambda (args ...) body body* ...)))
        (curry f (length '(args ...)))))))
 
-;; this procedure `interface-name` is not exported, but it is used internally
-;; by publish and publish-with-fluids macros below. It is used to exctract 
-;; names from definitions, where the definitions can possibly be curried
-(define (interface-name interface)
-  (match interface
-    ((head . tail)
-     (interface-name head))
-    ((? symbol? name)
-     name)))
-
 ;; The `publish' macro is used to provide means to separate public
 ;; definitions from private ones (such that are visible only from within
 ;; the public procedures and from within themselves).
@@ -538,6 +528,12 @@
       ;; same function called from with-syntax, because only that
       ;; way we can tell the macro processor that the bindings in
       ;; the code belong to the same scope
+      (define (interface-name interface)
+	(match interface
+	  ((head . tail)
+	   (interface-name head))
+	  ((? symbol? name)
+	   name)))
       `(,(datum->syntax ;; this reordering is done, so that the (e.g. ...)
 	  stx ;; forms can be freely mixed with definitions
 	  (let-values (((definitions non-definitions)
@@ -572,10 +568,15 @@
 		       name))
 	       ...)))))))
 
-
 (define-syntax publish-with-fluids          ; publish-with-fluids is like
   (lambda (stx)                             ; with-fluids, but it allows
     (define (interfaces+names+bodies specs) ; internal definitions only
+      (define (interface-name interface)
+	(match interface
+	  ((head . tail)
+	   (interface-name head))
+	  ((? symbol? name)
+	   name)))
       (map (lambda (spec)
 	     (syntax-case spec ()
 	       ((interface . body)
