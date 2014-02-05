@@ -13,7 +13,6 @@
 	    add-child!
 	    remove-child!
 	    ancestors
-	    widget-nested-find
 
 	    <widget>
 	    <extended-widget>
@@ -53,7 +52,14 @@
   (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
   (right-mouse-up #:init-value noop #:init-keyword #:right-mouse-up)
   (right-click #:init-value noop #:init-keyword #:right-click)
-  (mouse-over #:init-value noop #:init-keyword #:mouse-over)
+
+  (mouse-move                           ; issued whenever a mouse cursor
+   #:init-value noop                    ; is moved over a widget
+   #:init-keyword #:mouse-move)
+  (drag-over                            ; issued when the active widget
+   #:init-value noop                    ; becomes visible to some nearby
+   #:init-keyword #:mouse-over)         ; widget
+
   (mouse-out #:init-value noop #:init-keyword #:mouse-out)
   (drag #:init-value noop #:init-keyword #:drag)
   (update!  #:init-value noop #:init-keyword #:update)
@@ -75,6 +81,22 @@
 		   (set! #[self '%h] h)
 		   (#[self 'resize] #[self '%w] h))))
 
+(define-class <stage> (<widget>)
+  (children #:init-value '()))
+
+;; the main stage widget
+(define *stage* (make <stage> #:w (screen-width) #:h (screen-height)))
+
+;; a widget that collects text input
+(define *input-widget* #f)
+
+;; *active-widget* is a widget that is currently being dragged
+(define *active-widget* *stage*)
+
+;; *nearby-widget* is a widget that the active widget is being
+;; dragged over
+(define *nearby-widget* #f)
+
 (define-class <extended-widget> (<widget>)
   (data #:init-thunk make-hash-table))
 
@@ -82,6 +104,9 @@
   (or (and-let* ((parent #[w 'parent]))
 	(cons parent (ancestors parent)))
       '()))
+
+(define-method (widget-depth (w <widget>))
+  (length (ancestors w)))
 
 (define-method (area (w <widget>))
  (list #[ w 'x ] #[ w 'y ] #[ w 'w ] #[ w 'h ]))
@@ -102,7 +127,7 @@
   (set! #[ child 'parent ] parent))
   
 (define-method (remove-child! (parent <widget>) (child <widget>))
-  ;; tutaj trzeba by było jeszcze zmienić rozmiar widgetu
+  ;; the parent widget size should be recalculated
   (set! #[ child 'parent ] #f)
   (set! #[ parent 'children ] (delete child #[ parent 'children ])))
 
@@ -111,23 +136,18 @@
 	      ((px py) point))
    (and (<= x px (+ x w)) (<= y py (+ y h)))))
 
-(define (widget-nested-find condition widget)
-  (if (not (condition widget))
-      #f
-      (let ((w (find condition (slot-ref widget 'children))))
-	(if (not w)
-	    widget
-	    (let ((c (widget-nested-find condition w)))
-	      (if (not c) w c))))))
+(define (all-widgets-under position #;from root)
+  (if (in-area? position (absolute-area root))
+      (cons root (append-map (lambda(w)
+			       (all-widgets-under position #;from w))
+			     #[root 'children]))
+      '()))
 
-(define-class <stage> (<widget>)
-  (children #:init-value '()))
-
-(define *stage* (make <stage> #:w (screen-width) #:h (screen-height)))
-
-(define *input-widget* #f)
-(define *active-widget* *stage*)
-(define *nearby-widget* #f)
+(define (most-nested-widget-under position #;from root)
+  (let ((candidates (all-widgets-under position #;from root)))
+    (if (null? candidates)
+	#f
+	(argmax widget-depth candidates))))
 
 (set-display-procedure! (lambda()(draw *stage*)))
 
@@ -135,16 +155,11 @@
 			 (set! #[*stage* 'w] w)
 			 (set! #[*stage* 'h] h)))
 
-
 (define left-click-position #f)
 
 (define (left-mouse-down x y)
   (set! *nearby-widget* #f)
-  (and-let* ((w (widget-nested-find 
-		 (lambda(w)
-		   (in-area? (list x y)
-			     (absolute-area w)))
-		 *stage*)))
+  (and-let* ((w (most-nested-widget-under `(,x ,y) *stage*)))
     (set! *active-widget* w))
   (when *active-widget*
     (#[*active-widget* 'left-mouse-down ] x y))
@@ -159,26 +174,25 @@
   (set! *active-widget* *stage*))
 
 (define (right-mouse-down x y)
-  (and-let* ((w (widget-nested-find 
-		 (lambda(w)
-		   (in-area? (list x y)
-			     (absolute-area w)))
-		 *stage*)))
+  (and-let* ((w (most-nested-widget-under `(,x ,y) *stage*)))
     (#[ w 'right-mouse-down ] x y)))
 
 (define (drag-over x y xrel yrel)
-  (let ((mouseover-widget 
-	 (widget-nested-find 
-	  (lambda (w) 
-	    (and (not (eq? w *active-widget*))
-		 (in-area? (list x y) (absolute-area w))))
-	  *stage*)))
+  (let* ((widgets-below (all-widgets-under `(,x ,y) *stage*))
+	 (non-active-widgets-below 
+	  (filter (lambda (x)
+		    (not (in? *active-widget* `(,x ,@(ancestors x)))))
+		  widgets-below))
+	 (mouseover-widget
+	  (if (null? non-active-widgets-below)
+	      #f
+	      (argmax widget-depth non-active-widgets-below))))
     (when (and mouseover-widget 
 	       (not (equal? mouseover-widget *nearby-widget*)))
       (if *nearby-widget* 
 	  (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
       (set! *nearby-widget* mouseover-widget)
-      (#[ *nearby-widget* 'mouse-over ] x y xrel yrel))
+      (#[ *nearby-widget* 'drag-over ] x y xrel yrel))
     (#[ *active-widget* 'drag ] x y xrel yrel)
     (set! left-click-position #f)))
 
