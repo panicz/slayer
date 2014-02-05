@@ -5,7 +5,6 @@
   #:use-module (slayer)
   #:use-module (slayer font)
   #:export (
-	    update!
 	    draw
 	    area
 	    absolute-area
@@ -36,7 +35,6 @@
 
 (define *default-font* (load-font "./art/VeraMono.ttf" 10))
 
-(define-generic update!)
 (define-generic draw)
 (define-generic area)
 (define-generic add-child!)
@@ -62,7 +60,6 @@
 
   (mouse-out #:init-value noop #:init-keyword #:mouse-out)
   (drag #:init-value noop #:init-keyword #:drag)
-  (update!  #:init-value noop #:init-keyword #:update)
   (activate #:init-value noop #:init-keyword #:activate)
   (deactivate #:init-value noop #:init-keyword #:deactivate)
   (resize #:init-value noop #:init-keyword #:resize); new-w new-h old-w old-h
@@ -155,7 +152,7 @@
 			 (set! #[*stage* 'w] w)
 			 (set! #[*stage* 'h] h)))
 
-(define left-click-position #f)
+(define left-click-time #f)
 
 (define (left-mouse-down x y)
   (set! *nearby-widget* #f)
@@ -164,12 +161,12 @@
   (when *active-widget*
     (#[*active-widget* 'left-mouse-down ] x y))
   (drag-over x y 0 0)
-  (set! left-click-position `(,x ,y)))
+  (set! left-click-time (current-microtime)))
 
 (define (left-mouse-up x y)
   (when *active-widget* 
     (#[*active-widget* 'left-mouse-up] x y)
-    (if (equal? left-click-position `(,x ,y))
+    (if left-click-time
 	(#[*active-widget* 'left-click] x y)))
   (set! *active-widget* *stage*))
 
@@ -182,19 +179,19 @@
 	 (non-active-widgets-below 
 	  (filter (lambda (x)
 		    (not (in? *active-widget* `(,x ,@(ancestors x)))))
-		  widgets-below))
-	 (mouseover-widget
-	  (if (null? non-active-widgets-below)
-	      #f
-	      (argmax widget-depth non-active-widgets-below))))
-    (when (and mouseover-widget 
-	       (not (equal? mouseover-widget *nearby-widget*)))
-      (if *nearby-widget* 
-	  (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
-      (set! *nearby-widget* mouseover-widget)
-      (#[ *nearby-widget* 'drag-over ] x y xrel yrel))
+		  widgets-below)))
+    (if (not (null? non-active-widgets-below))
+	(let ((dragover-widget (argmax widget-depth non-active-widgets-below)))
+	  (when (not (equal? dragover-widget *nearby-widget*))
+	    (if *nearby-widget* 
+		(#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
+	    (set! *nearby-widget* dragover-widget)
+	    (#[ *nearby-widget* 'drag-over ] x y xrel yrel))))
+    (if (not (null? widgets-below))
+	(let ((mousemove-widget (argmax widget-depth widgets-below)))
+	  (#[mousemove-widget 'mouse-move] x y xrel yrel)))
     (#[ *active-widget* 'drag ] x y xrel yrel)
-    (set! left-click-position #f)))
+    (set! left-click-time #f)))
 
 (keydn 'mouse-left left-mouse-down)
 (keyup 'mouse-left left-mouse-up)
