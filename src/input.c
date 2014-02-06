@@ -352,7 +352,39 @@ grab_input_x(SCM on) {
     : SCM_BOOL_F;
 }
 
-#define DEF_KEY_BINDINGS_GET(which, WHICH)				\
+static inline int
+is_key_bindings(SCM var) {
+  if(!scm_is_simple_vector(var)
+     || (SCM_SIMPLE_VECTOR_LENGTH(var) != 3)) { 
+    return 0; 
+  }
+  SCM up = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_UP);
+  SCM dn = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_DOWN);
+  SCM move = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_MOUSEMOVE);
+  
+  if(!scm_is_simple_vector(up)
+     || !scm_is_simple_vector(dn)
+     || !scm_is_procedure(move)
+     || (SCM_SIMPLE_VECTOR_LENGTH(up) != (SDLK_LAST + SDL_NBUTTONS))
+     || (SCM_SIMPLE_VECTOR_LENGTH(dn) != (SDLK_LAST + SDL_NBUTTONS))) {
+    return 0;
+  }
+  int i;
+  for(i = 0; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {
+    if(!scm_is_thunk(SCM_SIMPLE_VECTOR_REF(up, i)) 
+       || !scm_is_thunk(SCM_SIMPLE_VECTOR_REF(dn, i))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static SCM
+key_bindings_p(SCM var) {
+  return is_key_bindings(var) ? SCM_BOOL_T : SCM_BOOL_F;
+}
+
+#define DEF_KEY_BINDINGS_VECTOR_GETTER(which, WHICH)			\
   static SCM key_bindings_##which(SCM bindings) {			\
     if(!GIVEN(bindings)) {						\
       SCM copy = scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, SCM_UNDEFINED); \
@@ -365,10 +397,10 @@ grab_input_x(SCM on) {
     return SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_##WHICH);	\
   }
 
-DEF_KEY_BINDINGS_GET(up, UP);
-DEF_KEY_BINDINGS_GET(down, DOWN);
+DEF_KEY_BINDINGS_VECTOR_GETTER(up, UP)
+DEF_KEY_BINDINGS_VECTOR_GETTER(down, DOWN)
 
-#undef DEF_KEY_BINDINGS_GET
+#undef DEF_KEY_BINDINGS_VECTOR_GETTER
 
 static SCM key_bindings_mousemove(SCM bindings) {
   if(!GIVEN(bindings)) {
@@ -402,36 +434,17 @@ current_key_bindings() {
   return bindings;
 }
 
-static inline int
-is_key_bindings(SCM var) {
-  if(!scm_is_simple_vector(var)
-     || (SCM_SIMPLE_VECTOR_LENGTH(var) != 3)) { 
-    return 0; 
-  }
-  SCM up = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_UP);
-  SCM dn = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_DOWN);
-  SCM move = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_MOUSEMOVE);
-  
-  if(!scm_is_simple_vector(up)
-     || !scm_is_simple_vector(dn)
-     || !scm_is_procedure(move)
-     || (SCM_SIMPLE_VECTOR_LENGTH(up) != (SDLK_LAST + SDL_NBUTTONS))
-     || (SCM_SIMPLE_VECTOR_LENGTH(dn) != (SDLK_LAST + SDL_NBUTTONS))) {
-    return 0;
-  }
+static SCM
+set_key_bindings_x(SCM bindings) {
+  SCM up = SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_UP);
+  SCM down = SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_DOWN);
   int i;
   for(i = 0; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {
-    if(!scm_is_thunk(SCM_SIMPLE_VECTOR_REF(up, i)) 
-       || !scm_is_thunk(SCM_SIMPLE_VECTOR_REF(dn, i))) {
-      return 0;
-    }
+    SCM_SIMPLE_VECTOR_SET(keyup, i, SCM_SIMPLE_VECTOR_REF(up, i));
+    SCM_SIMPLE_VECTOR_SET(keydown, i, SCM_SIMPLE_VECTOR_REF(down, i));
   }
-  return 1;
-}
-
-static SCM
-key_bindings_p(SCM var) {
-  return is_key_bindings(var) ? SCM_BOOL_T : SCM_BOOL_F;
+  bind_mousemove(SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_MOUSEMOVE));
+  return SCM_UNSPECIFIED;
 }
 
 static SCM typing_special;
@@ -469,6 +482,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("keyup-bindings", 0, 1, 0, key_bindings_up);
   EXPORT_PROCEDURE("keydn-bindings", 0, 1, 0, key_bindings_down);
   EXPORT_PROCEDURE("mousemove-binding", 0, 1, 0, key_bindings_mousemove);
+  EXPORT_PROCEDURE("set-key-bindings!", 1, 0, 0, set_key_bindings_x);
 
   EXPORT_PROCEDURE("generate-userevent!", 0, 3, 0, generate_userevent);
   EXPORT_PROCEDURE("register-userevent!", 1, 0, 0, register_userevent);
