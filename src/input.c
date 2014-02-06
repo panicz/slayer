@@ -10,6 +10,12 @@ enum input_modes {
   TYPING_MODE = 1
 };
 
+enum key_bindings_indices {
+  KEY_BINDINGS_UP = 0,
+  KEY_BINDINGS_DOWN = 1,
+  KEY_BINDINGS_MOUSEMOVE = 2
+};
+
 static enum input_modes input_mode;
 
 static SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
@@ -17,9 +23,11 @@ static SCM *userevent_handlers = NULL;
 static int next_userevent = 0;
 
 // procedures that are triggered when appropreate keys are pressed
-static SCM keydown[SDLK_LAST + SDL_NBUTTONS];
-static SCM keyup[SDLK_LAST + SDL_NBUTTONS];
+static SCM keydown;
+static SCM keyup;
+
 static SCM mousemove;
+
 
 // a map from key names (SCM string) to their scan codes (SCM integers)
 static SCM scancodes;
@@ -107,7 +115,8 @@ videoresize_handler(SDL_Event *e) {
 
 static SCM 
 keydown_handler(SDL_Event *e) {
-  SCM handler = keydown[e->key.keysym.sym];
+  SCM handler = SCM_SIMPLE_VECTOR_REF(keydown, e->key.keysym.sym);
+
   /*
   WARN_UPTO(12, "%s (%d) has been pressed", 
 	    scm_to_locale_string(scm_c_vector_ref(key_names,
@@ -122,7 +131,8 @@ keydown_handler(SDL_Event *e) {
 
 static SCM 
 keyup_handler(SDL_Event *e) {
-  SCM handler = keyup[e->key.keysym.sym];
+  //SCM handler = keyup[e->key.keysym.sym];
+  SCM handler = SCM_SIMPLE_VECTOR_REF(keyup, e->key.keysym.sym);
   if(is_scm_procedure(handler))
     return scm_call_0(handler);
   return SCM_UNSPECIFIED;
@@ -141,7 +151,7 @@ mousemotion_handler(SDL_Event *e) {
 
 static SCM 
 mousepressed_handler(SDL_Event *e) {
-  SCM handler = keydown[SDLK_LAST + e->button.button];
+  SCM handler = SCM_SIMPLE_VECTOR_REF(keydown, SDLK_LAST + e->button.button);
   if(is_scm_procedure(handler))
     return scm_call_2(handler, 		      
 		      scm_from_uint16(e->button.x),
@@ -151,7 +161,8 @@ mousepressed_handler(SDL_Event *e) {
 
 static SCM 
 mousereleased_handler(SDL_Event *e) {
-  SCM handler = keyup[SDLK_LAST + e->button.button];
+  //SCM handler = keyup[SDLK_LAST + e->button.button];
+  SCM handler = SCM_SIMPLE_VECTOR_REF(keyup, SDLK_LAST + e->button.button);
   if(is_scm_procedure(handler))
     return scm_call_2(handler, 		      
 		      scm_from_uint16(e->button.x),
@@ -288,17 +299,11 @@ modifier_pressed_p(SCM name) {
 }
 
 static SCM
-bind_key(SCM *keytab, SDLKey key, SCM function) {
+bind_key(SCM keytab, SDLKey key, SCM function) {
   if(!is_scm_procedure(function)) {
-    return keytab[key];
+    return SCM_SIMPLE_VECTOR_REF(keytab, key);
   }
-
-  if(keytab[key] != SCM_UNSPECIFIED) {
-    release_scm(keytab[key]);
-  }
-
-  keytab[key] = function;
-  hold_scm(keytab[key]);
+  SCM_SIMPLE_VECTOR_SET(keytab, key, function);
   return SCM_UNSPECIFIED;
 }
 
@@ -321,7 +326,14 @@ bind_keyup(SCM key, SCM function) {
 static SCM 
 bind_mousemove(SCM function) {
   WARN("function should check for arity of its argument");
-  return bind_key(&mousemove, 0, function); 
+  if(!is_scm_procedure(function)) {
+    return mousemove;
+  }
+  if(!scm_is_eq(mousemove, noop)) {
+    scm_gc_unprotect_object(mousemove);
+  }
+  mousemove = gc_protected(function);
+  return SCM_UNSPECIFIED;
 }
 
 static SCM 
@@ -340,30 +352,86 @@ grab_input_x(SCM on) {
     : SCM_BOOL_F;
 }
 
-static SCM
-key_bindings(SCM type) {
-  SCM vector;
-  SCM *bindings;
-  if(equal(type, s_pressed)) {
-    bindings = keydown;
+#define DEF_KEY_BINDINGS_GET(which, WHICH)				\
+  static SCM key_bindings_##which(SCM bindings) {			\
+    if(!GIVEN(bindings)) {						\
+      SCM copy = scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, SCM_UNDEFINED); \
+      int i;								\
+      for (i = 0; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {		\
+	SCM_SIMPLE_VECTOR_SET(copy, i, SCM_SIMPLE_VECTOR_REF(key##which, i)); \
+      }									\
+      return copy;							\
+    }									\
+    return SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_##WHICH);	\
   }
-  else if(equal(type, s_released)) {
-    bindings = keyup;
-  } else {
-    WARN("Invalid argument");
-    return SCM_UNSPECIFIED;
+
+DEF_KEY_BINDINGS_GET(up, UP);
+DEF_KEY_BINDINGS_GET(down, DOWN);
+
+#undef DEF_KEY_BINDINGS_GET
+
+static SCM key_bindings_mousemove(SCM bindings) {
+  if(!GIVEN(bindings)) {
+    return mousemove;
   }
-  vector = scm_c_make_vector(NELEMS(keydown), SCM_UNDEFINED);
-  int i;
-  for(i = 0; i < NELEMS(keydown); ++i) {
-    scm_c_vector_set_x(vector, i, bindings[i]);
-  }
-  return vector;
+  return SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_MOUSEMOVE);
 }
 
-static SCM 
-mousemove_binding(SCM type) {
-  return mousemove;
+static SCM
+fresh_key_bindings() {
+  SCM up = scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop);
+  SCM dn = scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop);
+  SCM bindings = scm_c_make_vector(3, SCM_UNDEFINED);
+  SCM_SIMPLE_VECTOR_SET(bindings, KEY_BINDINGS_UP, up);
+  SCM_SIMPLE_VECTOR_SET(bindings, KEY_BINDINGS_DOWN, dn);
+  SCM_SIMPLE_VECTOR_SET(bindings, KEY_BINDINGS_MOUSEMOVE, noop);
+  return bindings;
+}
+
+static SCM
+current_key_bindings() {
+  SCM bindings = fresh_key_bindings();
+  SCM up = SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_UP);
+  SCM down = SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_DOWN);
+  int i;
+  for(i = 0; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {
+    SCM_SIMPLE_VECTOR_SET(up, i, SCM_SIMPLE_VECTOR_REF(keyup, i));
+    SCM_SIMPLE_VECTOR_SET(down, i, SCM_SIMPLE_VECTOR_REF(keydown, i));
+  }
+  SCM_SIMPLE_VECTOR_SET(bindings, KEY_BINDINGS_MOUSEMOVE, mousemove);
+  return bindings;
+}
+
+static inline int
+is_key_bindings(SCM var) {
+  if(!scm_is_simple_vector(var)
+     || (SCM_SIMPLE_VECTOR_LENGTH(var) != 3)) { 
+    return 0; 
+  }
+  SCM up = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_UP);
+  SCM dn = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_DOWN);
+  SCM move = SCM_SIMPLE_VECTOR_REF(var, KEY_BINDINGS_MOUSEMOVE);
+  
+  if(!scm_is_simple_vector(up)
+     || !scm_is_simple_vector(dn)
+     || !scm_is_procedure(move)
+     || (SCM_SIMPLE_VECTOR_LENGTH(up) != (SDLK_LAST + SDL_NBUTTONS))
+     || (SCM_SIMPLE_VECTOR_LENGTH(dn) != (SDLK_LAST + SDL_NBUTTONS))) {
+    return 0;
+  }
+  int i;
+  for(i = 0; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {
+    if(!scm_is_thunk(SCM_SIMPLE_VECTOR_REF(up, i)) 
+       || !scm_is_thunk(SCM_SIMPLE_VECTOR_REF(dn, i))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static SCM
+key_bindings_p(SCM var) {
+  return is_key_bindings(var) ? SCM_BOOL_T : SCM_BOOL_F;
 }
 
 static SCM typing_special;
@@ -391,12 +459,17 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("mousemove", 0, 1, 0, bind_mousemove); 
   EXPORT_PROCEDURE("mouse-position", 0, 0, 0, mouse_position);
   EXPORT_PROCEDURE("set-mouse-position!", 2, 0, 0, set_mouse_position_x);
- 
+
   EXPORT_PROCEDURE("input-mode", 0, 0, 0, get_input_mode);
   EXPORT_PROCEDURE("set-typing-input-mode!", 0, 0, 0, set_typing_input_mode_x);
   EXPORT_PROCEDURE("set-direct-input-mode!", 0, 0, 0, set_direct_input_mode_x);
-  EXPORT_PROCEDURE("key-bindings", 1, 0, 0, key_bindings);
-  EXPORT_PROCEDURE("mousemove-binding", 0, 0, 0, mousemove_binding);
+  EXPORT_PROCEDURE("current-key-bindings", 0, 0, 0, current_key_bindings);
+  EXPORT_PROCEDURE("fresh-key-bindings", 0, 0, 0, fresh_key_bindings);
+  EXPORT_PROCEDURE("key-bindings?", 1, 0, 0, key_bindings_p);
+  EXPORT_PROCEDURE("keyup-bindings", 0, 1, 0, key_bindings_up);
+  EXPORT_PROCEDURE("keydn-bindings", 0, 1, 0, key_bindings_down);
+  EXPORT_PROCEDURE("mousemove-binding", 0, 1, 0, key_bindings_mousemove);
+
   EXPORT_PROCEDURE("generate-userevent!", 0, 3, 0, generate_userevent);
   EXPORT_PROCEDURE("register-userevent!", 1, 0, 0, register_userevent);
   EXPORT_PROCEDURE("set-resize-procedure!", 1, 0, 0, set_resize_procedure_x);
@@ -416,10 +489,11 @@ void
 input_init() {
   int i;
 
-  for(i = 0; i < SDLK_LAST + SDL_NBUTTONS; ++i) {
-    keydown[i] = keyup[i] = SCM_UNSPECIFIED;
-  }
-  mousemove = SCM_UNSPECIFIED;
+  keydown = gc_protected(scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop));
+  
+  keyup = gc_protected(scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop));
+
+  mousemove = noop;
 
   for(i = 0; i < SDL_NUMEVENTS; ++i) 
     event_handler[i] = unsupported_event;
@@ -472,8 +546,7 @@ input_handle_events() {
 	  } 
 	  else {
 	    scm_call_1(typing_special, 
-		       scm_from_uint16((Uint16) event.key.keysym.sym));
-	    
+		       scm_from_uint16((Uint16) event.key.keysym.sym));	    
 	  }
 	  //putchar(event.key.keysym.unicode);
 	  //fflush(stdout);

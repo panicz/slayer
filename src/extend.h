@@ -254,6 +254,11 @@ is_scm_procedure(SCM s) {
   return scm_is_true(scm_procedure_p(s));
 }
 
+static inline int
+scm_is_thunk(SCM s) {
+  return scm_is_true(scm_thunk_p(s));
+}
+
 #ifndef scm_is_procedure
 # define scm_is_procedure is_scm_procedure
 #endif
