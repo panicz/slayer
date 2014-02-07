@@ -327,12 +327,16 @@ unproject(SCM _x, SCM _y, SCM _z,
   }
 
   v3d v;
-  gluUnProject(m.x, m.y, m.z, 
-	       (GLdouble *) &modelview_matrix,
-	       (GLdouble *) &projection_matrix,
-	       (GLint *) &s,
-	       &v.x, &v.y, &v.z);
-  v.z *= -1;
+  GLint result = gluUnProject(m.x, screen->h - m.y - 1, m.z, 
+			      (GLdouble *) &modelview_matrix,
+			      (GLdouble *) &projection_matrix,
+			      (GLint *) &s,
+			      &v.x, &v.y, &v.z);
+  if(result == GL_FALSE) {
+    // właściwie to powinniśmy raczej zasygnalizować jakiś błąd
+    return SCM_BOOL_F;
+  }
+  
   return scm_from_v3d(v);
 }
 
