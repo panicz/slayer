@@ -2,7 +2,8 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (extra common)
-  #:export (rgba highlighted subtract-image force-redisplay!))
+  #:export (rgba highlighted subtract-image force-redisplay!)
+  #:export-syntax (key-bindings))
 
 (define rgba
   (case-lambda 
@@ -25,7 +26,7 @@
 		(let ((xrgba (rgba x))
 		      (yrgba (rgba y)))
 		  (let ((diffs (map abs (map - xrgba yrgba))))
-		    (if (< (apply max diffs) 100)
+		    (if (< (apply max diffs) tolerance)
 			0 ;; make this pixel of checker transparent
 			x))))  ;; or leave it as it is
 	      (image->array subtrahend)
@@ -35,3 +36,14 @@
 
 (define (force-redisplay!)
   (generate-userevent! redisplay-event))
+
+;; pomysł jest taki: uczynić z bieżącej tablicy z wiązaniami fluida.
+;; 
+
+(define-syntax key-bindings
+  (syntax-rules ()
+    ((_ bindings ...)
+     (let ((fresh-bindings (fresh-key-bindings)))
+       (with-fluids ((KEY-BINDINGS fresh-bindings))
+	 bindings ...
+	 fresh-bindings)))))
