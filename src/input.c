@@ -336,9 +336,15 @@ is_key_bindings(SCM var) {
     return 0;
   }
   int i;
-  for(i = 0; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {
+  for(i = 0; i <= SDLK_LAST; ++i) {
     if(!scm_is_thunk(SCM_SIMPLE_VECTOR_REF(up, i)) 
        || !scm_is_thunk(SCM_SIMPLE_VECTOR_REF(dn, i))) {
+      return 0;
+    }
+  }
+  for(i = SDLK_LAST+1; i < (SDLK_LAST + SDL_NBUTTONS); ++i) {
+    if(!scm_is_procedure(SCM_SIMPLE_VECTOR_REF(up, i)) 
+       || !scm_is_procedure(SCM_SIMPLE_VECTOR_REF(dn, i))) {
       return 0;
     }
   }
@@ -418,7 +424,7 @@ bind_keyup(SCM key, SCM function) {
 
 static SCM 
 bind_mousemove(SCM function) {
-  WARN("function should check for arity of its argument");
+  WARN_ONCE("function should check for arity of its argument");
   SCM bindings = scm_fluid_ref(key_bindings);
   if(indeed(bindings)) {
     if(!is_scm_procedure(function)) {
