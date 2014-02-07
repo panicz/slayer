@@ -16,7 +16,9 @@
   #:use-module ((rnrs) :version (6) 
 		:select (make-bytevector 
 			 utf8->string string->utf8 
-			 bytevector-fill!)
+			 bytevector-fill!
+			 vector-map vector-for-each
+			 )
 		)
 
   ;;  #:use-module ((rnrs) #:version (6))
@@ -49,9 +51,11 @@
 	       expect-strings-compile-flags expect-strings-exec-flags
 	       expect-select expect-regexec	       
 	       ;; r6rs
+	       vector-map vector-for-each
 	       make-bytevector 
 	       utf8->string string->utf8 
 	       bytevector-fill!
+	       ;; ice-9 format, ice-9 pretty-print
 	       pretty-print format
 	       )
   #:export (
