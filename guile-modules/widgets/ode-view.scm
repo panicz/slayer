@@ -21,9 +21,6 @@
   (meshes #:init-value #[] #:allocation #:class)
   (simulation #:init-value #f #:init-keyword #:simulation))
 
-(define-method (update! (ov <ode-view>))
-  (simulation-step! #[ov 'simulation]))
-
 (define-method (initialize (ov <ode-view>) args)
   (next-method)
   (for rig in (simulation-rigs #[ov 'simulation])
