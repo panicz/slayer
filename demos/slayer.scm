@@ -1,16 +1,17 @@
 #!../src/slayer -e3d
 !#
-(use-modules 
- (slayer image)
- (slayer)
- (widgets base)
- (widgets bitmap)
- (widgets text-area)
- (oop goops)
- (extra ref)
- (extra common)
- (extra math)
- (extra figures))
+(use-modules (slayer)
+	     (slayer image)
+	     (widgets base)
+	     (widgets bitmap)
+	     (widgets text-area)
+	     (oop goops)
+	     (extra slayer)
+	     (extra ref)
+	     (extra common)
+	     (extra math)
+	     (extra shape)
+	     (extra figures))
 
 (keydn 'esc quit)
 (set-window-title! "WELCOME TO SLAYER")
@@ -23,7 +24,6 @@
  (slayer-audio (use-modules (slayer audio)))
  (else (begin)))
 
-
 (define *modes* #[])
 (define *mutex* (make-locked-mutex))
 
@@ -35,21 +35,27 @@
 
 (define (key name fun)
   (keydn name 
-	 (lambda()
-	   (hash-set! *modes* name fun)))
+    (lambda()
+      (hash-set! *modes* name fun)))
   (keyup name 
-	 (lambda()
-	   (hash-remove! *modes* name)
-	   )))
+    (lambda()
+      (hash-remove! *modes* name))))
 
 (cond-expand (slayer-3d
 
 (define *sphere* (generate-capsule #:height 0))
 
+
+(list->typed-array 'f32 2 '((1 2 3)
+			    (4 5 6)))
+
 (define 3d-object (make <3d-model> 
 		    #:mesh *sphere*))
+
 (define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400))
+
 (add-child! *stage* view)
+
 (add-object! view 3d-object)
 
 ) (else (begin))) ;; cond-expand slayer-3d
@@ -104,13 +110,86 @@
       (lambda(x y dx dy)
 	(relative-turn! #[view 'camera] (- dx) (- dy))))
 
+;; załóżmy coś takiego: w trakcie rysowania używamy bufora szablonowego
+;; do przechowywania indeksu kolejnego obiektu. każdy obiekt zawiera
+;; kolejną liczbę całkowitą od 1 do 255. Po przejściu do przez licznik
+;; liczymy znów od 1. W trakcie rysowania chcielibyśmy kojarzyć liczbę
+;; z obiektami, tak żeby w razie niejednoznaczności móc uzyskać dostęp
+;; tylko do obiektów, które dostały taki sam indeks, żeby w razie czego
+;; móc operację powtórzyć. [ewentualnie moglibyśmy używać kolorów]
+
+;; no dobrze, ale jak miałoby się to odbywać po stronie C/OpenGLa?
+;; na przykład tak: klikamy prawym przyciskiem myszki. wówczas
+
+
+(keydn 'g
+  (lambda ()
+    (if (not (null? #[view 'selected]))
+	(let ((old-bindings (current-key-bindings))
+	      (first-selected (first #[view 'selected]))
+	      (original-positions (map #[_ 'position] #[view 'selected])))
+	  (match-let* (((x y z) (3d->screen view #[first-selected 'position])))
+	    (set-mouse-position! x y)
+	    (set-key-bindings!
+	     (key-bindings
+	      (keydn 'esc
+		(lambda () 
+		  ;; restore original positions of objects
+		  (for (object position) in (zip #[view 'selected]
+						 original-positions)
+		       (set! #[object 'position] position))
+		  (set-key-bindings! old-bindings)))
+	      
+	      (keydn 'mouse-left
+		(lambda (x y)
+		  (set-key-bindings! old-bindings)))
+	    
+	    (mousemove 
+	     (lambda (x y xrel yrel)
+	       (for object in #[view 'selected]
+		    (set! #[object 'position] (screen->3d view x y z))))))))))))
+
+
+#|
+(keydn 'g ;; miejmy świadomość gównianości tego kodu -- trzeba będzie
+  (lambda () ;; go zastąpić jakimś sprytnym mechanizmem
+    (let ((old-esc (keydn 'esc))
+	  (old-g (keydn 'g))
+	  (old-left-click #[view 'left-click])
+	  (old-right-mouse-down #[view 'right-mouse-down])
+	  (old-drag #[view 'drag]))
+      (keydn 'esc (lambda () 
+		    (set! #[view 'left-click] old-left-click)
+		    (set! #[view 'right-mouse-down] old-right-mouse-down)
+		    (set! #[view 'drag] old-drag)
+		    (keynd 'g old-g)
+		    (keydn 'esc old-esc)))
+      (keydn 'g noop)
+      (set! #[view 'left-click] noop)
+      (set! #[view 'right-mouse-down] noop)
+      (set! #[view 'drag] noop)
+    )))
+|#
+
+(set! #[view 'left-click]
+      (lambda (x y)
+	(unselect-all! view)
+	(let ((object (object-at-position x y view)))
+	  (if object
+	      (select-object! view object)))))
+
 (set! #[view 'right-mouse-down]
-      (lambda(x y)
-	(add-object! view 
-		     (make <3d-model> 
-		       #:position (mouse->3d view x y)
-		       #:mesh *sphere*
-		       ))))
+      (lambda (x y)
+	(if (object-at-position x y view)
+	    (let ((xyz (screen->3d view x y)))
+	      (format #t "~a ~a -> ~a -> ~a\n"x y xyz 
+		      (3d->screen view xyz))
+	      (add-object! view 
+			   (make <3d-model> 
+			     #:position (screen->3d view x y)
+			     #:mesh 
+			     *sphere*
+			     #;(apply line-from-origin (array->list xyz))))))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
