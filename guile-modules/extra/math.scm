@@ -15,6 +15,7 @@
 	   pi/4 pi/2 pi 2pi π/4 π/2 π 2π e
 	   deg->rad rad->deg
 	   multiply add subtract divide
+	   mean
 	   <point>
 	   <generalized-vector>
 	   <quaternion> 
@@ -23,7 +24,7 @@
 	   TOLERANCE
 	   ))
 
-(define TOLERANCE (make-fluid 0.0001))
+(define-fluid TOLERANCE 0.0001)
 
 (define <point> <uvec>) 
 
@@ -32,13 +33,13 @@
 (define <quaternion> <pair>)
 
 (define (quaternion real imag)
-  (cons real imag))
+  `(,real . ,imag))
 
-(define (quaternion-real q)
-  (car q))
+(define (quaternion-real (real . imag))
+  real)
 
-(define (quaternion-imag q)
-  (cdr q))
+(define (quaternion-imag (real . imag))
+  imag)
 
 (define-generic re)
 
@@ -239,6 +240,34 @@
 			   (list    #[v 2]       0  (- #[v 0]))
 			   (list (- #[v 1])  #[v 0]        0))))
 
+(define-method (mean (n <number>) . numbers)
+  (let ((numbers (cons n numbers))
+	(n (1+ (length numbers))))
+    (/ (apply + numbers) n)))
+
+(define-method (mean (l <list>) . lists)
+  (let ((lists (cons l lists))
+	(n (1+ (length lists))))
+    (apply map (lambda args (/ (apply + args) n)) lists)))
+
+(define-method (mean (v <vector>) . vectors)
+  (let ((vectors (cons v vectors))
+	(n (1+ (length vectors))))
+    (apply vector-map (lambda args (/ (apply + args) n)) vectors)))
+
+;; mean means the mean value of its arguments,
+(e.g.
+ (mean 1 2 3) ===> 2)
+
+;; when used with lists of numbers as arguments, it calculates the
+;; mean in each dimension separately,
+(e.g.
+ (mean '(1 2 3) '(3 4 5)) ===> (2 3 4))
+
+;; it also works for vector arguments,
+(e.g.
+ (mean #(1 2 3) #(3 4 5)) ===> #(2 3 4))
+
 (define (inv3x3 M)
   (assert (and (array? M) (= (columns M) (rows M) 3)))
   (let ((d (det3x3 M)))
@@ -396,7 +425,7 @@
 (define (quaternion->matrix q)
   (let ((s (re q))
 	(v (im q)))
-    (list->typed-array 
+    (list->typed-array
      (array-type v) 2
      `((,(- 1.0 (* 2.0 (+ (* #[v 1] #[v 1]) (* #[v 2] #[v 2]))))
 	,(* 2.0 (- (* #[v 0] #[v 1]) (* s #[v 2])))
