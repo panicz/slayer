@@ -336,8 +336,9 @@ world_to_screen_coordinates(SCM _x, SCM _y, SCM _z,
   if(result == GL_FALSE) {
     return SCM_BOOL_F;
   }
-  return scm_list_2(scm_from_int((int) v.x), 
-		    scm_from_int(screen->h - (int) v.y - 1));
+  return scm_list_3(scm_from_int(rint(v.x)), 
+		    scm_from_int(screen->h - rint(v.y) - 1),
+		    scm_from_double(v.z));
 }
 			    
 
