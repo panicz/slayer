@@ -3,6 +3,7 @@
   :use-module (extra ref)
   :use-module (oop goops)
   :use-module (extra math)
+  :use-module (slayer)
   :use-module (slayer 3d)
   ;;:use-module (extra shape)
   ;;:duplicates (warn merge-generics); replace warn-override-core warn last)
@@ -14,6 +15,7 @@
 	   transform-matrix!
 	   draw-mesh!
 	   draw-model!
+	   draw-contour!
 	   setup-lights!
 	   extract-lights
 	   skip-lights
@@ -354,11 +356,31 @@
   (setup-lights! #[model '%lights])
   (pop-matrix!))
 
+(define-syntax-rule (replace/mesh m (pattern replacement) ...)
+  (match m
+    (('mesh . primitives)
+     `(mesh ,@(map (lambda (primitive)
+		     (match primitive
+		       (pattern replacement)
+		       ...
+		       (else primitive)))
+		   primitives)))))
+
 (define-method (draw-model! (model <3d-model>))
   (push-matrix!)
   (translate-view! #[model 'position])
   (rotate-view! #[model 'orientation])
   (draw-mesh! #[model '%mesh])
+  (pop-matrix!))
+
+(define-method (draw-contour! (model <3d-model>))
+  (push-matrix!)
+  (translate-view! #[model 'position])
+  (rotate-view! #[model 'orientation])
+  (scale-view! 1.1)
+  (draw-mesh! (replace/mesh #[model '%mesh]
+			    (((or 'color 'colors) . _)
+			     `(color #f32(0 0.3 0.7 0.5)))))
   (pop-matrix!))
 
 #;(define (projection-matrix fovy aspect near far)
