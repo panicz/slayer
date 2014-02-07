@@ -6,7 +6,7 @@
 	    seconds->ticks ticks->seconds
 	    running-time
 	    <ticks> <seconds>
-	    microseconds
+	    current-time/microseconds
 	    )
   #:export-syntax (
 		   measured
@@ -14,16 +14,16 @@
   )
 
 
-(define (microseconds)
+(define (current-time/microseconds)
   (match-let (((seconds . microseconds) (gettimeofday)))
     (+ (* 1000000 seconds) microseconds)))
 
 
 (define-syntax-rule (measured call ...)
-  (let ((before (microseconds)))
+  (let ((before (current-time/microseconds)))
     (call-with-values (lambda () call ...)
       (lambda args
-	(display (- (microseconds) before))
+	(display (- (current-time/microseconds) before))
 	(newline)
 	(apply values args)))))
 
