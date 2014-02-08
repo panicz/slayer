@@ -1,11 +1,11 @@
 #!../src/slayer -d3d
 exit
 !#
+(use-modules (slayer) (slayer image))
 ;; Functional snake game from http://soft.vub.ac.be/~jnicolay/code/snake.scm
 ;; Copyright (C) Jens Nicolay <jens.nicolay@vub.ac.be>
 ;; The code has been adjusted by Maciek Godek <godek.maciek@gmail.com>
 ;; to work with the SLAYER framework https://puszcza.gnu.org.ua/projects/slayer
-(use-modules (slayer) (slayer image))
 
 (define dir-up 1)
 
@@ -30,7 +30,7 @@ exit
 (define (xy-in-range? p x1 y1 x2 y2)
   (let ((x (xy-x p))
         (y (xy-y p)))
-    (and (>= x 1) (>= y y1) (<= x x2) (<= y y2))))
+    (and (>= x x1) (>= y y1) (<= x x2) (<= y y2))))
 
 (define (xy-move p dir)
   (let ((x (xy-x p))
@@ -101,8 +101,6 @@ exit
   (let ((n (board-size b)))
     (xy-in-range? p 0 0 (- n 1) (- n 1))))
 
-;;;;;
-
 (define (setup-board n)
   (let ((snake (snake (xy (- (quotient n 2) 4) (quotient n 2)) 
 		      (list dir-right))))
@@ -115,15 +113,13 @@ exit
 		 dir-right) 
 	   0)))
 
-;;;;;
+;; Contrary to the code above, which was written by Jens Nicolay,
+;; the below was written by Maciek Godek
 
 (define b (setup-board 16))
-
 (define current-dir dir-right)
-
 (define period 100)
-
-(define timer (add-timer! 100 (lambda()(set! b (board-step b current-dir)))))
+(define timer (add-timer! period (lambda()(set! b (board-step b current-dir)))))
 
 (keydn 'esc quit)
 (keydn 'left (lambda () (set! current-dir dir-left)))
@@ -132,11 +128,8 @@ exit
 (keydn 'down (lambda () (set! current-dir dir-down)))
 
 (define tile-width 20)
-
 (define tile-height 20)
-
-(define tile (array->image (make-typed-array 'u32 #xffffffff 
-					     tile-width tile-height)))
+(define tile (rectangle tile-width tile-height #xffffff))
 
 (set-display-procedure!
  (lambda ()
@@ -145,6 +138,5 @@ exit
 		     (y (* tile-height (xy-y xy))))
 		 (draw-image! tile x y)))
        (snake-xys (board-snake b)))))
-
 (set-screen-size! (* tile-width (board-size b)) (* tile-height (board-size b)))
 (set-window-title! "SNAKE")
