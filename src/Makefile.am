@@ -10,7 +10,7 @@ slayer_SOURCES = extend.h file.c font.c image.c input.c slayer.c slayer.h \
 noinst_HEADERS = scancode.c
 
 if OPENGL
-slayer_SOURCES += 3d.cc vmx.hh
+slayer_SOURCES += 3d.cc 3d.hh vmx.hh lights.cc arrays.cc color.cc transforms.cc
 endif
 
 if SDL_MIXER
