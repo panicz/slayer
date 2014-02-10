@@ -394,29 +394,34 @@
 	  #f32(0 0 0)
 	  (/ (* (* u v) v) v^2)))))
 
-(define (random-vector size)
-  (let loop ((v (random-array size)))
+(define* (random-vector size #:key (type #t))
+  (let loop ((v (random-array size #:type type)))
     (if (< (* v v) #[TOLERANCE])
-	(random-array size)
+	(random-array size #:type type)
 	v)))
 
-(define-method (rotate (v <uvec>) (q <quaternion>))
+(define-method (rotate (v <uvec>) #;by (q <quaternion>))
   (im (* q (quaternion 0.0 v) (~ q))))
 
-(define-method (rotate (l <list>) (q <quaternion>))
+(define-method (rotate (p <quaternion>) #;by (q <quaternion>))
+  (* q p (~ q)))
+
+(define-method (rotate (l <list>) #;by (q <quaternion>))
   (uniform-vector->list (rotate (list->f32vector l) q)))
 
-(define (rotation-quaternion u w); This method is borrowed from Game
-  (let ((u (normalized u)); Programming Gems vol.1 chapter 2.10
-	(w (normalized w))); written by Stan Melax
-    (let ((v (wedge3x3 u w)) 
+(define (rotation-quaternion #;from u #;to w)
+  "a quaternion that represents rotation from the direction of u \
+to the direction of w"
+  (let ((u (normalized u))              ; This method is borrowed from Game
+	(w (normalized w)))             ; Programming Gems vol.1 chapter 2.10
+    (let ((v (wedge3x3 u w))            ; written by Stan Melax 
 	  (f (sqrt (* 2.0 (+ (* u w) 1.0)))))
       (cond ((> f #[TOLERANCE])
 	     (quaternion (* 0.5 f) (/ v f)))
 	    ((> (* u v) 0)
 	     (quaternion 1.0 #f32(0 0 0)))
 	    (else
-	     (let ((v (random-vector 3)))
+	     (let ((v (random-vector 3 #:type (array-type u))))
 	       (quaternion 
 		0.0
 		(normalized 
