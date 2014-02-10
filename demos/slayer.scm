@@ -45,10 +45,6 @@
 
 (define *sphere* (generate-capsule #:height 0))
 
-
-(list->typed-array 'f32 2 '((1 2 3)
-			    (4 5 6)))
-
 (define 3d-object (make <3d-model> 
 		    #:mesh *sphere*))
 
@@ -121,20 +117,19 @@
 ;; no dobrze, ale jak miałoby się to odbywać po stronie C/OpenGLa?
 ;; na przykład tak: klikamy prawym przyciskiem myszki. wówczas
 
-
 (keydn 'g
   (lambda ()
     (if (not (null? #[view 'selected]))
 	(let ((old-bindings (current-key-bindings))
 	      (first-selected (first #[view 'selected]))
 	      (original-positions (map #[_ 'position] #[view 'selected])))
-	  (match-let* (((x y z) (3d->screen view #[first-selected 'position])))
-	    (set-mouse-position! x y)
+	  (match-let (((x0 y0 z0) 
+		       (3d->screen view #[first-selected 'position])))
+	    (set-mouse-position! x0 y0)
 	    (set-key-bindings!
 	     (key-bindings
 	      (keydn 'esc
 		(lambda () 
-		  ;; restore original positions of objects
 		  (for (object position) in (zip #[view 'selected]
 						 original-positions)
 		       (set! #[object 'position] position))
@@ -144,32 +139,41 @@
 		(lambda (x y)
 		  (set-key-bindings! old-bindings)))
 	    
-	    (mousemove 
-	     (lambda (x y xrel yrel)
-	       (for object in #[view 'selected]
-		    (set! #[object 'position] (screen->3d view x y z))))))))))))
+	      (mousemove 
+	       (lambda (x y xrel yrel)
+		 (for object in #[view 'selected]
+		      (set! #[object 'position] 
+			    (screen->3d view x y z0))))))))))))
 
-
-#|
-(keydn 'g ;; miejmy świadomość gównianości tego kodu -- trzeba będzie
-  (lambda () ;; go zastąpić jakimś sprytnym mechanizmem
-    (let ((old-esc (keydn 'esc))
-	  (old-g (keydn 'g))
-	  (old-left-click #[view 'left-click])
-	  (old-right-mouse-down #[view 'right-mouse-down])
-	  (old-drag #[view 'drag]))
-      (keydn 'esc (lambda () 
-		    (set! #[view 'left-click] old-left-click)
-		    (set! #[view 'right-mouse-down] old-right-mouse-down)
-		    (set! #[view 'drag] old-drag)
-		    (keynd 'g old-g)
-		    (keydn 'esc old-esc)))
-      (keydn 'g noop)
-      (set! #[view 'left-click] noop)
-      (set! #[view 'right-mouse-down] noop)
-      (set! #[view 'drag] noop)
-    )))
-|#
+(keydn 'h
+  (lambda ()
+    (if (not (null? #[view 'selected]))
+	(let ((old-bindings (current-key-bindings))
+	      (first-selected (first #[view 'selected]))
+	      (original-orientations (map #[_ 'orientation] #[view 'selected])))
+	  (match-let* ((center #[first-selected 'position])
+		       ((_ _ z0) (3d->screen view center))
+		       (q0 #[first-selected 'orientation])
+		       ((x0 y0) (mouse-position)))
+	    (set-key-bindings!
+	     (key-bindings
+	      (keydn 'esc
+		(lambda ()
+		  (for (object orientation) in (zip #[view 'selected]
+						    original-orientations)
+		       (set! #[object 'orientation] orientation))
+		  (set-key-bindings! old-bindings)))
+	      (keydn 'mouse-left
+		(lambda (x y)
+		  (set-key-bindings! old-bindings)))
+	      (mousemove 
+	       (lambda (x y xrel yrel)
+		 (for object in #[view 'selected]
+		      (set! #[object 'orientation]
+			    (* (rotation-quaternion 
+				#;from (- (screen->3d view x0 y0 z0) center)
+				       #;to (- (screen->3d view x y z0) center))
+			       q0))))))))))))
 
 (set! #[view 'left-click]
       (lambda (x y)
@@ -187,9 +191,7 @@
 	      (add-object! view 
 			   (make <3d-model> 
 			     #:position (screen->3d view x y)
-			     #:mesh 
-			     *sphere*
-			     #;(apply line-from-origin (array->list xyz))))))))
+			     #:mesh *sphere*))))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
