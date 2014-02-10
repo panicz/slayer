@@ -10,11 +10,6 @@
   #:use-module (slayer 3d)
   #:export (<3d-view> 
 	    add-object! 
-	    select-object!
-	    unselect-object!
-	    unselect-all!
-	    draw-mesh! 
-	    draw-objects
 	    object-at-position
 	    relative-turn!
 	    relative-twist!
@@ -26,61 +21,32 @@
 
 (define-class <3d-view> (<extended-widget>)
   (camera #:init-thunk (lambda()(make <3d-cam>)))
-  (current-display-index #:init-value 0)
-  (next-display-index!
+  (draw-objects!
    #:allocation #:virtual
-   #:slot-ref
-   (lambda (self)
-     (let ((display-index #[self 'current-display-index]))
-       (set! #[self 'current-display-index] 
-	     (modulo (+ display-index 1) (max-display-index)))
-       display-index))
+   #:slot-ref (lambda (view)
+		(for object in #[view 'objects]
+		     (draw-model! object)))
    #:slot-set! noop)
-  (objects #:init-thunk make-hash-table)
-  (object-groups #:init-form (make-vector (max-display-index) '()))
-  ;; hash whose keys are objects and values -- display indices
-  (selected #:init-value '())
-  )
+  (lit-objects!
+   #:allocation #:virtual
+   #:slot-ref (lambda (view)
+		(for object in #[view 'objects]
+		     (setup-lights! #[object '%lights])))
+   #:slot-set! noop)
+  (objects #:init-value '()))
 
-(define-method (object-at-position x y #;from (view <3d-view>))
-  (and-let* ((n (display-index x y))
-	     (candidates #[view : 'object-groups : n]))
-    (case (length candidates)
-      ((0)
-       #f)
-      ((1)
-       (first candidates))
-      (else
-       (format #t "ambiguous display-index candidates\n")))))
-
-#;(with-inhibited-redisplay (x y w h)
-  ;; najpierw zapisujemy bieżący obraz do jakiegoś bufora (tzn. robimy
-  ;; tylko kopię bufora kolorów i ew. z-bufora)
-  ;; następnie czyścimy bufor i rysujemy obiekty 
-			 
-  
-  ;; wreszcie przywracamy naszą kopię buforów
-  ;; oraz wszystkie ustawienia 
- )
-
-(define-method (draw-objects (view <3d-view>))
+(define-method (draw-scene (view <3d-view>))
   (let ((lights '()))
     (supply
-     (((remove-light l #;after-rendering)
+	(((remove-light l #;after-rendering)
        #;by-doing (push! lights l)))
-     (for (object => index) in #[view 'objects]
-	  (setup-lights! #[object '%lights]))
-     ;; lights need to be set up before the scene is rendered,
+      #[view 'lit-objects!]
+      ;; lights need to be set up before the scene is rendered,
      ;; but they can be positioned in the same place as the vertices,
-     ;; so we need to extract the lights (along with any matrix
-     ;; transformations) from the model definition first
-     (for (object => index) in #[view 'objects]
-	  (set-display-index! index)
-	  (draw-model! object)
-	  (when (in? object #[view 'selected])
-	    (set-display-index! #f)
-	    (draw-contour! object)))
-     (for-each remove-light! lights))))
+      ;; so we need to extract the lights (along with any matrix
+      ;; transformations) from the model definition first
+      #[view 'draw-objects!]
+      (for-each remove-light! lights))))
 
 (define-method (draw (view <3d-view>))
   (let ((original-viewport (current-viewport))
@@ -92,24 +58,12 @@
     (rotate-view! (~ #[camera 'orientation]))
     (translate-view! (- #[camera 'position]))
     (set-light-property! #[camera 'light] 'position #[camera 'position])
-    (draw-objects view)
+    (draw-scene view)
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
 
 (define-method (add-object! (view <3d-view>) (object <3d>))
-  (let ((display-index #[view 'next-display-index!]))
-    (set! #[view : 'objects : object] display-index)
-    (push! #[view : 'object-groups : display-index] object)))
-
-(define-method (select-object! (view <3d-view>) (object <3d>))
-  (if (not (in? object #[view 'selected]))
-      (push! #[view 'selected] object)))
-
-(define-method (unselect-object! (view <3d-view>) (object <3d>))
-  (set! #[view 'selected] (delete object #[view 'selected])))
-
-(define-method (unselect-all! (view <3d-view>))
-  (set! #[view 'selected] '()))
+  (push! #[view 'objects] object))
 
 (define-fluid X-SENSITIVITY 0.01)
 (define-fluid Y-SENSITIVITY 0.01)
@@ -157,4 +111,3 @@
 		      (/ (* 1.0 #[view 'w]) #[view 'h]))))
     (world->screen/coordinates #[position 0] #[position 1] #[position 2]
 			       matrix projection (area view))))
-

@@ -17,7 +17,7 @@
 (set-window-title! "WELCOME TO SLAYER")
 
 (cond-expand 
- (slayer-3d (use-modules (slayer 3d) (widgets 3d-view) (extra 3d)))
+ (slayer-3d (use-modules (slayer 3d) (widgets 3d-editor) (extra 3d)))
  (else (begin)))
 
 (cond-expand 
@@ -48,7 +48,7 @@
 (define 3d-object (make <3d-model> 
 		    #:mesh *sphere*))
 
-(define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400))
+(define view (make <3d-editor> #:x 50 #:y 50 #:w 540 #:h 400))
 
 (add-child! *stage* view)
 
@@ -184,14 +184,10 @@
 
 (set! #[view 'right-mouse-down]
       (lambda (x y)
-	(if (object-at-position x y view)
-	    (let ((xyz (screen->3d view x y)))
-	      (format #t "~a ~a -> ~a -> ~a\n"x y xyz 
-		      (3d->screen view xyz))
-	      (add-object! view 
-			   (make <3d-model> 
-			     #:position (screen->3d view x y)
-			     #:mesh *sphere*))))))
+	(add-object! view 
+		     (make <3d-model> 
+		       #:position (screen->3d view x y)
+		       #:mesh *sphere*))))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
