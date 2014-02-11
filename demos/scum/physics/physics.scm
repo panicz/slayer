@@ -2,7 +2,8 @@
   #:use-module (extra common)
   #:export (define-rig-for make-rig
 	     primitive-make-simulation
-	     simulation-step!
+	     make-simulation-step!
+	     current-simulation-step
 	     set-simulation-rig-maker!
 	     simulation-rig-maker
 	     simulation-rigs

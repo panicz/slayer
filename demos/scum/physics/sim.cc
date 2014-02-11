@@ -8,6 +8,7 @@ primitive_make_simulation() {
   sim->space = dHashSpaceCreate(0);
   sim->contact_group = dJointGroupCreate(0);
   sim->dt = 0.05;
+  sim->step = 0;
   return sim_to_smob(sim);
 }
 
@@ -25,12 +26,19 @@ simulation_rigs(SCM x_sim) {
 }
 
 static SCM
-simulation_step(SCM x_sim) {
+make_simulation_step(SCM x_sim) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   dJointGroupEmpty(sim->contact_group);
   dSpaceCollide(sim->space, sim, &on_potential_collision);
   dWorldStep(sim->world, sim->dt);
+  sim->step++;
   return SCM_UNSPECIFIED;
+}
+
+static SCM
+current_simulation_step(SCM x_sim) {
+  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+  return scm_from_int(sim->step);
 }
 
 static SCM
@@ -230,7 +238,8 @@ init_sim_property_accessors() {
 // function in `physics.cc' file
 #define EXPORT_SIM_PROCEDURES						\
   DEFINE_PROC("primitive-make-simulation",0,0,0,primitive_make_simulation); \
-  EXPORT_PROC("simulation-step!",1,0,0,simulation_step);		\
+  EXPORT_PROC("make-simulation-step!",1,0,0,make_simulation_step);	\
+  EXPORT_PROC("current-simulation-step",1,0,0,current_simulation_step);	\
   EXPORT_PROC("set-simulation-rig-maker!",3,0,0,set_simulation_rig_maker_x); \
   EXPORT_PROC("simulation-rig-maker",2,0,0,simulation_rig_maker);	\
   EXPORT_PROC("simulation-rigs",1,0,0,simulation_rigs);			\

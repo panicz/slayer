@@ -1,5 +1,5 @@
-#ifndef _PHYSICS_H
-#define _PHYSICS_H
+#ifndef _PHYSICS_HH
+#define _PHYSICS_HH
 
 #include <ode/ode.h>
 #include <list>
@@ -102,6 +102,7 @@ typedef struct sim_t {
   dJointGroupID contact_group;
   std::list<dJointID> contacts;
   dReal dt;
+  int step;
   general_scm_map_t rig_defs;
 } sim_t;
 
@@ -357,5 +358,4 @@ typedef qtd qtReal;
 typedef v3d v3Real;
 #endif
 
-
-#endif // _PHYSICS_H 
+#endif // _PHYSICS_HH

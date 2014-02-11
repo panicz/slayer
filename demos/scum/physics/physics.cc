@@ -13,8 +13,7 @@ static SCM s_s32;
 static SCM s_u64;
 static SCM s_s64;
 
-#include "physics.h"
-
+#include "physics.hh"
 
 // based on src/ode/collision.h enum, lines 880-902
 static char const *class_name[] = {
