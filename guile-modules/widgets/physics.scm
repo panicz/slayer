@@ -44,6 +44,22 @@
     (else (error "Unknown body type of " body))))
 
 (define-class <physical-object> (<3d-model>)
+  (position
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (body-property #[self 'body] 'position))
+   #:slot-set!
+   (lambda (self value)
+     (set-body-property! #[self 'body] 'position value)))
+  (orientation 
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (body-property #[self 'body] 'quaternion))
+   #:slot-set!
+   (lambda (self value)
+     (set-body-property! #[self 'body] 'quaternion value)))
   (step #:init-value #f #:init-keyword #:step)
   (body #:init-value #f #:init-keyword #:body))
 
@@ -73,10 +89,6 @@
 		   (TODO check if the mesh hasn't changed and if it did,
 			 modify accordingly!)
 		   (let ((object #[self : '%body=>object : body]))
-		     (set! #[object 'position] 
-			   (body-property body 'position))
-		     (set! #[object 'orientation]
-			   (body-property body 'quaternion))
 		     (set! #[object 'step] step)
 		     (push! objects object))))
 	 (set! #[self '%objects-cache] objects)
