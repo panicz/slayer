@@ -17,7 +17,7 @@
 (set-window-title! "WELCOME TO SLAYER")
 
 (cond-expand 
- (slayer-3d (use-modules (slayer 3d) (widgets 3d-view) (extra 3d)))
+ (slayer-3d (use-modules (slayer 3d) (widgets 3d-editor) (extra 3d)))
  (else (begin)))
 
 (cond-expand 
@@ -33,7 +33,7 @@
 
 (define world (make <3d-stage>))
 
-(define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400
+(define view (make <3d-editor> #:x 50 #:y 50 #:w 540 #:h 400
 		   #:stage world))
 
 (add-child! *stage* view)
@@ -103,7 +103,6 @@
 ;; no dobrze, ale jak miałoby się to odbywać po stronie C/OpenGLa?
 ;; na przykład tak: klikamy prawym przyciskiem myszki. wówczas
 
-#|
 (keydn 'g
   (lambda ()
     (if (not (null? #[view 'selected]))
@@ -168,7 +167,6 @@
 	(let ((object (object-at-position x y view)))
 	  (if object
 	      (select-object! view object)))))
-|#
 
 (set! #[view 'right-mouse-down]
       (lambda (x y)

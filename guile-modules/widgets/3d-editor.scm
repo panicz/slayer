@@ -10,7 +10,6 @@
   #:use-module (slayer)
   #:use-module (slayer 3d)
   #:export (<3d-editor> 
-	    add-object! 
 	    select-object!
 	    unselect-object!
 	    unselect-all!
@@ -19,6 +18,8 @@
 	    object-at-position
 	    )
   #:re-export (
+	       <3d-stage>
+	       add-object! 
 	       relative-turn!
 	       relative-twist!
 	       relative-move!
@@ -29,34 +30,22 @@
   )
 
 (define-class <3d-editor> (<3d-view>)
-  (current-display-index #:init-value 0)
-  (next-display-index!
-   #:allocation #:virtual
-   #:slot-ref
-   (lambda (self)
-     (let ((display-index #[self 'current-display-index]))
-       (set! #[self 'current-display-index] 
-	     (modulo (+ display-index 1) (max-display-index)))
-       display-index))
-   #:slot-set! noop)
+  (object-groups #:init-form (make-vector (1+ (max-display-index)) '()))
   (draw-objects!
    #:allocation #:virtual
-   #:slot-ref (lambda (view)
-		(for (object => index) in #[view 'objects]
-		     (set-display-index! index)
-		     (draw-model! object)
-		     (when (in? object #[view 'selected])
-		       (set-display-index! #f)
-		       (draw-contour! object))))
-   #:slot-set! noop)
-  (lit-objects!
-   #:allocation #:virtual
-   #:slot-ref (lambda (view)
-		(for (object => index) in #[view 'objects]
-		     (setup-lights! #[object '%lights])))
+   #:slot-ref 
+   (lambda (view)
+     (array-map! #[view 'object-groups] (lambda _ '()))
+     (let ((index 0))
+       (for object in #[view : 'stage : 'objects]
+	    (set-display-index! index)
+	    (draw-model! object)
+	    (when (in? object #[view 'selected])
+	      (draw-contour! object))
+	    (push! #[view : 'object-groups : index] object)
+	    (set! index (modulo (+ index 1) (max-display-index))))))
    #:slot-set! noop)
   (objects #:init-thunk make-hash-table)
-  (object-groups #:init-form (make-vector (max-display-index) '()))
   ;; hash whose keys are objects and values -- display indices
   (selected #:init-value '()))
 
@@ -70,11 +59,6 @@
        (first candidates))
       (else
        (format #t "ambiguous display-index candidates\n")))))
-
-(define-method (add-object! (view <3d-editor>) (object <3d>))
-  (let ((display-index #[view 'next-display-index!]))
-    (set! #[view : 'objects : object] display-index)
-    (push! #[view : 'object-groups : display-index] object)))
 
 (define-method (select-object! (view <3d-editor>) (object <3d>))
   (if (not (in? object #[view 'selected]))
