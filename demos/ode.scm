@@ -4,23 +4,16 @@ exit # this prevents from executing the rest of the file by the shell
 (use-modules (slayer)
 	     (slayer 3d)
 	     (widgets base)
-	     (widgets ode-view)
+	     (widgets physics)
 	     (oop goops)
 	     (extra ref)
 	     (extra common)
 	     (extra 3d)
 	     (extra math)
+	     (extra slayer)
 	     (scum physics))
 
 (keydn 'esc quit)
-
-(define *modes* #[])
-
-(add-timer! 30 (lambda()(for-each (lambda(f)(f)) (hash-values *modes*))))
-
-(define (key name fun)
-  (keydn name (lambda()(hash-set! *modes* name fun)))
-  (keyup name (lambda()(hash-remove! *modes* name))))
 
 (define *sim* (primitive-make-simulation))
 
@@ -74,17 +67,19 @@ exit # this prevents from executing the rest of the file by the shell
 			    0.1
 			    -0.1))))))
 
+(define *sim-stage* (make <physics-stage> #:simulation *sim*))
+
 (define *view* 
-  (make <ode-view> #:x 10 #:y 10 
+  (make <3d-view> #:x 10 #:y 10 
 	#:w (- (screen-width) 10)
 	#:h (- (screen-height) 10)
-	#:simulation *sim*))
+	#:stage *sim-stage*))
 
 (add-child! *stage* *view*)
 
 ;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
 
-(add-timer! 25 (lambda()(simulation-step! *sim*)))
+(add-timer! 25 (lambda()(make-simulation-step! *sim*)))
 
 (key 'q (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 -0.02))))
