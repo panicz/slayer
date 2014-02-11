@@ -2,7 +2,7 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (extra common)
-  #:export (rgba highlighted subtract-image force-redisplay!)
+  #:export (rgba highlighted subtract-image force-redisplay! key)
   #:export-syntax (key-bindings))
 
 (define rgba
@@ -47,3 +47,19 @@
        (with-fluids ((KEY-BINDINGS fresh-bindings))
 	 bindings ...
 	 fresh-bindings)))))
+
+(define *modes* #[])
+
+(add-timer! 
+ 30 #;ms
+ (lambda()
+   (for (key => proc) in *modes*
+	(proc))))
+
+(define (key name fun)
+  (keydn name 
+    (lambda()
+      (hash-set! *modes* name fun)))
+  (keyup name 
+    (lambda()
+      (hash-remove! *modes* name))))
