@@ -9,6 +9,7 @@
   #:use-module (slayer)
   #:use-module (slayer 3d)
   #:export (<3d-view> 
+	    <3d-stage>
 	    add-object! 
 	    object-at-position
 	    relative-turn!
@@ -19,21 +20,27 @@
 	    X-SENSITIVITY
 	    Y-SENSITIVITY))
 
+(define-class <3d-stage> ()
+  (objects #:init-value '()))
+
+(define-method (add-object! (stage <3d-stage>) (object <3d>))
+  (push! #[stage 'objects] object))
+
 (define-class <3d-view> (<extended-widget>)
   (camera #:init-thunk (lambda()(make <3d-cam>)))
   (draw-objects!
    #:allocation #:virtual
    #:slot-ref (lambda (view)
-		(for object in #[view 'objects]
+		(for object in #[view : 'stage : 'objects]
 		     (draw-model! object)))
    #:slot-set! noop)
   (lit-objects!
    #:allocation #:virtual
    #:slot-ref (lambda (view)
-		(for object in #[view 'objects]
+		(for object in #[view : 'stage : 'objects]
 		     (setup-lights! #[object '%lights])))
    #:slot-set! noop)
-  (objects #:init-value '()))
+  (stage #:init-form (make <3d-stage>) #:init-keyword #:stage))
 
 (define-method (draw-scene (view <3d-view>))
   (let ((lights '()))
@@ -61,9 +68,6 @@
     (draw-scene view)
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
-
-(define-method (add-object! (view <3d-view>) (object <3d>))
-  (push! #[view 'objects] object))
 
 (define-fluid X-SENSITIVITY 0.01)
 (define-fluid Y-SENSITIVITY 0.01)

@@ -17,29 +17,12 @@
 (set-window-title! "WELCOME TO SLAYER")
 
 (cond-expand 
- (slayer-3d (use-modules (slayer 3d) (widgets 3d-editor) (extra 3d)))
+ (slayer-3d (use-modules (slayer 3d) (widgets 3d-view) (extra 3d)))
  (else (begin)))
 
 (cond-expand 
  (slayer-audio (use-modules (slayer audio)))
  (else (begin)))
-
-(define *modes* #[])
-(define *mutex* (make-locked-mutex))
-
-(add-timer! 
- 30 #;ms
- (lambda()
-   (for (key => proc) in *modes*
-	(proc))))
-
-(define (key name fun)
-  (keydn name 
-    (lambda()
-      (hash-set! *modes* name fun)))
-  (keyup name 
-    (lambda()
-      (hash-remove! *modes* name))))
 
 (cond-expand (slayer-3d
 
@@ -48,11 +31,14 @@
 (define 3d-object (make <3d-model> 
 		    #:mesh *sphere*))
 
-(define view (make <3d-editor> #:x 50 #:y 50 #:w 540 #:h 400))
+(define world (make <3d-stage>))
+
+(define view (make <3d-view> #:x 50 #:y 50 #:w 540 #:h 400
+		   #:stage world))
 
 (add-child! *stage* view)
 
-(add-object! view 3d-object)
+(add-object! world 3d-object)
 
 ) (else (begin))) ;; cond-expand slayer-3d
 
@@ -117,6 +103,7 @@
 ;; no dobrze, ale jak miałoby się to odbywać po stronie C/OpenGLa?
 ;; na przykład tak: klikamy prawym przyciskiem myszki. wówczas
 
+#|
 (keydn 'g
   (lambda ()
     (if (not (null? #[view 'selected]))
@@ -181,10 +168,11 @@
 	(let ((object (object-at-position x y view)))
 	  (if object
 	      (select-object! view object)))))
+|#
 
 (set! #[view 'right-mouse-down]
       (lambda (x y)
-	(add-object! view 
+	(add-object! world
 		     (make <3d-model> 
 		       #:position (screen->3d view x y)
 		       #:mesh *sphere*))))
