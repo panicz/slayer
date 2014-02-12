@@ -1,7 +1,7 @@
 (define-module (widgets physics)
   #:use-module (scum physics)
   #:use-module (widgets base)
-  #:use-module (widgets 3d-view)
+  #:use-module (widgets 3d)
   #:use-module (oop goops)
   #:use-module (extra 3d)
   #:use-module (extra math)

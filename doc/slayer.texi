@@ -243,7 +243,7 @@ tarball and needs to be obtained from the mercurial repository:
 More importantly than just playing with the demos (which, honestly, can become
 boring quite quickly), you are encouraged to read their source code (which, in
 turn, is a fascinating and endless endeavour).
-In particular, the ``guile-modules/widgets/3d-view.scm'' module defines a file 
+In particular, the ``guile-modules/widgets/3d.scm'' module defines a file 
 format for representing 3d mesh (an example can be found in the 
 ``demos/art/3d/cube.3d'' file), and the scum/physics.scm defines a
 ``define-rigs-for'' procedure, which is used to implement a file format for
@@ -742,7 +742,7 @@ similar procedures. SLAYER does not support them. Instead, it forces you to use
 its wrappers for ``glVertexPointer'', ``glColorPointer'', ``glDrawElements'' 
 and so on, which makes it a little bit more difficult for beginners, but 
 results in a more concise code. (There are also higher level interface 
-functions available in (extra 3d) and (widgets 3d-view) modules)
+functions available in (extra 3d) and (widgets 3d) modules)
 
 Secondly, because of Guile's more informative data types, it is unnecessary
 to maintain so many variants of the same procedure (like ``glColor3f'',

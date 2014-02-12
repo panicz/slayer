@@ -1,7 +1,7 @@
 (define-module (widgets 3d-editor)
   #:use-module (oop goops)
   #:use-module (widgets base)
-  #:use-module (widgets 3d-view)
+  #:use-module (widgets 3d)
   #:use-module (extra common)
   #:use-module (extra math)
   #:use-module (extra shape)
