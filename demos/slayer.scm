@@ -17,7 +17,7 @@
 (set-window-title! "WELCOME TO SLAYER")
 
 (cond-expand 
- (slayer-3d (use-modules (slayer 3d) (widgets 3d-editor) (extra 3d)))
+ (slayer-3d (use-modules (slayer 3d) (widgets 3d) (extra 3d)))
  (else (begin)))
 
 (cond-expand 

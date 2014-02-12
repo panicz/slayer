@@ -10,6 +10,7 @@
   #:use-module (slayer 3d)
   #:export (<3d-view> 
 	    <3d-stage>
+	    <3d-editor> 
 	    add-object! 
 	    object-at-position
 	    relative-turn!
@@ -17,6 +18,9 @@
 	    relative-move!
 	    screen->3d
 	    3d->screen
+	    select-object!
+	    unselect-object!
+	    unselect-all!
 	    X-SENSITIVITY
 	    Y-SENSITIVITY))
 
@@ -115,3 +119,45 @@
 		      (/ (* 1.0 #[view 'w]) #[view 'h]))))
     (world->screen/coordinates #[position 0] #[position 1] #[position 2]
 			       matrix projection (area view))))
+
+
+(define-class <3d-editor> (<3d-view>)
+  (object-groups #:init-form (make-vector (1+ (max-display-index)) '()))
+  (draw-objects!
+   #:allocation #:virtual
+   #:slot-ref 
+   (lambda (view)
+     (array-map! #[view 'object-groups] (lambda _ '()))
+     (let ((index 0))
+       (for object in #[view : 'stage : 'objects]
+	    (set-display-index! index)
+	    (draw-model! object)
+	    (when (in? object #[view 'selected])
+	      (draw-contour! object))
+	    (push! #[view : 'object-groups : index] object)
+	    (set! index (modulo (+ index 1) (max-display-index))))))
+   #:slot-set! noop)
+  (objects #:init-thunk make-hash-table)
+  ;; hash whose keys are objects and values -- display indices
+  (selected #:init-value '()))
+
+(define-method (object-at-position x y #;from (editor <3d-editor>))
+  (and-let* ((n (display-index x y))
+	     (candidates #[editor : 'object-groups : n]))
+    (case (length candidates)
+      ((0)
+       #f)
+      ((1)
+       (first candidates))
+      (else
+       (format #t "ambiguous display-index candidates\n")))))
+
+(define-method (select-object! (view <3d-editor>) (object <3d>))
+  (if (not (in? object #[view 'selected]))
+      (push! #[view 'selected] object)))
+
+(define-method (unselect-object! (view <3d-editor>) (object <3d>))
+  (set! #[view 'selected] (delete object #[view 'selected])))
+
+(define-method (unselect-all! (view <3d-editor>))
+  (set! #[view 'selected] '()))
