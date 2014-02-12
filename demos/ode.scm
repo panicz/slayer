@@ -75,7 +75,7 @@ exit # this prevents from executing the rest of the file by the shell
 	#:h (- (screen-height) 10)
 	#:stage *sim-stage*))
 
-(add-child! *stage* *view*)
+(add-child! *view* #;to *stage*)
 
 ;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
 
