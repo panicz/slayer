@@ -36,45 +36,45 @@
 (define view (make <3d-editor> #:x 50 #:y 50 #:w 540 #:h 400
 		   #:stage world))
 
-(add-child! *stage* view)
+(add-child! view #;to *stage*)
 
-(add-object! world 3d-object)
+(add-object! 3d-object #;to world)
 
 ) (else (begin))) ;; cond-expand slayer-3d
 
-(add-child! 
- *stage* 
- (make-text-area 
-  #:text 
-  (string-append
-   "'(click somewhere around HERE and start typing scheme code)\n"
-   "'(use F1 to evaluate last sexp)\n"
-   "'((by default the result is printed to stdout))\n\n"
+(let ((text-area 
+       (make-text-area 
+	#:text 
+	(string-append
+	 "'(click somewhere around HERE and start typing scheme code)\n"
+	 "'(use F1 to evaluate last sexp)\n"
+	 "'((by default the result is printed to stdout))\n\n"
 
-   (cond-expand 
-    (slayer-3d
-     (string-append
-      "'(use '(W S A D) and mouse to navigate the 3d area)\n"
-      "'(right-click on the ball to create a new one!)\n"))
-    (slayer-3d-available
-     (string-append
-      "'(to see the 3D version of this demo, supply the -e3d option\n"
-      " as a command line argument, or reconfigure with "
-      "--enable-default-3d)\n\n"))
-    (else
-     (string-append
-      "'(demo compiled without opengl support)\n")))
+	 (cond-expand 
+	  (slayer-3d
+	   (string-append
+	    "'(use '(W S A D) and mouse to navigate the 3d area)\n"
+	    "'(right-click on the ball to create a new one!)\n"))
+	  (slayer-3d-available
+	   (string-append
+	    "'(to see the 3D version of this demo, supply the -e3d option\n"
+	    " as a command line argument, or reconfigure with "
+	    "--enable-default-3d)\n\n"))
+	  (else
+	   (string-append
+	    "'(demo compiled without opengl support)\n")))
 
-   "'(use 'ESC to finish typing (after having clicked above)\n"
-   "  or to exit application)\n"
-   (cond-expand
-    (slayer-audio
-     "'(press m to hear some music)")
-    (else ""))
-   )))
+	 "'(use 'ESC to finish typing (after having clicked above)\n"
+	 "  or to exit application)\n"
+	 (cond-expand
+	  (slayer-audio
+	   "'(press m to hear some music)")
+	  (else ""))
+	 ))))
+  (add-child! text-area #;to *stage*))
 
 (define ku (load-image "./art/ku.png"))
-(add-child! *stage* (make-image ku 475 25))
+(add-child! (make-image ku 475 25) #;to *stage*)
 
 (cond-expand (slayer-audio
 
@@ -153,7 +153,7 @@
 		(lambda (x y)
 		  (set-key-bindings! old-bindings)))
 	      (mousemove 
-	       (lambda (x y xrel yrel)
+	       (lambda (x y xrel yrel)		 
 		 (for object in #[view 'selected]
 		      (set! #[object 'orientation]
 			    (* (rotation-quaternion 
@@ -170,10 +170,10 @@
 
 (set! #[view 'right-mouse-down]
       (lambda (x y)
-	(add-object! world
-		     (make <3d-model> 
+	(add-object! (make <3d-model> 
 		       #:position (screen->3d view x y)
-		       #:mesh *sphere*))))
+		       #:mesh *sphere*)
+		     #;to world)))
 
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))

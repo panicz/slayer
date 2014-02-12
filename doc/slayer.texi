@@ -962,7 +962,7 @@ unreachable).
 
 In order to use the widget framework, it is enough to load the desired
 widget modules and add their instances to @code{*stage*} using the
-@code{(add-child! *stage* /instance-of-a-widget/)}. The simplest program
+@code{(add-child! /instance-of-a-widget/ #;to *stage*)}. The simplest program
 that uses widgets -- a draggable rectangle -- could look like this:
 
 
@@ -981,7 +981,7 @@ that uses widgets -- a draggable rectangle -- could look like this:
 (let* ((rect (rectangle #;w 50 #;h 50 #;color #xcc33dd))
        (img (make-image rect #;x 50 #;y 50)))
   (slot-set! img 'drag (dragger img))
-  (add-child! *stage* img))
+  (add-child! img #;to *stage*))
 @end lisp
 
 There are a few widgets already bundled with slayer, among which there is

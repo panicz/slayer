@@ -117,7 +117,7 @@
 (define-method (draw (w <widget>))
   (for-each draw (reverse #[ w 'children ])))
 
-(define-method (add-child! (parent <widget>) (child <widget>))
+(define-method (add-child! (child <widget>) #;to (parent <widget>))
   (set! #[ parent 'children ] (cons child #[ parent 'children ]))
   (set! #[ parent 'w ] (max #[ parent 'w ] (+ #[ child 'x ] #[ child 'w ])))
   (set! #[ parent 'h ] (max #[ parent 'h ] (+ #[ child 'y ] #[ child 'h ])))

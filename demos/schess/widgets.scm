@@ -160,7 +160,7 @@
 					 #:on-drop #[board 'on-drop-checker]
 					 #:image image #:type checker-type)))
 			  (set! #[field 'children] '())
-			  (add-child! field checker)))))))))
+			  (add-child! checker #;to field)))))))))
 
 (define-method (setup-fields! (board <board>) initial-state)
   (match-let (((w h) (rect-size initial-state))

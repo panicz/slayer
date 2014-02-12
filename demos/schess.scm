@@ -35,6 +35,6 @@ exit
 				  (symbol->string
 				   #[*game* : 'rules : 'game-name])))
 
-(add-child! *stage* *game*)
+(add-child! *game* #;to *stage*)
 
 (start-gameplay *game*)

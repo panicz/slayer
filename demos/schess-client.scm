@@ -33,4 +33,4 @@ exit
 	    (lambda(player)
 	      (format #t "my player is ~a\n" player)))))
 
-(add-child! *stage* *game*)
+(add-child! *game* #;to *stage*)
