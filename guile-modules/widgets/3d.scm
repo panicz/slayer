@@ -1,4 +1,4 @@
-(define-module (widgets 3d-view)
+(define-module (widgets 3d)
   #:use-module (oop goops)
   #:use-module (widgets base)
   #:use-module (extra common)
