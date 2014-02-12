@@ -23,7 +23,7 @@
 (define-class <3d-stage> ()
   (objects #:init-value '()))
 
-(define-method (add-object! (stage <3d-stage>) (object <3d>))
+(define-method (add-object! (object <3d>) #;to (stage <3d-stage>))
   (push! #[stage 'objects] object))
 
 (define-class <3d-view> (<extended-widget>)
