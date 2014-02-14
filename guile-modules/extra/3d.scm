@@ -10,11 +10,12 @@
   :export (
 	   <3d> 
 	   <3d-cam> 
+	   <3d-object>
 	   <3d-model>
 	   make-light
 	   transform-matrix!
 	   draw-mesh!
-	   draw-model!
+	   draw-object!
 	   draw-contour!
 	   setup-lights!
 	   extract-lights
@@ -232,7 +233,15 @@
   (fovy #:init-value 70.0)
   (light #:init-thunk (lambda()(make-light #:ambient #f32(0.3 0.3 0.3 0.3)))))
 
-(define-class <3d-model> (<3d>)
+(define-class <3d-object> (<3d>)
+  (mesh #:init-value '(mesh 
+		       (vertices #2f32((0 0 0)(1 0 0)(0 1 0)(0 0 1)))
+		       (colors #2f32((1 1 1)(1 0 0)(0 1 0)(0 0 1)))
+		       (faces
+			(lines #2u8((0 1)(0 2)(0 3)))))
+	#:init-keyword #:mesh))
+
+(define-class <3d-model> (<3d-object>)
   (%mesh #:init-value '(mesh))
   (%lights #:init-value '(mesh))
   (mesh #:allocation #:virtual
@@ -344,10 +353,11 @@
 		     (demand 'remove-light light #;after-rendering)))))
   )
 
-
-
 (define-method (draw-mesh! (mesh <3d-model>))
   (draw-mesh! #[mesh '%mesh]))
+
+(define-method (setup-lights! (object <3d-object>))
+  (noop))
 
 (define-method (setup-lights! (model <3d-model>))
   (push-matrix!)
@@ -366,11 +376,28 @@
 		       (else primitive)))
 		   primitives)))))
 
-(define-method (draw-model! (model <3d-model>))
+(define-method (draw-object! (model <3d-object>))
+  (push-matrix!)
+  (translate-view! #[model 'position])
+  (rotate-view! #[model 'orientation])
+  (draw-mesh! #[model 'mesh])
+  (pop-matrix!))
+
+(define-method (draw-object! (model <3d-model>))
   (push-matrix!)
   (translate-view! #[model 'position])
   (rotate-view! #[model 'orientation])
   (draw-mesh! #[model '%mesh])
+  (pop-matrix!))
+
+(define-method (draw-contour! (model <3d-object>))
+  (push-matrix!)
+  (translate-view! #[model 'position])
+  (rotate-view! #[model 'orientation])
+  (scale-view! 1.1)
+  (draw-mesh! (replace/mesh #[model 'mesh]
+			    (((or 'color 'colors) . _)
+			     `(color #f32(0 0.3 0.7 0.5)))))
   (pop-matrix!))
 
 (define-method (draw-contour! (model <3d-model>))
