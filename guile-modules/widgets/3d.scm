@@ -6,12 +6,15 @@
   #:use-module (extra shape)
   #:use-module (extra ref)
   #:use-module (extra 3d)
+  #:use-module (extra slayer)
   #:use-module (slayer)
+  #:use-module (slayer image)
   #:use-module (slayer 3d)
   #:export (<3d-view> 
 	    <3d-stage>
 	    <3d-editor> 
 	    add-object! 
+	    delete-object!
 	    object-at-position
 	    relative-turn!
 	    relative-twist!
@@ -21,6 +24,9 @@
 	    select-object!
 	    unselect-object!
 	    unselect-all!
+	    delete-selected-objects!
+	    grab-mode
+	    rotate-mode
 	    X-SENSITIVITY
 	    Y-SENSITIVITY))
 
@@ -30,21 +36,46 @@
 (define-method (add-object! (object <3d>) #;to (stage <3d-stage>))
   (push! #[stage 'objects] object))
 
+(define-method (delete-object! (object <3d>) #;from (stage <3d-stage>))
+  (set! #[stage 'objects] (delete object #[stage 'objects])))
+
 (define-class <3d-view> (<extended-widget>)
+  (%horizontal-frame #:init-value #f)
+  (%vertical-frame #:init-value #f)
+  (%resize #:init-value noop)
   (camera #:init-thunk (lambda()(make <3d-cam>)))
+  (resize
+   #:allocation #:virtual
+   #:slot-ref (lambda(self)
+		(lambda(w h)
+		  (unless (= w #[self '%w])
+		    (set! #[self '%horizontal-frame]
+			  (rectangle w 1 #xff0000)))
+		  (unless (= h #[self '%h])
+		    (set! #[self '%vertical-frame]
+			  (rectangle 1 h #xff0000)))
+		  (#[self '%resize] w h)))
+   #:slot-set! (lambda(self resize)
+		 (set! #[self '%resize] resize)))
   (draw-objects!
    #:allocation #:virtual
    #:slot-ref (lambda (view)
 		(for object in #[view : 'stage : 'objects]
-		     (draw-model! object)))
+		     (draw-object! object)))
    #:slot-set! noop)
   (lit-objects!
    #:allocation #:virtual
    #:slot-ref (lambda (view)
-		(for object in #[view : 'stage : 'objects]
+		(noop)
+		#;(for object in #[view : 'stage : 'objects]
 		     (setup-lights! #[object '%lights])))
    #:slot-set! noop)
   (stage #:init-form (make <3d-stage>) #:init-keyword #:stage))
+
+(define-method (initialize (self <3d-view>) args)
+  (next-method)
+  (set! #[self '%horizontal-frame] (rectangle #[self 'w] 1 #xff0000))
+  (set! #[self '%vertical-frame] (rectangle 1 #[self 'h] #xff0000)))
 
 (define-method (draw-scene (view <3d-view>))
   (let ((lights '()))
@@ -59,10 +90,19 @@
       #[view 'draw-objects!]
       (for-each remove-light! lights))))
 
+(define-method (draw-border! (view <3d-view>))
+  (match-let (((x y w h) (area view)))
+    (draw-image! #[view '%horizontal-frame] x y)
+    (draw-image! #[view '%vertical-frame] x y)
+    (draw-image! #[view '%horizontal-frame] x (+ y h))
+    (draw-image! #[view '%vertical-frame] (+ x w -1) y)))
+
 (define-method (draw (view <3d-view>))
-  (let ((original-viewport (current-viewport))
-	(camera #[view 'camera]))
-    (apply set-viewport! (area view))
+  (match-let ((original-viewport (current-viewport))
+	      ((x y w h) (area view))
+	      (camera #[view 'camera]))
+    (draw-border! view)
+    (set-viewport! (+ x 1) (+ y 1) (- w 2) (- h 2))
     (set-perspective-projection! #[camera 'fovy])
     (push-matrix!)
     (translate-view! #f32(0 0 -0.1))
@@ -131,7 +171,7 @@
      (let ((index 0))
        (for object in #[view : 'stage : 'objects]
 	    (set-display-index! index)
-	    (draw-model! object)
+	    (draw-object! object)
 	    (when (in? object #[view 'selected])
 	      (draw-contour! object))
 	    (push! #[view : 'object-groups : index] object)
@@ -161,3 +201,64 @@
 
 (define-method (unselect-all! (view <3d-editor>))
   (set! #[view 'selected] '()))
+
+(define-method (delete-selected-objects! (view <3d-editor>))
+  (for object in #[view 'selected]
+       (delete-object! object #;from #[view 'stage]))
+  (set! #[view 'selected] '()))
+
+(define* ((grab-mode view #:key (leave 'esc)))
+  (if (not (null? #[view 'selected]))
+      (let ((old-bindings (current-key-bindings))
+	    (first-selected (first #[view 'selected]))
+	    (original-positions (map #[_ 'position] #[view 'selected])))
+	(match-let (((x0 y0 z0) 
+		     (3d->screen view #[first-selected 'position])))
+	  (set-mouse-position! x0 y0)
+	  (set-key-bindings!
+	   (key-bindings
+	    (keydn 'esc
+	      (lambda () 
+		(for (object position) in (zip #[view 'selected]
+					       original-positions)
+		     (set! #[object 'position] position))
+		(set-key-bindings! old-bindings)))
+	    
+	    (keydn 'mouse-left
+	      (lambda (x y)
+		(set-key-bindings! old-bindings)))
+	    
+	    (mousemove 
+	     (lambda (x y xrel yrel)
+	       (for object in #[view 'selected]
+		    (set! #[object 'position] 
+			  (screen->3d view x y z0)))))))))))
+
+(define* ((rotate-mode view #:key (leave 'esc)))
+  (if (not (null? #[view 'selected]))
+      (let ((old-bindings (current-key-bindings))
+	    (first-selected (first #[view 'selected]))
+	    (original-orientations (map #[_ 'orientation] #[view 'selected])))
+	(match-let* ((center #[first-selected 'position])
+		     ((_ _ z0) (3d->screen view center))
+		     (q0 #[first-selected 'orientation])
+		     ((x0 y0) (mouse-position)))
+	  (set-key-bindings!
+	   (key-bindings
+	    (keydn leave
+	      (lambda ()
+		(for (object orientation) in (zip #[view 'selected]
+						  original-orientations)
+		     (set! #[object 'orientation] orientation))
+		(set-key-bindings! old-bindings)))
+	    (keydn 'mouse-left
+	      (lambda (x y)
+		(set-key-bindings! old-bindings)))
+	    (mousemove 
+	     (lambda (x y xrel yrel)		 
+	       (for object in #[view 'selected]
+		    (set! #[object 'orientation]
+			  (* (rotation-quaternion 
+			      #;from (- (screen->3d view x0 y0 z0) center)
+				     #;to (- (screen->3d view x y z0) center))
+			     q0)))))))))))

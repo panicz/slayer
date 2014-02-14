@@ -28,8 +28,9 @@
 
 (define *sphere* (generate-capsule #:height 0))
 
-(define 3d-object (make <3d-model> 
-		    #:mesh *sphere*))
+(define 3d-object (make <3d-object> 
+		    #:mesh *sphere*
+		    ))
 
 (define world (make <3d-stage>))
 
@@ -103,63 +104,8 @@
 ;; no dobrze, ale jak miałoby się to odbywać po stronie C/OpenGLa?
 ;; na przykład tak: klikamy prawym przyciskiem myszki. wówczas
 
-(keydn 'g
-  (lambda ()
-    (if (not (null? #[view 'selected]))
-	(let ((old-bindings (current-key-bindings))
-	      (first-selected (first #[view 'selected]))
-	      (original-positions (map #[_ 'position] #[view 'selected])))
-	  (match-let (((x0 y0 z0) 
-		       (3d->screen view #[first-selected 'position])))
-	    (set-mouse-position! x0 y0)
-	    (set-key-bindings!
-	     (key-bindings
-	      (keydn 'esc
-		(lambda () 
-		  (for (object position) in (zip #[view 'selected]
-						 original-positions)
-		       (set! #[object 'position] position))
-		  (set-key-bindings! old-bindings)))
-	      
-	      (keydn 'mouse-left
-		(lambda (x y)
-		  (set-key-bindings! old-bindings)))
-	    
-	      (mousemove 
-	       (lambda (x y xrel yrel)
-		 (for object in #[view 'selected]
-		      (set! #[object 'position] 
-			    (screen->3d view x y z0))))))))))))
-
-(keydn 'h
-  (lambda ()
-    (if (not (null? #[view 'selected]))
-	(let ((old-bindings (current-key-bindings))
-	      (first-selected (first #[view 'selected]))
-	      (original-orientations (map #[_ 'orientation] #[view 'selected])))
-	  (match-let* ((center #[first-selected 'position])
-		       ((_ _ z0) (3d->screen view center))
-		       (q0 #[first-selected 'orientation])
-		       ((x0 y0) (mouse-position)))
-	    (set-key-bindings!
-	     (key-bindings
-	      (keydn 'esc
-		(lambda ()
-		  (for (object orientation) in (zip #[view 'selected]
-						    original-orientations)
-		       (set! #[object 'orientation] orientation))
-		  (set-key-bindings! old-bindings)))
-	      (keydn 'mouse-left
-		(lambda (x y)
-		  (set-key-bindings! old-bindings)))
-	      (mousemove 
-	       (lambda (x y xrel yrel)		 
-		 (for object in #[view 'selected]
-		      (set! #[object 'orientation]
-			    (* (rotation-quaternion 
-				#;from (- (screen->3d view x0 y0 z0) center)
-				       #;to (- (screen->3d view x y z0) center))
-			       q0))))))))))))
+(keydn 'g (grab-mode view))
+(keydn 'h (rotate-mode view))
 
 (set! #[view 'left-click]
       (lambda (x y)
