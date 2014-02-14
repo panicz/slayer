@@ -70,13 +70,13 @@
   (w #:allocation #:virtual
      #:slot-ref (lambda(self)#[self '%w])
      #:slot-set! (lambda(self w)
-		   (set! #[self '%w] w)
-		   (#[self 'resize] w #[self '%h])))
+		   (#[self 'resize] w #[self '%h])
+		   (set! #[self '%w] w)))
   (h #:allocation #:virtual
      #:slot-ref (lambda(self)#[self '%h])
      #:slot-set! (lambda(self h)
-		   (set! #[self '%h] h)
-		   (#[self 'resize] #[self '%w] h))))
+		   (#[self 'resize] #[self '%w] h)
+		   (set! #[self '%h] h))))
 
 (define-class <stage> (<widget>)
   (children #:init-value '()))
