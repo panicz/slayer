@@ -69,11 +69,12 @@
 	    insert rest head tail
 	    tree-find tree-map
 	    depth array-map array-map/typed array-append
-	    kw-list->hash-map
+	    keyword-args->hash-map keyword-args->alist
 	    list->uniform-vector list->uniform-array
 	    contains-duplicates?
 	    module->hash-map module->list module-symbols
 	    symbol->list hash-map->alist 
+	    replace-alist-bindings
 	    alist->hash-map assoc? assoc->hash assoc->hash/deep
 	    last-sexp-starting-position
 	    properize flatten
@@ -829,6 +830,8 @@
 (define (indexed list)
   (zip (iota (length list)) list))
 
+(e.g. (indexed '(a b c)) ===> ((0 a) (1 b) (2 c)))
+
 (define-syntax for
   (syntax-rules (in .. =>)
     ((_ x in first .. last body ...)
@@ -900,6 +903,11 @@
 
 (define-syntax-rule (applicable-hash (key value) ...)
   (applicable-hash-with-default #f (key value) ...))
+
+(e.g.
+ (let ((table (applicable-hash ('a 5) ('b 10))))
+   (table 'b 15)
+   (+ (table 'a) (table 'b))) ===> 20)
 
 (define (->strings object)
   (cond ((list? object)
@@ -1149,7 +1157,7 @@
 	(apply fn (take lst n))
 	(for-each-n n fn (drop lst n)))))
 
-(define (kw-list->hash-map kw-list)
+(define (keyword-args->hash-map kw-list)
   (let ((result (make-hash-table)))
     (for-each-n 2 (\ hash-set! result _ _) kw-list)
     result))
@@ -1243,6 +1251,32 @@
 (define (drop-at-most n from-list)
   (drop from-list (min n (length list))))
 
+(define (keyword-args->alist kwlist)
+  (match kwlist
+    (()
+     '())
+    (((? keyword? kw) val . rest)
+     `((,(keyword->symbol kw) . ,val) . ,(keyword-args->alist rest)))))
+
+(e.g.
+ (keyword-args->alist '(#:a 1 #:b 2 #:c 3))
+ same-set?
+ '((a . 1)(b . 2)(c . 3)))
+
+(define (replace-alist-bindings bindings #;with other)
+  (map (mlambda ((key . value))
+	 (match (assoc key other)
+	   ((same-key . other-value)
+	    `(,same-key . ,other-value))
+	   (else
+	    `(,key . ,value))))
+       bindings))
+
+(e.g.
+ (replace-alist-bindings '((a . 1)(b . 2)(c . 3)) #;with '((a . 4)(c . 0)))
+ same-set?
+ '((a . 4)(b . 2)(c . 0)))
+
 (define (keyword-ref l keyword)
   (match l
     (((? keyword? key) value . rest)
@@ -1253,6 +1287,8 @@
      (keyword-ref rest keyword))
     (()
      #f)))
+
+(e.g. (keyword-ref '(#:a 1 #:b 2 #:c 3) #:b) ===> 2)
 
 (define remove-keyword-args
   (rec (self list)

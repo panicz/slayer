@@ -228,7 +228,7 @@
   (define (direct-slot? slot-def)
     (match slot-def
       ((slot-name . property-list)
-       (let ((properties (kw-list->hash-map property-list)))
+       (let ((properties (keyword-args->hash-map property-list)))
 	 (not (or (hash-ref properties #:on-write) 
 		  (hash-ref properties #:on-read)
 		  (hash-ref properties #:allow-override)
@@ -250,7 +250,7 @@
 	   `((,slot-name ,@(transform-keywords slot-name property-list)))
 	   ;;else we create two slots
 	   (let ((%slot-name (symbol-append '% slot-name))
-		 (properties (kw-list->hash-map property-list)))
+		 (properties (keyword-args->hash-map property-list)))
 	     `((,%slot-name ,@(transform-keywords slot-name
 						  (%slot-properties 
 						   property-list)))
