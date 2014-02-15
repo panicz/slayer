@@ -41,7 +41,7 @@
     (match description
       (('define-game-rules name . description)
        (let ((initial-board (first #[description 'initial-board:]))
-	     (wildcards #[description 'wildcards:])
+	     (wildcards (or #[description 'wildcards:] '()))
 	     (moves #[description 'moves:])
 	     (after-move-rules (or #[description 'after-move:] '()))
 	     (final-condition #[description 'finish:])
