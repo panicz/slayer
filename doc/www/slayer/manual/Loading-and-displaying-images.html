@@ -1,0 +1,103 @@
+<html lang="en">
+<head>
+<title>Loading and displaying images - SLAYER</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="SLAYER">
+<meta name="generator" content="makeinfo 4.13">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Working-with-external-data.html#Working-with-external-data" title="Working with external data">
+<link rel="next" href="Rendering-and-displaying-text.html#Rendering-and-displaying-text" title="Rendering and displaying text">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 2013 Panicz Maciej Godek
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with no Front-Cover Texts,
+     and with no Back-Cover Texts.  A copy of the license is included
+     in the appendix entitled ``GNU Free Documentation License''.
+-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<a name="Loading-and-displaying-images"></a>
+<p>
+Next:&nbsp;<a rel="next" accesskey="n" href="Rendering-and-displaying-text.html#Rendering-and-displaying-text">Rendering and displaying text</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Working-with-external-data.html#Working-with-external-data">Working with external data</a>
+<hr>
+</div>
+
+<h4 class="subsection">2.2.1 Loading and displaying images</h4>
+
+<p>In order to be able to use the procedures documented here, one shall
+<code>(use-modules (slayer image))</code>. The module provides a symbol
+<code>slayer-image</code> to use with <code>cond-expand</code> (srfi-0).
+
+<div class="defun">
+&mdash; Procedure: <b>load-image</b><var> path<a name="index-load_002dimage-24"></a></var><br>
+<blockquote><p>Loads an image from an external file, indicated by <var>path</var>. The supported
+file formats depend on the way the SDL_image library was compiled. The procedure
+returns an object that represents the image internally, and can be used with
+<code>draw-image!</code> and other procedures. 
+FIXME: if something goes wrong (i.e. the file doesn't exist), the application
+will probably crash. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>draw-image!</b><var> image x y<a name="index-draw_002dimage_0021-25"></a></var><br>
+<blockquote><p>Display <var>image</var> on the screen. Its top left corner will be located at
+(<var>x</var>, <var>y</var>). 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>rectangle</b><var> w h color<a name="index-rectangle-26"></a></var><br>
+<blockquote><p>Generates and returns solid rectangle whose width is <var>w</var>, height <var>h</var> and
+color is <var>color</var>. <var>color</var> is a 32-bit integer value, which can be
+written as <code>#xAARRGGBB</code>, where <code>AA</code> means alpha channel, <code>RR</code>
+is red component, <code>GG</code> &ndash; green component, and <code>BB</code> &ndash; blue component. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>image-size</b><var> image<a name="index-image_002dsize-27"></a></var><br>
+<blockquote><p>Returns <code>(width height)</code> of the <var>image</var>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>image-&gt;array</b><var> image<a name="index-image_002d_003earray-28"></a></var><br>
+<blockquote><p>Converts <var>image</var> to two-dimensional uniform array of integers. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>array-&gt;image</b><var> array<a name="index-array_002d_003eimage-29"></a></var><br>
+<blockquote><p>Converts two-dimensional uniform <var>array</var> of integers to image. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>decompose-color-to-rgba</b><var> color<a name="index-decompose_002dcolor_002dto_002drgba-30"></a></var><br>
+<blockquote><p>Return a list of <code>(red green blue alpha)</code> components of 32-bit integer
+<var>color</var>. The returned values range between 0 and 255, the higher being
+more intensive. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>compose-color-from-rgba</b><var> red green blue alpha<a name="index-compose_002dcolor_002dfrom_002drgba-31"></a></var><br>
+<blockquote><p>Return a 32-bit integer value (as elements of the array returned by
+<code>image-&gt;array</code> are) that represents color with <var>red</var>, <var>green</var>,
+<var>blue</var> and <var>alpha</var> components. 
+</p></blockquote></div>
+
+</body></html>
+

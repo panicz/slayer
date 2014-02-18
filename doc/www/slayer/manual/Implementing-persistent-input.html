@@ -1,0 +1,82 @@
+<html lang="en">
+<head>
+<title>Implementing persistent input - SLAYER</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="SLAYER">
+<meta name="generator" content="makeinfo 4.13">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Input-handling-and-screen-management.html#Input-handling-and-screen-management" title="Input handling and screen management">
+<link rel="prev" href="Key-names.html#Key-names" title="Key names">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 2013 Panicz Maciej Godek
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with no Front-Cover Texts,
+     and with no Back-Cover Texts.  A copy of the license is included
+     in the appendix entitled ``GNU Free Documentation License''.
+-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<a name="Implementing-persistent-input"></a>
+<p>
+Previous:&nbsp;<a rel="previous" accesskey="p" href="Key-names.html#Key-names">Key names</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Input-handling-and-screen-management.html#Input-handling-and-screen-management">Input handling and screen management</a>
+<hr>
+</div>
+
+<h4 class="subsection">2.1.2 Implementing persistent input</h4>
+
+<p>The <code>keydn</code> and <code>keyup</code> procedures register event handlers that are
+called whenever a certain key is pressed or released. It can sometimes be
+desired, however, to call a certain procedure &ldquo;persistently&rdquo;, i.e. as long
+as a given key is pressed.
+
+<p>SLAYER itself doesn't provide such procedures, because they frequently depend
+on a specific application. However, this document provides a general solution
+that can be taylored to one's needs.
+
+<p><a name="index-Persistent-input-23"></a>
+<pre class="lisp">     (use-modules (slayer))
+     
+     ;; we need to keep track on which keys are pressed, in the *modes* hash table.
+     ;; its keys are the names of pressed keys, and values -- the procedures that
+     ;; are meant to be called "persistently"
+     
+     (define *modes* (make-hash-table))
+     
+     ;; we also need to be able to define a procedure to be called as long as the
+     ;; key is pressed
+     
+     (define (key name proc)
+       (keydn name (lambda()(hash-set! *modes* name proc)))
+       (keyup name (lambda()(hash-remove! *modes* name))))
+     
+     ;; lastly, we shall invoke procedures corresponding to the pressed keys with
+     ;; a certain period, say, 30 miliseconds:
+     
+     (add-timer! 30 (hash-for-each (lambda(key thunk)(thunk)) *modes*))
+     
+     ;; now we can bind keys to persistent procedures:
+     (key 'return
+          (lambda ()
+             (display (string-append "this message will be printed"
+                                     " for as long as 'return is pressed\n"))))
+</pre>
+</body></html>
+

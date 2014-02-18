@@ -1,0 +1,201 @@
+<html lang="en">
+<head>
+<title>Input handling and screen management - SLAYER</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="description" content="SLAYER">
+<meta name="generator" content="makeinfo 4.13">
+<link title="Top" rel="start" href="index.html#Top">
+<link rel="up" href="Direct-Layer.html#Direct-Layer" title="Direct Layer">
+<link rel="next" href="Working-with-external-data.html#Working-with-external-data" title="Working with external data">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+Copyright (C) 2013 Panicz Maciej Godek
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with no Front-Cover Texts,
+     and with no Back-Cover Texts.  A copy of the license is included
+     in the appendix entitled ``GNU Free Documentation License''.
+-->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+<div class="node">
+<a name="Input-handling-and-screen-management"></a>
+<p>
+Next:&nbsp;<a rel="next" accesskey="n" href="Working-with-external-data.html#Working-with-external-data">Working with external data</a>,
+Up:&nbsp;<a rel="up" accesskey="u" href="Direct-Layer.html#Direct-Layer">Direct Layer</a>
+<hr>
+</div>
+
+<h3 class="section">2.1 Input handling and screen management</h3>
+
+<ul class="menu">
+<li><a accesskey="1" href="Key-names.html#Key-names">Key names</a>
+<li><a accesskey="2" href="Implementing-persistent-input.html#Implementing-persistent-input">Implementing persistent input</a>
+</ul>
+
+<p>Once SLAYER is up and running, it has one window where everything is
+displayed, and which gathers all the input. If you want to use procedures
+described here, you need to <code>(use-modules (slayer))</code>.
+
+<p>In order to get something displayed on the screen, you need to set a display
+procedure of your liking.
+
+<div class="defun">
+&mdash; Procedure: <b>set-display-procedure!</b><var> thunk<a name="index-set_002ddisplay_002dprocedure_0021-3"></a></var><br>
+<blockquote><p>Sets <var>thunk</var> to be called after each series of events is handled and the
+screen is wiped. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>screen-size</b><var><a name="index-screen_002dsize-4"></a></var><br>
+<blockquote><p>Return a list containing width and height of the window, in pixels. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-screen-size!</b><var> width height<a name="index-set_002dscreen_002dsize_0021-5"></a></var><br>
+<blockquote><p>Set the screen size to <var>width</var> times <var>height</var> pixels. It causes
+a screen resize event, which can be handled using <code>set-resize-procedure!</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-resize-procedure!</b><var> proc<a name="index-set_002dresize_002dprocedure_0021-6"></a></var><br>
+<blockquote><p>Sets the binary procedure <var>proc</var> to be invoked on window resize event. 
+<var>proc</var> takes two arguments, namely &ndash; the new width and height of the screen. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-exit-procedure!</b><var> proc<a name="index-set_002dexit_002dprocedure_0021-7"></a></var><br>
+<blockquote><p>Sets the <var>proc</var> procedure to be called on exit. Due to historical reasons,
+<var>proc</var> currently takes one argument, which should be ignored. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-window-title!</b><var> string<a name="index-set_002dwindow_002dtitle_0021-8"></a></var><br>
+<blockquote><p>Sets the window caption to <var>string</var>. This can only be visible if SLAYER
+is run in a window manager, in non-fullscreen mode. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>keydn</b><var> key </var>[<var>thunk</var>]<var><a name="index-keydn-9"></a></var><br>
+<blockquote><p>Set <var>thunk</var> to be invoked whenever <var>key</var> is pressed (including mouse
+buttons). <var>key</var> can either be a string or a symbol. If <var>thunk</var>
+is not given, or is given but is not a procedure, it returns the current
+procedure set for a given <var>key</var>. 
+<a href="Key-names.html#Key-names">Key names</a> table to get the names of specific keys. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>keyup</b><var> key thunk<a name="index-keyup-10"></a></var><br>
+<blockquote><p>This function works exactly as <code>keydn</code>, except that the <var>thunk</var> is
+invoked on <var>key</var> release. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>mousemove</b><var> proc<a name="index-mousemove-11"></a></var><br>
+<blockquote><p>Set <var>proc</var> to be invoked whenever mouse is moved. <var>proc</var> takes four
+arguments: <code>(x y dx dy)</code>, where <code>(x y)</code> is the current mouse position
+and <code>(dx dy)</code> is the difference between the previous and the current
+position. If <var>proc</var> not given, returns the current procedure. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>modifier-pressed?</b><var> modifier<a name="index-modifier_002dpressed_003f-12"></a></var><br>
+<blockquote><p>Checks whether <var>modifier</var> is pressed. <var>modifier</var> is a symbol that
+can be either <code>shift</code>, <code>rshift</code>, <code>lshift</code>, <code>alt</code>,
+<code>lalt</code>, <code>ralt</code>, <code>ctrl</code>, <code>lctrl</code>, <code>rctrl</code>, <code>meta</code>,
+<code>lmeta</code>, <code>rmeta</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>input-mode</b><var><a name="index-input_002dmode-13"></a></var><br>
+<blockquote><p>Return the symbol describing current input mode, which can either be
+<code>'typing</code> or <code>'direct</code>. Direct mode is the default for SLAYER. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-direct-input-mode!</b><var><a name="index-set_002ddirect_002dinput_002dmode_0021-14"></a></var><br>
+<blockquote><p>Sets the input mode to &ldquo;direct&rdquo;, which means that events are generated only
+when keys are actually pressed, which is the desired behaviour for most games,
+and the default behaviour of SLAYER. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-typing-input-mode!</b><var><a name="index-set_002dtyping_002dinput_002dmode_0021-15"></a></var><br>
+<blockquote><p>Sets the input mode to &ldquo;typing&rdquo;, which means that the keyboard input behaves
+like when typing in an editor &ndash; once a key is pressed, after a certain time
+it gets repeated at a certain frequency. In typing mode, pressing printable
+characters do not cause the procedures specified with <code>keydn</code> and
+<code>keyup</code> to be called; instead, it causes the typed character to be written
+to current output port, or it invokes a procedure specified with
+<code>set-typing-special-procedure!</code> to be called with the pressed special key
+name as argument. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-typing-special-procedure!</b><var> proc<a name="index-set_002dtyping_002dspecial_002dprocedure_0021-16"></a></var><br>
+<blockquote><p>When in typing mode, <var>proc</var> will be called whenever a special (i.e. 
+non-printable, e.g. return, escape of F1) key is pressed or repeated. 
+<var>proc</var> will receive one argument: the name of the special key that
+was pressed (as a string). 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>grab-input!</b><var> state<a name="index-grab_002dinput_0021-17"></a></var><br>
+<blockquote><p>If <var>state</var> is given and not <code>#f</code>, the procedure causes the SLAYER
+window to grab all the keyboard and mouse input. This can be deactivated
+and brought back to normal by passing <code>#f</code> as <var>state</var>. 
+When <var>state</var> is not given, the procedure only returns the current state. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>register-userevent!</b><var> proc<a name="index-register_002duserevent_0021-18"></a></var><br>
+<blockquote><p>Register a new user event. The <var>proc</var> procedure will be called with zero,
+one or two arguments, depending on the way the corresponding
+<code>generate-userevent!</code> procedure is called. <code>register-userevent!</code>
+returns an identifier of user event (which happens to be an integer). Up to
+255 user events can be registered. Note also, that the procedure
+<code>add-timer!</code> can be used to generate an user event periodically. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>generate-userevent!</b><var> identifier </var>[<var>data1</var>] [<var>data2</var>]<var><a name="index-generate_002duserevent_0021-19"></a></var><br>
+<blockquote><p>Generate user event identified with <code>identifier</code>, obtained with a previous
+call to <code>register-userevent</code>. The <var>data1</var> and <var>data2</var> arguments
+are passed to event handler if provided. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>add-timer!</b><var> ms proc<a name="index-add_002dtimer_0021-20"></a></var><br>
+<blockquote><p>Generate a new user-event to be called periodically at interval of <var>ms</var>
+miliseconds, and install <var>proc</var> as a handler for the newly-created event. 
+Returns the id of this new event. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-timer-period!</b><var> timer-id ms<a name="index-set_002dtimer_002dperiod_0021-21"></a></var><br>
+<blockquote><p>Change the period of timer <var>timer-id</var> to <var>ms</var> miliseconds. Returns
+the new period on success or <code>#f</code> on failure. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>remove-timer!</b><var> id<a name="index-remove_002dtimer_0021-22"></a></var><br>
+<blockquote><p>Remove a timer with the id <var>id</var> obtained by prior call to <code>add-timer!</code>. 
+Returns <code>#t</code> on success and <code>#f</code> on failure. 
+</p></blockquote></div>
+
+</body></html>
+
