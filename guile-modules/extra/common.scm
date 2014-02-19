@@ -348,7 +348,8 @@
  (let ((people '()))
    (supply (((free person)
 	     (set! people (cons person people))))
-     (demand 'free 'Nelson-Mandela))
+     (let ((the-person 'Nelson-Mandela))
+       (demand 'free the-person)))
    people)
  eq?
  '(Nelson-Mandela))
@@ -674,6 +675,7 @@
   (with-output-to-string (lambda()(write object))))
 
 (define ->string write-string)
+
 (define (read-string string)
   (with-input-from-string string read))
 
@@ -782,6 +784,25 @@
 		      (next-item set `((,item) ,@result)))
 		     ((this . next)
 		      (next-class `(,present . ,past) this next)))))))))))))
+
+(e.g.
+ (equivalence-classes (lambda(x y)(= (modulo x 3) (modulo y 3))) (iota 9))
+ ===> '((0 3 6) (1 4 7) (2 5 8)))
+
+(observation:
+ (for-all <procedure>
+     (if (and (allows-arity? <procedure> 2)
+	      (equivalence? <procedure>))
+	 (for-all <list> x y
+	   (if (and (in? x <list>) (in? y <list>)
+		    (<procedure> x y)
+		    (< (list-index (equals? x) <list>)
+		       (list-index (equals? y) <list>)))
+	       (let* ((classes (equivalence-classes <procedure> <list>))
+		      (the-class (find (lambda(class)(in? x class)) classes)))
+		 (and (list? the-class)
+		      (< (list-index (equals? x) the-class)
+			 (list-index (equals? y) the-class)))))))))
 
 (define-syntax-rule (safely sexp)
   (catch #t (lambda () (values sexp #t))
@@ -1092,6 +1113,7 @@
 	   ,(if (symbol? rest)
 		`(apply ,f ,@args ,rest)
 		`(,f ,@args)))))))
+
 
 (define (cart . lists)
   (match lists
