@@ -395,7 +395,7 @@
    (1 7 wall TYPE-2)
    (9 6 portal 1 4 1)
    (6 6 object DOOR)
-   (3 6 object BATTERY)
+;   (3 6 object BATTERY)
    (1 6 wall TYPE-2)
    (8 5 wall TYPE-2)
    (7 5 wall TYPE-2)
@@ -632,9 +632,9 @@
 		   (set-display-procedure!
 		    (mk-display-messages '(;("-- P A N D O R A --" 240 66)
 					   ("WE HAVE A PARTIAL MELTDOWN CONDITION IN BOTH OUR REACTORS." 130 86)
-					   ("THE RISK OF MASSIVE CONTAMINATION IS HIGH. WE HAVE MANAGED" 130 96)
-					   ("TO DEPLOY A SMALL ROBOT TO ONE OF POWER PLANT'S SHAFTS." 130 106)
-					   ("THE TASK IS SIMPLE -- FIND THE GRAPHITE RODS AND SHUT THE" 130 116)
+					   ("THE RISK OF MASSIVE CONTAMINATION IS HIGH. WE HAVE INTRODUCED" 130 96)
+					   ("A REMOTE CONTROLLED ROBOT TO ONE OF POWER PLANT'S SHAFTS." 130 106)
+					   ("YOUR TASK IS SIMPLE -- FIND THE GRAPHITE RODS AND SHUT THE" 130 116)
 					   ("REACTORS. GOOD LUCK." 130 126)
 					   ("PRESS FIRE." 290 230))))
 		   (if (eq? *joystick* 'A)
@@ -666,8 +666,8 @@
 		 (begin
 		   (set-display-procedure!
 		    (mk-display-messages '(("CONGRATULATIONS!" 260 66)
-					   ("YOU HAVE MANAGED TO SHUT BOTH REACTORS." 170 116)
-					   ("ALL IS LEFT TO DO IS TO FORGET THE WHOLE INCIDENT." 130 136)
+					   ("YOU HAVE MANAGED TO SHUT BOTH REACTORS." 180 116)
+					   ("WE CAN NOW FORGET THE WHOLE INCIDENT." 180 126)
 					   ("PRESS FIRE TO PLAY AGAIN." 210 230))))
 		   (if (eq? *joystick* 'A)
 		       (set! *game-state* 'TITLE))
