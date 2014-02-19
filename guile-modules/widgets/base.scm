@@ -123,7 +123,7 @@
   (set! #[ parent 'h ] (max #[ parent 'h ] (+ #[ child 'y ] #[ child 'h ])))
   (set! #[ child 'parent ] parent))
   
-(define-method (remove-child! (parent <widget>) (child <widget>))
+(define-method (remove-child! (child <widget>) #;from (parent <widget>))
   ;; the parent widget size should be recalculated
   (set! #[ child 'parent ] #f)
   (set! #[ parent 'children ] (delete child #[ parent 'children ])))
