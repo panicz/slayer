@@ -26,6 +26,7 @@ src/scum/physics/physics.so
 doc/version.texi
 doc/slayer.info
 doc/stamp-vti
+doc/www/*
 push
 INSTALL
 aclocal.m4
