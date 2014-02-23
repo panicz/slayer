@@ -631,6 +631,11 @@ Display @var{image} on the screen. Its top left corner will be located at
 (@var{x}, @var{y}).
 @end deffn
 
+@deffn {Procedure} draw-onto-image! dest src [x] [y]
+Blit the @var{src} image to the @var{dest} image at (@var{x}, @var{y}).
+Both @var{x} and @var{y} default to 0.
+@end deffn
+
 @deffn {Procedure} rectangle w h color
 Generates and returns solid rectangle whose width is @var{w}, height @var{h} and 
 color is @var{color}. @var{color} is a 32-bit integer value, which can be 
@@ -683,9 +688,9 @@ be used for rendering text using @code{render-text} procedure.
 
 @deffn {Procedure} render-text text font [color] [bgcolor]
 Returns a new image containing @var{text} rendered using @var{font} with
-@var{color} (which defaults to white). If @var{bgcolor} is given, it will
-become the background color of the image; otherwise, the background is
-transparent.
+@var{color} (which defaults to white). If @var{bgcolor} is given and not
+@code{#f}, it will become the background color of the image; otherwise, 
+the background is transparent.
 The obtained image can be displayed on the screen using @code{draw-image!}.
 @end deffn
 

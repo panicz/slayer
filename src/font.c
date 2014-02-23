@@ -62,7 +62,7 @@ render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
     return SCM_BOOL_F;
   TTF_Font *ttf = (TTF_Font *) SCM_SMOB_DATA(font);
 
-  if (color == SCM_UNDEFINED) {
+  if (!GIVEN(color)) {
     color = scm_from_uint(0xffffff);
   }
 
@@ -71,7 +71,7 @@ render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
   } 
   else {
     surface = 
-      (bgcolor == SCM_UNDEFINED) 
+      (!GIVEN(bgcolor) || isnt(bgcolor)) 
       ? TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)))
       : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), 
 			      sdl_color(scm_to_uint(bgcolor)));      

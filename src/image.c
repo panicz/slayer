@@ -96,6 +96,25 @@ draw_image_x(SCM image_smob, SCM x, SCM y) {
   return SCM_UNSPECIFIED;
 }
 
+static SCM
+draw_onto_image_x(SCM dest_smob, SCM src_smob, SCM x, SCM y) {
+  SDL_Surface *dest = (SDL_Surface *) SCM_SMOB_DATA(dest_smob);
+  SDL_Surface *src = (SDL_Surface *) SCM_SMOB_DATA(src_smob);
+
+  SDL_Rect at = { 
+    .x = GIVEN(x) ? scm_to_int16(x) : 0, 
+    .y = GIVEN(y) ? scm_to_int16(y) : 0
+  };
+
+  //Uint8 alpha = src->format->alpha;
+  //SDL_SetAlpha(src, 0, SDL_ALPHA_OPAQUE);
+  SDL_BlitSurface(src, NULL, dest, &at);
+  //SDL_SetAlpha(src, SDL_SRCALPHA, alpha);
+  
+  scm_remember_upto_here_2(src_smob, dest_smob);
+  return SCM_UNSPECIFIED;
+}
+
 static SCM 
 image_width(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
@@ -169,6 +188,7 @@ crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
   SDL_BlitSurface(image, &size, cropped, NULL);
   SDL_SetAlpha(image, SDL_SRCALPHA, alpha);
   SCM_NEWSMOB(smob, image_tag, cropped);
+  scm_remember_upto_here_1(image_smob);
   return smob;
 }
 
@@ -280,6 +300,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("crop-image", 3, 2, 0, crop_image);
   EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
   EXPORT_PROCEDURE("draw-image!", 3, 0, 0, draw_image_x);
+  EXPORT_PROCEDURE("draw-onto-image!", 2, 2, 0, draw_onto_image_x);
   EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);
   EXPORT_PROCEDURE("image-height", 1, 0, 0, image_height);
   EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);
