@@ -141,6 +141,37 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   return smob;
 }
 
+SCM
+crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
+  scm_assert_smob_type(image_tag, image_smob);  
+  SCM smob;
+  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+  Sint16 x = scm_to_int16(_x);
+  Sint16 y = scm_to_int16(_y);
+  Sint16 w = GIVEN(_w) ? scm_to_int16(_w) : 0;
+  Sint16 h = GIVEN(_h) ? scm_to_int16(_h) : 0;
+  if(w <= 0) {
+    w += (image->w - x);
+  }
+  if(h <= 0) {
+    h += (image->h - y);
+  }
+  SDL_Rect size = {
+    .x = x, .y = y, .w = (Uint16) w, .h = (Uint16) h
+  };
+  SDL_Surface *cropped 
+    = SDL_CreateRGBSurface(image->flags, size.w, size.h, 
+			   image->format->BitsPerPixel,
+			   image->format->Rmask, image->format->Gmask,
+			   image->format->Bmask, image->format->Amask);
+  Uint8 alpha = image->format->alpha;
+  SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
+  SDL_BlitSurface(image, &size, cropped, NULL);
+  SDL_SetAlpha(image, SDL_SRCALPHA, alpha);
+  SCM_NEWSMOB(smob, image_tag, cropped);
+  return smob;
+}
+
 SCM 
 image_to_array(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
@@ -246,6 +277,7 @@ export_symbols(void *unused) {
   scm_c_export(name,NULL);
 
   EXPORT_PROCEDURE("rectangle", 2, 2, 0, rectangle);
+  EXPORT_PROCEDURE("crop-image", 3, 2, 0, crop_image);
   EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
   EXPORT_PROCEDURE("draw-image!", 3, 0, 0, draw_image_x);
   EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);

@@ -606,13 +606,13 @@ render text to images and display it on the screen.
 The following sections describe how to perform those activities in SLAYER.
 
 @menu
-* Loading and displaying images::              (slayer image)
+* Loading and processing images::              (slayer image)
 * Rendering and displaying text::              (slayer font)
 * Loading and playing sounds::                 (slayer audio)
 @end menu
 
-@node Loading and displaying images
-@subsection Loading and displaying images
+@node Loading and processing images
+@subsection Loading and processing images
 In order to be able to use the procedures documented here, one shall 
 @code{(use-modules (slayer image))}. The module provides a symbol
 @code{slayer-image} to use with @code{cond-expand} (srfi-0).
@@ -648,6 +648,14 @@ Converts @var{image} to two-dimensional uniform array of integers.
 
 @deffn {Procedure} array->image array
 Converts two-dimensional uniform @var{array} of integers to image.
+@end deffn
+
+@deffn {Procedure} crop-image image x y [w] [h]
+Return a newly allocated image that contains the part of @var{image}
+with upper left corner at (@var{x}, @var{y}). If given and positive,
+@var{w} and @var{h} designate the size of the new image. If non-positive,
+they tell how many pixels of @var{image} should be croppe from the right
+and the bottom (0 by default).
 @end deffn
 
 @deffn {Procedure} decompose-color-to-rgba color
