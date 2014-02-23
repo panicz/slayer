@@ -26,7 +26,7 @@ print_image(SCM image, SCM port, scm_print_state *pstate) {
   return 1;
 }
 
-SCM 
+static SCM 
 load_image(SCM path) {
   SCM smob;
   char *filename = as_c_string(path);
@@ -66,7 +66,7 @@ compose_color_from_rgba(SCM r, SCM g, SCM b, SCM a) {
   return scm_from_uint32(rgba_color(c));
 }
 
-SCM 
+static SCM 
 draw_image_x(SCM image_smob, SCM x, SCM y) {
   scm_assert_smob_type(image_tag, image_smob);  
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
@@ -96,7 +96,7 @@ draw_image_x(SCM image_smob, SCM x, SCM y) {
   return SCM_UNSPECIFIED;
 }
 
-SCM 
+static SCM 
 image_width(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
@@ -105,7 +105,7 @@ image_width(SCM image_smob) {
   return w;
 }
 
-SCM 
+static SCM 
 image_height(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
@@ -114,7 +114,7 @@ image_height(SCM image_smob) {
   return h;
 }
 
-SCM 
+static SCM 
 image_size(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
@@ -141,7 +141,7 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   return smob;
 }
 
-SCM
+static SCM
 crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
   scm_assert_smob_type(image_tag, image_smob);  
   SCM smob;
@@ -172,7 +172,7 @@ crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
   return smob;
 }
 
-SCM 
+static SCM 
 image_to_array(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
@@ -235,7 +235,7 @@ init_bytesPerPixel() {
 #undef SET_TYPE_SIZE
 }
 
-SCM 
+static SCM 
 array_to_image(SCM array) {
   scm_t_array_handle handle;
   scm_array_get_handle(array, &handle);
