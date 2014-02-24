@@ -27,7 +27,17 @@
 	    *nearby-widget*
 
 	    *default-font*
-	    ))
+	    )
+  #:export-syntax (default-slot-values)
+  )
+
+(define-syntax default-slot-values
+  ;; this macro is intended to be used within an "initialize" method.
+  (syntax-rules ()
+    ((_ object args (name value) ...)
+     (let-keywords args #t ((name value) ...)
+       (set! #[object 'name] name)
+       ...))))
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))
