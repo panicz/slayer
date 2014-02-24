@@ -11,11 +11,11 @@
   #:re-export (make)
   )
 
-(define-class <text-widget> (<widget>)
+(define-class <text-area> (<widget>)
   (%space #:init-value #f)  ;; 
   (%cursor #:init-value #f) ;; cursor image
   (background-color #:init-value #f #:init-keyword #:background-color)
-  (text-color #:init-value #f #:init-keyword #:text-color)
+  (text-color #:init-value #xffffff #:init-keyword #:text-color)
   (font #:init-value *default-font* #:init-keyword #:font)
   (port #:init-value #f)
   (char-height
@@ -28,25 +28,12 @@
    #:slot-set! noop)
   (special-keys #:init-thunk 
 		(lambda()
-		  (make-vector (vector-length *key-names*) noop))))
-
-(define-method (initialize (self <text-widget>) args)
-  (next-method)
-  (set! #[self 'left-click]
-	(lambda _
-	  (set-current-output-port #[ self 'port ])
-	  (set-typing-special-procedure! 
-	   (lambda(scancode)
-	     (#[self : 'special-keys : scancode])))
-	  (set-typing-input-mode!)))
-  (set! #[self '%cursor] (rectangle 2 #;(image-width #[self '%space]) 
-				    #[self 'char-height]
-				    #x20eeaa22))
-  (set! #[self '%space] (render-text "_" #[self 'font])))
-
-(define-class <text-area> (<text-widget>)
+		  (make-vector (vector-length *key-names*) noop)))
   (lines #:init-value '#(""))
   (max-lines #:init-value +inf.0 #:init-keyword #:max-lines)
+  (on-max-lines-reached 
+   #:init-value noop 
+   #:init-keyword #:on-max-lines-reached)
   (%render-cache #:init-value #f)
   (%thread-results #:init-thunk make-hash-table))
 
@@ -62,7 +49,10 @@
 	(set! #[t '%render-cache] (make-vector (vector-length lines) #f)))
     (for n in 0 .. (1- (vector-length lines))
 	 (let ((image (or #[t : '%render-cache : n]
-			  (let ((fresh-image (render-text #[lines n] font)))
+			  (let ((fresh-image (render-text 
+					      #[lines n] font
+					      #[t 'text-color]
+					      #[t 'background-color])))
 			    (set! #[t : '%render-cache : n] fresh-image)
 			    fresh-image))))
 	   (set! #[t 'w] (max #[t 'w] (image-width image)))
@@ -122,15 +112,18 @@
 	(line-number (port-line #[ t 'port ]))
 	(lines (vector->list #[ t 'lines ]))
 	(column (port-column #[ t 'port ])))
-    (let ((left (substring line 0 column))
-	  (right (substring line column)))
-      (set! #[ t 'lines ]
-	    (list->vector
-	     (append (take lines line-number)
-		     (list left right)
-		     (drop lines (+ line-number 1)))))
-      (move-cursor! t (- (port-column #[t 'port])) 
-		    1))))
+    (if (>= (length lines) #[t 'max-lines])
+	(#[t 'on-max-lines-reached] t)
+    #;else
+	(let ((left (substring line 0 column))
+	      (right (substring line column)))
+	  (set! #[ t 'lines ]
+		(list->vector
+		 (append (take lines line-number)
+			 (list left right)
+			 (drop lines (+ line-number 1)))))
+	  (move-cursor! t (- (port-column #[t 'port])) 
+			1)))))
 
 (define-method (leave-typing-mode! (t <text-area>))
   (set-current-output-port *stdout*)
@@ -155,10 +148,7 @@
 			#[t : 'lines : line]))
 	     (< (+ line 1) 
 		(vector-length #[t 'lines])))
-	(move-cursor! 
-	 t 
-	 (- (string-length #[t : 'lines : line]))
-	 1)
+	(move-cursor! t (- (string-length #[t : 'lines : line])) 1)
     #;else
 	(move-cursor! t 1 0))))
 
@@ -189,10 +179,8 @@
 			  (append pre 
 				  `(,(string-append this next)) 
 				  rest)))
-		   (move-cursor! 
-		    t 
-		    (string-length #[lines (- (port-line p) 1)])
-		    -1))))))
+		   (move-cursor! t (string-length #[lines (- (port-line p) 1)])
+				 -1))))))
     #;else
 	(begin 
 	  (delete-char! t)
@@ -236,21 +224,32 @@
 				     (substring line 0 col)
 				     s
 				     (substring line col)))))))))
+      (set! #[t '%cursor] (rectangle 2 #;(image-width #[t '%space]) 
+					#[t 'char-height]
+					#x20eeaa22))
+      (set! #[t '%space] (render-text "_" #[t 'font]))
       (set! #[t 'lines] (list->vector (string-split text #\newline)))
       (set! #[t 'port] (make-soft-port
-		      (vector
-		       (lambda(c) 
-			 (put-string (list->string (list c))))
-		       put-string
-		       noop
-		       #;(lambda()
+			(vector
+			 (lambda(c) 
+			   (put-string (list->string (list c))))
+			 put-string
+			 noop
+			 #;(lambda()
 			 (for-each display 
-				   (vector->list #[t 'lines])))
-		       #f
-		       #f) "w"))
+			 (vector->list #[t 'lines])))
+			 #f
+			 #f) "w"))
+      (set! #[t 'left-click]
+	    (lambda _
+	      (set-current-output-port #[ t 'port ])
+	      (set-typing-special-procedure! 
+	       (lambda(scancode)
+		 (#[t : 'special-keys : scancode])))
+	      (set-typing-input-mode!)))
       (let* ((set-key! (lambda (key action)
-		     (set! #[#[t 'special-keys] #[*scancodes* key]] 
-			   (lambda()(action t))))))
+			 (set! #[#[t 'special-keys] #[*scancodes* key]] 
+			       (lambda()(action t))))))
 	(set-key! "esc" leave-typing-mode!)
 	(set-key! "return" break-line!)
 	(set-key! "left"  move-cursor-back!)
