@@ -4,6 +4,7 @@
 	     (slayer image)
 	     (widgets base)
 	     (widgets bitmap)
+	     (widgets image-clipper)
 	     (widgets text-area)
 	     (oop goops)
 	     (extra slayer)
@@ -44,8 +45,10 @@
 ) (else (begin))) ;; cond-expand slayer-3d
 
 (let ((text-area 
-       (make-text-area 
-	#:text 
+       (make <text-area>
+	 #:max-lines 12
+	 #:background-color #x440000
+	 #:text 
 	(string-append
 	 "'(click somewhere around HERE and start typing scheme code)\n"
 	 "'(use F1 to evaluate last sexp)\n"
@@ -75,7 +78,11 @@
   (add-child! text-area #;to *stage*))
 
 (define ku (load-image "./art/ku.png"))
+
 (add-child! (make-image ku 475 25) #;to *stage*)
+
+(add-child! (make <image-clipper> #:image ku #:x 580 #:y 400 #:w 40 #:h 40)
+	    #;to *stage*)
 
 (cond-expand (slayer-audio
 
