@@ -626,14 +626,9 @@ FIXME: if something goes wrong (i.e. the file doesn't exist), the application
 will probably crash.
 @end deffn
 
-@deffn {Procedure} draw-image! image x y
-Display @var{image} on the screen. Its top left corner will be located at
-(@var{x}, @var{y}).
-@end deffn
-
-@deffn {Procedure} draw-onto-image! dest src [x] [y]
-Blit the @var{src} image to the @var{dest} image at (@var{x}, @var{y}).
-Both @var{x} and @var{y} default to 0.
+@deffn {Procedure} draw-image! image x y [target]
+Display @var{image} on the @var{target} (which is the screen by default). 
+Its top left corner will be located at (@var{x}, @var{y}).
 @end deffn
 
 @deffn {Procedure} rectangle w h color
