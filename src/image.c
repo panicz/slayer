@@ -6,7 +6,30 @@
 #include "video.h"
 #include "symbols.h"
 
-scm_t_bits image_tag;
+scm_t_bits image_tag = 0;
+SCM current_screen_fluid;
+
+static inline void
+init_current_screen_fluid() {
+  if(!image_tag) {
+    FATAL("the function needs to be initialized after image_tag");
+  }
+  SCM screen_smob;
+  SCM_NEWSMOB(screen_smob, image_tag, screen);
+  scm_gc_protect_object(screen_smob);
+  current_screen_fluid = scm_make_fluid_with_default(screen_smob);
+  scm_gc_protect_object(current_screen_fluid);
+}
+
+static SCM
+call_with_video_output_to(SCM screen, SCM thunk) {
+  return scm_with_fluid(current_screen_fluid, screen, thunk);
+}
+
+static SCM
+current_screen() {
+  return scm_fluid_ref(current_screen_fluid);
+}
 
 static size_t 
 free_image(SCM image_smob) {
@@ -15,7 +38,7 @@ free_image(SCM image_smob) {
   return 0;
 }
 
-static int 
+static int
 print_image(SCM image, SCM port, scm_print_state *pstate) {
   char *string;
   if(asprintf(&string, "#<image %p>", (void *) SCM_SMOB_DATA(image)) == -1)
@@ -67,8 +90,8 @@ compose_color_from_rgba(SCM r, SCM g, SCM b, SCM a) {
 }
 
 static SCM 
-draw_image_x(SCM image_smob, SCM x, SCM y) {
-  scm_assert_smob_type(image_tag, image_smob);  
+draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
+  scm_assert_smob_type(image_tag, image_smob); 
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
 #ifdef USE_OPENGL
   int W = image->w;
@@ -76,9 +99,18 @@ draw_image_x(SCM image_smob, SCM x, SCM y) {
   int X = scm_to_int(x);
   int Y = screen->h - scm_to_int(y);
 
-  if(video_mode & SDL_OPENGL) {
-    WARN_ONCE("using OpenGL");
+  
+  if(GIVEN(target_smob)) {
+    scm_assert_smob_type(image_tag, target_smob);
+  } 
+  else {
+    target_smob = current_screen();
+  }
 
+  SDL_Surface *target = (SDL_Surface *) SCM_SMOB_DATA(target_smob);
+  
+  if((video_mode & SDL_OPENGL) && (target == screen)) {
+    WARN_ONCE("using OpenGL");
     glDisable(GL_DEPTH_TEST);
     glWindowPos2i(X, Y);
     glPixelZoom(1.0, -1.0);
@@ -87,31 +119,12 @@ draw_image_x(SCM image_smob, SCM x, SCM y) {
   }
   else {
 #endif
-    SDL_Rect area = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
-    SDL_BlitSurface(image, NULL, screen, &area);
+    SDL_Rect at = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
+    SDL_BlitSurface(image, NULL, target, &at);
 #ifdef USE_OPENGL
   }
 #endif
-  scm_remember_upto_here_1(image_smob);
-  return SCM_UNSPECIFIED;
-}
-
-static SCM
-draw_onto_image_x(SCM dest_smob, SCM src_smob, SCM x, SCM y) {
-  SDL_Surface *dest = (SDL_Surface *) SCM_SMOB_DATA(dest_smob);
-  SDL_Surface *src = (SDL_Surface *) SCM_SMOB_DATA(src_smob);
-
-  SDL_Rect at = { 
-    .x = GIVEN(x) ? scm_to_int16(x) : 0, 
-    .y = GIVEN(y) ? scm_to_int16(y) : 0
-  };
-
-  //Uint8 alpha = src->format->alpha;
-  //SDL_SetAlpha(src, 0, SDL_ALPHA_OPAQUE);
-  SDL_BlitSurface(src, NULL, dest, &at);
-  //SDL_SetAlpha(src, SDL_SRCALPHA, alpha);
-  
-  scm_remember_upto_here_2(src_smob, dest_smob);
+  scm_remember_upto_here_2(image_smob, target_smob);
   return SCM_UNSPECIFIED;
 }
 
@@ -148,7 +161,6 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   if(BytesPerPixel == SCM_UNDEFINED) {
     BytesPerPixel = scm_from_int(4);
   }
-
   SDL_Surface *image 
     = sdl_surface(scm_to_int(w), scm_to_int(h), scm_to_int(BytesPerPixel));
   if(color != SCM_UNDEFINED) {
@@ -296,11 +308,12 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
 
+  EXPORT_PROCEDURE("call-with-video-output-to", 2, 0, 0, 
+		   call_with_video_output_to);
   EXPORT_PROCEDURE("rectangle", 2, 2, 0, rectangle);
   EXPORT_PROCEDURE("crop-image", 3, 2, 0, crop_image);
   EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
-  EXPORT_PROCEDURE("draw-image!", 3, 0, 0, draw_image_x);
-  EXPORT_PROCEDURE("draw-onto-image!", 2, 2, 0, draw_onto_image_x);
+  EXPORT_PROCEDURE("draw-image!", 3, 1, 0, draw_image_x);
   EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);
   EXPORT_PROCEDURE("image-height", 1, 0, 0, image_height);
   EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);
@@ -322,6 +335,7 @@ image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
+  init_current_screen_fluid();
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
   scm_c_define_module("slayer", cond_expand_provide, NULL);
