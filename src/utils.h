@@ -60,7 +60,8 @@ unsigned int now() {
 	__FILE__, __FUNCTION__,__LINE__,time);})
 
 #define FATAL(msg, ...)							\
-  do { fprintf(stderr, "FATAL ERROR: " msg "\n", ## __VA_ARGS__ );	\
+  do { fprintf(stderr, "%s/%s[%d]: FATAL ERROR: " msg "\n",		\
+	       __FILE__, __FUNCTION__, __LINE__, ## __VA_ARGS__ );	\
     exit(0); } while(0)
 
 #define NELEMS(a) ((int)(sizeof(a)/sizeof(a[0])))
