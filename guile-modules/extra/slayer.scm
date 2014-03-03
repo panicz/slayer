@@ -3,7 +3,7 @@
   #:use-module (slayer image)
   #:use-module (extra common)
   #:export (rgba highlighted subtract-image force-redisplay! key)
-  #:export-syntax (key-bindings))
+  #:export-syntax (with-video-output-to key-bindings))
 
 (define rgba
   (case-lambda 
@@ -37,16 +37,14 @@
 (define (force-redisplay!)
   (generate-userevent! redisplay-event))
 
-;; pomysł jest taki: uczynić z bieżącej tablicy z wiązaniami fluida.
-;; 
+(define-syntax-rule (with-video-output-to screen action . *)
+  (call-with-video-output-to screen (lambda () action . *)))
 
-(define-syntax key-bindings
-  (syntax-rules ()
-    ((_ bindings ...)
-     (let ((fresh-bindings (fresh-key-bindings)))
-       (with-fluids ((KEY-BINDINGS fresh-bindings))
-	 bindings ...
-	 fresh-bindings)))))
+(define-syntax-rule (key-bindings bindings ...)
+  (let ((fresh-bindings (fresh-key-bindings)))
+    (with-fluids ((KEY-BINDINGS fresh-bindings))
+      bindings ...
+      fresh-bindings)))
 
 (define *modes* #[])
 
