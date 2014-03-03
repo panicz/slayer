@@ -64,7 +64,7 @@
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
-	    map-n for-each-n equivalence-classes argmin argmax
+	    map-n for-each-n equivalence-classes argmin argmax clamp
 	    atom? symbol<
 	    insert rest head tail
 	    tree-find tree-map
@@ -632,13 +632,22 @@
    #;else
        (error "Trying to get optimum of an empty list"))))
 
+(define (clamp min max)
+  (lambda (x)
+    (cond ((< x min)
+	   min)
+	  ((> x max)
+	   max)
+	  (else
+	   x))))
+
 (define (unknot circular-list)
-  (let loop ((rewrite '()) (pending circular-list) (seen `(,circular-list ())))
+  (let next ((rewrite '()) (pending circular-list) (seen `(,circular-list ())))
     (match pending
       ((first . rest)
        (if (memq rest seen)
 	   (reverse (cons first rewrite))
-	   (loop (cons first rewrite) rest (cons rest seen)))))))
+	   (next (cons first rewrite) rest (cons rest seen)))))))
 
 (e.g.
  (unknot (cons 0 (circular-list 1 2 3)))
