@@ -978,7 +978,7 @@ that uses widgets -- a draggable rectangle -- could look like this:
 @pindex Draggable rectangle
 @lisp
 (use-modules (slayer) (slayer image) 
-	     (widgets base) (widgets bitmap)
+	     (widgets base) (widgets sprite)
 	     (oop goops))
 (keydn 'esc quit)
 

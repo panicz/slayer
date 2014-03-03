@@ -28,7 +28,7 @@
 
 	    *default-font*
 	    )
-  #:export-syntax (default-slot-values)
+  #:export-syntax (default-slot-values with-slots)
   )
 
 (define-syntax default-slot-values
@@ -38,6 +38,19 @@
      (let-keywords args #t ((name value) ...)
        (set! #[object 'name] name)
        ...))))
+
+(define-syntax with-slots
+  (syntax-rules ()
+    ((_ object ((name value) ...) actions ...)
+     (let ((name (slot-ref object 'name)) ...)
+       (dynamic-wind (lambda ()
+		       (slot-set! object 'name value)
+		       ...)
+		     (lambda ()
+		       actions ...)
+		     (lambda ()
+		       (slot-set! object 'name name)
+		       ...))))))
 
 (define *stdout* (current-output-port))
 (define *stdin* (current-input-port))

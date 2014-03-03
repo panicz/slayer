@@ -1,4 +1,4 @@
-(define-module (widgets bitmap)
+(define-module (widgets sprite)
   #:use-module (oop goops)
   #:use-module (extra ref)
   #:use-module (extra common)
@@ -6,12 +6,12 @@
   #:use-module (slayer image)
   #:use-module (slayer font)
   #:use-module (widgets base)
-  #:export (<bitmap>
+  #:export (<sprite>
 	    make-button
 	    make-container
 	    make-image))
 
-(define-class <bitmap> (<widget>)
+(define-class <sprite> (<widget>)
   (%image #:init-value #f)
   (image #:allocation #:virtual
 	 #:slot-ref (lambda(self)
@@ -23,13 +23,7 @@
 			 (set! #[self 'h] h)))
 	 #:init-keyword #:image))
 
-#;(define-method (initialize (bitmap <bitmap>) init-args)
-  (next-method)
-  (let-keywords init-args #t ((image #f))
-    (if image
-	(set! #[bitmap 'image] image))))
-
-(define-method (draw (i <bitmap>))
+(define-method (draw (i <sprite>))
   (draw-image! #[ i 'image ]
 	       (+ (or #[i : 'parent : 'x] 0) #[ i 'x ]) 
 	       (+ (or #[i : 'parent : 'y] 0) #[ i 'y ])))
@@ -38,7 +32,7 @@
   (let ((normal (render-text text *default-font* #xffffff #xff0000))
 	(over (render-text text *default-font* #xffffff #x00ff00))
 	(clicked (render-text text *default-font* #xffffff #x0000ff)))
-    (let ((button (make <bitmap> #:image normal #:x x #:y y 
+    (let ((button (make <sprite> #:image normal #:x x #:y y 
 			#:w (or w (image-width normal))
 			#:h (or h (image-height normal)))))
       (set! #[ button 'mouse-over ] 
@@ -59,7 +53,6 @@
 			   (increase! #[ container 'y ] yrel)))
     (for child in (append content `(,label))
 	 (add-child! container child))
-    ;(add-child! container (make-button #:x 0 #:y 0 #:text name))
     (let ((top 0))
       (for w in #[container 'children]
 	   (set! #[container 'w] (max #[w 'w] #[container 'w]))
@@ -69,17 +62,11 @@
     container))
 
 (define (make-image image x y)
-  (let ((image (make <bitmap> #:image image #:x x #:y y 
+  (let ((image (make <sprite> #:image image #:x x #:y y 
 		     #:w (image-width image) 
 		     #:h (image-height image))))
     (set! #[ image 'drag ]
 	  (lambda (x y xrel yrel)		 
 	    (increase! #[ image 'x ] xrel)
 	    (increase! #[ image 'y ] yrel)))
-    #;(set! #[ image 'mouse-over ]
-	  (lambda (x y xrel yrel)
-	    (format #t "now mouse is over ~s\n" image)))
-    #;(set! #[ image 'mouse-out ]
-	  (lambda (x y xrel yrel)
-	    (format #t "mouse is no longer over ~s\n" image)))
     image))

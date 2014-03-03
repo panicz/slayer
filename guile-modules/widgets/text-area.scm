@@ -2,29 +2,95 @@
   #:use-module (oop goops)
   #:use-module (extra ref)
   #:use-module (extra common)
+  #:use-module (extra slayer)
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (slayer font)
   #:use-module (widgets base)
+  #:use-module (widgets image-clipper)
   #:export (<text-area>
 	    )
   #:re-export (make)
   )
 
-(define-class <text-area> (<widget>)
+;; warto by to wyeksplikować, bo tutaj mamy mały PROBLEM!:
+;; rzecz w tym, że chcielibyśmy być informowani o tym, że
+;; stan widgetu się zmienił, żeby móc go narysować od nowa.
+
+;; być może wymagałoby to ponownego przemyślenia całej infrastruktury
+;; widgetowej. musielibyśmy założyć, że każdy widget albo ma skeszowany
+;; obrazek, który jest używany do wyświetlania na ekranie (w ten sposób
+;; dochodząc do tego, że przerenderowanie sceny to narysowanie jednego
+;; obrazka!), albo kesz zwraca false i wówczas rysujemy od nowa
+;; (według rekurencyjnej procedury)
+
+;; wymagałoby to pewnego przebudowania SLAYERa tak, żeby OpenGL
+;; mógł rysować do dowolnych buforów w pamięci, i dopiero stamtąd
+;; przerzucał zawartość buforów na ekran.
+
+;; na potrzeby SLAYERa 2.0 fajnie by było coś takiego zrobić, ale na razie
+;; lepiej wybrać jakąś drogę na skróty (do czasu stworzenia grywalnej KUTASY)
+
+;; w przypadku widgeta tekstowego projektant (czyli ja) musi zadbać o to,
+;; żeby synchronizacja z keszem się odbywała we właściwych momentach
+;; (wiadomo, że docelowo lepiej by było zwalić ten wysiłek na maszynę,
+;; która sama miałaby się domyślać, co trzeba przerysować i jakie zmienne
+;; spośród tych znajdujących się w obiekcie wpływają na jego wygląd)
+
+;; w przypadku tego widgeta tekstowego byłoby super mieć coś takiego,
+;; co potrafiłoby samo wywnioskować, które linie są widoczne, i wymuszać
+;; przerysowanie jedynie w przypadku modyfikacji tych, które rzeczywiście
+;; mają jakikolwiek wpływ na wygląd
+
+;; tym niemniej na razie postaramy się zrobić to jak najprościej -- tzn.
+;; nie przeszkadza nam pewna redundancja, jeżeli zwolni nas z myślenia
+;; (i pozwolimy, żeby to rzeczywistość wyciągała na razie za nas wnioski)
+
+;; konkretnie, idzie o to, że jak robimy
+;; (set! #[this : 'lines : n] cośtam)
+;; to żeby wywoływać jakiś sygnał w obiekcie "this"
+
+(define-class <text-area> (<image-clipper>)
   (%space #:init-value #f)  ;; 
   (%cursor #:init-value #f) ;; cursor image
+  (%background #:init-value #f)
+  (%%image #:init-value #f)
+  (%image
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (or #[self '%%image]
+	 (let ((image (rectangle #[self 'width] #[self 'height] #x00000000)))
+	   (with-video-output-to image (render self))
+	   (set! #[self '%%image] image)
+	   image)))
+   #:slot-set! noop)
   (background-color #:init-value #f #:init-keyword #:background-color)
   (text-color #:init-value #xffffff #:init-keyword #:text-color)
   (font #:init-value *default-font* #:init-keyword #:font)
   (port #:init-value #f)
+  (on-text-change #:init-value noop #:init-keyword #:on-text-change)
   (char-height
    #:allocation #:virtual
    #:slot-ref (lambda (self) (font-line-skip #[self 'font]))
    #:slot-set! noop)
+  (height
+   #:allocation #:virtual
+   #:slot-ref (lambda (self)
+		(* #[self 'char-height] 
+		   (vector-length #[self 'lines])))
+   #:slot-set! noop)
   (char-width
    #:allocation #:virtual
    #:slot-ref (lambda (self) (image-width #[self '%space]))
+   #:slot-set! noop)
+  (width 
+   #:allocation #:virtual
+   #:slot-ref (lambda (self)
+		(* #[self 'char-width]
+		   (apply max  (map string-length
+				    (vector->list 
+				     #[self 'lines])))))
    #:slot-set! noop)
   (special-keys #:init-thunk 
 		(lambda()
@@ -37,7 +103,7 @@
   (%render-cache #:init-value #f)
   (%thread-results #:init-thunk make-hash-table))
 
-(define-method (draw (t <text-area>))
+(define-method (render (t <text-area>))
   (let* ((font #[t 'font])
 	 (line-skip (font-line-skip font))
 	 (lines #[t 'lines])
@@ -47,27 +113,29 @@
 	    (not (= (vector-length #[t '%render-cache])
 		    (vector-length lines))))
 	(set! #[t '%render-cache] (make-vector (vector-length lines) #f)))
+    (when #[t 'background-color]
+      (if (or (not #[t '%background])
+	      (not (equal? (image-size #[t '%background])
+			   `(,#[t 'width] ,#[t 'height]))))
+	  (set! #[t '%background] 
+		(rectangle #[t 'width] #[t 'height] #[t 'background-color])))
+      (draw-image! #[t '%background]))
     (for n in 0 .. (1- (vector-length lines))
 	 (let ((image (or #[t : '%render-cache : n]
 			  (let ((fresh-image (render-text 
-					      #[lines n] font
+					      (string-append #[lines n] " ")
+					      font
 					      #[t 'text-color]
 					      #[t 'background-color])))
 			    (set! #[t : '%render-cache : n] fresh-image)
 			    fresh-image))))
-	   (set! #[t 'w] (max #[t 'w] (image-width image)))
-	   (draw-image! image 
-			(+ (or #[t : 'parent : 'x] 0) 
-			   #[t 'x])
-			(+ (or #[t : 'parent : 'y] 0) 
-			   #[t 'y] (* n line-skip)))))
+	   (draw-image! image 0 (* n line-skip))))
     (if (equal? (current-output-port) #[t 'port])
 	(draw-image! cursor 
-		     (+ #[t 'x] (* (image-width space) 
-				   (port-column #[t 'port])) )
-		     (+ #[t 'y] (* line-skip 
-				   (port-line #[t 'port])))))
-    (set! #[ t 'h ] (* (vector-length lines) line-skip))))
+		     (* (image-width space) 
+			(port-column #[t 'port]))
+		     (* line-skip 
+			(port-line #[t 'port]))))))
 
 (define-method (last-sexp (t <text-area>))
   (and-let* ((lines (vector->list #[ t 'lines ]))
@@ -85,6 +153,8 @@
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
+  (set! #[w '%cropped-image] #f)
+  (set! #[w '%%image] #f)
   (set-port-line! #[ w 'port ] 
 		  (max 0 (min (+ (port-line #[w 'port]) down) 
 			      (- (vector-length #[w 'lines]) 1))))
@@ -101,6 +171,8 @@
 (define-method (delete-char! (w <text-area>) 
 			     (col <integer>) 
 			     (line <integer>))
+  (set! #[w '%cropped-image] #f)
+  (set! #[w '%%image] #f)
   (let* ((s #[w : 'lines : line ])
 	 (sl (string-length s))
 	 (l (substring s 0 (max 0 (min sl (- col 1)))))
@@ -108,6 +180,8 @@
     (set! #[w : 'lines : line] (string-append l r))))
 
 (define-method (break-line! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (let ((line #[#[t 'lines] (port-line #[t 'port])])
 	(line-number (port-line #[ t 'port ]))
 	(lines (vector->list #[ t 'lines ]))
@@ -126,10 +200,14 @@
 			1)))))
 
 (define-method (leave-typing-mode! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (set-current-output-port *stdout*)
   (set-direct-input-mode!))
 
 (define-method (move-cursor-back! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (let ((line (port-line #[ t 'port ]))
 	(column (port-column #[ t 'port ])))
     (if (and (= column 0)
@@ -142,6 +220,8 @@
 	(move-cursor! t -1 0))))
 
 (define-method (move-cursor-forward! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (let ((line (port-line #[ t 'port ]))
 	(column (port-column #[ t 'port ])))
     (if (and (= column (string-length 
@@ -153,6 +233,8 @@
 	(move-cursor! t 1 0))))
 
 (define-method (move-cursor-to-the-end-of-line! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (let* ((port #[t 'port])
 	 (line #[t : 'lines : (port-line port)]))
     (move-cursor! t (- (string-length line) 
@@ -160,9 +242,12 @@
 		  0)))
 
 (define-method (move-cursor-to-the-beginning-of-line! (t <text-area>))
+  (set! #[t '%%image] #f)
   (move-cursor! t (- (port-column #[t 'port])) 0))
 
 (define-method (delete-previous-char! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (set! #[t '%render-cache] #f)
   (let ((p #[ t 'port ])
 	(lines #[ t 'lines ]))
@@ -187,6 +272,8 @@
 	  (move-cursor! t -1 0)))))
 
 (define-method (delete-next-char! (t <text-area>))
+  (set! #[t '%cropped-image] #f)
+  (set! #[t '%%image] #f)
   (set! #[t '%render-cache] #f)
   (let* ((p #[ t 'port ])
 	 (lines #[ t 'lines ]))
@@ -214,6 +301,8 @@
   (next-method)
   (let-keywords args #t ((text "hi! :)\n"))
     (let ((put-string (lambda(s)
+			(set! #[t '%cropped-image] #f)
+			(set! #[t '%%image] #f)
 			(let ((p #[ t 'port ]))
 			  (let ((row (port-line p))
 				(col (port-column p)))
@@ -242,13 +331,15 @@
 			 #f) "w"))
       (set! #[t 'left-click]
 	    (lambda _
+	      (set! #[t '%cropped-image] #f)
+	      (set! #[t '%%image] #f)
 	      (set-current-output-port #[ t 'port ])
 	      (set-typing-special-procedure! 
 	       (lambda(scancode)
 		 (#[t : 'special-keys : scancode])))
 	      (set-typing-input-mode!)))
       (let* ((set-key! (lambda (key action)
-			 (set! #[#[t 'special-keys] #[*scancodes* key]] 
+			 (set! #[#[t 'special-keys] #[*scancodes* key]]
 			       (lambda()(action t))))))
 	(set-key! "esc" leave-typing-mode!)
 	(set-key! "return" break-line!)

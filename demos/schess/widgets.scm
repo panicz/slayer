@@ -4,7 +4,7 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (widgets base)
-  #:use-module (widgets bitmap)
+  #:use-module (widgets sprite)
   #:use-module (extra slayer)
   #:use-module (extra common)
   #:use-module (extra ref)
@@ -29,7 +29,7 @@
 (define (init-value class slot)
   (keyword-ref (class-slot-definition class slot) #:init-value))
 
-(define-class <checker> (<bitmap>)
+(define-class <checker> (<sprite>)
   (origin #:init-value #f) ;; if non-false, contains a value
   (type #:init-value #f #:init-keyword #:type)
   (on-pick #:init-value 
@@ -44,7 +44,7 @@
 		     #[checker 'type] #[field 'position]))
 	   #:init-keyword #:on-drop))
 
-(define-class <field> (<bitmap>)
+(define-class <field> (<sprite>)
   (%content #:init-value #f)
   (content #:allocation #:virtual
 	   #:slot-ref (lambda (self)

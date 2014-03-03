@@ -2,7 +2,7 @@
 exit
 !#
 (use-modules (slayer) (slayer image) (extra slayer) (extra common) (extra ref)
-	     (widgets base) (widgets bitmap) (schess network-client))
+	     (widgets base) (widgets sprite) (schess network-client))
 
 (keydn 'esc quit)
 

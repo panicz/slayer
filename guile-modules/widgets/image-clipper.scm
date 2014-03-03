@@ -23,11 +23,11 @@
 ;; | < L > |            :    |           | :
 ;; |       |            h    |   < R >   | H
 ;; |       |            :    |     =     | :
-;; |       |            v    |   W-L-w   | :
+;; |       | clipper    v    |   W-L-w   | :
 ;; |       +-----------------+           | :
 ;; |              ^                      | :
 ;; |              B = H-T-h              | :
-;; |              v                      | v
+;; |  image       v                      | v
 ;; +-------------------------------------+
 
 (define-class <image-clipper> (<widget>)
@@ -82,8 +82,12 @@
   (default-slot-values c args
     (drag (lambda (x y dx dy)
 	    ;; zaimplementować stopa!
-	    (decrease! #[c 'left] #;by dx)
-	    (decrease! #[c 'top] #;by dy)))))
+	    (set! #[c 'left] 
+		  ((clamp 0 (- (image-width #[c 'image]) #[c 'w]))
+		   (- #[c 'left] dx)))
+	    (set! #[c 'top] 
+		  ((clamp 0 (- (image-height #[c 'image]) #[c 'h])) 
+		   (- #[c 'top] dy)))))))
 
 (define-method (draw (c <image-clipper>))
   (unless #[c '%cropped-image]
