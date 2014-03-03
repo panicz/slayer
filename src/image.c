@@ -93,13 +93,13 @@ static SCM
 draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
   scm_assert_smob_type(image_tag, image_smob); 
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+  int X = GIVEN(x) ? scm_to_int(x) : 0;
+  int Y = GIVEN(y) ? scm_to_int(y) : 0;
+  
 #ifdef USE_OPENGL
   int W = image->w;
   int H = image->h;
-  int X = scm_to_int(x);
-  int Y = screen->h - scm_to_int(y);
 
-  
   if(GIVEN(target_smob)) {
     scm_assert_smob_type(image_tag, target_smob);
   } 
@@ -112,14 +112,14 @@ draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
   if((video_mode & SDL_OPENGL) && (target == screen)) {
     WARN_ONCE("using OpenGL");
     glDisable(GL_DEPTH_TEST);
-    glWindowPos2i(X, Y);
+    glWindowPos2i(X, screen->h - Y);
     glPixelZoom(1.0, -1.0);
     glDrawPixels(W, H, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);    
     glEnable(GL_DEPTH_TEST);
   }
   else {
 #endif
-    SDL_Rect at = sdl_rect(scm_to_int16(x), scm_to_int16(y), -1, -1);
+    SDL_Rect at = sdl_rect(X, Y, -1, -1);
     SDL_BlitSurface(image, NULL, target, &at);
 #ifdef USE_OPENGL
   }
@@ -313,7 +313,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("rectangle", 2, 2, 0, rectangle);
   EXPORT_PROCEDURE("crop-image", 3, 2, 0, crop_image);
   EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
-  EXPORT_PROCEDURE("draw-image!", 3, 1, 0, draw_image_x);
+  EXPORT_PROCEDURE("draw-image!", 1, 3, 0, draw_image_x);
   EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);
   EXPORT_PROCEDURE("image-height", 1, 0, 0, image_height);
   EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);

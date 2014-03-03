@@ -626,9 +626,10 @@ FIXME: if something goes wrong (i.e. the file doesn't exist), the application
 will probably crash.
 @end deffn
 
-@deffn {Procedure} draw-image! image x y [target]
+@deffn {Procedure} draw-image! image [x] [y] [target]
 Display @var{image} on the @var{target} (which is the screen by default). 
-Its top left corner will be located at (@var{x}, @var{y}).
+Its top left corner will be located at (@var{x}, @var{y}), which default
+to (0, 0).
 @end deffn
 
 @deffn {Procedure} rectangle w h color
@@ -654,7 +655,7 @@ Converts two-dimensional uniform @var{array} of integers to image.
 Return a newly allocated image that contains the part of @var{image}
 with upper left corner at (@var{x}, @var{y}). If given and positive,
 @var{w} and @var{h} designate the size of the new image. If non-positive,
-they tell how many pixels of @var{image} should be croppe from the right
+they tell how many pixels of @var{image} should be cropped from the right
 and the bottom (0 by default).
 @end deffn
 
