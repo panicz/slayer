@@ -28,6 +28,10 @@ glWindowPos2i(int x, int y) {
 }
 #endif // !HAVE_GL_WINDOW_POS2I
 
+#ifdef NO_GL_GEN_FRAMEBUFFERS
+void (*glGenFramebuffers)(GLsizei, GLuint *) = NULL;
+#endif
+
 static SCM
 push_matrix_x() {
   glPushMatrix();
@@ -220,14 +224,33 @@ export_symbols(void *unused) {
 
 void
 init_3d() {
+  OUT("OpenGL %s using %s from %s", 
+      glGetString(GL_VERSION),
+      glGetString(GL_RENDERER), 
+      glGetString(GL_VENDOR));
+
   init_arrays();
   init_color();
   init_lights();
   init_buffers();
   init_transforms();
 
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+#ifdef NO_GL_GEN_FRAMEBUFFERS
+  if(!glGenFramebuffers) {
+    glGenFramebuffers 
+      = (void(*)(GLsizei, GLuint *)) wglGetProcAddress("glGenFramebuffers");
+  }
+  if(!glGenFramebuffers) {
+    glGenFramebuffers 
+      = (void(*)(GLsizei, GLuint *)) wglGetProcAddress("glGenFramebuffersARB");
+  }
+  if(!glGenFramebuffers) {
+    glGenFramebuffers 
+      = (void(*)(GLsizei, GLuint *)) wglGetProcAddress("glGenFramebuffersEXT");    
+  }
+#endif
 
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glWindowPos2i(0, 0);
 
   scm_c_define_module("slayer 3d", export_symbols, NULL);

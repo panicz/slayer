@@ -5,6 +5,13 @@
 #include "symbols.h"
 #include "vmx.hh"
 
+
+#ifdef NO_GL_GEN_FRAMEBUFFERS
+// to be acquired from GLEW in init_3d
+extern void (*glGenFramebuffers)(GLsizei, GLuint *);
+#endif
+
+
 #define DEF_SCM_TOFROM_V(n,t,ype,sym)					\
   static inline v##n##t							\
   scm_to_v##n##t(SCM vector) {						\

@@ -5,15 +5,35 @@
 #include <SDL/SDL.h>
 
 #ifdef USE_OPENGL
-# include <GL/gl.h>
-# include <GL/glu.h>
-# include <GL/glext.h>
+
+#  ifndef HAVE_GL_GEN_FRAMEBUFFERS
+#    ifdef HAVE_GL_GEN_FRAMEBUFFERS_ARB
+#      define glGenFramebuffers glGenFramebuffersARB
+#    else 
+#      ifdef HAVE_GL_GEN_FRAMEBUFFERS_EXT
+#        define glGenFramebuffers glGenFramebuffersEXT
+#      else
+#        define NO_GL_GEN_FRAMEBUFFERS
+#      endif
+#    endif 
+#  endif
+
+#  if defined(NO_GL_GEN_FRAMEBUFFERS) && HAVE_GL_EXTENSION_WRANGLER
+#    include <GL/glew.h>
+#  else
+#    include <GL/gl.h>
+#    include <GL/glu.h>
+#    include <GL/glext.h>
+#  endif
 
 DECLARE void glWindowPos2i (GLint x, GLint y);
 
 #endif
 
 extern SDL_Surface *screen;
+
+extern SCM current_screen_fluid;
+DECLARE SCM current_screen();
 
 DECLARE void video_refresh_screen();
 DECLARE void video_init(Uint16 w, Uint16 h, int mode);

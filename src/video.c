@@ -126,14 +126,14 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name,required,optional,rest,(scm_t_subr)proc); \
   scm_c_export(name,NULL);
 
-  EXPORT_PROCEDURE("set-screen-width!", 1, 0, 0, set_screen_width_x); 
-  EXPORT_PROCEDURE("set-screen-height!", 1, 0, 0, set_screen_height_x); 
-  EXPORT_PROCEDURE("set-screen-size!", 2, 0, 0, set_screen_size_x); 
-  EXPORT_PROCEDURE("set-screen-color-depth!", 1, 0, 0, set_screen_color_depth_x); 
-  EXPORT_PROCEDURE("screen-color-depth", 0, 0, 0, screen_color_depth); 
-  EXPORT_PROCEDURE("screen-width", 0, 0, 0, screen_width); 
-  EXPORT_PROCEDURE("screen-height", 0, 0, 0, screen_height); 
-  EXPORT_PROCEDURE("screen-size", 0, 0, 0, screen_size); 
+  EXPORT_PROCEDURE("set-screen-width!", 1, 0, 0, set_screen_width_x);
+  EXPORT_PROCEDURE("set-screen-height!", 1, 0, 0, set_screen_height_x);
+  EXPORT_PROCEDURE("set-screen-size!", 2, 0, 0, set_screen_size_x);
+  EXPORT_PROCEDURE("set-screen-color-depth!", 1, 0, 0, set_screen_color_depth_x);
+  EXPORT_PROCEDURE("screen-color-depth", 0, 0, 0, screen_color_depth);
+  EXPORT_PROCEDURE("screen-width", 0, 0, 0, screen_width);
+  EXPORT_PROCEDURE("screen-height", 0, 0, 0, screen_height);
+  EXPORT_PROCEDURE("screen-size", 0, 0, 0, screen_size);
   EXPORT_PROCEDURE("clear-screen!", 0, 0, 0, clear_screen_x);
   EXPORT_PROCEDURE("wipe-screen!", 0, 0, 0, wipe_screen_x);
   EXPORT_PROCEDURE("flip-screen!", 0, 0, 0, flip_screen_x);
@@ -168,12 +168,11 @@ video_init(Uint16 w, Uint16 h, int mode) {
 
   if(mode & SDL_OPENGL) {
 #ifndef USE_OPENGL
-    FATAL("slayer compiled without opengl support");
+    FATAL("slayer compiled without OpenGL support");
 #else
     init_3d();
 #endif
   }
-
 
   display_procedure = noop;
 

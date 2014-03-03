@@ -26,7 +26,7 @@ call_with_video_output_to(SCM screen, SCM thunk) {
   return scm_with_fluid(current_screen_fluid, screen, thunk);
 }
 
-static SCM
+inline SCM
 current_screen() {
   return scm_fluid_ref(current_screen_fluid);
 }
