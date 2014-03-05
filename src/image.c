@@ -95,35 +95,28 @@ draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   int X = GIVEN(x) ? scm_to_int(x) : 0;
   int Y = GIVEN(y) ? scm_to_int(y) : 0;
-  
-#ifdef USE_OPENGL
-  int W = image->w;
-  int H = image->h;
-
   if(GIVEN(target_smob)) {
     scm_assert_smob_type(image_tag, target_smob);
   } 
   else {
     target_smob = current_screen();
   }
-
   SDL_Surface *target = (SDL_Surface *) SCM_SMOB_DATA(target_smob);
-  
-  if((video_mode & SDL_OPENGL) && (target == screen)) {
+  if(0) {}
+#ifdef USE_OPENGL  
+  else if((video_mode & SDL_OPENGL) && (target == screen)) {
     WARN_ONCE("using OpenGL");
     glDisable(GL_DEPTH_TEST);
     glWindowPos2i(X, screen->h - Y);
     glPixelZoom(1.0, -1.0);
-    glDrawPixels(W, H, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);    
+    glDrawPixels(image->w, image->h, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);    
     glEnable(GL_DEPTH_TEST);
   }
-  else {
 #endif
+  else {
     SDL_Rect at = sdl_rect(X, Y, -1, -1);
     SDL_BlitSurface(image, NULL, target, &at);
-#ifdef USE_OPENGL
   }
-#endif
   scm_remember_upto_here_2(image_smob, target_smob);
   return SCM_UNSPECIFIED;
 }
