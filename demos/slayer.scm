@@ -3,7 +3,7 @@
 (use-modules (slayer)
 	     (slayer image)
 	     (widgets base)
-	     (widgets bitmap)
+	     (widgets sprite)
 	     (widgets image-clipper)
 	     (widgets text-area)
 	     (oop goops)
@@ -15,6 +15,7 @@
 	     (extra figures))
 
 (keydn 'esc quit)
+
 (set-window-title! "WELCOME TO SLAYER")
 
 (cond-expand 
@@ -42,47 +43,60 @@
 
 (add-object! 3d-object #;to world)
 
+
+(add-child! #;(make <image-clipper> #:image ku #:x 580 #:y 400 #:w 40 #:h 40)
+ ((layout #:x 550 #:y 400) 
+  (make <numeric-input> #:w 60 #:h 12 #:label "x: "
+	#:target 3d-object
+	#:accessor (accessor x #[x : 'position : 0]))
+  (make <numeric-input> #:w 60 #:h 12 #:label "y: "
+	#:target 3d-object
+	#:accessor (accessor x #[x : 'position : 1]))
+  (make <numeric-input> #:w 60 #:h 12 #:label "z: "
+	#:target 3d-object
+	#:accessor (accessor x #[x : 'position : 2]))
+  )
+ #;to *stage*)
+
 ) (else (begin))) ;; cond-expand slayer-3d
 
 (let ((text-area 
        (make <text-area>
+	 #:x 20 #:y 20
+	 #:w 256 #:h 64
 	 #:max-lines 12
-	 #:background-color #x440000
+	 #:text-color #x000000
+	 #:background-color #xffffff
 	 #:text 
-	(string-append
-	 "'(click somewhere around HERE and start typing scheme code)\n"
-	 "'(use F1 to evaluate last sexp)\n"
-	 "'((by default the result is printed to stdout))\n\n"
-
-	 (cond-expand 
-	  (slayer-3d
-	   (string-append
-	    "'(use '(W S A D) and mouse to navigate the 3d area)\n"
-	    "'(right-click on the ball to create a new one!)\n"))
-	  (slayer-3d-available
-	   (string-append
-	    "'(to see the 3D version of this demo, supply the -e3d option\n"
-	    " as a command line argument, or reconfigure with "
-	    "--enable-default-3d)\n\n"))
-	  (else
-	   (string-append
-	    "'(demo compiled without opengl support)\n")))
-
-	 "'(use 'ESC to finish typing (after having clicked above)\n"
-	 "  or to exit application)\n"
-	 (cond-expand
-	  (slayer-audio
-	   "'(press m to hear some music)")
-	  (else ""))
-	 ))))
+	 (string-append
+	  "'(click somewhere around HERE and start typing scheme code)\n"
+	  "'(use F1 to evaluate last sexp)\n"
+	  "'((by default the result is printed to stdout))\n\n"
+	  (cond-expand 
+	   (slayer-3d
+	    (string-append
+	     "'(use '(W S A D) and mouse to navigate the 3d area)\n"
+	     "'(right-click on the ball to create a new one!)\n"))
+	   (slayer-3d-available
+	    (string-append
+	     "'(to see the 3D version of this demo, supply the -e3d option\n"
+	     " as a command line argument, or reconfigure with "
+	     "--enable-default-3d)\n\n"))
+	   (else
+	    (string-append
+	     "'(demo compiled without opengl support)\n")))
+	  "'(use 'ESC to finish typing (after having clicked above)\n"
+	  "  or to exit application)\n"
+	  (cond-expand
+	   (slayer-audio
+	    "'(press m to hear some music)")
+	   (else ""))
+	  ))))
   (add-child! text-area #;to *stage*))
 
 (define ku (load-image "./art/ku.png"))
 
 (add-child! (make-image ku 475 25) #;to *stage*)
-
-(add-child! (make <image-clipper> #:image ku #:x 580 #:y 400 #:w 40 #:h 40)
-	    #;to *stage*)
 
 (cond-expand (slayer-audio
 
