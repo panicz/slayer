@@ -2,7 +2,14 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref fref random-element))
+  #:export (ref aref fref random-element)
+  #:export-syntax (accessor)
+  )
+
+(define-syntax-rule (accessor x ref)
+  (make-procedure-with-setter
+   (lambda (x) ref)
+   (lambda (x value) (set! ref value))))
 
 (define (getter obj key)
   (cond ((vector? obj)
@@ -144,7 +151,6 @@
 		 (#t
 		  (unread-char char port)
 		  (loop (cons (read port) exp))))))))))
-
 
 ;; (define (read-hash-n char port)
 ;;   (let loop ((n (list char)) (char (read-char port)))
