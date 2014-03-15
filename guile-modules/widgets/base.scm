@@ -31,13 +31,10 @@
   #:export-syntax (default-slot-values with-slots)
   )
 
-(define-syntax default-slot-values
-  ;; this macro is intended to be used within an "initialize" method.
-  (syntax-rules ()
-    ((_ object args (name value) ...)
-     (let-keywords args #t ((name value) ...)
-       (set! #[object 'name] name)
-       ...))))
+(define-syntax-rule (default-slot-values object args (name value) ...)
+  (let-keywords args #t ((name value) ...)
+    (set! #[object 'name] name)
+    ...))
 
 (define-syntax with-slots
   (syntax-rules ()
@@ -179,7 +176,7 @@
 
 (define (left-mouse-down x y)
   (set! *nearby-widget* #f)
-  (and-let* ((w (most-nested-widget-under `(,x ,y) *stage*)))
+  (and-let* ((w (most-nested-widget-under `(,x ,y) #;on *stage*)))
     (set! *active-widget* w))
   (when *active-widget*
     (#[*active-widget* 'left-mouse-down ] x y))
@@ -194,11 +191,11 @@
   (set! *active-widget* *stage*))
 
 (define (right-mouse-down x y)
-  (and-let* ((w (most-nested-widget-under `(,x ,y) *stage*)))
+  (and-let* ((w (most-nested-widget-under `(,x ,y) #;on *stage*)))
     (#[ w 'right-mouse-down ] x y)))
 
 (define (drag-over x y xrel yrel)
-  (let* ((widgets-below (all-widgets-under `(,x ,y) *stage*))
+  (let* ((widgets-below (all-widgets-under `(,x ,y) #;on *stage*))
 	 (non-active-widgets-below 
 	  (filter (lambda (x)
 		    (not (in? *active-widget* `(,x ,@(ancestors x)))))
