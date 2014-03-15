@@ -5,6 +5,7 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (widgets base)
+  #:use-module (widgets sprite)
   #:export (<image-clipper>
 	    )
   #:re-export (make)
@@ -30,7 +31,7 @@
 ;; |  image       v                      | v
 ;; +-------------------------------------+
 
-(define-class <image-clipper> (<widget>)
+(define-class <image-clipper> (<sprite>)
   (%image #:init-value (rectangle 1 1 0) #:init-keyword #:image)
   (%cropped-image #:init-value #f)
   (%left #:init-value 0 #:init-keyword #:left)
@@ -90,7 +91,14 @@
 		   (- #[c 'top] dy)))))))
 
 (define-method (draw (c <image-clipper>))
-  (unless #[c '%cropped-image]
-    (set! #[c '%cropped-image] (crop-image #[c '%image] #[c 'left] #[c 'top]
-					   #[c 'w] #[c 'h])))
-  (draw-image! #[c '%cropped-image] #[c 'x] #[c 'y]))
+  ;; this is terrible! (cf. draw method in (widgets sprite))
+  (let ((cropped-image (or #[c '%cropped-image]
+			   (crop-image #[c '%image] #[c 'left] #[c 'top]
+				       #[c 'w] #[c 'h]))))
+    (set! #[c '%cropped-image] cropped-image)
+    (specify ((first identity)
+	      (rest #[_ 'parent])
+	      (empty? (?not #[_ 'parent])))
+      (let ((x (apply + (map* #[_ 'x] c)))
+	    (y (apply + (map* #[_ 'y] c))))
+    (draw-image! cropped-image x y)))))

@@ -7,9 +7,15 @@
   #:use-module (slayer font)
   #:use-module (widgets base)
   #:export (<sprite>
+	    <label>
+	    <layout>
+	    layout
+	    lay-out-horizontally
+	    lay-out-vertically
 	    make-button
 	    make-container
-	    make-image))
+	    make-image)
+  #:re-export (add-child! draw))
 
 (define-class <sprite> (<widget>)
   (%image #:init-value #f)
@@ -24,9 +30,12 @@
 	 #:init-keyword #:image))
 
 (define-method (draw (i <sprite>))
-  (draw-image! #[ i 'image ]
-	       (+ (or #[i : 'parent : 'x] 0) #[ i 'x ]) 
-	       (+ (or #[i : 'parent : 'y] 0) #[ i 'y ])))
+  (specify ((first identity)
+	    (rest #[_ 'parent])
+	    (empty? (?not #[_ 'parent])))
+    (let ((x (apply + (map* #[_ 'x] i)))
+	  (y (apply + (map* #[_ 'y] i))))
+      (draw-image! #[ i 'image ] x y))))
 
 (define* (make-button #:key (text "button") (x 0) (y 0) (w #f) (h #f))
   (let ((normal (render-text text *default-font* #xffffff #xff0000))
@@ -70,3 +79,50 @@
 	    (increase! #[ image 'x ] xrel)
 	    (increase! #[ image 'y ] yrel)))
     image))
+
+(define-class <label> (<sprite>)
+  (%text #:init-value #f)
+  (font #:init-value *default-font* #:init-keyword #:font)
+  (text-color #:init-value #xffffff #:init-keyword #:text-color)
+  (background-color #:init-value #x777777 #:init-keyword #:background-color)
+  (text 
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     #[self '%text])
+   #:slot-set!
+   (lambda (self value)
+     (set! #[self '%text] value)
+     (set! #[self 'image] (render-text value #[self 'font] 
+				       #[self 'text-color]
+				       #[self 'background-color])))))
+
+(define-method (initialize (self <label>) args)
+  (next-method)
+  (default-slot-values self args (text "label")))
+
+(define-class <layout> (<widget>)
+  (children #:init-value '())
+  (lay-out #:init-value noop #:init-keyword #:lay-out))
+
+(define-method (lay-out-vertically (child <widget>) #;on (layout <layout>))
+  (set! #[child 'y] (+ #;[layout 'y] #[layout 'h])))
+
+(define-method (lay-out-horizontally (child <widget>) #;on (layout <layout>))
+  (set! #[child 'x] (+ #;[layout 'x] #[layout 'w])))
+
+(define-method (initialize (self <layout>) args)
+  (next-method)
+  (default-slot-values self args (lay-out lay-out-vertically)))
+
+(define-method (add-child! (child <widget>) #;to (layout <layout>))
+  (#[layout 'lay-out] child #;on layout)
+  (next-method)
+)
+
+(define (layout . args)
+  (let ((layout (apply make <layout> args)))
+    (lambda future-children
+      (for child in future-children
+	   (add-child! child #;to layout))
+      layout)))

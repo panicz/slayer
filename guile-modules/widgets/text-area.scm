@@ -7,8 +7,13 @@
   #:use-module (slayer image)
   #:use-module (slayer font)
   #:use-module (widgets base)
+  #:use-module (widgets sprite)
   #:use-module (widgets image-clipper)
   #:export (<text-area>
+	    <input>
+	    <parameter-editor>
+	    <numeric-parameter-editor>
+	    <numeric-input>
 	    )
   #:re-export (make)
   )
@@ -60,11 +65,22 @@
    #:slot-ref
    (lambda (self)
      (or #[self '%%image]
-	 (let ((image (rectangle #[self 'width] #[self 'height] #x00000000)))
+	 (let ((image (rectangle (max #[self 'w] #[self 'width]) 
+				 (max #[self 'h] #[self 'height])
+				 #[self 'background-color])))
 	   (with-video-output-to image (render self))
 	   (set! #[self '%%image] image)
 	   image)))
    #:slot-set! noop)
+
+  (%original-lines #:init-value #f) ;; if type is #:field, here's where
+  ;; the original text is stored
+  (%original-row #:init-value 0)
+  (%original-column #:init-value 0)
+
+  (valid-lines #:init-value (lambda(lines) #t) #:init-keyword #:validate-lines)
+  (on-confirm-change #:init-value noop #:init-keyword #:on-confirm-change)
+  
   (background-color #:init-value #f #:init-keyword #:background-color)
   (text-color #:init-value #xffffff #:init-keyword #:text-color)
   (font #:init-value *default-font* #:init-keyword #:font)
@@ -114,11 +130,15 @@
 		    (vector-length lines))))
 	(set! #[t '%render-cache] (make-vector (vector-length lines) #f)))
     (when #[t 'background-color]
-      (if (or (not #[t '%background])
-	      (not (equal? (image-size #[t '%background])
-			   `(,#[t 'width] ,#[t 'height]))))
-	  (set! #[t '%background] 
-		(rectangle #[t 'width] #[t 'height] #[t 'background-color])))
+      (when (or (not #[t '%background])
+		(not (equal? (image-size #[t '%background])
+			     `(,(max #[t 'w] #[t 'width]) 
+			       ,(max #[t 'h] #[t 'height])))))
+	(set! #[t '%background] 
+	      (rectangle (max #[t 'w] #[t 'width]) 
+			 (max #[t 'h] #[t 'height]) 
+			 #[t 'background-color]))
+	)
       (draw-image! #[t '%background]))
     (for n in 0 .. (1- (vector-length lines))
 	 (let ((image (or #[t : '%render-cache : n]
@@ -150,11 +170,16 @@
 	     (starting-position (last-sexp-starting-position text)))
     (substring text starting-position)))
 
+(define-method (%flush-cache! (w <text-area>))
+  (set! #[w '%background] #f)
+  (set! #[w '%render-cache] #f)
+  (set! #[w '%cropped-image] #f)
+  (set! #[w '%%image] #f))
+
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
-  (set! #[w '%cropped-image] #f)
-  (set! #[w '%%image] #f)
+  (%flush-cache! w)
   (set-port-line! #[ w 'port ] 
 		  (max 0 (min (+ (port-line #[w 'port]) down) 
 			      (- (vector-length #[w 'lines]) 1))))
@@ -171,8 +196,7 @@
 (define-method (delete-char! (w <text-area>) 
 			     (col <integer>) 
 			     (line <integer>))
-  (set! #[w '%cropped-image] #f)
-  (set! #[w '%%image] #f)
+  (%flush-cache! w)
   (let* ((s #[w : 'lines : line ])
 	 (sl (string-length s))
 	 (l (substring s 0 (max 0 (min sl (- col 1)))))
@@ -180,8 +204,7 @@
     (set! #[w : 'lines : line] (string-append l r))))
 
 (define-method (break-line! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
+  (%flush-cache! t)
   (let ((line #[#[t 'lines] (port-line #[t 'port])])
 	(line-number (port-line #[ t 'port ]))
 	(lines (vector->list #[ t 'lines ]))
@@ -200,14 +223,12 @@
 			1)))))
 
 (define-method (leave-typing-mode! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
+  (%flush-cache! t)
   (set-current-output-port *stdout*)
   (set-direct-input-mode!))
 
 (define-method (move-cursor-back! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
+  (%flush-cache! t)
   (let ((line (port-line #[ t 'port ]))
 	(column (port-column #[ t 'port ])))
     (if (and (= column 0)
@@ -220,8 +241,7 @@
 	(move-cursor! t -1 0))))
 
 (define-method (move-cursor-forward! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
+  (%flush-cache! t)
   (let ((line (port-line #[ t 'port ]))
 	(column (port-column #[ t 'port ])))
     (if (and (= column (string-length 
@@ -233,8 +253,7 @@
 	(move-cursor! t 1 0))))
 
 (define-method (move-cursor-to-the-end-of-line! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
+  (%flush-cache! t)
   (let* ((port #[t 'port])
 	 (line #[t : 'lines : (port-line port)]))
     (move-cursor! t (- (string-length line) 
@@ -242,13 +261,11 @@
 		  0)))
 
 (define-method (move-cursor-to-the-beginning-of-line! (t <text-area>))
-  (set! #[t '%%image] #f)
+  (%flush-cache! t)
   (move-cursor! t (- (port-column #[t 'port])) 0))
 
 (define-method (delete-previous-char! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
-  (set! #[t '%render-cache] #f)
+  (%flush-cache! t)
   (let ((p #[ t 'port ])
 	(lines #[ t 'lines ]))
     (if (= (port-column p) 0)
@@ -272,9 +289,7 @@
 	  (move-cursor! t -1 0)))))
 
 (define-method (delete-next-char! (t <text-area>))
-  (set! #[t '%cropped-image] #f)
-  (set! #[t '%%image] #f)
-  (set! #[t '%render-cache] #f)
+  (%flush-cache! t)
   (let* ((p #[ t 'port ])
 	 (lines #[ t 'lines ]))
     (if (= (port-column p) 
@@ -291,15 +306,37 @@
 			 (list->vector
 			  (append pre
 				  `(,(string-append this next))
-				  rest))))))))
+				  rest))))
+		  (else
+		   (noop))))))
     #;else
 	(begin
 	  (delete-char! t (+ (port-column p) 1) (port-line p)) 
 	  (move-cursor! t 0 0)))))
 
+(define-method (restore-original-text! (t <text-area>))
+  (set! #[t 'lines] #[t '%original-lines])
+  (%flush-cache! t)
+  (leave-typing-mode! t))
+
+(define-method (confirm-text-change! (t <text-area>))
+  (leave-typing-mode! t)
+  (#[t 'on-confirm-change] t))
+
+(define-method (enter-typing-mode! (t <text-area>))
+  (set! #[t '%original-lines]
+	(vector-copy #[t 'lines]))
+  (%flush-cache! t)
+  (set-current-output-port #[ t 'port ])
+  (set-typing-special-procedure! 
+   (lambda(scancode)
+     (#[t : 'special-keys : scancode])))
+  (set-typing-input-mode!))
+
 (define-method (initialize (t <text-area>) args)
   (next-method)
-  (let-keywords args #t ((text "hi! :)\n"))
+  (let-keywords args #t ((text "hellow!")
+			 (type #:text-area))
     (let ((put-string (lambda(s)
 			(set! #[t '%cropped-image] #f)
 			(set! #[t '%%image] #f)
@@ -313,9 +350,8 @@
 				     (substring line 0 col)
 				     s
 				     (substring line col)))))))))
-      (set! #[t '%cursor] (rectangle 2 #;(image-width #[t '%space]) 
-					#[t 'char-height]
-					#x20eeaa22))
+      (set! #[t '%cursor] (rectangle 2 #[t 'char-height]
+				     #x20eeaa22))
       (set! #[t '%space] (render-text "_" #[t 'font]))
       (set! #[t 'lines] (list->vector (string-split text #\newline)))
       (set! #[t 'port] (make-soft-port
@@ -324,25 +360,16 @@
 			   (put-string (list->string (list c))))
 			 put-string
 			 noop
-			 #;(lambda()
-			 (for-each display 
-			 (vector->list #[t 'lines])))
 			 #f
 			 #f) "w"))
-      (set! #[t 'left-click]
-	    (lambda _
-	      (set! #[t '%cropped-image] #f)
-	      (set! #[t '%%image] #f)
-	      (set-current-output-port #[ t 'port ])
-	      (set-typing-special-procedure! 
-	       (lambda(scancode)
-		 (#[t : 'special-keys : scancode])))
-	      (set-typing-input-mode!)))
+      (set! #[t 'left-click] 
+	    (lambda _ 
+	      (enter-typing-mode! t)
+	      (if (eq? type #:field)
+		  (set-port-column! #[t 'port] 0))))
       (let* ((set-key! (lambda (key action)
 			 (set! #[#[t 'special-keys] #[*scancodes* key]]
 			       (lambda()(action t))))))
-	(set-key! "esc" leave-typing-mode!)
-	(set-key! "return" break-line!)
 	(set-key! "left"  move-cursor-back!)
 	(set-key! "right" move-cursor-forward!)
 	(set-key! "up" (lambda(t)(move-cursor! t 0 -1)))
@@ -357,4 +384,165 @@
 	(set-key! "f2" (lambda(t)(display (last-sexp t) *stdout*)))
 	(set-key! "backspace" delete-previous-char!)
 	(set-key! "delete" delete-next-char!)
+	(case type
+	  ((#:field)
+	   (set-key! "esc" restore-original-text!)
+	   (set-key! "return" (lambda(t)
+				(if (#[t 'valid-lines] #[t 'lines])
+				    (confirm-text-change! t)
+				    (begin
+				      (display "invalid text\n" *stdout*)
+				      (restore-original-text! t))))))
+	  (else
+	   (set-key! "esc" leave-typing-mode!)
+	   (set-key! "return" break-line!)
+	   ))
 	))))
+
+(define-class <parameter-editor> (<text-area>)
+  (%render-cache
+   #:allocation #:virtual
+   #:slot-ref (lambda (self) (make-vector (vector-length #[self 'lines]) #f))
+   #:slot-set! noop)
+
+  (%%image
+   #:allocation #:virtual
+   #:slot-ref (lambda (self) #f)
+   #:slot-set! noop)
+
+  (%cropped-image
+   #:allocation #:virtual
+   #:slot-ref (lambda (self) #f)
+   #:slot-set! noop)
+		
+  (target #:init-value #f #:init-keyword #:target)
+
+  (value-getter #:init-value noop #:init-keyword #:value-getter)
+  (value-setter #:init-value noop #:init-keyword #:value-setter)
+
+  (%lines-confirmed #:init-value #t)
+  (%lines #:init-value #(""))
+
+  (value
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (if (not #[self 'target])
+	 "<no target>"
+	 (->string (#[self 'value-getter] #[self 'target]))))
+   #:slot-set!
+   (lambda (self value)
+     (if #[self 'target]
+	 (#[self 'value-setter] #[self 'target] #[self : 'lines : 0]))))
+
+  (on-confirm-change
+   #:init-value 
+   (lambda (self)
+     (set! #[self 'value] #[self : 'lines : 0])
+     (set! #[self '%lines-confirmed] #t)))
+
+  (lines
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (if #[self '%lines-confirmed]
+	 (vector #[self 'value])
+	 #[self '%lines]))
+   #:slot-set!
+   (lambda (self value)
+     (set! #[self '%lines] value)
+     (set! #[self '%lines-confirmed] #f)
+     (%flush-cache! self))))
+
+(define-class <input> (<widget>)
+  (default-editor-class #:allocation #:each-subclass 
+    #:init-value <parameter-editor>)
+  (%label #:init-value #f)
+  (input #:init-value #f)
+  (label
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     #[self : '%label : 'text])
+   #:slot-set!
+   (lambda (self value)
+     (set! #[self : '%label : 'text] value)
+     (set! #[self : 'input : 'x] #[self : '%label : 'w])))
+
+  (target
+   #:allocation #:virtual
+   #:slot-ref 
+   (lambda (self) 
+     #[self : 'input : 'target])
+   #:slot-set! 
+   (lambda (self value) 
+     (set! #[self : 'input : 'target] value)))
+
+  (children
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     `(,#[self '%label] ,#[self 'input]))
+   #:slot-set! noop))
+
+(define-method (enter-typing-mode! (t <parameter-editor>))
+  (next-method)
+  (set! #[t '%lines] #[t 'lines])
+  (set! #[t '%lines-confirmed] #f))
+
+(define-method (initialize (self <parameter-editor>) args)
+  (next-method)
+  (set! #[self '%lines-confirmed] #t))
+
+(define-method (initialize (self <input>) args)
+  (next-method)
+  (let-keywords args #t ((label "input: ")
+			 (editor-class #[self 'default-editor-class])
+			 (target #f)
+			 (value-getter noop)
+			 (validate-lines (lambda (lines) #t))
+			 (accessor noop)
+			 (value-setter noop))
+    (let* ((label (make <label> #:text label #:x #[self 'x] #:y #[self 'y]))
+	   (field (make editor-class #:max-lines 1 #:type #:field
+			#:target target
+			#:value-getter value-getter
+			#:value-setter value-setter
+			#:accessor accessor
+			#:validate-lines validate-lines
+			#:text-color #x000000
+			#:background-color #xffffff
+			#:x (+ #[self 'x] #[label 'w]) #:y #[self 'y]
+			#:w (- #[self 'w] #[label 'w]) #:h #[self 'h])))
+      (set! #[field 'parent] self)
+      (set! #[label 'parent] self)
+      (set! #[self '%label] label)
+      (set! #[self 'input] field)
+      (set! #[self 'left-click] (lambda (x y)
+				  (#[self : 'input : 'left-click] x y))))))
+
+(define-method (draw (self <input>))
+  (for child in #[self 'children]
+       (draw child)))
+
+(define-class <numeric-parameter-editor> (<parameter-editor>)
+  (valid-lines #:init-value 
+	       (lambda (lines)
+		 (and (= (vector-length lines) 1)
+		      (string-match
+		       "^\\s*[+-]?[0-9]*\\.?[0-9]+\\s*$"
+		       #[lines 0])))))
+
+(define-method (initialize (self <numeric-parameter-editor>) args)
+  (next-method)
+  (let-keywords args #t ((accessor noop))
+    (set! #[self 'value-getter]
+	  accessor)
+    (set! #[self 'value-setter]
+	  (lambda (target value)
+	    (let ((value (read-string value)))
+	      (set! (accessor target) value))))))
+
+(define-class <numeric-input> (<input>)
+  (default-editor-class #:allocation #:each-subclass 
+    #:init-value <numeric-parameter-editor>))
