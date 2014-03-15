@@ -67,7 +67,7 @@
 	    map-n for-each-n equivalence-classes argmin argmax clamp
 	    atom? symbol<
 	    insert rest head tail
-	    tree-find tree-map
+	    tree-find tree-map map*
 	    depth array-map array-map/typed array-append
 	    keyword-args->hash-map keyword-args->alist
 	    list->uniform-vector list->uniform-array
@@ -473,10 +473,9 @@
 
 (define-curried-syntax (string-matches pattern string)
   (and-let* ((match-struct (string-match pattern string))
-                (count (match:count match-struct)))
-     (map (lambda(n)(match:substring match-struct n))
-        (iota (1- count) 1))))
-
+	     (count (match:count match-struct)))
+    (map (lambda(n)(match:substring match-struct n))
+	 (iota (1- count) 1))))
 
 ;; borrowed from http://community.schemewiki.org/?scheme-faq-language
  (define (curry f n) 
@@ -770,6 +769,15 @@
 	     (tree-map proc item)
 	     (proc item)))
        tree))
+
+(with-default ((first car)
+	       (rest cdr)
+	       (empty? null?))
+  (define (map* proc . ls)
+    (if (any (specific empty?) ls)
+	'()
+	`(,(apply proc (map (specific first) ls))
+	  ,@(apply map* proc (map (specific rest) ls))))))
 
 ;; equivalence classes with partial order preserved
 (define (equivalence-classes equivalent? set)
