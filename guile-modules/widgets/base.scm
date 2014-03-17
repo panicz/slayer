@@ -16,6 +16,7 @@
 	    <widget>
 	    <extended-widget>
 	    <stage>
+	    <container-widget>
 
 	    *stdout*
 	    *stdin*
@@ -217,3 +218,51 @@
 (keyup 'mouse-left left-mouse-up)
 (keydn 'mouse-right right-mouse-down)
 (mousemove drag-over)
+
+(define-class <container-widget> (<widget>)
+  (%content #:init-value #f)
+  (content
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     #[self '%content])
+   #:slot-set!
+   (lambda (self value)
+     (if #[self '%content]
+	 (set! #[self : '%content : 'parent] #f))
+     (set! #[self '%content] value)
+     (set! #[value 'parent] self)))
+  (children
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (or (and-let* ((content #[self 'content]))
+	   `(,content))
+	 '()))
+   #:slot-set!
+   noop)
+  (min-w #:init-value 0 #:init-keyword #:min-w)
+  (min-h #:init-value 0 #:init-keyword #:min-h)
+  (w
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (if #[self 'content]
+	 #[self : 'content : 'w]
+	 #[self 'min-w]))
+   #:slot-set!
+   noop)
+  (h
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (if #[self 'content]
+	 #[self : 'content : 'h]
+	 #[self 'min-h]))
+   #:slot-set!
+   noop))
+
+
+(define-method (draw (c <container-widget>))
+  (if #[c 'content]
+      (draw #[c 'content])))
