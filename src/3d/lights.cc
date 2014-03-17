@@ -234,7 +234,7 @@ void
 init_lights() {
   init_light_properties();
 
-  glEnable(GL_LIGHTING);
+  //glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT0);
 
   OUT("There are %d lights available", GL_MAX_LIGHTS);
