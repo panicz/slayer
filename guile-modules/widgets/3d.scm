@@ -192,7 +192,7 @@
       (else
        (format #t "ambiguous display-index candidates\n")))))
 
-(define-method (select-object! (view <3d-editor>) (object <3d>))
+(define-method (select-object! (object <3d>) #;from (view <3d-editor>))
   (if (not (in? object #[view 'selected]))
       (push! #[view 'selected] object)))
 
