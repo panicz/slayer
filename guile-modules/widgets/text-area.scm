@@ -14,8 +14,10 @@
 	    <parameter-editor>
 	    <numeric-parameter-editor>
 	    <numeric-input>
+	    set-target!
 	    )
   #:re-export (make)
+  #:export-syntax (parameter-editor)
   )
 
 ;; warto by to wyeksplikować, bo tutaj mamy mały PROBLEM!:
@@ -546,3 +548,16 @@
 (define-class <numeric-input> (<input>)
   (default-editor-class #:allocation #:each-subclass 
     #:init-value <numeric-parameter-editor>))
+
+(define-syntax-rule (parameter-editor target (label property) ...)
+  ((layout #:lay-out lay-out-horizontally)
+   (make <numeric-input> #:w 60 #:h 12 #:label label
+	 #:target target
+	 #:accessor (accessor target property))
+   ...))
+
+(define-method (set-target! #;of (w <widget>) #;as target)
+  (if (is-a? w <parameter-editor>)
+      (set! #[w 'target] target))
+  (for child in #[w 'children]
+       (set-target! #;of child #;as target)))
