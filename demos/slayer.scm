@@ -43,19 +43,12 @@
 
 (add-object! 3d-object #;to world)
 
-
 (add-child! #;(make <image-clipper> #:image ku #:x 580 #:y 400 #:w 40 #:h 40)
- ((layout #:x 550 #:y 400) 
-  (make <numeric-input> #:w 60 #:h 12 #:label "x: "
-	#:target 3d-object
-	#:accessor (accessor x #[x : 'position : 0]))
-  (make <numeric-input> #:w 60 #:h 12 #:label "y: "
-	#:target 3d-object
-	#:accessor (accessor x #[x : 'position : 1]))
-  (make <numeric-input> #:w 60 #:h 12 #:label "z: "
-	#:target 3d-object
-	#:accessor (accessor x #[x : 'position : 2]))
-  )
+ (parameter-editor
+  3d-object 
+  ("x: " #[3d-object : 'position : 0])
+  ("y: " #[3d-object : 'position : 1])
+  ("z: " #[3d-object : 'position : 2]))
  #;to *stage*)
 
 ) (else (begin))) ;; cond-expand slayer-3d
@@ -133,7 +126,7 @@
 	(unselect-all! view)
 	(let ((object (object-at-position x y view)))
 	  (if object
-	      (select-object! view object)))))
+	      (select-object! object #;from view)))))
 
 (set! #[view 'right-mouse-down]
       (lambda (x y)
