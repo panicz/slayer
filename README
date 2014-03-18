@@ -4,8 +4,12 @@ The following programs/libraries are required to accomplish the build process:
 - SDL 1.2 + SDL_image + SDL_ttf + SDL_mixer (with headers)
 - OpenGL implementation with headers
 
-If those are provided, just type ./configure && make (or see the INSTALL
-file for more details)
+If those are provided, just type ./configure && make (or see the INSTALL file
+for more details)
 
-If you want to try out some of the demos, enter the "demos"
-directory and see the included README file.
+If you want to try out some of the demos, enter the "demos" directory and see
+the included README file.
+
+If you're experiencing any problems, please write to <bugs-slayer@gnu.org.ua>
+
+SLAYER website is available at: http://puszcza.gnu.org.ua/software/slayer/
