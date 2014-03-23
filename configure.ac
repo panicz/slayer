@@ -47,6 +47,18 @@ unless --enable-default-3d is passed to the configure script)]),
   [],
   [with_opengl=check])
 
+AC_DEFUN([CHECK_OPENGL_EXTENSION],
+[AC_CHECK_LIB([GL], [$2],
+  [AC_DEFINE([HAVE_$1], [1],
+             [`$2' is available from OpenGL])],
+[AC_CHECK_LIB([GL], [$2],
+  [AC_DEFINE([HAVE_$1_ARB], [1],
+	     [`$2ARB' is available from OpenGL])],
+[AC_CHECK_LIB([GL], [$2EXT],
+  [AC_DEFINE(HAVE_$1_EXT, [1],
+	     [`$2EXT' is available from OpenGL])])])])
+])
+
 if test "x$with_opengl" != xno; then
   PKG_CHECK_MODULES([OPENGL], [gl glu], 
     [AC_DEFINE([USE_OPENGL], [1], [Use OpenGL])
@@ -56,16 +68,10 @@ if test "x$with_opengl" != xno; then
        		  [`glWindowPos2i' is available from OpenGL])],
        [AC_DEFINE([HAVE_GL_WINDOW_POS2I], [0], 
        	          [Define own version of `glWindowPos2i'])])
-     AC_CHECK_LIB([GL], [glGenFramebuffers],
-       [AC_DEFINE([HAVE_GL_GEN_FRAMEBUFFERS], [1],
-       		  [`glGenFramebuffers` is available from OpenGL])],
-       [AC_CHECK_LIB([GL], [glGenFramebuffersARB], 
-          [AC_DEFINE([HAVE_GL_GEN_FRAMEBUFFERS_ARB], [1],
-	  	     [`glGenFramebuffersARB` is available from OpenGL])],
-	  [AC_CHECK_LIB([GL], [glGenFramebuffersEXT],
-	     [AC_DEFINE(HAVE_GL_GEN_FRAMEBUFFERS_EXT, [1],
-	     		[`glGenFramebuffersEXT` is available from OpenGL])],
-	     [with_glew=yes])])])],
+
+     CHECK_OPENGL_EXTENSION([GL_GEN_FRAMEBUFFERS], [glGenFramebuffers])
+     CHECK_OPENGL_EXTENSION([GL_GEN_RENDERBUFFERS], [glGenRenderbuffers])
+    ],
     [if test "x$with_opengl" != xcheck; then
        AC_MSG_FAILURE([OpenGL not found])
      fi]);
