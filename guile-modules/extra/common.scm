@@ -85,8 +85,8 @@
 	    random-array
 	    read-string write-string ->string
 	    string-remove-prefix string-remove-suffix
-	    string-matches
-	    nonblocking
+	    string-matches string-match-all substitute-pattern
+	    fill-template
 	    with-output-to-utf8
 	    list-directory shell
 	    << die first-available-input-port
@@ -471,11 +471,56 @@
 (define-curried-syntax (equals? value x)
   (equal? value x))
 
+(define (string-match-all pattern string)
+  (let loop ((n 0)
+	     (all '()))
+    (let ((m (string-match pattern string n)))
+      (if m
+	  (loop (match:end m) (cons m all))
+	  (reverse all)))))
+
+(define (substitute-pattern pattern replacement string)
+  "substitute all occurrences of PATTERN in STRING with REPLACEMENT"
+  (let ((replacement-length (string-length replacement)))
+    (let substitute ((matches (string-match-all pattern string))
+		     (string string)
+		     (offset 0))
+      (match matches
+	(()
+	 string)
+	((ms . rest)
+	 (let* ((start (match:start ms))
+		(end (match:end ms))
+		(match-length (- end start)))
+	   (substitute rest 
+		       (string-replace string replacement
+				       (+ start offset)
+				       (+ end offset))
+		       (+ offset (- replacement-length match-length)))))))))
+
 (define-curried-syntax (string-matches pattern string)
-  (and-let* ((match-struct (string-match pattern string))
-	     (count (match:count match-struct)))
-    (map (lambda(n)(match:substring match-struct n))
-	 (iota (1- count) 1))))
+  (let ((matches (string-match-all pattern string)))
+    (and (not (null? matches))
+	 (append-map (lambda (ms)
+		       (let ((count (match:count ms)))
+			 (map (lambda (n) (match:substring ms n))
+			      (if (= count 1) '(0) (iota (1- count) 1)))))
+		     matches))))
+
+;; string-matches returns a list of all expressions that match a given
+;; pattern (as a raw text, contrary to the match struct from "string-match"
+;; and "string-match-all"
+
+(e.g.
+ (string-matches "[0-9]" "1a 2b 3c 4d")
+ ===> ("1" "2" "3" "4"))
+
+;; if parenthesized expressions appear, only those are caught as
+;; expressions (the whole match is excluded from results)
+
+(e.g.
+ (string-matches "([0-9])([a-z])" "1a 2b 3c 4d")
+ ===> ("1" "a" "2" "b" "3" "c" "4" "d"))
 
 ;; borrowed from http://community.schemewiki.org/?scheme-faq-language
  (define (curry f n) 
@@ -1418,6 +1463,22 @@
 				     (set! ,body v))))))
 		 (gather-leaves 's tree))))
 
+
+(define (fill-template . args)
+  (match args
+    ((parameters ... template)
+     (let fill-next ((template template)
+		     (parameters parameters))
+       (match parameters
+	 (()
+	  template)
+	 ((keyword value . rest)
+	  (fill-next (substitute-pattern (string-append 
+					  "<" (symbol->string
+					       (keyword->symbol keyword)) ">")
+					 (->string value)
+					 template)
+		     rest)))))))
 
 ;; (expand '(define-accessors (a (b c 2))))
 
