@@ -6,6 +6,29 @@
 
 #ifdef USE_OPENGL
 
+/**
+(define-template (OPENGL_EXTENSION NAME FUNCTION TYPE) "
+#  ifndef HAVE_<NAME>
+#    ifdef HAVE_<NAME>_ARB
+#      define <FUNCTION> <FUNCTION>ARB
+#    else 
+#      ifdef HAVE_<NAME>_EXT
+#        define <FUNCTION> <FUNCTION>EXT
+#      else
+#        define NO_<NAME>
+#      endif
+#    endif 
+#  endif
+
+#  ifdef NO_<NAME>
+DECLARE void (*<FUNCTION>)<TYPE>;
+#  endif
+")
+**/
+
+/**
+(OPENGL_EXTENSION GL_GEN_FRAMEBUFFERS glGenFramebuffers "(GLsizei, GLuint *)")
+**/
 #  ifndef HAVE_GL_GEN_FRAMEBUFFERS
 #    ifdef HAVE_GL_GEN_FRAMEBUFFERS_ARB
 #      define glGenFramebuffers glGenFramebuffersARB
@@ -18,6 +41,29 @@
 #    endif 
 #  endif
 
+#  ifdef NO_GL_GEN_FRAMEBUFFERS
+DECLARE void (*glGenFramebuffers)(GLsizei, GLuint *);
+#  endif
+
+/**
+(OPENGL_EXTENSION GL_GEN_RENDERBUFFERS glGenRenderbuffers "(GLsizei, GLuint *)")
+**/
+#  ifndef HAVE_GL_GEN_RENDERBUFFERS
+#    ifdef HAVE_GL_GEN_RENDERBUFFERS_ARB
+#      define glGenRenderbuffers glGenRenderbuffersARB
+#    else 
+#      ifdef HAVE_GL_GEN_RENDERBUFFERS_EXT
+#        define glGenRenderbuffers glGenRenderbuffersEXT
+#      else
+#        define NO_GL_GEN_RENDERBUFFERS
+#      endif
+#    endif 
+#  endif
+
+#  ifdef NO_GL_GEN_RENDERBUFFERS
+DECLARE void (*glGenRenderbuffers)(GLsizei, GLuint *);
+#  endif
+
 #  if defined(NO_GL_GEN_FRAMEBUFFERS) && HAVE_GL_EXTENSION_WRANGLER
 #    include <GL/glew.h>
 #  else
@@ -28,7 +74,7 @@
 
 DECLARE void glWindowPos2i (GLint x, GLint y);
 
-#endif
+#endif // USE_OPENGL
 
 extern SDL_Surface *screen;
 

@@ -32,6 +32,10 @@ glWindowPos2i(int x, int y) {
 void (*glGenFramebuffers)(GLsizei, GLuint *) = NULL;
 #endif
 
+#ifdef NO_GL_GEN_RENDERBUFFERS
+void (*glGenRenderbuffers)(GLsizei, GLuint *) = NULL;
+#endif
+
 static SCM
 push_matrix_x() {
   glPushMatrix();
@@ -235,20 +239,31 @@ init_3d() {
   init_buffers();
   init_transforms();
 
+#define TRY_LOAD_GL_EXTENSION(type, name)		\
+  if(!name) {						\
+    name = (type) wglGetProcAddress(# name);		\
+  }							\
+  if(!name) {						\
+    name = (type) wglGetProcAddress(# name "ARB");	\
+  }							\
+  if(!name) {						\
+    name = (type) wglGetProcAddress(# name "EXT");	\
+  }							\
+  if(!name) {						\
+    WARN("Unable to load extension: " # name);		\
+    name = (type) ({ void __fn__ () {			\
+	  WARN(# name ": extension not available");	\
+	} __fn__; });					\
+  }
+
 #ifdef NO_GL_GEN_FRAMEBUFFERS
-  if(!glGenFramebuffers) {
-    glGenFramebuffers 
-      = (void(*)(GLsizei, GLuint *)) wglGetProcAddress("glGenFramebuffers");
-  }
-  if(!glGenFramebuffers) {
-    glGenFramebuffers 
-      = (void(*)(GLsizei, GLuint *)) wglGetProcAddress("glGenFramebuffersARB");
-  }
-  if(!glGenFramebuffers) {
-    glGenFramebuffers 
-      = (void(*)(GLsizei, GLuint *)) wglGetProcAddress("glGenFramebuffersEXT");    
-  }
+TRY_LOAD_GL_EXTENSION(void(*)(GLsizei, GLuint *), glGenFramebuffers);
 #endif
+#ifdef NO_GL_GEN_RENDERBUFFERS
+TRY_LOAD_GL_EXTENSION(void(*)(GLsizei, GLuint *), glGenRenderbuffers);
+#endif
+
+#undef TRY_LOAD_GL_EXTENSION
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glWindowPos2i(0, 0);
