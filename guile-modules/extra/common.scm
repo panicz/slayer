@@ -85,7 +85,7 @@
 	    random-array
 	    read-string write-string ->string
 	    string-remove-prefix string-remove-suffix
-	    string-matches string-match-all substitute-pattern
+	    substitute-pattern
 	    fill-template
 	    with-output-to-utf8
 	    list-directory shell
@@ -100,11 +100,13 @@
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation:
 		   define-curried-syntax publish define-accessors
+		   define-template
 		   with-literal within-module
 		   publish-with-fluids
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
+		   string-match-all string-matches
 		   rec expand letrec-macros unquote
 		   transform! increase! decrease! multiply!
 		   push! pop!)
@@ -456,6 +458,14 @@
 	      (begin . body))
 	     #,@(definitions #'name #'args)))))))
 
+(define-curried-syntax (string-match-all pattern string)
+  (let loop ((n 0)
+	     (all '()))
+    (let ((m (string-match pattern string n)))
+      (if m
+	  (loop (match:end m) (cons m all))
+	  (reverse all)))))
+
 ;; If the `matches?' macro is called with two arguments, it behaves
 ;; as a regular binary predicate, which returns true if the second
 ;; argument matches the first (in terms of Wright/Shinn pattern matcher,
@@ -470,14 +480,6 @@
 
 (define-curried-syntax (equals? value x)
   (equal? value x))
-
-(define (string-match-all pattern string)
-  (let loop ((n 0)
-	     (all '()))
-    (let ((m (string-match pattern string n)))
-      (if m
-	  (loop (match:end m) (cons m all))
-	  (reverse all)))))
 
 (define (substitute-pattern pattern replacement string)
   "substitute all occurrences of PATTERN in STRING with REPLACEMENT"
@@ -1476,9 +1478,21 @@
 	  (fill-next (substitute-pattern (string-append 
 					  "<" (symbol->string
 					       (keyword->symbol keyword)) ">")
-					 (->string value)
+					 (if (string? value) 
+					     value
+					     (->string value))
 					 template)
 		     rest)))))))
+
+(define-macro (define-template interface template)
+  (match interface
+    ((name args ...)
+     (let ((kw-list (append-map (lambda (arg)
+				  `(,(symbol->keyword arg)
+				    (list 'quote ,arg)))
+				args)))
+       `(define-macro ,interface
+	  `(display (fill-template ,,@kw-list ,,template)))))))
 
 ;; (expand '(define-accessors (a (b c 2))))
 
