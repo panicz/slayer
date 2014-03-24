@@ -1,10 +1,12 @@
+// this file is included from input.c, which defines struct scancode_t
+// (entries of which are listed here) in the following way:
+//
+// struct scancode_t {
+//   const char *keyname;
+//   SDLKey value;
+// };
+//
 
-struct scancode {
-  const char *keyname;
-  SDLKey value;
-};
-
-static struct scancode keymap[] = {
   { "backspace", SDLK_BACKSPACE },
   { "tab", SDLK_TAB },
   { "clear", SDLK_CLEAR },
@@ -12,6 +14,7 @@ static struct scancode keymap[] = {
   { "pause", SDLK_PAUSE },
   { "esc", SDLK_ESCAPE },
   { "space", SDLK_SPACE },
+
   { "!", SDLK_EXCLAIM },
   { "\"", SDLK_QUOTEDBL },
   { "#", SDLK_HASH },
@@ -26,6 +29,7 @@ static struct scancode keymap[] = {
   { ",", SDLK_COMMA },
   { ".", SDLK_PERIOD },
   { "/", SDLK_SLASH },
+
   { "0", SDLK_0 },
   { "1", SDLK_1 },
   { "2", SDLK_2 },
@@ -36,6 +40,7 @@ static struct scancode keymap[] = {
   { "7", SDLK_7 },
   { "8", SDLK_8 },
   { "9", SDLK_9 },
+
   { ":", SDLK_COLON },
   { ";", SDLK_SEMICOLON },
   { "<", SDLK_LESS },
@@ -49,6 +54,7 @@ static struct scancode keymap[] = {
   { "^", SDLK_CARET },
   { "_", SDLK_UNDERSCORE },
   { "`", SDLK_BACKQUOTE },
+
   { "a", SDLK_a },
   { "b", SDLK_b },
   { "c", SDLK_c },
@@ -75,7 +81,9 @@ static struct scancode keymap[] = {
   { "x", SDLK_x },
   { "y", SDLK_y },
   { "z", SDLK_z },
+
   { "delete", SDLK_DELETE },
+
   { "num0", SDLK_KP0 },
   { "num1", SDLK_KP1 },
   { "num2", SDLK_KP2 },
@@ -93,15 +101,18 @@ static struct scancode keymap[] = {
   { "num+", SDLK_KP_PLUS },
   { "numret", SDLK_KP_ENTER },
   { "num=", SDLK_KP_EQUALS },
+
   { "up", SDLK_UP },
   { "down", SDLK_DOWN },
   { "left", SDLK_LEFT },
   { "right", SDLK_RIGHT },
+
   { "ins", SDLK_INSERT },
   { "home", SDLK_HOME },
   { "end", SDLK_END },
   { "pgup", SDLK_PAGEUP },
   { "pgdown", SDLK_PAGEDOWN },
+
   { "f1", SDLK_F1 },
   { "f2", SDLK_F2 },
   { "f3", SDLK_F3 },
@@ -117,6 +128,7 @@ static struct scancode keymap[] = {
   { "f13", SDLK_F13 },
   { "f14", SDLK_F14 },
   { "f15", SDLK_F15 },
+
   { "numlock", SDLK_NUMLOCK },
   { "caps", SDLK_CAPSLOCK },
   { "scroll", SDLK_SCROLLOCK },
@@ -158,6 +170,4 @@ static struct scancode keymap[] = {
   { "mwheelup", SDLK_LAST + SDL_BUTTON_WHEELUP },
   { "mwheeldown", SDLK_LAST + SDL_BUTTON_WHEELDOWN },
 
-
   { "", 0 }
-};

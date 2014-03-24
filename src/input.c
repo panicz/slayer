@@ -3,20 +3,7 @@
 #include "symbols.h"
 #include "video.h"
 #include <SDL/SDL.h>
-#define SDL_NBUTTONS 12
-
-//#define PROVIDE_KEY_BINDINGS_ACCESSORS
-
-enum input_modes {
-  DIRECT_MODE = 0,
-  TYPING_MODE = 1
-};
-
-enum key_bindings_indices {
-  KEY_BINDINGS_UP = 0,
-  KEY_BINDINGS_DOWN = 1,
-  KEY_BINDINGS_MOUSEMOVE = 2
-};
+#include "input.h"
 
 static enum input_modes input_mode;
 
@@ -63,16 +50,16 @@ init_modifier_codes() {
 
 static SCM 
 set_direct_input_mode_x() {
-  SDL_EnableUNICODE(0); // actually DisableUNICODE
-  SDL_EnableKeyRepeat(0, 0); //actually DisableKeyRepeat
+  DisableUNICODE();
+  DisableKeyRepeat();
   input_mode = DIRECT_MODE;
   return SCM_UNSPECIFIED;
 }
 
 static SCM
 set_typing_input_mode_x() {
-  SDL_EnableUNICODE(1);
-  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);
+  EnableUNICODE();
+  EnableDefaultKeyRepeat();
   input_mode = TYPING_MODE;
   return SCM_UNSPECIFIED;
 }
@@ -207,7 +194,6 @@ generate_userevent(SCM code, SCM data1, SCM data2) {
   return SCM_UNSPECIFIED;
 }
 
-
 static SCM 
 userevent_handler(SDL_Event *e) {
   if (-1 < e->user.code && e->user.code < next_userevent) {
@@ -229,13 +215,14 @@ quit_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
+struct scancode_t {
+  const char *keyname;
+  SDLKey value;
+};
 
-#include "scancode.c" // contains the definition of scancode table
-//struct scancode {
-//  const char *keyname;
-//  SDLKey value;
-//};
-//static struct scancode keymap[];
+static struct scancode_t keymap[] = {
+#include "scancode.c" 
+};
 
 static inline void 
 build_keymap() {
