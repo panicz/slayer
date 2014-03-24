@@ -246,11 +246,14 @@ init_joint_property_accessors() {
 #define SET_JOINT_ACCESSORS(ode_type, prefix, property)			\
   SET_JOINT_NAMED_ACCESSORS(ode_type, prefix, property, # property)
 
+  // HINGE
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, anchor);
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, axis);
 
+  // SLIDER
   SET_JOINT_ACCESSORS(dJointTypeSlider, slider_, axis);
 
+  // UNIVERSAL
   SET_JOINT_ACCESSORS(dJointTypeUniversal, universal_, anchor);
   SET_JOINT_NAMED_GETTER(dJointTypeUniversal, universal_, anchor2, "anchor-2");
 
@@ -266,6 +269,7 @@ init_joint_property_accessors() {
   //SET_JOINT_NAMED_GETTER(dJointTypeUniversal, universal_,
   //angle_rate2, "angle-rate-2");
 
+  // HINGE-2
   SET_JOINT_ACCESSORS(dJointTypeHinge2, hinge2_, anchor);
   SET_JOINT_NAMED_GETTER(dJointTypeHinge2, hinge2_, anchor2, "anchor-2");
 
