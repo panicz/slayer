@@ -69,8 +69,10 @@ if test "x$with_opengl" != xno; then
        [AC_DEFINE([HAVE_GL_WINDOW_POS2I], [0], 
        	          [Define own version of `glWindowPos2i'])])
 
+     # see src/3d/extensions.m4 file
      CHECK_OPENGL_EXTENSION([GL_GEN_FRAMEBUFFERS], [glGenFramebuffers])
      CHECK_OPENGL_EXTENSION([GL_GEN_RENDERBUFFERS], [glGenRenderbuffers])
+     CHECK_OPENGL_EXTENSION([GL_DRAW_BUFFERS], [glDrawBuffers])
     ],
     [if test "x$with_opengl" != xcheck; then
        AC_MSG_FAILURE([OpenGL not found])
