@@ -72,7 +72,15 @@ if test "x$with_opengl" != xno; then
      # see src/3d/extensions.m4 file
      CHECK_OPENGL_EXTENSION([GL_GEN_FRAMEBUFFERS], [glGenFramebuffers])
      CHECK_OPENGL_EXTENSION([GL_GEN_RENDERBUFFERS], [glGenRenderbuffers])
+     CHECK_OPENGL_EXTENSION([GL_BIND_FRAMEBUFFER], [glBindFramebuffer])
+     CHECK_OPENGL_EXTENSION([GL_BIND_RENDERBUFFER], [glBindRenderbuffer])
      CHECK_OPENGL_EXTENSION([GL_DRAW_BUFFERS], [glDrawBuffers])
+     CHECK_OPENGL_EXTENSION([GL_FRAMEBUFFER_RENDERBUFFER],
+			    [glFramebufferRenderbuffer])
+     CHECK_OPENGL_EXTENSION([GL_FRAMEBUFFER_TEXTURE],
+			    [glFramebufferTexture])
+     CHECK_OPENGL_EXTENSION([GL_RENDERBUFFER_STORAGE], [glRenderbufferStorage])
+
     ],
     [if test "x$with_opengl" != xcheck; then
        AC_MSG_FAILURE([OpenGL not found])

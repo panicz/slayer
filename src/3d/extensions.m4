@@ -59,8 +59,18 @@ OPENGL_EXTENSION(GL_GEN_FRAMEBUFFERS, glGenFramebuffers,
 		 void, (GLsizei, GLuint *))
 OPENGL_EXTENSION(GL_GEN_RENDERBUFFERS, glGenRenderbuffers, 
 		 void, (GLsizei, GLuint *))
+OPENGL_EXTENSION(GL_BIND_FRAMEBUFFER, glBindFramebuffer,
+		void, (GLenum, GLuint))
+OPENGL_EXTENSION(GL_BIND_RENDERBUFFER, glBindRenderbuffer,
+		void, (GLenum, GLuint))
 OPENGL_EXTENSION(GL_DRAW_BUFFERS, glDrawBuffers,
 		 void, (GLsizei, const GLenum *))
+OPENGL_EXTENSION(GL_FRAMEBUFFER_RENDERBUFFER, glFramebufferRenderbuffer,
+		 void, (GLenum, GLenum, GLenum, GLuint))
+OPENGL_EXTENSION(GL_FRAMEBUFFER_TEXTURE, glFramebufferTexture,
+		 void, (GLenum, GLenum, GLuint, GLint))
+OPENGL_EXTENSION(GL_RENDERBUFFER_STORAGE, glRenderbufferStorage,
+		 void, (GLenum, GLenum, GLsizei, GLsizei))
 
 ifdef(`init',`
 #undef TRY_LOAD_GL_EXTENSION

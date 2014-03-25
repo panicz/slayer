@@ -9,6 +9,14 @@
 scm_t_bits image_tag = 0;
 SCM current_screen_fluid;
 
+// this data is used when one tries to draw output to an image
+struct {
+  GLuint framebuffer;
+  GLuint texture;
+  GLuint depth_buffer;
+  GLenum draw_buffers[1];
+} output_image;
+
 static inline void
 init_current_screen_fluid() {
   if(!image_tag) {
@@ -19,16 +27,58 @@ init_current_screen_fluid() {
   scm_gc_protect_object(screen_smob);
   current_screen_fluid = scm_make_fluid_with_default(screen_smob);
   scm_gc_protect_object(current_screen_fluid);
-}
-
-static SCM
-call_with_video_output_to(SCM screen, SCM thunk) {
-  return scm_with_fluid(current_screen_fluid, screen, thunk);
+  glGenFramebuffers(1, &output_image.framebuffer);
+  glGenTextures(1, &output_image.texture);
+  glGenRenderbuffers(1, &output_image.depth_buffer);
+  output_image.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
 }
 
 inline SCM
 current_screen() {
   return scm_fluid_ref(current_screen_fluid);
+}
+
+static SCM
+call_with_video_output_to(SCM target, SCM thunk) {
+  void on_exit_context(SCM image_smob) {
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  }
+
+  void on_enter_context(SCM image_smob) {
+    scm_assert_smob_type(image_tag, image_smob); 
+    SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+    glBindFramebuffer(GL_FRAMEBUFFER, output_image.framebuffer);
+    glBindTexture(GL_TEXTURE_2D, output_image.texture);
+    glBindRenderbuffer(GL_RENDERBUFFER, output_image.depth_buffer);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 
+		 image->w, image->h, 0, GL_RGBA, 
+		 GL_UNSIGNED_INT_8_8_8_8, image->pixels);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
+			  image->w, image->h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, 
+			      GL_DEPTH_ATTACHMENT,
+			      GL_RENDERBUFFER, 
+			      output_image.depth_buffer);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			 output_image.texture, 0);
+    glDrawBuffers(NELEMS(output_image.draw_buffers),
+		  output_image.draw_buffers);
+  }
+  scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);
+  scm_dynwind_unwind_handler((void(*)(void *)) on_exit_context, 
+			     target, SCM_F_WIND_EXPLICITLY);
+  scm_dynwind_rewind_handler((void(*)(void *)) on_enter_context, 
+			     target, SCM_F_WIND_EXPLICITLY);
+
+  SCM result = scm_with_fluid(current_screen_fluid, target, thunk);
+
+  scm_dynwind_end();
+  return result;
 }
 
 static size_t 
