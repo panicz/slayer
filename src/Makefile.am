@@ -13,21 +13,28 @@ noinst_HEADERS = scancode.c
 
 if OPENGL
 slayer_SOURCES += 3d.cc 3d.hh 3d/lights.cc 3d/arrays.cc 3d/color.cc \
-	3d/transforms.cc 3d/buffers.cc 3d/extensions.scm \
+	3d/transforms.cc 3d/buffers.cc 3d/extensions.m4 3d/info.m4 \
 	vmx.hh vmx/math.hh vmx/v2.hh vmx/v3.hh \
 	vmx/qt.hh vmx/m3x3.hh vmx/v4.hh vmx/m4x4.hh
-noinst_HEADERS += 3d/extensions.init.c 3d/extensions.def.c 3d/extensions.gen.h
-BUILT_SOURCES = 3d/extensions.init.c 3d/extensions.def.c 3d/extensions.gen.h
-CLEANFILES = 3d/extensions.init.c 3d/extensions.def.c 3d/extensions.gen.h
 
-3d/extensions.gen.h: 3d/extensions.m4
+noinst_HEADERS += 3d/extensions-init.m4.c 3d/extensions-def.m4.c \
+	3d/extensions.m4.h 3d/info.m4.c
+BUILT_SOURCES = 3d/extensions-init.m4.c 3d/extensions-def.m4.c \
+	3d/extensions.m4.h 3d/info.m4.c
+CLEANFILES = 3d/extensions-init.m4.c 3d/extensions-def.m4.c \
+	3d/extensions.m4.h 3d/info.m4.c
+
+3d/extensions.m4.h: 3d/extensions.m4
 	m4 -Dheader $< > $@
 
-3d/extensions.init.c: 3d/extensions.m4
+3d/extensions-init.m4.c: 3d/extensions.m4
 	m4 -Dinit $< > $@
 
-3d/extensions.def.c: 3d/extensions.m4
+3d/extensions-def.m4.c: 3d/extensions.m4
 	m4 -Ddef $< > $@
+
+3d/info.m4.c: 3d/info.m4
+	m4 $< > $@
 
 endif
 

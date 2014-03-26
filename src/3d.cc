@@ -28,7 +28,7 @@ glWindowPos2i(int x, int y) {
 }
 #endif // !HAVE_GL_WINDOW_POS2I
 
-#include "3d/extensions.def.c"
+#include "3d/extensions-def.m4.c"
 
 #ifdef NO_GL_GEN_FRAMEBUFFERS
 void (*glGenFramebuffers)(GLsizei, GLuint *) = NULL;
@@ -234,13 +234,7 @@ init_3d() {
       glGetString(GL_RENDERER), 
       glGetString(GL_VENDOR));
 
-#ifdef GL_MAX_DRAW_BUFFERS  
-  {
-    GLint max_draw_buffers;
-    glGetIntegerv(GL_MAX_DRAW_BUFFERS, &max_draw_buffers);
-    OUT("%i draw buffers available", max_draw_buffers);
-  }
-#endif
+#include "3d/info.m4.c"
 
   init_arrays();
   init_color();
@@ -248,7 +242,7 @@ init_3d() {
   init_buffers();
   init_transforms();
 
-#include "3d/extensions.init.c"
+#include "3d/extensions-init.m4.c"
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glWindowPos2i(0, 0);

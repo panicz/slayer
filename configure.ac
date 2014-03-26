@@ -51,7 +51,7 @@ AC_DEFUN([CHECK_OPENGL_EXTENSION],
 [AC_CHECK_LIB([GL], [$2],
   [AC_DEFINE([HAVE_$1], [1],
              [`$2' is available from OpenGL])],
-[AC_CHECK_LIB([GL], [$2],
+[AC_CHECK_LIB([GL], [$2ARB],
   [AC_DEFINE([HAVE_$1_ARB], [1],
 	     [`$2ARB' is available from OpenGL])],
 [AC_CHECK_LIB([GL], [$2EXT],
@@ -69,17 +69,33 @@ if test "x$with_opengl" != xno; then
        [AC_DEFINE([HAVE_GL_WINDOW_POS2I], [0], 
        	          [Define own version of `glWindowPos2i'])])
 
+     AC_CHECK_LIB([GL], [glXGetProcAddress],
+       [AC_DEFINE([glGetProcAddress], [glXGetProcAddress],
+     	          [load extensions with `glXGetProcAddress`])],
+     AC_CHECK_LIB([GL], [wglGetProcAddress],
+       [AC_DEFINE([glGetProcAddress], [wglGetProcAddress],
+     	          [load extensions with `wglGetProcAddress`])]))
+
      # see src/3d/extensions.m4 file
      CHECK_OPENGL_EXTENSION([GL_GEN_FRAMEBUFFERS], [glGenFramebuffers])
      CHECK_OPENGL_EXTENSION([GL_GEN_RENDERBUFFERS], [glGenRenderbuffers])
+     CHECK_OPENGL_EXTENSION([GL_GEN_BUFFERS], [glGenBuffers])
      CHECK_OPENGL_EXTENSION([GL_BIND_FRAMEBUFFER], [glBindFramebuffer])
      CHECK_OPENGL_EXTENSION([GL_BIND_RENDERBUFFER], [glBindRenderbuffer])
+     CHECK_OPENGL_EXTENSION([GL_BIND_BUFFER], [glBindBuffer])
      CHECK_OPENGL_EXTENSION([GL_DRAW_BUFFERS], [glDrawBuffers])
      CHECK_OPENGL_EXTENSION([GL_FRAMEBUFFER_RENDERBUFFER],
 			    [glFramebufferRenderbuffer])
      CHECK_OPENGL_EXTENSION([GL_FRAMEBUFFER_TEXTURE],
 			    [glFramebufferTexture])
+     CHECK_OPENGL_EXTENSION([GL_FRAMEBUFFER_TEXTURE_2D],
+			    [glFramebufferTexture2D])
+
      CHECK_OPENGL_EXTENSION([GL_RENDERBUFFER_STORAGE], [glRenderbufferStorage])
+     CHECK_OPENGL_EXTENSION([GL_CHECK_FRAMEBUFFER_STATUS],
+			    [glCheckFramebufferStatus])
+     CHECK_OPENGL_EXTENSION([GL_GET_TEX_LEVEL_PARAMETER],
+			    [glGetTexLevelParameteriv])
 
     ],
     [if test "x$with_opengl" != xcheck; then

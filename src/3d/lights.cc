@@ -235,9 +235,7 @@ init_lights() {
   init_light_properties();
 
   //glEnable(GL_LIGHTING);
-  glEnable(GL_LIGHT0);
-
-  OUT("There are %d lights available", GL_MAX_LIGHTS);
+  //glEnable(GL_LIGHT0);
 
   scm_c_define_module("slayer 3d", export_symbols, NULL);
 }

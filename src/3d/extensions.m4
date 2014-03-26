@@ -4,17 +4,21 @@ ifdef(`header',`
 ')
 // GENERATED AUTOMATICALLY FROM __file__, DO NOT EDIT
 
+ifdef(`def',`
+//(void(*)()) glGetProcAddress (const char *);
+')
+
 ifdef(`init',`
 #define TRY_LOAD_GL_EXTENSION(type, name)		\
   if(!name) {						\
-    name = (type) wglGetProcAddress(# name);		\
+    name = (type) glGetProcAddress(# name);		\
   }							\
   if(!name) {						\
-    name = (type) wglGetProcAddress(# name "ARB");	\
+    name = (type) glGetProcAddress(# name "ARB");	\
   }							\
   if(!name) {						\
-    name = (type) wglGetProcAddress(# name "EXT");	\
-  }							\
+    name = (type) glGetProcAddress(# name "EXT");	\
+  } 	   	  		     	  		\
   if(!name) {						\
     WARN("Unable to load extension: " # name);		\
     name = (type) ({ void __fn__ () {			\
@@ -59,18 +63,27 @@ OPENGL_EXTENSION(GL_GEN_FRAMEBUFFERS, glGenFramebuffers,
 		 void, (GLsizei, GLuint *))
 OPENGL_EXTENSION(GL_GEN_RENDERBUFFERS, glGenRenderbuffers, 
 		 void, (GLsizei, GLuint *))
+OPENGL_EXTENSION(GL_GEN_BUFFERS, glGenBuffers, void, (GLsizei,GLuint *))
 OPENGL_EXTENSION(GL_BIND_FRAMEBUFFER, glBindFramebuffer,
 		void, (GLenum, GLuint))
 OPENGL_EXTENSION(GL_BIND_RENDERBUFFER, glBindRenderbuffer,
 		void, (GLenum, GLuint))
+OPENGL_EXTENSION(GL_BIND_BUFFER, glBindBuffer, void, (GLenum, GLuint))
 OPENGL_EXTENSION(GL_DRAW_BUFFERS, glDrawBuffers,
 		 void, (GLsizei, const GLenum *))
 OPENGL_EXTENSION(GL_FRAMEBUFFER_RENDERBUFFER, glFramebufferRenderbuffer,
 		 void, (GLenum, GLenum, GLenum, GLuint))
 OPENGL_EXTENSION(GL_FRAMEBUFFER_TEXTURE, glFramebufferTexture,
 		 void, (GLenum, GLenum, GLuint, GLint))
+OPENGL_EXTENSION(GL_FRAMEBUFFER_TEXTURE_2D, glFramebufferTexture2D,
+		 void, (GLenum, GLenum, GLenum, GLuint, GLint))
 OPENGL_EXTENSION(GL_RENDERBUFFER_STORAGE, glRenderbufferStorage,
 		 void, (GLenum, GLenum, GLsizei, GLsizei))
+OPENGL_EXTENSION(GL_CHECK_FRAMEBUFFER_STATUS, glCheckFramebufferStatus,
+		 GLenum, (GLenum))
+OPENGL_EXTENSION(GL_GET_TEX_LEVEL_PARAMETER, glGetTexLevelParameteriv,
+		 void, (GLenum, GLint, GLenum, GLint *))
+
 
 ifdef(`init',`
 #undef TRY_LOAD_GL_EXTENSION

@@ -39,6 +39,5 @@ ignore*
 *.trs
 *.log
 .dirstamp
-*.init.c
-*.def.c
-*.gen.h
+*.m4.c
+*.m4.h

@@ -10,7 +10,7 @@
 #  include <GL/glu.h>
 #  include <GL/glext.h>
 
-#  include "3d/extensions.gen.h"
+#  include "3d/extensions.m4.h"
 
 DECLARE void glWindowPos2i (GLint x, GLint y);
 

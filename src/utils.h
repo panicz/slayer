@@ -42,9 +42,9 @@ unsigned int now() {
   return (unsigned int) (100 * clock() / CLOCKS_PER_SEC);
 }
 
-#define OUT(msg, ...) fprintf(stderr, msg "\n", ## __VA_ARGS__ )
+#define OUT(msg, ...) (void) fprintf(stderr, msg "\n", ## __VA_ARGS__ )
 
-#define OUT_(msg, ...) fprintf(stderr, msg, ## __VA_ARGS__ )
+#define OUT_(msg, ...) (void) fprintf(stderr, msg, ## __VA_ARGS__ )
 
 #define _TOSTRING(x) # x
 
