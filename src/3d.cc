@@ -236,13 +236,13 @@ init_3d() {
 
 #include "3d/info.m4.c"
 
+#include "3d/extensions-init.m4.c"
+
   init_arrays();
   init_color();
   init_lights();
   init_buffers();
   init_transforms();
-
-#include "3d/extensions-init.m4.c"
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
   glWindowPos2i(0, 0);
