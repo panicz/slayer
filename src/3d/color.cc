@@ -118,7 +118,7 @@ export_symbols(void *unused) {
 
 void
 init_color() {
-  glClearColor(0, 0, 0, 0);
+  glClearColor(0, 0, 0, 1);
   glShadeModel(GL_SMOOTH);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glEnable(GL_BLEND);
