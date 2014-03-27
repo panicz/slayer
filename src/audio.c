@@ -212,7 +212,7 @@ audio_init() {
   Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024);
 
   nchannels = Mix_AllocateChannels(MIX_CHANNELS);
-  OUT("There are %i channels allocated", nchannels);
+  OUT("audio channels allocated: %i", nchannels);
   used_channels = (Mix_Chunk **) calloc(nchannels, sizeof(Mix_Chunk *));
 
   int i;
