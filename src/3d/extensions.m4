@@ -59,24 +59,43 @@ $3 (*$2)$4 = NULL;
 #endif
 '))))
 
-OPENGL_EXTENSION(GL_GEN_FRAMEBUFFERS, glGenFramebuffers, 
-		 void, (GLsizei, GLuint *))
-OPENGL_EXTENSION(GL_GEN_RENDERBUFFERS, glGenRenderbuffers, 
-		 void, (GLsizei, GLuint *))
-OPENGL_EXTENSION(GL_GEN_BUFFERS, glGenBuffers, void, (GLsizei,GLuint *))
+define(`OPENGL_UNIT_CONSTRUCTOR_DESTRUCTOR',
+ifdef(`header', `
+static inline void
+glDelete$1(GLuint x) {
+  glDelete$1s(1, &x);
+}
 
-OPENGL_EXTENSION(GL_DELETE_FRAMEBUFFERS, glDeleteFramebuffers,
-		 void, (GLsizei, const GLuint *))
-OPENGL_EXTENSION(GL_DELETE_RENDERBUFFERS, glDeleteRenderbuffers,
-		 void, (GLsizei, const GLuint *))
-OPENGL_EXTENSION(GL_DELETE_BUFFERS, glDeleteBuffers,
-		 void, (GLsizei, const GLuint *))
+static inline void
+glDelete$1p(GLuint *x) {
+  glDelete$1s(1, x);
+}
 
-OPENGL_EXTENSION(GL_BIND_FRAMEBUFFER, glBindFramebuffer,
-		void, (GLenum, GLuint))
-OPENGL_EXTENSION(GL_BIND_RENDERBUFFER, glBindRenderbuffer,
-		void, (GLenum, GLuint))
-OPENGL_EXTENSION(GL_BIND_BUFFER, glBindBuffer, void, (GLenum, GLuint))
+static inline GLuint
+glGen$1() {
+  GLuint x;
+  glGen$1s(1, &x);
+  return x;
+}
+'))
+
+define(`_OPENGL_ALLOCATION_EXTENSION', `
+  OPENGL_EXTENSION(GL_GEN_$1S, glGen$2s, void, (GLsizei, GLuint *))
+  OPENGL_EXTENSION(GL_DELETE_$1S, glDelete$2s, void, (GLsizei, const GLuint *))
+  OPENGL_EXTENSION(GL_BIND_$1, glBind$2, void, (GLenum, GLuint))
+  OPENGL_UNIT_CONSTRUCTOR_DESTRUCTOR($2)
+')
+
+define(`OPENGL_ALLOCATION_EXTENSION', `
+  _OPENGL_ALLOCATION_EXTENSION(translit($1, `a-z', `A-Z'), $1)
+')
+
+OPENGL_ALLOCATION_EXTENSION(Framebuffer)
+
+OPENGL_ALLOCATION_EXTENSION(Renderbuffer)
+
+OPENGL_ALLOCATION_EXTENSION(Buffer)
+
 OPENGL_EXTENSION(GL_DRAW_BUFFERS, glDrawBuffers,
 		 void, (GLsizei, const GLenum *))
 OPENGL_EXTENSION(GL_FRAMEBUFFER_RENDERBUFFER, glFramebufferRenderbuffer,
