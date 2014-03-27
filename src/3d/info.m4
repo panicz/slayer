@@ -1,3 +1,5 @@
+// GENERATED AUTOMATICALLY FROM __file__, DO NOT EDIT
+
 dnl $1=UPPERCASE_WITH_UNDERSCORES
 dnl $2=lowercase_with_underscores
 dnl $3=lowercase with spaces
