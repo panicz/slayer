@@ -9,14 +9,6 @@
 scm_t_bits image_tag = 0;
 SCM current_screen_fluid;
 
-// this data is used when one tries to draw output to an image
-struct {
-  GLuint framebuffer;
-  GLuint texture;
-  GLuint depth_buffer;
-  GLenum draw_buffers[1];
-} output_image;
-
 static inline void
 init_current_screen_fluid() {
   if(!image_tag) {
@@ -27,10 +19,6 @@ init_current_screen_fluid() {
   scm_gc_protect_object(screen_smob);
   current_screen_fluid = scm_make_fluid_with_default(screen_smob);
   scm_gc_protect_object(current_screen_fluid);
-  glGenFramebuffers(1, &output_image.framebuffer);
-  glGenTextures(1, &output_image.texture);
-  glGenRenderbuffers(1, &output_image.depth_buffer);
-  output_image.draw_buffers[0] = GL_COLOR_ATTACHMENT0;
 }
 
 inline SCM
@@ -38,46 +26,97 @@ current_screen() {
   return scm_fluid_ref(current_screen_fluid);
 }
 
+#ifdef USE_OPENGL
+// this data is used when one tries to draw output to an image in 3d mode
+struct {
+  GLuint framebuffer;
+  GLuint color_buffer;
+  GLuint depth_buffer;
+} output_image;
+
+static void
+finish_output_image() {
+  glDeleteFramebuffers(1, &output_image.framebuffer);
+  glDeleteRenderbuffers(1, &output_image.color_buffer);
+  glDeleteRenderbuffers(1, &output_image.depth_buffer);
+}
+
+static inline void
+init_output_image() {
+  if(video_mode & SDL_OPENGL) {
+    glGenFramebuffers(1, &output_image.framebuffer);
+    glGenRenderbuffers(1, &output_image.color_buffer);
+    glGenRenderbuffers(1, &output_image.depth_buffer);
+    atexit(finish_output_image);
+  }
+}
+
+static void
+on_enter_video_context(SDL_Surface *image) {
+  glBindFramebuffer(GL_FRAMEBUFFER, output_image.framebuffer);
+
+  glBindRenderbuffer(GL_RENDERBUFFER, output_image.color_buffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, image->w, image->h);
+
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+			    GL_RENDERBUFFER, output_image.color_buffer);
+  
+  glBindRenderbuffer(GL_RENDERBUFFER, output_image.depth_buffer);
+
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 
+			image->w, image->h);
+
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+			    GL_RENDERBUFFER, output_image.depth_buffer);
+  
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    FATAL("unsupported framebuffer object configuration");
+  }
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+}
+
+static void
+on_exit_video_context(SDL_Surface *image) {
+  glFinish();
+  GLenum code = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  if(code == GL_FRAMEBUFFER_COMPLETE) {
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+    glReadPixels(0, 0, image->w, image->h,
+		 GL_RGBA, GL_UNSIGNED_BYTE, 
+		 image->pixels);
+  }
+  else {
+    WARN("Failed to complete framebuffer request: %i", code);
+  }
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glEnable(GL_BLEND);
+}
+#endif
+
 static SCM
-call_with_video_output_to(SCM target, SCM thunk) {
-  void on_exit_context(SCM image_smob) {
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  }
-
-  void on_enter_context(SCM image_smob) {
-    scm_assert_smob_type(image_tag, image_smob); 
+call_with_video_output_to(SCM image_smob, SCM thunk) {
+  scm_assert_smob_type(image_tag, image_smob);
+#ifdef USE_OPENGL
+  if(video_mode & SDL_OPENGL) {
     SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-    glBindFramebuffer(GL_FRAMEBUFFER, output_image.framebuffer);
-    glBindTexture(GL_TEXTURE_2D, output_image.texture);
-    glBindRenderbuffer(GL_RENDERBUFFER, output_image.depth_buffer);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 
-		 image->w, image->h, 0, GL_RGBA, 
-		 GL_UNSIGNED_INT_8_8_8_8, image->pixels);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 
-			  image->w, image->h);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, 
-			      GL_DEPTH_ATTACHMENT,
-			      GL_RENDERBUFFER, 
-			      output_image.depth_buffer);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-			 output_image.texture, 0);
-    glDrawBuffers(NELEMS(output_image.draw_buffers),
-		  output_image.draw_buffers);
+    scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);
+    // it is important to register the unwind handler first,
+    // because in SCM_F_WIND_EXPLICITLY mode the rewind_handler
+    // gets called immediately after registration
+    scm_dynwind_unwind_handler((void(*)(void *)) on_exit_video_context, 
+			       image, SCM_F_WIND_EXPLICITLY);
+    scm_dynwind_rewind_handler((void(*)(void *)) on_enter_video_context, 
+			       image, SCM_F_WIND_EXPLICITLY);
   }
-  scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);
-  scm_dynwind_unwind_handler((void(*)(void *)) on_exit_context, 
-			     target, SCM_F_WIND_EXPLICITLY);
-  scm_dynwind_rewind_handler((void(*)(void *)) on_enter_context, 
-			     target, SCM_F_WIND_EXPLICITLY);
-
-  SCM result = scm_with_fluid(current_screen_fluid, target, thunk);
-
-  scm_dynwind_end();
+#endif
+  SCM result = scm_with_fluid(current_screen_fluid, image_smob, thunk);
+#ifdef USE_OPENGL
+  if(video_mode & SDL_OPENGL) {
+    scm_dynwind_end();
+  }
+#endif
   return result;
 }
 
@@ -154,7 +193,7 @@ draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
   SDL_Surface *target = (SDL_Surface *) SCM_SMOB_DATA(target_smob);
   if(0) {}
 #ifdef USE_OPENGL  
-  else if((video_mode & SDL_OPENGL) && (target == screen)) {
+  else if((video_mode & SDL_OPENGL)) { // && (target == screen)) {
     WARN_ONCE("using OpenGL");
     glDisable(GL_DEPTH_TEST);
     glWindowPos2i(X, screen->h - Y);
@@ -378,6 +417,9 @@ image_init() {
   image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
+#ifdef USE_OPENGL
+  init_output_image();
+#endif
   init_current_screen_fluid();
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
