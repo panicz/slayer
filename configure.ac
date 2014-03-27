@@ -76,10 +76,14 @@ if test "x$with_opengl" != xno; then
        [AC_DEFINE([glGetProcAddress], [wglGetProcAddress],
      	          [load extensions with `wglGetProcAddress`])]))
 
-     # see src/3d/extensions.m4 file
+     # cf. src/3d/extensions.m4
      CHECK_OPENGL_EXTENSION([GL_GEN_FRAMEBUFFERS], [glGenFramebuffers])
      CHECK_OPENGL_EXTENSION([GL_GEN_RENDERBUFFERS], [glGenRenderbuffers])
      CHECK_OPENGL_EXTENSION([GL_GEN_BUFFERS], [glGenBuffers])
+     CHECK_OPENGL_EXTENSION([GL_DELETE_FRAMEBUFFERS], [glDeleteFramebuffers])
+     CHECK_OPENGL_EXTENSION([GL_DELETE_RENDERBUFFERS], [glDeleteRenderbuffers])
+     CHECK_OPENGL_EXTENSION([GL_DELETE_BUFFERS], [glDeleteBuffers])
+
      CHECK_OPENGL_EXTENSION([GL_BIND_FRAMEBUFFER], [glBindFramebuffer])
      CHECK_OPENGL_EXTENSION([GL_BIND_RENDERBUFFER], [glBindRenderbuffer])
      CHECK_OPENGL_EXTENSION([GL_BIND_BUFFER], [glBindBuffer])
@@ -96,6 +100,9 @@ if test "x$with_opengl" != xno; then
 			    [glCheckFramebufferStatus])
      CHECK_OPENGL_EXTENSION([GL_GET_TEX_LEVEL_PARAMETER],
 			    [glGetTexLevelParameteriv])
+     CHECK_OPENGL_EXTENSION([GL_MAP_BUFFER], [glMapBuffer])
+     CHECK_OPENGL_EXTENSION([GL_UNMAP_BUFFER], [glUnmapBuffer])
+     CHECK_OPENGL_EXTENSION([GL_BUFFER_DATA], [glBufferData])
 
     ],
     [if test "x$with_opengl" != xcheck; then

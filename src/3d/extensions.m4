@@ -5,7 +5,7 @@ ifdef(`header',`
 // GENERATED AUTOMATICALLY FROM __file__, DO NOT EDIT
 
 ifdef(`def',`
-//(void(*)()) glGetProcAddress (const char *);
+DECLARE generic_function_pointer_t glGetProcAddress (const char *);
 ')
 
 ifdef(`init',`
@@ -27,7 +27,7 @@ ifdef(`init',`
   }
 ')
 
-dnl $1=EXTENSION NAME, $2=FUNCTION (C NAME), $3=RETURN $4=ARGS
+dnl $1=EXTENSION NAME, $2=FUNCTION (C NAME), $3=RETURN TYPE $4=(ARG TYPES)
 define(`OPENGL_EXTENSION',
 ifdef(`header', `
 #  ifndef HAVE_$1
@@ -64,6 +64,14 @@ OPENGL_EXTENSION(GL_GEN_FRAMEBUFFERS, glGenFramebuffers,
 OPENGL_EXTENSION(GL_GEN_RENDERBUFFERS, glGenRenderbuffers, 
 		 void, (GLsizei, GLuint *))
 OPENGL_EXTENSION(GL_GEN_BUFFERS, glGenBuffers, void, (GLsizei,GLuint *))
+
+OPENGL_EXTENSION(GL_DELETE_FRAMEBUFFERS, glDeleteFramebuffers,
+		 void, (GLsizei, const GLuint *))
+OPENGL_EXTENSION(GL_DELETE_RENDERBUFFERS, glDeleteRenderbuffers,
+		 void, (GLsizei, const GLuint *))
+OPENGL_EXTENSION(GL_DELETE_BUFFERS, glDeleteBuffers,
+		 void, (GLsizei, const GLuint *))
+
 OPENGL_EXTENSION(GL_BIND_FRAMEBUFFER, glBindFramebuffer,
 		void, (GLenum, GLuint))
 OPENGL_EXTENSION(GL_BIND_RENDERBUFFER, glBindRenderbuffer,
@@ -83,7 +91,10 @@ OPENGL_EXTENSION(GL_CHECK_FRAMEBUFFER_STATUS, glCheckFramebufferStatus,
 		 GLenum, (GLenum))
 OPENGL_EXTENSION(GL_GET_TEX_LEVEL_PARAMETER, glGetTexLevelParameteriv,
 		 void, (GLenum, GLint, GLenum, GLint *))
-
+OPENGL_EXTENSION(GL_MAP_BUFFER, glMapBuffer, void *, (GLenum, GLenum))
+OPENGL_EXTENSION(GL_UNMAP_BUFFER, glUnmapBuffer, GLboolean, (GLenum))
+OPENGL_EXTENSION(GL_BUFFER_DATA, glBufferData, void,
+		 (GLenum, GLsizeiptr, const GLvoid *, GLenum))
 
 ifdef(`init',`
 #undef TRY_LOAD_GL_EXTENSION
