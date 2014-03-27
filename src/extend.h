@@ -13,6 +13,8 @@
 # define DECLARE extern
 #endif
 
+typedef void (*generic_function_pointer_t)();
+
 #define DISPLAY(port, msg, ...)					\
   ({ char *string;						\
     if(asprintf(&string, msg, ## __VA_ARGS__) == -1) {		\
