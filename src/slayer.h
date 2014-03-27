@@ -17,12 +17,20 @@
 #define TRY_SDL(f)						       \
   if((f) == -1) {						       \
     OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, \
-	_TOSTRING(f),SDL_GetError());					       \
+	_TOSTRING(f),SDL_GetError());				       \
   }
 
 // SLAYER
 #define SLAYER_SUFFIX ".scm"
-DECLARE void *remember_to_release(void *resource);
+DECLARE void *
+remember_to_release(void *resource, void (*release)(void *));
+
+#define REMEMBER_TO_RELEASE(resource, release)				\
+  remember_to_release((void *) resource, (void (*)(void *)) release)
+
+#define REMEMBER_TO_FREE(resource)		\
+  remember_to_release(resource, free)
+
 
 // AUDIO
 #ifdef USE_SDL_MIXER

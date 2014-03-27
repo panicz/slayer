@@ -79,23 +79,37 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
+#define RESOURCE(pair) ((struct list *) pair)->data
+#define RELEASE_PROC(pair) ((struct list *) pair)->next
+
 static struct list *resources = NULL;
+
+void *
+remember_to_release(void *resource, void (*release)(void *)) {
+  if(resource) {
+    resources = cons(cons(resource, (void *) release), resources);
+  }
+  else {
+    WARN("%p passed as a resource to release, ignoring", resource);
+  }
+  return resource;
+}
 
 static void
 release_resources() {
   while(resources) {
     struct list *next = resources->next;
+    void *resource = RESOURCE(resources->data);
+    void (*release)(void *) = (void(*)(void *)) RELEASE_PROC(resources->data);
     free(resources->data);
+    (*release)(resource);
     free(resources);
     resources = next;
   }
 }
 
-void *
-remember_to_release(void *resource) {
-  resources = cons(resource, resources);
-  return resource;
-}
+#undef RELEASE_PROC
+#undef RESOURCE
 
 static void 
 finish(arg_t *arg) {
@@ -452,7 +466,7 @@ main(int argc, char *argv[]) {
   };
 
   // get the name of current file, skipping any slashes
-  char *filename = (char *) remember_to_release(base(argv[0]));
+  char *filename = (char *) REMEMBER_TO_FREE(base(argv[0]));
 
 #ifdef ENABLE_DEFAULT_3D
   arg.video_mode |= SDL_OPENGL;
@@ -472,13 +486,13 @@ main(int argc, char *argv[]) {
     arg.infile = malloc(strlen(filename) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.infile, "%s" SLAYER_SUFFIX, filename);
   }
-  remember_to_release(arg.infile);
+  REMEMBER_TO_FREE(arg.infile);
 
   if (!arg.outfile) {
     arg.outfile = malloc(strlen(argv[0]) + strlen(SLAYER_SUFFIX) + 1);
     sprintf(arg.outfile, "/dev/null");//"%s" SLAYER_SUFFIX, argv[0]);
   }
-  remember_to_release(arg.outfile);
+  REMEMBER_TO_FREE(arg.outfile);
 
 #ifdef __MINGW32__
   if (is_absolute_path(arg.infile)) {
@@ -495,25 +509,25 @@ main(int argc, char *argv[]) {
   char *slayer_directory;
   char *XDG_CACHE_HOME, *GUILE_LOAD_PATH, *GUILE_LOAD_COMPILED_PATH;
   if (is_absolute_path(argv[0])) {
-    slayer_directory = (char *) remember_to_release(directory(argv[0]));
+    slayer_directory = (char *) REMEMBER_TO_FREE(directory(argv[0]));
   }
   else {
     slayer_directory = ".";
   }
 
   TRY(asprintf(&XDG_CACHE_HOME, "XDG_CACHE_HOME=%s/ccache", slayer_directory));
-  remember_to_release(XDG_CACHE_HOME);
+  REMEMBER_TO_FREE(XDG_CACHE_HOME);
   putenv(XDG_CACHE_HOME);
 
   TRY(asprintf(&GUILE_LOAD_PATH, "GUILE_LOAD_PATH=./;../;./guile-modules;"
 	       "../guile-modules;%s;%s/guile-modules", 
 	       slayer_directory, slayer_directory));
-  remember_to_release(GUILE_LOAD_PATH);
+  REMEMBER_TO_FREE(GUILE_LOAD_PATH);
   putenv(GUILE_LOAD_PATH);
 
   TRY(asprintf(&GUILE_LOAD_COMPILED_PATH, "GUILE_LOAD_COMPILED_PATH="
 	       "%s/ccache;./ccache;../ccache", slayer_directory));
-  remember_to_release(GUILE_LOAD_COMPILED_PATH);
+  REMEMBER_TO_FREE(GUILE_LOAD_COMPILED_PATH);
   putenv(GUILE_LOAD_COMPILED_PATH);
 
 #else
