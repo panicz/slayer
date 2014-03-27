@@ -34,22 +34,20 @@ struct {
   GLuint depth_buffer;
 } output_image;
 
-static void
-finish_output_image() {
-  glDeleteFramebuffers(1, &output_image.framebuffer);
-  glDeleteRenderbuffers(1, &output_image.color_buffer);
-  glDeleteRenderbuffers(1, &output_image.depth_buffer);
-}
+#define ASSIGN_GL_RESOURCE_TO_RELEASE(dest, Type)	\
+  dest = glGen##Type();					\
+  REMEMBER_TO_RELEASE(&dest, glDelete##Type##p)
 
 static inline void
 init_output_image() {
   if(video_mode & SDL_OPENGL) {
-    glGenFramebuffers(1, &output_image.framebuffer);
-    glGenRenderbuffers(1, &output_image.color_buffer);
-    glGenRenderbuffers(1, &output_image.depth_buffer);
-    atexit(finish_output_image);
+    ASSIGN_GL_RESOURCE_TO_RELEASE(output_image.framebuffer, Framebuffer);
+    ASSIGN_GL_RESOURCE_TO_RELEASE(output_image.color_buffer, Renderbuffer);
+    ASSIGN_GL_RESOURCE_TO_RELEASE(output_image.depth_buffer, Renderbuffer);
   }
 }
+
+#undef ASSIGN_GL_RESOURCE_TO_RELEASE
 
 static void
 on_enter_video_context(SDL_Surface *image) {
@@ -102,9 +100,7 @@ call_with_video_output_to(SCM image_smob, SCM thunk) {
     SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
 
     scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);
-    // it is important to register the unwind handler first,
-    // because in SCM_F_WIND_EXPLICITLY mode the rewind_handler
-    // gets called immediately after registration
+
     scm_dynwind_unwind_handler((void(*)(void *)) on_exit_video_context, 
 			       image, SCM_F_WIND_EXPLICITLY);
     scm_dynwind_rewind_handler((void(*)(void *)) on_enter_video_context, 
