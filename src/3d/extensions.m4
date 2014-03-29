@@ -3,6 +3,8 @@ ifdef(`header',`
 #define _3D_EXTENSIONS_H
 ')
 // GENERATED AUTOMATICALLY FROM __file__, DO NOT EDIT
+dnl Of course, the comment above regards the generated C code,
+dnl not this m4 file that you're looking at right now
 
 ifdef(`def',`
 DECLARE generic_function_pointer_t glGetProcAddress (const char *);
@@ -20,10 +22,8 @@ ifdef(`init',`
     name = (type) glGetProcAddress(# name "EXT");	\
   } 	   	  		     	  		\
   if(!name) {						\
-    WARN("Unable to load extension: " # name);		\
-    name = (type) ({ void __fn__ () {			\
-	  WARN(# name ": extension not available");	\
-	} __fn__; });					\
+    WARN(# name ": failed to obtain extension");	\
+    name = (type) no_##name;				\
   }
 ')
 
@@ -56,6 +56,10 @@ TRY_LOAD_GL_EXTENSION($3(*)$4, $2);
 ifdef(`def',`
 #ifdef NO_$1
 $3 (*$2)$4 = NULL;
+static inline void
+no_$2() {
+  WARN("$2: extension not available");
+}
 #endif
 '))))
 
@@ -90,6 +94,8 @@ define(`OPENGL_ALLOCATION_EXTENSION', `
   _OPENGL_ALLOCATION_EXTENSION(translit($1, `a-z', `A-Z'), $1)
 ')
 
+OPENGL_UNIT_CONSTRUCTOR_DESTRUCTOR(Texture)
+
 OPENGL_ALLOCATION_EXTENSION(Framebuffer)
 
 OPENGL_ALLOCATION_EXTENSION(Renderbuffer)
@@ -110,6 +116,7 @@ OPENGL_EXTENSION(GL_CHECK_FRAMEBUFFER_STATUS, glCheckFramebufferStatus,
 		 GLenum, (GLenum))
 OPENGL_EXTENSION(GL_GET_TEX_LEVEL_PARAMETER, glGetTexLevelParameteriv,
 		 void, (GLenum, GLint, GLenum, GLint *))
+
 OPENGL_EXTENSION(GL_MAP_BUFFER, glMapBuffer, void *, (GLenum, GLenum))
 OPENGL_EXTENSION(GL_UNMAP_BUFFER, glUnmapBuffer, GLboolean, (GLenum))
 OPENGL_EXTENSION(GL_BUFFER_DATA, glBufferData, void,
