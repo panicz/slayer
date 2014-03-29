@@ -7,65 +7,159 @@
 #include "symbols.h"
 
 scm_t_bits image_tag = 0;
-SCM current_screen_fluid;
+SCM current_video_output_fluid;
+
+#define FLAG_SURFACE 0
+#define FLAG_TEXTURE 1
+
+#define IS_SURFACE(smob) !(SCM_SMOB_FLAGS(smob) & 1)
+#define IS_TEXTURE(smob) (SCM_SMOB_FLAGS(smob) & 1)
+
+static inline SCM
+surface_smob(SDL_Surface *surface) {
+  SCM smob;
+  SCM_NEWSMOB(smob, image_tag, surface);
+  SCM_SET_SMOB_FLAGS(smob, FLAG_SURFACE);
+  return smob;
+}
+
+#define SURFACE(img) ((SDL_Surface *) SCM_SMOB_DATA(img))
+
+typedef struct {
+  GLuint object;
+  int count;
+} GLuint_ref_count_t;
+
+static inline GLuint_ref_count_t *
+new_GLuint_ref_count_t(GLuint object, int count) {
+  GLuint_ref_count_t *rc 
+    = (GLuint_ref_count_t *) malloc(sizeof(GLuint_ref_count_t));
+  rc->object = object;
+  rc->count = count;
+  return rc;
+}
+
+static struct list *texture_ref_counts[64];
+
+static inline GLuint_ref_count_t *
+texture_ref_count(GLuint id) {
+  bool contains_id(struct list *l) {
+    return ((GLuint_ref_count_t *) l->data)->object == id;
+  }
+  struct list *candidates = texture_ref_counts[id % NELEMS(texture_ref_counts)];
+  struct list *ref_count_cell = list_ref(candidates, contains_id);
+  if(ref_count_cell == NULL) {
+    return (GLuint_ref_count_t *) (ref_count_cell->data);
+  }
+  return NULL;
+}
+
+static inline SCM
+texture_smob(GLuint texture_id, bool mirror_x, bool mirror_y,
+	     Uint16 x, Uint16 y, Uint16 w, Uint16 h) {
+  SCM smob;
+  SCM_NEWSMOB3(smob, image_tag, texture_id,
+	       ((x << 16) | y), ((w << 16) | h));
+  SCM_SET_SMOB_FLAGS(smob, FLAG_TEXTURE 
+		     | (mirror_x << 2) 
+		     | (mirror_y << 1));
+  GLuint_ref_count_t *ref_count = texture_ref_count(texture_id);
+  if(!ref_count) {
+    ref_count = new_GLuint_ref_count_t(texture_id, 1);
+    LIST_PUSH(texture_ref_counts[texture_id % NELEMS(texture_ref_counts)],
+	      ref_count);
+  } else {
+    ++ref_count->count;
+  }
+  return smob;
+}
+
+#define TEXTURE(img) ((GLuint) SCM_SMOB_DATA(img))
+
+#define TEXTURE_X(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_2(tex) >> 16)))
+#define TEXTURE_Y(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_2(tex))))
+#define TEXTURE_W(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_3(tex) >> 16)))
+#define TEXTURE_H(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_3(tex))))
+
+// the "mirror" property for y's is needed, because for OpenGL the SDL
+// surfaces appear as "upside down", and since SDL surfaces are used to
+// load images, we treat their convention as valid
+#define TEXTURE_MIRROR_X(tex) ((bool) (1 & (SCM_SMOB_FLAGS(tex) >> 2)))
+#define TEXTURE_MIRROR_Y(tex) ((bool) (1 & (SCM_SMOB_FLAGS(tex) >> 1)))
+
+static SCM
+surface_p(SCM image) {
+  return IS_SURFACE(image) ? SCM_BOOL_T : SCM_BOOL_F;
+}
+
+static SCM
+texture_p(SCM image) {
+  return IS_TEXTURE(image) ? SCM_BOOL_T : SCM_BOOL_F;
+}
+
+static SCM
+screen_p(SCM image) {
+  return (IS_SURFACE(image) && (SURFACE(image) == screen))
+    ? SCM_BOOL_T
+    : SCM_BOOL_F;
+}
 
 static inline void
-init_current_screen_fluid() {
+init_current_video_output_fluid() {
   if(!image_tag) {
     FATAL("the function needs to be initialized after image_tag");
   }
-  SCM screen_smob;
-  SCM_NEWSMOB(screen_smob, image_tag, screen);
+  SCM screen_smob = surface_smob(screen);
   scm_gc_protect_object(screen_smob);
-  current_screen_fluid = scm_make_fluid_with_default(screen_smob);
-  scm_gc_protect_object(current_screen_fluid);
+  current_video_output_fluid = scm_make_fluid_with_default(screen_smob);
+  scm_gc_protect_object(current_video_output_fluid);
 }
 
 inline SCM
-current_screen() {
-  return scm_fluid_ref(current_screen_fluid);
+current_video_output() {
+  return scm_fluid_ref(current_video_output_fluid);
 }
 
 #ifdef USE_OPENGL
 // this data is used when one tries to draw output to an image in 3d mode
 struct {
-  GLuint framebuffer;
-  GLuint color_buffer;
-  GLuint depth_buffer;
-} output_image;
+  GLuint frame;
+  GLuint color;
+  GLuint depth;
+} output_buffer;
+
+static inline void
+init_output_buffer() {
 
 #define ASSIGN_GL_RESOURCE_TO_RELEASE(dest, Type)	\
   dest = glGen##Type();					\
   REMEMBER_TO_RELEASE(&dest, glDelete##Type##p)
 
-static inline void
-init_output_image() {
   if(video_mode & SDL_OPENGL) {
-    ASSIGN_GL_RESOURCE_TO_RELEASE(output_image.framebuffer, Framebuffer);
-    ASSIGN_GL_RESOURCE_TO_RELEASE(output_image.color_buffer, Renderbuffer);
-    ASSIGN_GL_RESOURCE_TO_RELEASE(output_image.depth_buffer, Renderbuffer);
+    ASSIGN_GL_RESOURCE_TO_RELEASE(output_buffer.frame, Framebuffer);
+    ASSIGN_GL_RESOURCE_TO_RELEASE(output_buffer.color, Renderbuffer);
+    ASSIGN_GL_RESOURCE_TO_RELEASE(output_buffer.depth, Renderbuffer);
   }
-}
-
 #undef ASSIGN_GL_RESOURCE_TO_RELEASE
+}
 
 static void
 on_enter_video_context(SDL_Surface *image) {
-  glBindFramebuffer(GL_FRAMEBUFFER, output_image.framebuffer);
+  glBindFramebuffer(GL_FRAMEBUFFER, output_buffer.frame);
 
-  glBindRenderbuffer(GL_RENDERBUFFER, output_image.color_buffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.color);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, image->w, image->h);
 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-			    GL_RENDERBUFFER, output_image.color_buffer);
+			    GL_RENDERBUFFER, output_buffer.color);
   
-  glBindRenderbuffer(GL_RENDERBUFFER, output_image.depth_buffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.depth);
 
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 
 			image->w, image->h);
 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
-			    GL_RENDERBUFFER, output_image.depth_buffer);
+			    GL_RENDERBUFFER, output_buffer.depth);
   
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
     FATAL("unsupported framebuffer object configuration");
@@ -107,7 +201,7 @@ call_with_video_output_to(SCM image_smob, SCM thunk) {
 			       image, SCM_F_WIND_EXPLICITLY);
   }
 #endif
-  SCM result = scm_with_fluid(current_screen_fluid, image_smob, thunk);
+  SCM result = scm_with_fluid(current_video_output_fluid, image_smob, thunk);
 #ifdef USE_OPENGL
   if(video_mode & SDL_OPENGL) {
     scm_dynwind_end();
@@ -118,18 +212,48 @@ call_with_video_output_to(SCM image_smob, SCM thunk) {
 
 static size_t 
 free_image(SCM image_smob) {
-  SDL_Surface *surface = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  SDL_FreeSurface(surface);
+  if(IS_SURFACE(image_smob)) {
+    SDL_Surface *surface =  SURFACE(image_smob);
+    SDL_FreeSurface(surface);
+  }
+  else if(IS_TEXTURE(image_smob)) {
+    GLuint id = TEXTURE(image_smob);
+    GLuint_ref_count_t *ref_count = texture_ref_count(id);
+    --ref_count->count;
+    if(ref_count->count == 0) {
+      glDeleteTexture(id);
+    }
+  }
+  else {
+    WARN("Unable to collect garbage: unrecognised image variant");
+  }
   return 0;
 }
 
 static int
 print_image(SCM image, SCM port, scm_print_state *pstate) {
   char *string;
-  if(asprintf(&string, "#<image %p>", (void *) SCM_SMOB_DATA(image)) == -1)
-    return 0;
-  scm_puts(string, port);
-  free(string);
+  if(IS_SURFACE(image)) {
+    SDL_Surface *surface = SURFACE(image);
+    if(asprintf(&string, "#<image %p: surface %i x %i>", 
+		surface, surface->w, surface->h) == -1) {
+      return 0;
+    }
+    scm_puts(string, port);
+    free(string);
+  }
+  else if(IS_TEXTURE(image)) {
+    GLuint texture = TEXTURE(image);
+    if(asprintf(&string, "#<image %i: texture %i x %i>", 
+		texture, TEXTURE_W(image), TEXTURE_H(image)) == -1) {
+      return 0;
+    }
+    scm_puts(string, port);
+    free(string);    
+  }
+  else {
+    FATAL("Unknown image variant");
+  }
   scm_remember_upto_here_1(image);
   return 1;
 }
@@ -138,8 +262,9 @@ static SCM
 load_image(SCM path) {
   SCM smob;
   char *filename = as_c_string(path);
-  if(filename == NULL)
+  if(filename == NULL) {
     return SCM_BOOL_F;
+  }
   SDL_Surface *image = IMG_Load(filename);
   free(filename);
   if(!image) {
@@ -184,7 +309,7 @@ draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
     scm_assert_smob_type(image_tag, target_smob);
   } 
   else {
-    target_smob = current_screen();
+    target_smob = current_video_output();
   }
   SDL_Surface *target = (SDL_Surface *) SCM_SMOB_DATA(target_smob);
   if(0) {}
@@ -218,8 +343,17 @@ image_width(SCM image_smob) {
 static SCM 
 image_height(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  SCM h = scm_from_int(image->h);
+  SCM h;
+  if(IS_SURFACE(image_smob)) {
+    SDL_Surface *image = SURFACE(image_smob);
+    h = scm_from_int(image->h);
+  }
+  else if(IS_TEXTURE(image_smob)) {
+    h = scm_from_int(TEXTURE_H(image_smob));
+  }
+  else {
+    FATAL("Unknown image variant");
+  }
   scm_remember_upto_here_1(image_smob);
   return h;
 }
@@ -397,27 +531,28 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("image-size", 1, 0, 0, image_size);
   EXPORT_PROCEDURE("image->array", 1, 0, 0, image_to_array);
   EXPORT_PROCEDURE("array->image", 1, 0, 0, array_to_image);
-  EXPORT_PROCEDURE("decompose-color-to-rgba", 1, 0, 0, decompose_color_to_rgba);
-  EXPORT_PROCEDURE("compose-color-from-rgba", 4, 0, 0, compose_color_from_rgba);
-  
-#undef EXPORT_PROCEDURE
-}
+  EXPORT_PROCEDURE("decompose-color-to-rgba", 1, 0, 0,
+		   decompose_color_to_rgba);
+  EXPORT_PROCEDURE("compose-color-from-rgba", 4, 0, 0,
+		   compose_color_from_rgba);
 
-static void
-cond_expand_provide(void *unused) {
-  eval("(cond-expand-provide (current-module) '(slayer-image))");
+  EXPORT_PROCEDURE("surface?", 1, 0, 0, surface_p);
+  EXPORT_PROCEDURE("texture?", 1, 0, 0, texture_p);
+  EXPORT_PROCEDURE("screen?", 1, 0, 0, screen_p);
+
+#undef EXPORT_PROCEDURE
 }
 
 void 
 image_init() {
-  image_tag = scm_make_smob_type("image", sizeof(SDL_Surface *));
+  image_tag = scm_make_smob_type("image", 0);
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
 #ifdef USE_OPENGL
-  init_output_image();
+  init_output_buffer();
 #endif
-  init_current_screen_fluid();
+  init_current_video_output_fluid();
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
-  scm_c_define_module("slayer", cond_expand_provide, NULL);
+  scm_c_define_module("slayer", cond_expand_provide, "slayer-image");
 }
