@@ -18,8 +18,8 @@ DECLARE void glWindowPos2i (GLint x, GLint y);
 
 extern SDL_Surface *screen;
 
-extern SCM current_screen_fluid;
-DECLARE SCM current_screen();
+extern SCM current_video_output_fluid;
+DECLARE SCM current_video_output();
 
 DECLARE void video_refresh_screen();
 DECLARE void video_init(Uint16 w, Uint16 h, int mode);
