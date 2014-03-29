@@ -167,10 +167,6 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 }
 
-static void
-cond_expand_provide(void *unused) {
-  eval("(cond-expand-provide (current-module) '(slayer-audio))");
-}
 
 static size_t
 free_sound(SCM sound_smob) {
@@ -227,5 +223,5 @@ audio_init() {
   scm_set_smob_free(sound_tag, free_sound);
   
   scm_c_define_module("slayer audio", export_symbols, NULL);
-  scm_c_define_module("slayer", cond_expand_provide, NULL);
+  scm_c_define_module("slayer", cond_expand_provide, "slayer-audio");
 }

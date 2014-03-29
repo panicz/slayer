@@ -143,9 +143,9 @@ export_symbols(void *unused) {
 #undef EXPORT_PROCEDURE
 
 #ifdef USE_OPENGL
-  eval("(cond-expand-provide (current-module) '(slayer-3d-available))");
+  cond_expand_provide("slayer-3d-available");
   if(video_mode & SDL_OPENGL) {
-    eval("(cond-expand-provide (current-module) '(slayer-3d))");
+    cond_expand_provide("slayer-3d");
   }
 #endif
 
