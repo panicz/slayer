@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -36,6 +37,18 @@ cons(void *data, struct list *next) {
   cell->next = next;
   return cell;
 }
+
+static inline struct list *
+list_ref(struct list* l, bool (*condition)(struct list *)) {
+  for( ; l; l = l->next) {
+    if(condition(l)) {
+      return l;
+    }
+  }
+  return NULL;
+}
+
+#define LIST_PUSH(list, item) list = cons(item, list)
 
 static inline
 unsigned int now() {
