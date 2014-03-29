@@ -13,6 +13,30 @@ AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_MAKE_SET
 
+AC_CHECK_SIZEOF(char)
+AC_CHECK_SIZEOF(int)
+AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(void *)
+
+AC_CHECK_SIZEOF(scm_t_bits,,
+AC_INCLUDES_DEFAULT
+#include <libguile.h>
+)
+
+AC_CHECK_SIZEOF(SCM,,
+AC_INCLUDES_DEFAULT
+#include <libguile.h>
+)
+
+AC_CHECK_SIZEOF(GLuint,,
+AC_INCLUDES_DEFAULT
+#include <GL/gl.h>
+)
+
+AC_CHECK_SIZEOF(GLenum,,
+#include <GL/gl.h>
+)
+
 PKG_CHECK_MODULES([GUILE], [guile-2.0])
 
 AC_ARG_WITH([guilesitedir],
