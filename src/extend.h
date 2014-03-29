@@ -241,6 +241,11 @@ evalf(const char *fmt, ...) {
   return ret;
 }
 
+static inline void
+cond_expand_provide(void *symbols) {
+  evalf("(cond-expand-provide (current-module) '(%s))", symbols);
+}
+
 static inline SCM 
 symbol(const char *str) {
   return scm_from_utf8_symbol(str);
