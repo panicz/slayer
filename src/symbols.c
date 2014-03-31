@@ -2,6 +2,13 @@
 
 SCM noop;
 
+SCM s_wrong_type_arg;
+SCM s_system_error;
+SCM s_out_of_range;
+SCM s_misc_error;
+
+SCM s_signal;
+
 SCM s_u8;
 SCM s_u16;
 SCM s_u32;
@@ -27,6 +34,10 @@ SCM s_left;
 SCM s_right;
 SCM s_middle;
 
+SCM s_copy;
+SCM s_view;
+SCM s_proxy;
+
 SCM s_lshift;
 SCM s_rshift;
 SCM s_shift;
@@ -46,10 +57,16 @@ SCM s_mode;
 void
 symbols_init() {
   noop = gc_protected(eval("noop"));
+  
+  s_wrong_type_arg = gc_protected(symbol("wrong-type-arg"));
+  s_system_error = gc_protected(symbol("system-error"));
+  s_out_of_range = gc_protected(symbol("out-of-range"));
+  s_misc_error = gc_protected(symbol("misc-error"));
 
 #define INIT_SYMBOL(name)			\
   s_##name = gc_protected(symbol(# name));
 
+  INIT_SYMBOL(signal);
   INIT_SYMBOL(u8);
   INIT_SYMBOL(u16);
   INIT_SYMBOL(u32);
@@ -74,6 +91,10 @@ symbols_init() {
   INIT_SYMBOL(left);
   INIT_SYMBOL(right);
   INIT_SYMBOL(middle);
+
+  INIT_SYMBOL(copy);
+  INIT_SYMBOL(view);
+  INIT_SYMBOL(proxy);
 
   INIT_SYMBOL(lshift);
   INIT_SYMBOL(rshift);

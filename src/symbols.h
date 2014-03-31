@@ -11,6 +11,11 @@ extern SCM s_u64;
 extern SCM s_f32;
 extern SCM s_f64;
 
+extern SCM s_wrong_type_arg;
+extern SCM s_system_error;
+extern SCM s_signal;
+extern SCM s_out_of_range;
+
 extern SCM s_quit;
 extern SCM s_typing;
 extern SCM s_direct;
@@ -28,6 +33,10 @@ extern SCM s_mousebutton;
 extern SCM s_left;
 extern SCM s_right;
 extern SCM s_middle;
+
+extern SCM s_copy;
+extern SCM s_view;
+extern SCM s_proxy;
 
 extern SCM s_lshift;
 extern SCM s_rshift;
