@@ -13,7 +13,9 @@
 # define DECLARE extern
 #endif
 
-typedef void (*generic_function_pointer_t)();
+#define WRONG_TYPE_ARG(message, args)		\
+  scm_error_scm(s_wrong_type_arg, scm_from_locale_string(__FUNCTION__),	\
+		scm_from_locale_string(message), args, SCM_BOOL_F)
 
 #define DISPLAY(port, msg, ...)					\
   ({ char *string;						\
