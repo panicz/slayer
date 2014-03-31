@@ -9,83 +9,167 @@
 scm_t_bits image_tag = 0;
 SCM current_video_output_fluid;
 
-#define FLAG_SURFACE 0
-#define FLAG_TEXTURE 1
+// we use X, Y, W and H to optimize cropped textures and surfaces: instead
+// of making a copy, we just increase reference counter and use shared
+// images; the actual copy is made when one attempts to modify an image
+// whose reference count is greater than 1.
+#define IMAGE_X(img) ((Uint16) (0xffff & (SCM_SMOB_DATA_2(img) >> 16)))
+#define IMAGE_Y(img) ((Uint16) (0xffff & (SCM_SMOB_DATA_2(img))))
+#define IMAGE_W(img) ((Uint16) (0xffff & (SCM_SMOB_DATA_3(img) >> 16)))
+#define IMAGE_H(img) ((Uint16) (0xffff & (SCM_SMOB_DATA_3(img))))
 
-#define IS_SURFACE(smob) !(SCM_SMOB_FLAGS(smob) & 1)
-#define IS_TEXTURE(smob) (SCM_SMOB_FLAGS(smob) & 1)
+#define SET_IMAGE_XY(img, x, y) \
+  SCM_SET_SMOB_DATA_2(img, ((scm_t_bits) (0xffffffff & ((x << 16) | y))))
 
-static inline SCM
-surface_smob(SDL_Surface *surface) {
-  SCM smob;
-  SCM_NEWSMOB(smob, image_tag, surface);
-  SCM_SET_SMOB_FLAGS(smob, FLAG_SURFACE);
-  return smob;
-}
+#define SET_IMAGE_WH(img, w, h) \
+  SCM_SET_SMOB_DATA_3(img, ((scm_t_bits) (0xffffffff & ((w << 16) | h))))
+
+#define IMAGE_AREA(img)							\
+  sdl_rect(IMAGE_X(img), IMAGE_Y(img), IMAGE_W(img), IMAGE_H(img))
 
 #define SURFACE(img) ((SDL_Surface *) SCM_SMOB_DATA(img))
 
-typedef struct {
-  GLuint object;
-  int count;
-} GLuint_ref_count_t;
-
-static inline GLuint_ref_count_t *
-new_GLuint_ref_count_t(GLuint object, int count) {
-  GLuint_ref_count_t *rc 
-    = (GLuint_ref_count_t *) malloc(sizeof(GLuint_ref_count_t));
-  rc->object = object;
-  rc->count = count;
-  return rc;
-}
-
-static struct list *texture_ref_counts[64];
-
-static inline GLuint_ref_count_t *
-texture_ref_count(GLuint id) {
-  bool contains_id(struct list *l) {
-    return ((GLuint_ref_count_t *) l->data)->object == id;
-  }
-  struct list *candidates = texture_ref_counts[id % NELEMS(texture_ref_counts)];
-  struct list *ref_count_cell = list_ref(candidates, contains_id);
-  if(ref_count_cell == NULL) {
-    return (GLuint_ref_count_t *) (ref_count_cell->data);
-  }
-  return NULL;
-}
-
-static inline SCM
-texture_smob(GLuint texture_id, bool mirror_x, bool mirror_y,
-	     Uint16 x, Uint16 y, Uint16 w, Uint16 h) {
-  SCM smob;
-  SCM_NEWSMOB3(smob, image_tag, texture_id,
-	       ((x << 16) | y), ((w << 16) | h));
-  SCM_SET_SMOB_FLAGS(smob, FLAG_TEXTURE 
-		     | (mirror_x << 2) 
-		     | (mirror_y << 1));
-  GLuint_ref_count_t *ref_count = texture_ref_count(texture_id);
-  if(!ref_count) {
-    ref_count = new_GLuint_ref_count_t(texture_id, 1);
-    LIST_PUSH(texture_ref_counts[texture_id % NELEMS(texture_ref_counts)],
-	      ref_count);
-  } else {
-    ++ref_count->count;
-  }
-  return smob;
-}
-
 #define TEXTURE(img) ((GLuint) SCM_SMOB_DATA(img))
 
-#define TEXTURE_X(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_2(tex) >> 16)))
-#define TEXTURE_Y(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_2(tex))))
-#define TEXTURE_W(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_3(tex) >> 16)))
-#define TEXTURE_H(tex) ((Uint16) (0xffff & (SCM_SMOB_DATA_3(tex))))
+typedef enum {
+  IMAGE_TYPE_SURFACE = 0,
+  IMAGE_TYPE_TEXTURE = 1
+} image_type_t;
+
+#define IMAGE_TYPE_SHIFT 0
+#define IMAGE_TYPE_BITS 1
+#define IMAGE_TYPE_MASK 1
+
+#define IS_SURFACE(smob)						\
+  !(IMAGE_TYPE_MASK & (SCM_SMOB_FLAGS(smob) >> IMAGE_TYPE_SHIFT))
+
+#define IS_TEXTURE(smob)						\
+  (IMAGE_TYPE_MASK & (SCM_SMOB_FLAGS(smob) >> IMAGE_TYPE_SHIFT))
+
+typedef enum {
+  IMAGE_ACCESS_COPY = 0, // an image is meant to be a copy of another image.
+  // When two images share the same data and one of them is to be modified,
+  // the data is copied and the reference counter to the original data is
+  // decreased
+
+  IMAGE_ACCESS_PROXY = 1, // an image is meant to be a proxy of the data,
+  // i.e. it is allowed to modify the content of the data
+
+  IMAGE_ACCESS_VIEW = 2, // an image is meant to be a view of another image.
+  // It is illegal to modify the view, and the result of such operation is
+  // unspecified
+} image_access_t;
+
+#define IMAGE_ACCESS_SHIFT (IMAGE_TYPE_SHIFT + IMAGE_TYPE_BITS)
+#define IMAGE_ACCESS_BITS 2
+#define IMAGE_ACCESS_MASK 3
+
+#define TEXTURE_MIRROR_Y_SHIFT (IMAGE_ACCESS_SHIFT + IMAGE_ACCESS_BITS)
+#define TEXTURE_MIRROR_X_SHIFT (TEXTURE_MIRROR_Y_SHIFT + 1)
+#define TEXTURE_MIRROR_MASK 1
 
 // the "mirror" property for y's is needed, because for OpenGL the SDL
 // surfaces appear as "upside down", and since SDL surfaces are used to
 // load images, we treat their convention as valid
-#define TEXTURE_MIRROR_X(tex) ((bool) (1 & (SCM_SMOB_FLAGS(tex) >> 2)))
-#define TEXTURE_MIRROR_Y(tex) ((bool) (1 & (SCM_SMOB_FLAGS(tex) >> 1)))
+#define SET_TEXTURE_FLAGS(tex, access, mirror_x, mirror_y)		\
+  SCM_SET_SMOB_FLAGS(tex, (IMAGE_TYPE_TEXTURE << IMAGE_TYPE_SHIFT)	\
+		     | ((IMAGE_ACCESS_MASK & access) << IMAGE_ACCESS_SHIFT) \
+		     | (mirror_x << TEXTURE_MIRROR_X_SHIFT)		\
+		     | (mirror_y << TEXTURE_MIRROR_Y_SHIFT))
+
+#define SET_SURFACE_FLAGS(surf, access)					\
+  SCM_SET_SMOB_FLAGS(surf, (IMAGE_TYPE_SURFACE << IMAGE_TYPE_SHIFT)	\
+		     | ((IMAGE_ACCESS_MASK & access) << IMAGE_ACCESS_SHIFT))
+
+#define IMAGE_ACCESS(img)				\
+  (IMAGE_ACCESS_MASK & (SCM_SMOB_FLAGS(img) >> IMAGE_ACCESS_SHIFT))
+
+#define TEXTURE_MIRROR_X(tex)					\
+  ((bool) (TEXTURE_MIRROR_MASK					\
+	   & (SCM_SMOB_FLAGS(tex) >> TEXTURE_MIRROR_X_SHIFT)))
+
+#define TEXTURE_MIRROR_Y(tex)					\
+  ((bool) (TEXTURE_MIRROR_MASK					\
+	   & (SCM_SMOB_FLAGS(tex) >> TEXTURE_MIRROR_Y_SHIFT)))
+
+// it's best to use some prime number as the size for optimal distribution
+#define DEF_REFERENCE_COUNTER(type, purpose, size, hash)		\
+  typedef struct {							\
+    type object;							\
+    int count;								\
+  } type##_ref_count_t;							\
+									\
+  static inline type##_ref_count_t *					\
+  new_##type##_ref_count_t(type object, int count) {			\
+    type##_ref_count_t *rc						\
+      = (type##_ref_count_t *) malloc(sizeof(type##_ref_count_t));	\
+    rc->object = object;						\
+    rc->count = count;							\
+    return rc;								\
+  }									\
+									\
+  static struct list *purpose##_ref_counts[size];			\
+									\
+  static inline type##_ref_count_t *					\
+  purpose##_ref_count(type object) {					\
+    bool contains_object(struct list *l) {				\
+      return ((type##_ref_count_t *) l->data)->object == object;	\
+    }									\
+    struct list *suspects = purpose##_ref_counts[hash(object) % size];	\
+    struct list *ref_count_cell = list_ref(suspects, contains_object);	\
+    if(ref_count_cell) {						\
+      return (type##_ref_count_t *) (ref_count_cell->data);		\
+    }									\
+    return NULL;							\
+  }									\
+									\
+  static inline void							\
+  increase_##purpose##_ref_count(type object) {				\
+    type##_ref_count_t *ref_count = purpose##_ref_count(object);	\
+    if(!ref_count) {							\
+      ref_count = new_##type##_ref_count_t(object, 1);			\
+      LIST_PUSH(purpose##_ref_counts[hash(object) % size], ref_count);	\
+    }									\
+    else {								\
+      ref_count->count++;						\
+    }									\
+  }
+
+#define IDENTITY(x) (x)
+#define CAST_TO_SIZE_T(x) ((size_t) x)
+
+DEF_REFERENCE_COUNTER(GLuint, texture, 101, IDENTITY);
+DEF_REFERENCE_COUNTER(pointer, surface, 127, CAST_TO_SIZE_T);
+
+#undef CAST_TO_SIZE_T
+#undef IDENTITY
+#undef DEF_REFERENCE_COUNTER
+
+static inline SCM
+surface_smob(SDL_Surface *surface, 
+	     Uint16 x, Uint16 y, Uint16 w, Uint16 h, 
+	     image_access_t access) {
+  SCM smob;
+  SCM_NEWSMOB3(smob, image_tag, surface, 0, 0);
+  SET_IMAGE_XY(smob, x, y);
+  SET_IMAGE_WH(smob, w, h);
+  SET_SURFACE_FLAGS(smob, access);
+  increase_surface_ref_count(surface);
+  return smob;
+}
+
+static inline SCM
+texture_smob(GLuint texture_id, bool mirror_x, bool mirror_y,
+	     Uint16 x, Uint16 y, Uint16 w, Uint16 h,
+	     image_access_t access) {
+  SCM smob;
+  SCM_NEWSMOB3(smob, image_tag, texture_id, 0, 0);
+  SET_IMAGE_XY(smob, x, y);
+  SET_IMAGE_WH(smob, w, h);
+  SET_TEXTURE_FLAGS(smob, access, mirror_x, mirror_y);
+  increase_texture_ref_count(texture_id);
+  return smob;
+}
 
 static SCM
 surface_p(SCM image) {
@@ -109,10 +193,17 @@ init_current_video_output_fluid() {
   if(!image_tag) {
     FATAL("the function needs to be initialized after image_tag");
   }
-  SCM screen_smob = surface_smob(screen);
+  SCM screen_smob = surface_smob(screen, 0, 0, screen->w, screen->h,
+				 IMAGE_ACCESS_PROXY);
   scm_gc_protect_object(screen_smob);
   current_video_output_fluid = scm_make_fluid_with_default(screen_smob);
   scm_gc_protect_object(current_video_output_fluid);
+}
+
+static inline SCM
+surface_to_texture(SCM image_smob) {
+  TODO("make new texture");
+  return SCM_UNSPECIFIED;
 }
 
 inline SCM
@@ -126,6 +217,7 @@ struct {
   GLuint frame;
   GLuint color;
   GLuint depth;
+  GLuint draw;
 } output_buffer;
 
 static inline void
@@ -144,71 +236,95 @@ init_output_buffer() {
 }
 
 static void
-on_enter_video_context(SDL_Surface *image) {
+on_enter_video_context(SCM image) {
+  int w = IMAGE_W(image);
+  int h = IMAGE_H(image);
+
   glBindFramebuffer(GL_FRAMEBUFFER, output_buffer.frame);
 
   glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.color);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, image->w, image->h);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 			    GL_RENDERBUFFER, output_buffer.color);
   
   glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.depth);
 
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 
-			image->w, image->h);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
 
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 			    GL_RENDERBUFFER, output_buffer.depth);
-  
+  glDrawBuffer(GL_COLOR_ATTACHMENT0);
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-    FATAL("unsupported framebuffer object configuration");
+    WARN("Unsupported framebuffer object configuration");
   }
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 static void
-on_exit_video_context(SDL_Surface *image) {
+on_exit_video_context(SCM image) {
   glFinish();
   GLenum code = glCheckFramebufferStatus(GL_FRAMEBUFFER);
   if(code == GL_FRAMEBUFFER_COMPLETE) {
-    glReadBuffer(GL_COLOR_ATTACHMENT0);
+    if(IS_SURFACE(image)) {
+      int w = IMAGE_W(image);
+      int h = IMAGE_H(image);
 
-    glReadPixels(0, 0, image->w, image->h,
-		 GL_RGBA, GL_UNSIGNED_BYTE, 
-		 image->pixels);
+      glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+      if(IS_SURFACE(image)) {
+	SDL_Surface *s = SURFACE(image);
+	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, s->pixels);
+	flip_surface_vertically(s);
+      }
+    }
   }
   else {
     WARN("Failed to complete framebuffer request: %i", code);
   }
+  glDrawBuffer(GL_BACK);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  glEnable(GL_BLEND);
 }
 #endif
 
-static SCM
-call_with_video_output_to(SCM image_smob, SCM thunk) {
-  scm_assert_smob_type(image_tag, image_smob);
 #ifdef USE_OPENGL
-  if(video_mode & SDL_OPENGL) {
-    SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-
-    scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);
-
-    scm_dynwind_unwind_handler((void(*)(void *)) on_exit_video_context, 
-			       image, SCM_F_WIND_EXPLICITLY);
-    scm_dynwind_rewind_handler((void(*)(void *)) on_enter_video_context, 
-			       image, SCM_F_WIND_EXPLICITLY);
+#define BEGIN_VIDEO_CONTEXT(image)					\
+  if(video_mode & SDL_OPENGL) {						\
+    scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);			\
+    scm_dynwind_unwind_handler((void(*)(void *)) on_exit_video_context,	\
+			       image, SCM_F_WIND_EXPLICITLY);		\
+    scm_dynwind_rewind_handler((void(*)(void *)) on_enter_video_context, \
+			       image, SCM_F_WIND_EXPLICITLY);		\
   }
-#endif
-  SCM result = scm_with_fluid(current_video_output_fluid, image_smob, thunk);
-#ifdef USE_OPENGL
-  if(video_mode & SDL_OPENGL) {
-    scm_dynwind_end();
+
+#define END_VIDEO_CONTEXT()			\
+  if(video_mode & SDL_OPENGL) {			\
+    scm_dynwind_end();				\
   }
+#else
+#define BEGIN_VIDEO_CONTEXT(image)
+#define END_VIDEO_CONTEXT() 
 #endif
+
+static inline SCM
+c_call_with_video_output_to(SCM image, SCM (*proc)(void *), void *data) {
+  scm_assert_smob_type(image_tag, image);
+  BEGIN_VIDEO_CONTEXT(image);
+  SCM result = scm_c_with_fluid(current_video_output_fluid, image, proc, data);
+  END_VIDEO_CONTEXT();
   return result;
 }
+
+static SCM
+call_with_video_output_to(SCM image, SCM thunk) {
+  scm_assert_smob_type(image_tag, image);
+  BEGIN_VIDEO_CONTEXT(image);
+  SCM result = scm_with_fluid(current_video_output_fluid, image, thunk);
+  END_VIDEO_CONTEXT();
+  return result;
+}
+
+#undef BEGIN_VIDEO_CONTEXT
+#undef END_VIDEO_CONTEXT
 
 static size_t 
 free_image(SCM image_smob) {
@@ -245,7 +361,7 @@ print_image(SCM image, SCM port, scm_print_state *pstate) {
   else if(IS_TEXTURE(image)) {
     GLuint texture = TEXTURE(image);
     if(asprintf(&string, "#<image %i: texture %i x %i>", 
-		texture, TEXTURE_W(image), TEXTURE_H(image)) == -1) {
+		texture, IMAGE_W(image), IMAGE_H(image)) == -1) {
       return 0;
     }
     scm_puts(string, port);
@@ -260,7 +376,6 @@ print_image(SCM image, SCM port, scm_print_state *pstate) {
 
 static SCM 
 load_image(SCM path) {
-  SCM smob;
   char *filename = as_c_string(path);
   if(filename == NULL) {
     return SCM_BOOL_F;
@@ -276,8 +391,7 @@ load_image(SCM path) {
     SDL_FreeSurface(image);
     image = new_image;
   }
-  SCM_NEWSMOB(smob, image_tag, image);
-  return smob;
+  return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
 }
 
 static SCM
@@ -299,33 +413,103 @@ compose_color_from_rgba(SCM r, SCM g, SCM b, SCM a) {
   return scm_from_uint32(rgba_color(c));
 }
 
+static inline SDL_Surface *
+copy_surface(SDL_Surface *surface, SDL_Rect *area) {
+  SDL_Surface *copy
+    = SDL_CreateRGBSurface(surface->flags, 
+			   (area ? area->w : surface->w),
+			   (area ? area->h : surface->h),
+			   surface->format->BitsPerPixel,
+			   surface->format->Rmask, surface->format->Gmask,
+			   surface->format->Bmask, surface->format->Amask);
+  Uint8 alpha = surface->format->alpha;
+  SDL_SetAlpha(surface, 0, SDL_ALPHA_OPAQUE);
+  SDL_BlitSurface(surface, area, copy, NULL);
+  SDL_SetAlpha(surface, SDL_SRCALPHA, alpha);
+  return copy;
+}
+
+static inline void
+draw_surface_on_surface(SCM image_smob, int x, int y, SCM target_smob) {
+    SDL_Surface *image = SURFACE(image_smob);
+    SDL_Surface *target = SURFACE(target_smob);
+    SDL_Rect clip = IMAGE_AREA(target_smob);
+    image_access_t target_access = IMAGE_ACCESS(target_smob);
+    if(target_access == IMAGE_ACCESS_VIEW) {
+      return WARN("attempt to draw on a read-only surface");
+    }
+    if(target_access == IMAGE_ACCESS_COPY) {
+      pointer_ref_count_t *target_ref_count = surface_ref_count(target);
+      if(target_ref_count->count > 1) { // we need to make a copy of target
+	WARN("making copy of target surface (%i references)",
+	     target_ref_count->count);
+	target_ref_count->count--;
+	target = copy_surface(target, &clip);
+	SCM_SET_SMOB_DATA(target_smob, target);
+	SET_IMAGE_XY(target_smob, 0, 0);
+	clip.x = 0;
+	clip.y = 0;
+      }
+    }
+
+    if(0) {}
+#ifdef USE_OPENGL
+    else if((video_mode & SDL_OPENGL)) {
+      glDisable(GL_DEPTH_TEST);
+      glWindowPos2i(x, target->h - y);
+      glPixelZoom(1.0, -1.0);
+      glDrawPixels(image->w, image->h, GL_RGBA, GL_UNSIGNED_BYTE, 
+		   image->pixels);
+      glEnable(GL_DEPTH_TEST);
+    }
+#endif
+    else {
+      SDL_Rect at = sdl_rect(x, y, -1, -1);
+      SDL_BlitSurface(image, &clip, target, &at);
+    }
+}
+
+static inline void
+draw_surface_on_texture(SCM image_smob, int x, int y, SCM target_smob) {
+  WARN("not implemented");
+}
+
+static inline void
+draw_texture_on_surface(SCM image_smob, int x, int y, SCM target_smob) {
+  WARN("not implemented");
+}
+
+static inline void
+draw_texture_on_texture(SCM image_smob, int x, int y, SCM target_smob) {
+  WARN("not implemented");
+}
+
 static SCM 
-draw_image_x(SCM image_smob, SCM x, SCM y, SCM target_smob) {
+draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
   scm_assert_smob_type(image_tag, image_smob); 
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  int X = GIVEN(x) ? scm_to_int(x) : 0;
-  int Y = GIVEN(y) ? scm_to_int(y) : 0;
+  int x = GIVEN(X) ? scm_to_int(X) : 0;
+  int y = GIVEN(Y) ? scm_to_int(Y) : 0;
   if(GIVEN(target_smob)) {
     scm_assert_smob_type(image_tag, target_smob);
   } 
   else {
     target_smob = current_video_output();
   }
-  SDL_Surface *target = (SDL_Surface *) SCM_SMOB_DATA(target_smob);
-  if(0) {}
-#ifdef USE_OPENGL  
-  else if((video_mode & SDL_OPENGL)) { // && (target == screen)) {
-    WARN_ONCE("using OpenGL");
-    glDisable(GL_DEPTH_TEST);
-    glWindowPos2i(X, screen->h - Y);
-    glPixelZoom(1.0, -1.0);
-    glDrawPixels(image->w, image->h, GL_RGBA, GL_UNSIGNED_BYTE, image->pixels);    
-    glEnable(GL_DEPTH_TEST);
+
+  if(IS_SURFACE(image_smob) && IS_SURFACE(target_smob)) {
+    draw_surface_on_surface(image_smob, x, y, target_smob);
   }
-#endif
+  else if(IS_SURFACE(image_smob) && IS_TEXTURE(target_smob)) {
+    draw_surface_on_texture(image_smob, x, y, target_smob);
+  }
+  else if(IS_TEXTURE(image_smob) && IS_SURFACE(target_smob)) {
+    draw_texture_on_surface(image_smob, x, y, target_smob);
+  }
+  else if(IS_TEXTURE(image_smob) && IS_TEXTURE(target_smob)) {
+    draw_texture_on_texture(image_smob, x, y, target_smob);
+  }
   else {
-    SDL_Rect at = sdl_rect(X, Y, -1, -1);
-    SDL_BlitSurface(image, NULL, target, &at);
+    FATAL("Unknown image variant");
   }
   scm_remember_upto_here_2(image_smob, target_smob);
   return SCM_UNSPECIFIED;
@@ -349,7 +533,7 @@ image_height(SCM image_smob) {
     h = scm_from_int(image->h);
   }
   else if(IS_TEXTURE(image_smob)) {
-    h = scm_from_int(TEXTURE_H(image_smob));
+    h = scm_from_int(IMAGE_H(image_smob));
   }
   else {
     FATAL("Unknown image variant");
@@ -369,7 +553,6 @@ image_size(SCM image_smob) {
 
 SCM 
 rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
-  SCM smob;
   if(BytesPerPixel == SCM_UNDEFINED) {
     BytesPerPixel = scm_from_int(4);
   }
@@ -380,19 +563,18 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
     SDL_FillRect(image, NULL, 
 		 SDL_MapRGBA(image->format, c.r, c.g, c.b, 0xff-c.unused));
   }
-  SCM_NEWSMOB(smob, image_tag, image);
-  return smob;
+  return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
 }
 
 static SCM
-crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
+crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h, SCM _access) {
   scm_assert_smob_type(image_tag, image_smob);  
-  SCM smob;
   SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   Sint16 x = scm_to_int16(_x);
   Sint16 y = scm_to_int16(_y);
-  Sint16 w = GIVEN(_w) ? scm_to_int16(_w) : 0;
-  Sint16 h = GIVEN(_h) ? scm_to_int16(_h) : 0;
+  Sint16 w = (GIVEN(_w) && indeed(_w)) ? scm_to_int16(_w) : 0;
+  Sint16 h = (GIVEN(_h) && indeed(_h)) ? scm_to_int16(_h) : 0;
+
   if(w <= 0) {
     w += (image->w - x);
   }
@@ -402,6 +584,24 @@ crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
   SDL_Rect size = {
     .x = x, .y = y, .w = (Uint16) w, .h = (Uint16) h
   };
+  image_access_t access;
+  if(!GIVEN(_access)) {
+    access = IMAGE_ACCESS_PROXY;
+  }
+  else if(scm_is_eq(_access, s_copy)) {
+    access = IMAGE_ACCESS_COPY;
+  }
+  else if(scm_is_eq(_access, s_view)) {
+    access = IMAGE_ACCESS_VIEW;
+  }
+  else if(scm_is_eq(_access, s_proxy)) {
+    access = IMAGE_ACCESS_PROXY;
+  }
+  else {
+    WRONG_TYPE_ARG("Unknown access type: ~A. Allowed values are symbols: "
+		   "'copy 'view 'proxy", scm_list_1(_access));
+  }
+
   SDL_Surface *cropped 
     = SDL_CreateRGBSurface(image->flags, size.w, size.h, 
 			   image->format->BitsPerPixel,
@@ -411,9 +611,8 @@ crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h) {
   SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
   SDL_BlitSurface(image, &size, cropped, NULL);
   SDL_SetAlpha(image, SDL_SRCALPHA, alpha);
-  SCM_NEWSMOB(smob, image_tag, cropped);
   scm_remember_upto_here_1(image_smob);
-  return smob;
+  return surface_smob(cropped, 0, 0, cropped->w, cropped->h, access);
 }
 
 static SCM 
@@ -523,7 +722,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("call-with-video-output-to", 2, 0, 0, 
 		   call_with_video_output_to);
   EXPORT_PROCEDURE("rectangle", 2, 2, 0, rectangle);
-  EXPORT_PROCEDURE("crop-image", 3, 2, 0, crop_image);
+  EXPORT_PROCEDURE("crop-image", 3, 3, 0, crop_image);
   EXPORT_PROCEDURE("load-image", 1, 0, 0, load_image);
   EXPORT_PROCEDURE("draw-image!", 1, 3, 0, draw_image_x);
   EXPORT_PROCEDURE("image-width", 1, 0, 0, image_width);
