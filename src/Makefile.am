@@ -7,7 +7,7 @@ AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) -Wall -Werror \
 AM_CXXFLAGS = $(AM_CFLAGS)
 
 bin_PROGRAMS = slayer
-slayer_SOURCES = extend.h file.c font.c image.c input.c input.h \
+slayer_SOURCES = extend.h file.c font.c image.c _image.h input.c input.h \
 	slayer.c slayer.h symbols.c symbols.h timer.c utils.h video.c video.h
 noinst_HEADERS = scancode.c
 

@@ -16,6 +16,31 @@ DECLARE void glWindowPos2i (GLint x, GLint y);
 
 #endif // USE_OPENGL
 
+#if defined(USE_OPENGL) && !defined(NDEBUG)
+#define CHECK_OPENGL_ERROR(header)				\
+  {								\
+    GLenum error = glGetError();				\
+    if(error != GL_NO_ERROR) {					\
+      const unsigned char *message = gluErrorString(error);	\
+      WARN(header "OpenGL error: %s", message);			\
+    }								\
+  }
+#else
+#define CHECK_OPENGL_ERROR(message)
+#endif
+
+#define RECKLESSLY(operation) operation
+
+#ifndef NDEBUG
+#define CAUTIOUSLY(operation)			\
+  operation;					\
+  CHECK_OPENGL_ERROR(# operation ": ")
+#else
+// THIS IS CRAZY!
+#define CAUTIOUSLY RECKLESSLY
+#endif
+
+
 extern SDL_Surface *screen;
 
 extern SCM current_video_output_fluid;
