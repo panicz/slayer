@@ -152,6 +152,29 @@ export_symbols(void *unused) {
 }
 
 void
+flip_surface_vertically(SDL_Surface *s) {
+  int bpp = s->format->BytesPerPixel;
+  SDL_Surface *copy = sdl_surface(s->w, s->h, bpp);
+  int line_size = s->w * bpp;
+  Uint8 *s_pixels = s->pixels;
+  Uint8 *copy_pixels = copy->pixels;
+  int i;
+  SDL_LockSurface(s);
+  SDL_LockSurface(copy);
+
+  for(i = 0; i < s->h; ++i) {
+    memcpy((copy_pixels + (s->h - i - 1)*line_size),
+	   (s_pixels + i*line_size), line_size);
+  }
+  memcpy(s_pixels, copy_pixels, line_size*s->h);
+
+  SDL_UnlockSurface(copy);
+  SDL_UnlockSurface(s);
+
+  SDL_FreeSurface(copy);
+}
+
+void
 video_refresh_screen() {
   wipe_screen_x();
   scm_call_0(display_procedure);

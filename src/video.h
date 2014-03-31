@@ -44,6 +44,8 @@ sdl_surface(int w, int h, int BytesPerPixel) {
 			      w, h, 8*BytesPerPixel, r, g, b, a);
 }
 
+DECLARE void flip_surface_vertically(SDL_Surface *);
+
 static inline SDL_Rect 
 sdl_rect(Sint16 x, Sint16 y, Uint16 w, Uint16 h) {
   SDL_Rect rect;
