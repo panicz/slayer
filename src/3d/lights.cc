@@ -173,8 +173,6 @@ make_light() {
       WARN("The maximum number of %d lights has been exceeded", GL_MAX_LIGHTS);
       return SCM_BOOL_F;
     }
-    
-    WARN_ONCE("GL_LIGHT0 == %i", (int) GL_LIGHT0);
     current_light = GL_LIGHT0 + next_light++;
     glEnable(current_light);
     return scm_from_int(current_light);
