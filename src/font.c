@@ -2,7 +2,7 @@
 #include <SDL/SDL_ttf.h>
 #include "utils.h"
 #include "video.h"
-#include "_image.h"
+#include "image.h"
 
 scm_t_bits font_tag;
 

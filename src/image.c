@@ -5,7 +5,7 @@
 #include "extend.h"
 #include "video.h"
 #include "symbols.h"
-#include "_image.h"
+#include "image.h"
 
 scm_t_bits image_tag = 0;
 SCM current_video_output_fluid;
