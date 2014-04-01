@@ -1,7 +1,118 @@
+#include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
+#include "utils.h"
+#include "slayer.h"
+#include "extend.h"
+#include "video.h"
+#include "symbols.h"
 #include "_image.h"
 
 scm_t_bits image_tag = 0;
 SCM current_video_output_fluid;
+
+#define REMIND_TO_INITIALIZE 1
+
+// it's best to use some prime number as the size for optimal distribution
+#define DEF_REFERENCE_COUNTER(type, purpose, size, hash)		\
+  typedef struct {							\
+    type object;							\
+    int count;								\
+  } type##_ref_count_t;							\
+									\
+  static inline type##_ref_count_t *					\
+  new_##type##_ref_count_t(type object, int count) {			\
+    type##_ref_count_t *rc						\
+      = (type##_ref_count_t *) malloc(sizeof(type##_ref_count_t));	\
+    rc->object = object;						\
+    rc->count = count;							\
+    return rc;								\
+  }									\
+									\
+  static struct list *purpose##_ref_counts[size];			\
+  static bool purpose##_ref_counts_initialized = false;			\
+  static inline void init_##purpose##_ref_counts() {			\
+    int i;								\
+    for(i = 0; i < size; ++i) {						\
+      purpose##_ref_counts[i] = NULL;					\
+    }									\
+    purpose##_ref_counts_initialized = true;				\
+  }									\
+									\
+  static inline type##_ref_count_t *					\
+  purpose##_ref_count(type object) {					\
+    if(REMIND_TO_INITIALIZE) {						\
+      if(!purpose##_ref_counts_initialized) {				\
+	WARN("init_%s_ref_counts needs to be called first", # purpose);	\
+	return NULL;							\
+      }									\
+    }									\
+  									\
+    bool contains_object(struct list *l) {				\
+      return ((type##_ref_count_t *) l->data)->object == object;	\
+    }									\
+    struct list *suspects = purpose##_ref_counts[hash(object) % size];	\
+    struct list *ref_count_cell = list_ref(suspects, contains_object);	\
+    if(ref_count_cell) {						\
+      return (type##_ref_count_t *) (ref_count_cell->data);		\
+    }									\
+    return NULL;							\
+  }									\
+									\
+  static inline void							\
+  increase_##purpose##_ref_count(type object) {				\
+    type##_ref_count_t *ref_count = purpose##_ref_count(object);	\
+    if(!ref_count) {							\
+      ref_count = new_##type##_ref_count_t(object, 1);			\
+      LIST_PUSH(purpose##_ref_counts[hash(object) % size], ref_count);	\
+    }									\
+    else {								\
+      ref_count->count++;						\
+    }									\
+  }
+
+#define IDENTITY(x) (x)
+#define CAST_TO_SIZE_T(x) ((size_t) x)
+
+DEF_REFERENCE_COUNTER(GLuint, texture, 101, IDENTITY);
+DEF_REFERENCE_COUNTER(pointer, surface, 127, CAST_TO_SIZE_T);
+
+#undef CAST_TO_SIZE_T
+#undef IDENTITY
+#undef DEF_REFERENCE_COUNTER
+
+#undef REMIND_TO_INITIALIZE
+
+static inline void
+init_ref_counts() {
+  init_surface_ref_counts();
+  init_texture_ref_counts();
+}
+
+SCM
+surface_smob(SDL_Surface *surface, 
+	     Uint16 x, Uint16 y, Uint16 w, Uint16 h, 
+	     image_access_t access) {
+  SCM smob;
+  SCM_NEWSMOB3(smob, image_tag, surface, 0, 0);
+  SET_IMAGE_XY(smob, x, y);
+  SET_IMAGE_WH(smob, w, h);
+  SET_SURFACE_FLAGS(smob, access);
+  increase_surface_ref_count(surface);
+  return smob;
+}
+
+SCM
+texture_smob(GLuint texture_id, bool mirror_x, bool mirror_y,
+	     Uint16 x, Uint16 y, Uint16 w, Uint16 h,
+	     image_access_t access) {
+  SCM smob;
+  SCM_NEWSMOB3(smob, image_tag, texture_id, 0, 0);
+  SET_IMAGE_XY(smob, x, y);
+  SET_IMAGE_WH(smob, w, h);
+  SET_TEXTURE_FLAGS(smob, access, mirror_x, mirror_y);
+  increase_texture_ref_count(texture_id);
+  return smob;
+}
 
 static SCM
 surface_p(SCM image) {
@@ -30,6 +141,19 @@ init_current_video_output_fluid() {
   scm_gc_protect_object(screen_smob);
   current_video_output_fluid = scm_make_fluid_with_default(screen_smob);
   scm_gc_protect_object(current_video_output_fluid);
+}
+
+static SCM
+make_texture(SCM _w, SCM _h) {
+  GLuint texture_id = glGenTexture();
+  Uint16 w = scm_to_uint16(_w);
+  Uint16 h = scm_to_uint16(_h);
+  glBindTexture(GL_TEXTURE_2D, texture_id);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0,
+	       GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  return texture_smob(texture_id, 0, 0, 0, 0, w, h, IMAGE_ACCESS_PROXY);
 }
 
 static inline SCM
@@ -87,7 +211,15 @@ on_enter_video_context(SCM image) {
 
   CAUTIOUSLY(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 				       GL_RENDERBUFFER, output_buffer.depth));
+
   CAUTIOUSLY(glDrawBuffer(GL_COLOR_ATTACHMENT0));
+
+  if(IS_TEXTURE(image)) {
+    GLuint texture = TEXTURE(image);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture, 0);
+  }
+
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
     WARN("Unsupported framebuffer object configuration");
   }
@@ -163,7 +295,11 @@ static size_t
 free_image(SCM image_smob) {
   if(IS_SURFACE(image_smob)) {
     SDL_Surface *surface =  SURFACE(image_smob);
-    SDL_FreeSurface(surface);
+    pointer_ref_count_t *ref_count = surface_ref_count(surface);
+    --ref_count->count;
+    if(ref_count->count == 0) {
+      SDL_FreeSurface(surface);
+    }
   }
   else if(IS_TEXTURE(image_smob)) {
     GLuint id = TEXTURE(image_smob);
@@ -351,37 +487,20 @@ draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
 static SCM 
 image_width(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  SCM w = scm_from_int(image->w);
-  scm_remember_upto_here_1(image_smob);
-  return w;
+  return scm_from_uint16(IMAGE_W(image_smob));
 }
 
 static SCM 
 image_height(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
-  SCM h;
-  if(IS_SURFACE(image_smob)) {
-    SDL_Surface *image = SURFACE(image_smob);
-    h = scm_from_int(image->h);
-  }
-  else if(IS_TEXTURE(image_smob)) {
-    h = scm_from_int(IMAGE_H(image_smob));
-  }
-  else {
-    FATAL("Unknown image variant");
-  }
-  scm_remember_upto_here_1(image_smob);
-  return h;
+  return scm_from_uint16(IMAGE_H(image_smob));
 }
 
 static SCM 
 image_size(SCM image_smob) {
   scm_assert_smob_type(image_tag, image_smob);
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
-  SCM l = scm_list_2(scm_from_int(image->w), scm_from_int(image->h));
-  scm_remember_upto_here_1(image_smob);
-  return l;
+  return scm_list_2(scm_from_uint16(IMAGE_W(image_smob)), 
+		    scm_from_uint16(IMAGE_H(image_smob)));
 }
 
 SCM 
@@ -567,6 +686,7 @@ export_symbols(void *unused) {
 		   decompose_color_to_rgba);
   EXPORT_PROCEDURE("compose-color-from-rgba", 4, 0, 0,
 		   compose_color_from_rgba);
+  EXPORT_PROCEDURE("make-texture", 2, 0, 0, make_texture);
 
   EXPORT_PROCEDURE("surface?", 1, 0, 0, surface_p);
   EXPORT_PROCEDURE("texture?", 1, 0, 0, texture_p);
@@ -585,6 +705,7 @@ image_init() {
 #endif
   init_current_video_output_fluid();
   init_bytesPerPixel();
+  init_ref_counts();
   scm_c_define_module("slayer image", export_symbols, NULL);
   scm_c_define_module("slayer", cond_expand_provide, "slayer-image");
 }

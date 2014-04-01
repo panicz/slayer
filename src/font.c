@@ -2,6 +2,7 @@
 #include <SDL/SDL_ttf.h>
 #include "utils.h"
 #include "video.h"
+#include "_image.h"
 
 scm_t_bits font_tag;
 
@@ -38,8 +39,9 @@ SCM
 load_font(SCM path, SCM ptsize) {
   SCM smob;
   char *filename = as_c_string(path);
-  if(filename == NULL)
+  if(filename == NULL) {
     return SCM_BOOL_F;
+  }
   TTF_Font *font = TTF_OpenFont(filename, scm_to_int(ptsize));
   free(filename);
   SCM_NEWSMOB(smob, font_tag, font);
@@ -87,13 +89,11 @@ render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
     WARN("unable to create surface");
     return SCM_BOOL_F;
   }
-  SCM smob;
   SDL_Surface *image = SDL_ConvertSurface(surface, &rgba32, SDL_SRCALPHA);
   SDL_FreeSurface(surface);
 
-  SCM_NEWSMOB(smob, image_tag, image);
   scm_remember_upto_here_1(font);
-  return smob;
+  return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
 }
 
 SCM 
