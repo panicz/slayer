@@ -17,6 +17,10 @@
 #undef far
 #endif
 
+#define EXPECT __builtin_expect
+#define UNLIKELY(x) EXPECT((x), 0)
+#define LIKELY(x) EXPECT((x), 1)
+
 #if !HAVE_ASPRINTF
 int asprintf(char **strp, const char *fmt, ...);
 #endif
