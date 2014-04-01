@@ -41,7 +41,7 @@ SCM current_video_output_fluid;
   static inline type##_ref_count_t *					\
   purpose##_ref_count(type object) {					\
     if(REMIND_TO_INITIALIZE) {						\
-      if(!purpose##_ref_counts_initialized) {				\
+      if(UNLIKELY(!purpose##_ref_counts_initialized)) {			\
 	WARN("init_%s_ref_counts needs to be called first", # purpose);	\
 	return NULL;							\
       }									\
@@ -143,23 +143,31 @@ init_current_video_output_fluid() {
   scm_gc_protect_object(current_video_output_fluid);
 }
 
+static inline SCM
+texture_smob_from_pixel_data(Uint16 w, Uint16 h, const void *pixels) {
+  GLuint texture_id = CAUTIOUSLY(glGenTexture());
+  CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
+  CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+  CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+  CAUTIOUSLY(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0,
+			  GL_RGBA, GL_UNSIGNED_BYTE, pixels));
+  return texture_smob(texture_id, 0, 1, 0, 0, w, h, IMAGE_ACCESS_PROXY);
+}
+
 static SCM
-make_texture(SCM _w, SCM _h) {
-  GLuint texture_id = glGenTexture();
-  Uint16 w = scm_to_uint16(_w);
-  Uint16 h = scm_to_uint16(_h);
-  glBindTexture(GL_TEXTURE_2D, texture_id);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0,
-	       GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-  return texture_smob(texture_id, 0, 0, 0, 0, w, h, IMAGE_ACCESS_PROXY);
+make_texture(SCM w, SCM h) {
+  return texture_smob_from_pixel_data(scm_to_uint16(w),scm_to_uint16(h),NULL);
 }
 
 static inline SCM
-surface_to_texture(SCM image_smob) {
-  TODO("make new texture");
-  return SCM_UNSPECIFIED;
+surface_to_texture(SCM image) {
+  scm_assert_smob_type(image_tag, image);
+  if(!IS_SURFACE(image)) {
+    WARN("function called on non-surface image");
+    return image;
+  }
+  SDL_Surface *s = SURFACE(image);
+  return texture_smob_from_pixel_data(s->w, s->h, s->pixels);
 }
 
 inline SCM
@@ -195,7 +203,7 @@ static void
 on_enter_video_context(SCM image) {
   int w = IMAGE_W(image);
   int h = IMAGE_H(image);
-
+  
   CAUTIOUSLY(glBindFramebuffer(GL_FRAMEBUFFER, output_buffer.frame));
 
   CAUTIOUSLY(glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.color));
@@ -360,6 +368,11 @@ load_image(SCM path) {
     SDL_FreeSurface(image);
     image = new_image;
   }
+  if(video_mode & SDL_OPENGL) {
+    SCM tex = texture_smob_from_pixel_data(image->w, image->h, image->pixels);
+    SDL_FreeSurface(image);
+    return tex;
+  }
   return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
 }
 
@@ -399,65 +412,131 @@ copy_surface(SDL_Surface *surface, SDL_Rect *area) {
 }
 
 static inline void
-draw_surface_on_surface(SCM image_smob, int x, int y, SCM target_smob) {
-    SDL_Surface *image = SURFACE(image_smob);
-    SDL_Surface *target = SURFACE(target_smob);
-    SDL_Rect clip = IMAGE_AREA(target_smob);
-    image_access_t target_access = IMAGE_ACCESS(target_smob);
-    if(target_access == IMAGE_ACCESS_VIEW) {
-      return WARN("attempt to draw on a read-only surface");
+draw_surface_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
+  SDL_Surface *image = SURFACE(image_smob);
+  SDL_Surface *target = SURFACE(target_smob);
+  SDL_Rect clip = IMAGE_AREA(target_smob);
+  image_access_t target_access = IMAGE_ACCESS(target_smob);
+  if(target_access == IMAGE_ACCESS_VIEW) {
+    return WARN("attempt to draw on a read-only surface");
+  }
+  if(target_access == IMAGE_ACCESS_COPY) {
+    pointer_ref_count_t *target_ref_count = surface_ref_count(target);
+    if(target_ref_count->count > 1) { // we need to make a copy of target
+      WARN("making copy of target surface (%i references)",
+	   target_ref_count->count);
+      target_ref_count->count--;
+      target = copy_surface(target, &clip);
+      SCM_SET_SMOB_DATA(target_smob, target);
+      SET_IMAGE_XY(target_smob, 0, 0);
+      clip.x = 0;
+      clip.y = 0;
     }
-    if(target_access == IMAGE_ACCESS_COPY) {
-      pointer_ref_count_t *target_ref_count = surface_ref_count(target);
-      if(target_ref_count->count > 1) { // we need to make a copy of target
-	WARN("making copy of target surface (%i references)",
-	     target_ref_count->count);
-	target_ref_count->count--;
-	target = copy_surface(target, &clip);
-	SCM_SET_SMOB_DATA(target_smob, target);
-	SET_IMAGE_XY(target_smob, 0, 0);
-	clip.x = 0;
-	clip.y = 0;
-      }
-    }
-
-    if(0) {}
+  }
+  
+  if(0) {}
 #ifdef USE_OPENGL
-    else if((video_mode & SDL_OPENGL)) {
-      CAUTIOUSLY(glDisable(GL_DEPTH_TEST));
-      CAUTIOUSLY(glWindowPos2i(x, target->h - y));
-      CAUTIOUSLY(glPixelZoom(1.0, -1.0));
-      CAUTIOUSLY(glDrawPixels(image->w, image->h, GL_RGBA, GL_UNSIGNED_BYTE, 
-			      image->pixels));
-      CAUTIOUSLY(glEnable(GL_DEPTH_TEST));
-    }
+  else if((video_mode & SDL_OPENGL)) {
+    CAUTIOUSLY(glDisable(GL_DEPTH_TEST));
+    CAUTIOUSLY(glWindowPos2i(x, target->h - y));
+    CAUTIOUSLY(glPixelZoom(1.0, -1.0));
+    CAUTIOUSLY(glDrawPixels(image->w, image->h, GL_RGBA, GL_UNSIGNED_BYTE,
+			    image->pixels));
+    CAUTIOUSLY(glEnable(GL_DEPTH_TEST));
+  }
 #endif
-    else {
-      SDL_Rect at = sdl_rect(x, y, -1, -1);
-      SDL_BlitSurface(image, &clip, target, &at);
-    }
+  else {
+    SDL_Rect at = sdl_rect(x, y, -1, -1);
+    SDL_BlitSurface(image, &clip, target, &at);
+  }
 }
 
+#ifdef USE_OPENGL
 static inline void
-draw_surface_on_texture(SCM image_smob, int x, int y, SCM target_smob) {
+draw_surface_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   WARN("not implemented");
 }
 
 static inline void
-draw_texture_on_surface(SCM image_smob, int x, int y, SCM target_smob) {
-  WARN("not implemented");
+draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
+  if(UNLIKELY(!(video_mode & SDL_OPENGL))) {
+    return WARN("no texture support in 2d mode");
+  }
+  GLuint texture_id = TEXTURE(image_smob);
+  SDL_Surface *target = SURFACE(target_smob);
+
+  CAUTIOUSLY(glPushMatrix());
+  CAUTIOUSLY(glLoadIdentity());
+
+  CAUTIOUSLY(glMatrixMode(GL_PROJECTION));
+  CAUTIOUSLY(glPushMatrix());
+  CAUTIOUSLY(glLoadIdentity());  
+  CAUTIOUSLY(gluOrtho2D(0, target->w, target->h, 0));
+
+  CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
+
+  CAUTIOUSLY(glEnable(GL_TEXTURE_2D));
+
+  CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
+  CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+
+  float w, h;
+  CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0, GL_TEXTURE_WIDTH, &w));
+  CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0, GL_TEXTURE_HEIGHT, &h));
+
+  float _1_w = 1.0 / w;
+  float _1_h = 1.0 / h;
+
+  Uint16 w1 = IMAGE_W(image_smob);
+  Uint16 h1 = IMAGE_H(image_smob);
+
+  float x0_w = ((float) IMAGE_X(image_smob)) * _1_w;
+  float y0_h = ((float) IMAGE_Y(image_smob)) * _1_h;
+  float w1_w = ((float) w1) * _1_w;
+  float h1_h = ((float) h1) * _1_h;
+
+  static Uint8 indices[] = { 0, 1, 2, 3 };
+  float texture_coords[] = { x0_w,        y0_h, 
+			     x0_w + w1_w, y0_h,
+			     x0_w + w1_w, y0_h + h1_h,
+			     x0_w,        y0_h + h1_h };
+  Uint16 quads[] = { x,      y,
+		     x + w1, y,
+		     x + w1, y + h1,
+		     x,      y + h1 };
+
+  glColor4f(1,1,1,1);
+  
+  glDisable(GL_DEPTH_TEST);
+  glEnableClientState(GL_VERTEX_ARRAY);
+  glVertexPointer(2, GL_SHORT, 0, quads);
+  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+  glTexCoordPointer(2, GL_FLOAT, 0, texture_coords);
+
+  glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, indices);
+
+  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+  glDisableClientState(GL_VERTEX_ARRAY);
+  glEnable(GL_DEPTH_TEST);
+
+  CAUTIOUSLY(glDisable(GL_TEXTURE_2D));
+
+  CAUTIOUSLY(glPopMatrix());
+  CAUTIOUSLY(glMatrixMode(GL_MODELVIEW));
+  CAUTIOUSLY(glPopMatrix());
 }
 
 static inline void
-draw_texture_on_texture(SCM image_smob, int x, int y, SCM target_smob) {
+draw_texture_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   WARN("not implemented");
 }
+#endif
 
 static SCM 
 draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
   scm_assert_smob_type(image_tag, image_smob); 
-  int x = GIVEN(X) ? scm_to_int(X) : 0;
-  int y = GIVEN(Y) ? scm_to_int(Y) : 0;
+  Sint16 x = GIVEN(X) ? scm_to_int16(X) : 0;
+  Sint16 y = GIVEN(Y) ? scm_to_int16(Y) : 0;
   if(GIVEN(target_smob)) {
     scm_assert_smob_type(image_tag, target_smob);
   } 
@@ -468,6 +547,7 @@ draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
   if(IS_SURFACE(image_smob) && IS_SURFACE(target_smob)) {
     draw_surface_on_surface(image_smob, x, y, target_smob);
   }
+#ifdef USE_OPENGL
   else if(IS_SURFACE(image_smob) && IS_TEXTURE(target_smob)) {
     draw_surface_on_texture(image_smob, x, y, target_smob);
   }
@@ -477,6 +557,7 @@ draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
   else if(IS_TEXTURE(image_smob) && IS_TEXTURE(target_smob)) {
     draw_texture_on_texture(image_smob, x, y, target_smob);
   }
+#endif
   else {
     FATAL("Unknown image variant");
   }
@@ -697,6 +778,7 @@ export_symbols(void *unused) {
 
 void 
 image_init() {
+  init_ref_counts();
   image_tag = scm_make_smob_type("image", 0);
   scm_set_smob_free(image_tag, free_image);
   scm_set_smob_print(image_tag, print_image);
@@ -705,7 +787,6 @@ image_init() {
 #endif
   init_current_video_output_fluid();
   init_bytesPerPixel();
-  init_ref_counts();
   scm_c_define_module("slayer image", export_symbols, NULL);
   scm_c_define_module("slayer", cond_expand_provide, "slayer-image");
 }
