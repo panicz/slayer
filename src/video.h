@@ -14,6 +14,18 @@
 
 DECLARE void glWindowPos2i (GLint x, GLint y);
 
+#define WITH_VERTEX_ARRAY(size, type, stride, pointer, action)	\
+  glEnableClientState(GL_VERTEX_ARRAY);				\
+  glVertexPointer(size, type, stride, pointer);			\
+  action;							\
+  glDisableClientState(GL_VERTEX_ARRAY);
+
+#define WITH_TEXTURE_COORDS_ARRAY(size, type, stride, pointer, action)	\
+  glEnableClientState(GL_TEXTURE_COORD_ARRAY);				\
+  glTexCoordPointer(size, type, stride, pointer);			\
+  action;								\
+  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+
 #endif // USE_OPENGL
 
 #if defined(USE_OPENGL) && !defined(NDEBUG)

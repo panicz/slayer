@@ -205,27 +205,28 @@ on_enter_video_context(SCM image) {
   int h = IMAGE_H(image);
   
   CAUTIOUSLY(glBindFramebuffer(GL_FRAMEBUFFER, output_buffer.frame));
-
-  CAUTIOUSLY(glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.color));
-  CAUTIOUSLY(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h));
-  
-  CAUTIOUSLY(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-				       GL_RENDERBUFFER, output_buffer.color));
   
   CAUTIOUSLY(glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.depth));
 
-  CAUTIOUSLY(glRenderbufferStorage(GL_RENDERBUFFER, 
-				   GL_DEPTH_COMPONENT24, w, h));
+  CAUTIOUSLY(glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT24,w,h));
 
   CAUTIOUSLY(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
 				       GL_RENDERBUFFER, output_buffer.depth));
 
   CAUTIOUSLY(glDrawBuffer(GL_COLOR_ATTACHMENT0));
 
-  if(IS_TEXTURE(image)) {
+  if(IS_SURFACE(image)) {
+    CAUTIOUSLY(glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.color));
+    CAUTIOUSLY(glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h));
+  
+    CAUTIOUSLY(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+					 GL_RENDERBUFFER, output_buffer.color));
+  }
+  else if(IS_TEXTURE(image)) {
     GLuint texture = TEXTURE(image);
     glBindTexture(GL_TEXTURE_2D, texture);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
+			   GL_TEXTURE_2D, texture, 0);
   }
 
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -242,9 +243,8 @@ on_exit_video_context(SCM image) {
       int w = IMAGE_W(image);
       int h = IMAGE_H(image);
 
-      CAUTIOUSLY(glReadBuffer(GL_COLOR_ATTACHMENT0));
-
       if(IS_SURFACE(image)) {
+	CAUTIOUSLY(glReadBuffer(GL_COLOR_ATTACHMENT0));
 	SDL_Surface *s = SURFACE(image);
 	CAUTIOUSLY(glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, 
 				s->pixels));
@@ -458,27 +458,40 @@ draw_surface_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 }
 
 static inline void
-draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
-  if(UNLIKELY(!(video_mode & SDL_OPENGL))) {
-    return WARN("no texture support in 2d mode");
-  }
-  GLuint texture_id = TEXTURE(image_smob);
-  SDL_Surface *target = SURFACE(target_smob);
-
+enter_texture_drawing_context(Uint16 w, Uint16 h) {
   CAUTIOUSLY(glPushMatrix());
   CAUTIOUSLY(glLoadIdentity());
 
   CAUTIOUSLY(glMatrixMode(GL_PROJECTION));
   CAUTIOUSLY(glPushMatrix());
   CAUTIOUSLY(glLoadIdentity());  
-  CAUTIOUSLY(gluOrtho2D(0, target->w, target->h, 0));
-
-  CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
+  CAUTIOUSLY(gluOrtho2D(0, w, h, 0));
 
   CAUTIOUSLY(glEnable(GL_TEXTURE_2D));
+  CAUTIOUSLY(glDisable(GL_DEPTH_TEST));
+}
 
-  CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
-  CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
+static inline void
+leave_texture_drawing_context() {
+  glEnable(GL_DEPTH_TEST);
+
+  CAUTIOUSLY(glDisable(GL_TEXTURE_2D));
+
+  CAUTIOUSLY(glPopMatrix());
+  CAUTIOUSLY(glMatrixMode(GL_MODELVIEW));
+  CAUTIOUSLY(glPopMatrix());
+}
+
+static inline void
+draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
+  if(UNLIKELY(!(video_mode & SDL_OPENGL))) {
+    return WARN("no texture support in 2d mode");
+  }
+  GLuint texture_id = TEXTURE(image_smob);
+  SDL_Surface *target = SURFACE(target_smob);
+  enter_texture_drawing_context(target->w, target->h);
+
+  CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
 
   float w, h;
   CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0, GL_TEXTURE_WIDTH, &w));
@@ -490,10 +503,10 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   Uint16 w1 = IMAGE_W(image_smob);
   Uint16 h1 = IMAGE_H(image_smob);
 
-  float x0_w = ((float) IMAGE_X(image_smob)) * _1_w;
-  float y0_h = ((float) IMAGE_Y(image_smob)) * _1_h;
-  float w1_w = ((float) w1) * _1_w;
-  float h1_h = ((float) h1) * _1_h;
+  float x0_w = IMAGE_X(image_smob) * _1_w;
+  float y0_h = IMAGE_Y(image_smob) * _1_h;
+  float w1_w = w1 * _1_w;
+  float h1_h = h1 * _1_h;
 
   static Uint8 indices[] = { 0, 1, 2, 3 };
   float texture_coords[] = { x0_w,        y0_h, 
@@ -504,26 +517,14 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 		     x + w1, y,
 		     x + w1, y + h1,
 		     x,      y + h1 };
+    
+  WITH_VERTEX_ARRAY
+    (2, GL_SHORT, 0, quads,
+     WITH_TEXTURE_COORDS_ARRAY
+     (2, GL_FLOAT, 0, texture_coords,
+      glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, indices)));
 
-  glColor4f(1,1,1,1);
-  
-  glDisable(GL_DEPTH_TEST);
-  glEnableClientState(GL_VERTEX_ARRAY);
-  glVertexPointer(2, GL_SHORT, 0, quads);
-  glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-  glTexCoordPointer(2, GL_FLOAT, 0, texture_coords);
-
-  glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, indices);
-
-  glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-  glDisableClientState(GL_VERTEX_ARRAY);
-  glEnable(GL_DEPTH_TEST);
-
-  CAUTIOUSLY(glDisable(GL_TEXTURE_2D));
-
-  CAUTIOUSLY(glPopMatrix());
-  CAUTIOUSLY(glMatrixMode(GL_MODELVIEW));
-  CAUTIOUSLY(glPopMatrix());
+  leave_texture_drawing_context();
 }
 
 static inline void
