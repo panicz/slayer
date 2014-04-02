@@ -98,4 +98,8 @@ DECLARE SCM
 texture_smob(GLuint texture_id, bool mirror_x, bool mirror_y,
 	     Uint16 x, Uint16 y, Uint16 w, Uint16 h, image_access_t access);
 
+DECLARE SCM
+texture_smob_from_pixel_data(Uint16 w, Uint16 h, const void *pixels,
+			     bool mirror_x, bool mirror_y);
+
 #endif // _IMAGE_H

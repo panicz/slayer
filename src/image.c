@@ -144,7 +144,7 @@ init_current_video_output_fluid() {
   scm_gc_protect_object(current_video_output_fluid);
 }
 
-static inline SCM
+SCM
 texture_smob_from_pixel_data(Uint16 w, Uint16 h, const void *pixels,
 			     bool mirror_x, bool mirror_y) {
   GLuint texture_id = CAUTIOUSLY(glGenTexture());
@@ -420,25 +420,30 @@ copy_surface(SDL_Surface *surface, SDL_Rect *area) {
 }
 
 static inline void
-draw_surface_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
+draw_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   SDL_Surface *image = SURFACE(image_smob);
-  SDL_Surface *target = SURFACE(target_smob);
   SDL_Rect clip = IMAGE_AREA(target_smob);
   image_access_t target_access = IMAGE_ACCESS(target_smob);
   if(target_access == IMAGE_ACCESS_VIEW) {
     return WARN("attempt to draw on a read-only surface");
   }
   if(target_access == IMAGE_ACCESS_COPY) {
-    pointer_ref_count_t *target_ref_count = surface_ref_count(target);
-    if(target_ref_count->count > 1) { // we need to make a copy of target
-      WARN("making copy of target surface (%i references)",
-	   target_ref_count->count);
-      target_ref_count->count--;
-      target = copy_surface(target, &clip);
-      SCM_SET_SMOB_DATA(target_smob, target);
-      SET_IMAGE_XY(target_smob, 0, 0);
-      clip.x = 0;
-      clip.y = 0;
+    if(IS_SURFACE(target_smob)) {
+      SDL_Surface *target = SURFACE(target_smob);
+      pointer_ref_count_t *target_ref_count = surface_ref_count(target);
+      if(target_ref_count->count > 1) { // we need to make a copy of target
+	WARN("making copy of target surface (%i references)",
+	     target_ref_count->count);
+	target_ref_count->count--;
+	target = copy_surface(target, &clip);
+	SCM_SET_SMOB_DATA(target_smob, target);
+	SET_IMAGE_XY(target_smob, 0, 0);
+	clip.x = 0;
+	clip.y = 0;
+      }
+    }
+    else if(IS_TEXTURE(target_smob)) {
+      WARN("texture copying not implemented");
     }
   }
   
@@ -446,7 +451,7 @@ draw_surface_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 #ifdef USE_OPENGL
   else if((video_mode & SDL_OPENGL)) {
     CAUTIOUSLY(glDisable(GL_DEPTH_TEST));
-    CAUTIOUSLY(glWindowPos2i(x, target->h - y));
+    CAUTIOUSLY(glWindowPos2i(x, IMAGE_H(target_smob) - y));
     CAUTIOUSLY(glPixelZoom(1.0, -1.0));
     CAUTIOUSLY(glDrawPixels(image->w, image->h, GL_RGBA, GL_UNSIGNED_BYTE,
 			    image->pixels));
@@ -454,20 +459,23 @@ draw_surface_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   }
 #endif
   else {
+    SDL_Surface *target = SURFACE(target_smob);
     SDL_Rect at = sdl_rect(x, y, -1, -1);
     SDL_BlitSurface(image, &clip, target, &at);
   }
 }
 
+
 #ifdef USE_OPENGL
+/*
 static inline void
 draw_surface_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   WARN("not implemented");
 }
+*/
 
 static inline void
-enter_texture_on_surface_drawing_context(Uint16 w, Uint16 h, 
-					 bool mirror_x, bool mirror_y) {
+enter_texture_drawing_context(Uint16 w,Uint16 h,bool mirror_x,bool mirror_y) {
   CAUTIOUSLY(glPushMatrix());
   CAUTIOUSLY(glLoadIdentity());
 
@@ -484,10 +492,11 @@ enter_texture_on_surface_drawing_context(Uint16 w, Uint16 h,
 
   CAUTIOUSLY(glEnable(GL_TEXTURE_2D));
   CAUTIOUSLY(glDisable(GL_DEPTH_TEST));
+  CAUTIOUSLY(glColor4f(1.0, 1.0, 1.0, 1.0));
 }
 
 static inline void
-leave_texture_on_surface_drawing_context() {
+leave_texture_drawing_context() {
   CAUTIOUSLY(glEnable(GL_DEPTH_TEST));
 
   CAUTIOUSLY(glDisable(GL_TEXTURE_2D));
@@ -498,16 +507,15 @@ leave_texture_on_surface_drawing_context() {
 }
 
 static inline void
-draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
+draw_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   if(UNLIKELY(!(video_mode & SDL_OPENGL))) {
     return WARN("no texture support in 2d mode");
   }
   GLuint texture_id = TEXTURE(image_smob);
-  SDL_Surface *target = SURFACE(target_smob);
   bool mirror_x = TEXTURE_MIRROR_X(image_smob);
   bool mirror_y = TEXTURE_MIRROR_Y(image_smob);
-  enter_texture_on_surface_drawing_context(target->w, target->h,
-					   mirror_x, mirror_y);
+  enter_texture_drawing_context(IMAGE_W(target_smob), IMAGE_H(target_smob), 
+				mirror_x, mirror_y);
 
   CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
 
@@ -528,11 +536,11 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 
   if(mirror_x) {
     NOTE("this branch has never been tested");
-    x = target->w - x - w1;
+    x = IMAGE_W(target_smob) - x - w1;
   }
 
   if(!mirror_y) {
-    y = target->h - y - h1;
+    y = IMAGE_H(target_smob) - y - h1;
   }
 
   static Uint8 indices[] = { 0, 1, 2, 3 };
@@ -551,13 +559,9 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
      (2, GL_FLOAT, 0, texture_coords,
       glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, indices)));
 
-  leave_texture_on_surface_drawing_context();
+  leave_texture_drawing_context();
 }
 
-static inline void
-draw_texture_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
-  WARN("not implemented");
-}
 #endif
 
 static SCM 
@@ -571,19 +575,12 @@ draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
   else {
     target_smob = current_video_output();
   }
-
-  if(IS_SURFACE(image_smob) && IS_SURFACE(target_smob)) {
-    draw_surface_on_surface(image_smob, x, y, target_smob);
+  if(IS_SURFACE(image_smob)) {
+    draw_surface(image_smob, x, y, target_smob);
   }
 #ifdef USE_OPENGL
-  else if(IS_SURFACE(image_smob) && IS_TEXTURE(target_smob)) {
-    draw_surface_on_texture(image_smob, x, y, target_smob);
-  }
-  else if(IS_TEXTURE(image_smob) && IS_SURFACE(target_smob)) {
-    draw_texture_on_surface(image_smob, x, y, target_smob);
-  }
-  else if(IS_TEXTURE(image_smob) && IS_TEXTURE(target_smob)) {
-    draw_texture_on_texture(image_smob, x, y, target_smob);
+  else if(IS_TEXTURE(image_smob)) {
+    draw_texture(image_smob, x, y, target_smob);
   }
 #endif
   else {
@@ -627,20 +624,20 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
 }
 
+
 static SCM
 crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h, SCM _access) {
   scm_assert_smob_type(image_tag, image_smob);  
-  SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
   Sint16 x = scm_to_int16(_x);
   Sint16 y = scm_to_int16(_y);
   Sint16 w = (GIVEN(_w) && indeed(_w)) ? scm_to_int16(_w) : 0;
   Sint16 h = (GIVEN(_h) && indeed(_h)) ? scm_to_int16(_h) : 0;
 
   if(w <= 0) {
-    w += (image->w - x);
+    w += IMAGE_W(image_smob) - x;
   }
   if(h <= 0) {
-    h += (image->h - y);
+    h += IMAGE_H(image_smob) - y;
   }
   SDL_Rect size = {
     .x = x, .y = y, .w = (Uint16) w, .h = (Uint16) h
@@ -663,17 +660,28 @@ crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h, SCM _access) {
 		   "'copy 'view 'proxy", scm_list_1(_access));
   }
 
-  SDL_Surface *cropped 
-    = SDL_CreateRGBSurface(image->flags, size.w, size.h, 
-			   image->format->BitsPerPixel,
-			   image->format->Rmask, image->format->Gmask,
-			   image->format->Bmask, image->format->Amask);
-  Uint8 alpha = image->format->alpha;
-  SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
-  SDL_BlitSurface(image, &size, cropped, NULL);
-  SDL_SetAlpha(image, SDL_SRCALPHA, alpha);
+  if(IS_SURFACE(image_smob)) {
+    SDL_Surface *image = (SDL_Surface *) SCM_SMOB_DATA(image_smob);
+    SDL_Surface *cropped 
+      = SDL_CreateRGBSurface(image->flags, size.w, size.h, 
+			     image->format->BitsPerPixel,
+			     image->format->Rmask, image->format->Gmask,
+			     image->format->Bmask, image->format->Amask);
+    Uint8 alpha = image->format->alpha;
+    SDL_SetAlpha(image, 0, SDL_ALPHA_OPAQUE);
+    SDL_BlitSurface(image, &size, cropped, NULL);
+    SDL_SetAlpha(image, SDL_SRCALPHA, alpha);
+    return surface_smob(cropped, 0, 0, cropped->w, cropped->h, access);
+  }
+  else if(IS_TEXTURE(image_smob)) {
+    return texture_smob(TEXTURE(image_smob), 
+			TEXTURE_MIRROR_X(image_smob),
+			TEXTURE_MIRROR_Y(image_smob),
+			x, y, w, h, access);
+  }
+  FATAL("Unknown image variant");
   scm_remember_upto_here_1(image_smob);
-  return surface_smob(cropped, 0, 0, cropped->w, cropped->h, access);
+  return SCM_UNSPECIFIED;
 }
 
 static SCM 
