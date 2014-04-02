@@ -21,6 +21,13 @@
 #define UNLIKELY(x) EXPECT((x), 0)
 #define LIKELY(x) EXPECT((x), 1)
 
+// these are convinience macros that are meant to remind about the meaning
+// of arguments that are given immediate values
+#define NO(arg_name) false
+#define DO(arg_name) true
+#define AS(arg_name, value) value
+
+
 #if !HAVE_ASPRINTF
 int asprintf(char **strp, const char *fmt, ...);
 #endif
