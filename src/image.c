@@ -136,7 +136,8 @@ init_current_video_output_fluid() {
   if(!image_tag) {
     FATAL("the function needs to be initialized after image_tag");
   }
-  SCM screen_smob = surface_smob(screen, 0, 0, screen->w, screen->h,
+  SCM screen_smob = surface_smob(screen, AS(x, 0), AS(y, 0), 
+				 screen->w, screen->h,
 				 IMAGE_ACCESS_PROXY);
   scm_gc_protect_object(screen_smob);
   current_video_output_fluid = scm_make_fluid_with_default(screen_smob);
@@ -144,19 +145,23 @@ init_current_video_output_fluid() {
 }
 
 static inline SCM
-texture_smob_from_pixel_data(Uint16 w, Uint16 h, const void *pixels) {
+texture_smob_from_pixel_data(Uint16 w, Uint16 h, const void *pixels,
+			     bool mirror_x, bool mirror_y) {
   GLuint texture_id = CAUTIOUSLY(glGenTexture());
   CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
   CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST));
   CAUTIOUSLY(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST));
   CAUTIOUSLY(glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0,
 			  GL_RGBA, GL_UNSIGNED_BYTE, pixels));
-  return texture_smob(texture_id, 0, 1, 0, 0, w, h, IMAGE_ACCESS_PROXY);
+  return texture_smob(texture_id, mirror_x, mirror_y, 
+		      AS(x, 0), AS(y, 0), w, h, IMAGE_ACCESS_PROXY);
 }
 
 static SCM
 make_texture(SCM w, SCM h) {
-  return texture_smob_from_pixel_data(scm_to_uint16(w),scm_to_uint16(h),NULL);
+  return texture_smob_from_pixel_data(scm_to_uint16(w),scm_to_uint16(h),
+				      AS(pixels, NULL), 
+				      NO(mirror_x), NO(mirror_y));
 }
 
 static inline SCM
@@ -167,7 +172,8 @@ surface_to_texture(SCM image) {
     return image;
   }
   SDL_Surface *s = SURFACE(image);
-  return texture_smob_from_pixel_data(s->w, s->h, s->pixels);
+  return texture_smob_from_pixel_data(s->w, s->h, s->pixels, 
+				      NO(mirror_x), DO(mirror_y));
 }
 
 inline SCM
@@ -226,7 +232,7 @@ on_enter_video_context(SCM image) {
     GLuint texture = TEXTURE(image);
     glBindTexture(GL_TEXTURE_2D, texture);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, 
-			   GL_TEXTURE_2D, texture, 0);
+			   GL_TEXTURE_2D, texture, AS(level, 0));
   }
 
   if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -369,11 +375,13 @@ load_image(SCM path) {
     image = new_image;
   }
   if(video_mode & SDL_OPENGL) {
-    SCM tex = texture_smob_from_pixel_data(image->w, image->h, image->pixels);
+    SCM tex = texture_smob_from_pixel_data(image->w, image->h, image->pixels,
+					   NO(mirror_x), DO(mirror_y));
     SDL_FreeSurface(image);
     return tex;
   }
-  return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
+  return surface_smob(image, AS(x, 0), AS(y, 0), 
+		      image->w, image->h, IMAGE_ACCESS_PROXY);
 }
 
 static SCM
@@ -458,22 +466,29 @@ draw_surface_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 }
 
 static inline void
-enter_texture_drawing_context(Uint16 w, Uint16 h) {
+enter_texture_on_surface_drawing_context(Uint16 w, Uint16 h, 
+					 bool mirror_x, bool mirror_y) {
   CAUTIOUSLY(glPushMatrix());
   CAUTIOUSLY(glLoadIdentity());
 
   CAUTIOUSLY(glMatrixMode(GL_PROJECTION));
   CAUTIOUSLY(glPushMatrix());
-  CAUTIOUSLY(glLoadIdentity());  
-  CAUTIOUSLY(gluOrtho2D(0, w, h, 0));
+  CAUTIOUSLY(glLoadIdentity());
+
+  float left   = mirror_x ? w : 0;
+  float right  = mirror_x ? 0 : w;
+  float bottom = mirror_y ? h : 0;
+  float top    = mirror_y ? 0 : h;
+
+  CAUTIOUSLY(gluOrtho2D(left, right, bottom, top));
 
   CAUTIOUSLY(glEnable(GL_TEXTURE_2D));
   CAUTIOUSLY(glDisable(GL_DEPTH_TEST));
 }
 
 static inline void
-leave_texture_drawing_context() {
-  glEnable(GL_DEPTH_TEST);
+leave_texture_on_surface_drawing_context() {
+  CAUTIOUSLY(glEnable(GL_DEPTH_TEST));
 
   CAUTIOUSLY(glDisable(GL_TEXTURE_2D));
 
@@ -489,13 +504,16 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   }
   GLuint texture_id = TEXTURE(image_smob);
   SDL_Surface *target = SURFACE(target_smob);
-  enter_texture_drawing_context(target->w, target->h);
+  bool mirror_x = TEXTURE_MIRROR_X(image_smob);
+  bool mirror_y = TEXTURE_MIRROR_Y(image_smob);
+  enter_texture_on_surface_drawing_context(target->w, target->h,
+					   mirror_x, mirror_y);
 
   CAUTIOUSLY(glBindTexture(GL_TEXTURE_2D, texture_id));
 
   float w, h;
-  CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0, GL_TEXTURE_WIDTH, &w));
-  CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0, GL_TEXTURE_HEIGHT, &h));
+  CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0,GL_TEXTURE_WIDTH, &w));
+  CAUTIOUSLY(glGetTexLevelParameterfv(GL_TEXTURE_2D,0,GL_TEXTURE_HEIGHT,&h));
 
   float _1_w = 1.0 / w;
   float _1_h = 1.0 / h;
@@ -508,6 +526,15 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   float w1_w = w1 * _1_w;
   float h1_h = h1 * _1_h;
 
+  if(mirror_x) {
+    NOTE("this branch has never been tested");
+    x = target->w - x - w1;
+  }
+
+  if(!mirror_y) {
+    y = target->h - y - h1;
+  }
+
   static Uint8 indices[] = { 0, 1, 2, 3 };
   float texture_coords[] = { x0_w,        y0_h, 
 			     x0_w + w1_w, y0_h,
@@ -517,14 +544,14 @@ draw_texture_on_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 		     x + w1, y,
 		     x + w1, y + h1,
 		     x,      y + h1 };
-    
+
   WITH_VERTEX_ARRAY
     (2, GL_SHORT, 0, quads,
      WITH_TEXTURE_COORDS_ARRAY
      (2, GL_FLOAT, 0, texture_coords,
       glDrawElements(GL_QUADS, 4, GL_UNSIGNED_BYTE, indices)));
 
-  leave_texture_drawing_context();
+  leave_texture_on_surface_drawing_context();
 }
 
 static inline void
