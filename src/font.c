@@ -91,9 +91,17 @@ render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
   }
   SDL_Surface *image = SDL_ConvertSurface(surface, &rgba32, SDL_SRCALPHA);
   SDL_FreeSurface(surface);
-
+  /*
+  if(video_mode & SDL_OPENGL) {
+    SCM tex = texture_smob_from_pixel_data(image->w, image->h, image->pixels,
+					   NO(mirror_x), DO(mirror_y));
+    SDL_FreeSurface(image);
+    return tex;
+  }
+  */
   scm_remember_upto_here_1(font);
-  return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
+  return surface_smob(image, AS(x, 0), AS(y, 0), image->w, image->h, 
+		      IMAGE_ACCESS_PROXY);
 }
 
 SCM 
