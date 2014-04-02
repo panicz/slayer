@@ -183,11 +183,14 @@ current_video_output() {
 
 #ifdef USE_OPENGL
 // this data is used when one tries to draw output to an image in 3d mode
+// TODO it should probably be implemented as a stack, in case someone 
+// wanted to compose a few "call-with-video-output-to" contexts
 struct {
   GLuint frame;
   GLuint color;
   GLuint depth;
   GLuint draw;
+  struct { GLint x, y, w, h; } viewport;
 } output_buffer;
 
 static inline void
@@ -210,6 +213,8 @@ on_enter_video_context(SCM image) {
   int w = IMAGE_W(image);
   int h = IMAGE_H(image);
   
+  CAUTIOUSLY(glGetIntegerv(GL_VIEWPORT, (GLint *) &output_buffer.viewport));
+
   CAUTIOUSLY(glBindFramebuffer(GL_FRAMEBUFFER, output_buffer.frame));
   
   CAUTIOUSLY(glBindRenderbuffer(GL_RENDERBUFFER, output_buffer.depth));
@@ -261,6 +266,8 @@ on_exit_video_context(SCM image) {
   else {
     WARN("Failed to complete framebuffer request: %i", code);
   }
+  CAUTIOUSLY(glViewport(output_buffer.viewport.x, output_buffer.viewport.y,
+			output_buffer.viewport.w, output_buffer.viewport.h));
   CAUTIOUSLY(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
 #endif
@@ -467,15 +474,16 @@ draw_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 
 
 #ifdef USE_OPENGL
-/*
-static inline void
-draw_surface_on_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
-  WARN("not implemented");
-}
-*/
+
+static struct { GLint x, y, w, h; } texture_drawing_context_viewport;
 
 static inline void
 enter_texture_drawing_context(Uint16 w,Uint16 h,bool mirror_x,bool mirror_y) {
+  CAUTIOUSLY(glGetIntegerv(GL_VIEWPORT, 
+			   (GLint *) &texture_drawing_context_viewport));
+
+  CAUTIOUSLY(glViewport(0, 0, w, h));
+
   CAUTIOUSLY(glPushMatrix());
   CAUTIOUSLY(glLoadIdentity());
 
@@ -504,6 +512,10 @@ leave_texture_drawing_context() {
   CAUTIOUSLY(glPopMatrix());
   CAUTIOUSLY(glMatrixMode(GL_MODELVIEW));
   CAUTIOUSLY(glPopMatrix());
+  CAUTIOUSLY(glViewport(texture_drawing_context_viewport.x,
+			texture_drawing_context_viewport.y,
+			texture_drawing_context_viewport.w,
+			texture_drawing_context_viewport.h));
 }
 
 static inline void
