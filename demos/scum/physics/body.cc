@@ -22,6 +22,7 @@ static body_property_getter_map_t body_property_getter;
 
 DEF_MAKE_SOME_BODY(ZILCH, DONT, plane, Plane, DONT(), 0, 0, 1, 0);
 DEF_MAKE_BODY(cylinder, Cylinder, DONT(), 0.5, 1.0);
+DEF_MAKE_BODY(capsule, CCylinder, DONT(), 0.5, 1.0);
 DEF_MAKE_BODY(box, Box, DONT(), 1, 1, 1);
 DEF_MAKE_BODY(sphere, Sphere, DONT(), 0.5);
 DEF_MAKE_BODY(trimesh, TriMesh, {
@@ -40,6 +41,7 @@ init_body_maker() {
 
   SET_BODY_MAKER(box);
   SET_BODY_MAKER(cylinder);
+  SET_BODY_MAKER(capsule);
   SET_BODY_MAKER(plane);
   SET_BODY_MAKER(sphere);
   SET_BODY_MAKER(trimesh);
@@ -411,38 +413,43 @@ body_mass_distribution_getter(body_t *body) {
   return scm_cons(scm_from_dVector3(m.c), scm_from_dMatrix3(m.I));
 }
 
+#define DEF_XCYLINDER_PARAMETER_ACCESSORS(Type, name)			\
+  static void								\
+  body_##name##_height_setter(body_t *body, SCM value) {		\
+    ASSERT_SCM_TYPE(real, value, 2);					\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    dGeom##Type##SetParams(body->geom, radius, scm_to_double(value));	\
+    scm_remember_upto_here_1(value);					\
+  }									\
+									\
+  static SCM								\
+  body_##name##_height_getter(body_t *body) {				\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    return scm_from_double(height);					\
+  }									\
+									\
+  static void								\
+  body_##name##_radius_setter(body_t *body, SCM value) {		\
+    ASSERT_SCM_TYPE(real, value, 2);					\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    dGeom##Type##SetParams(body->geom, scm_to_double(value), height);	\
+    scm_remember_upto_here_1(value);					\
+  }									\
+									\
+  static SCM								\
+  body_##name##_radius_getter(body_t *body) {				\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    return scm_from_double(radius);					\
+  }
 
-static void
-body_cylinder_height_setter(body_t *body, SCM value) {
-  ASSERT_SCM_TYPE(real, value, 2);
-  dReal radius, height;
-  dGeomCylinderGetParams(body->geom, &radius, &height);
-  dGeomCylinderSetParams(body->geom, radius, scm_to_double(value));
-  scm_remember_upto_here_1(value);
-}
+DEF_XCYLINDER_PARAMETER_ACCESSORS(Cylinder, cylinder)
+DEF_XCYLINDER_PARAMETER_ACCESSORS(CCylinder, capsule)
 
-static SCM
-body_cylinder_height_getter(body_t *body) {
-  dReal radius, height;
-  dGeomCylinderGetParams(body->geom, &radius, &height);
-  return scm_from_double(height);
-}
-
-static void
-body_cylinder_radius_setter(body_t *body, SCM value) {
-  ASSERT_SCM_TYPE(real, value, 2);
-  dReal radius, height;
-  dGeomCylinderGetParams(body->geom, &radius, &height);
-  dGeomCylinderSetParams(body->geom, scm_to_double(value), height);
-  scm_remember_upto_here_1(value);
-}
-
-static SCM
-body_cylinder_radius_getter(body_t *body) {
-  dReal radius, height;
-  dGeomCylinderGetParams(body->geom, &radius, &height);
-  return scm_from_double(radius);
-}
+#undef DEF_XCYLINDER_PARAMETER_ACCESSORS
 
 static void
 init_body_property_accessors() {
@@ -459,6 +466,8 @@ init_body_property_accessors() {
   SET_BODY_ACCESSORS(dBoxClass, box_, dimensions);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, height);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, radius);
+  SET_BODY_ACCESSORS(dCCylinderClass, capsule_, height);
+  SET_BODY_ACCESSORS(dCCylinderClass, capsule_, radius);
   SET_BODY_ACCESSORS(dSphereClass, sphere_, radius);
   SET_BODY_ACCESSORS(dPlaneClass, plane_, normal);
   SET_BODY_ACCESSORS(dPlaneClass, plane_, displacement);
