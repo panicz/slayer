@@ -69,7 +69,7 @@
 	    insert rest head tail
 	    tree-find tree-map map*
 	    depth array-map array-map/typed array-append
-	    keyword-args->hash-map keyword-args->alist
+	    keyword-args->hash-map keyword-args->alist alist->keyword-args
 	    list->uniform-vector list->uniform-array
 	    contains-duplicates?
 	    module->hash-map module->list module-symbols
