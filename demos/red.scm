@@ -2,6 +2,14 @@
 exit
 !#
 
+;; this code is horrible and don't look at it!
+
+(set! %load-path (append '("." "./guile-modules" ".." "../guile-modules") 
+			 %load-path))
+
+;; (use-modules (oop goops)(extra common)(extra ref))
+
+
 (use-modules (slayer) 
 	     (slayer 3d) 
 	     (extra common)
@@ -15,9 +23,10 @@ exit
 	     (widgets base)
 	     (widgets text-area)
 	     (widgets sprite)
-	     (widgets 3d))
-
-(keydn 'esc quit)
+	     (widgets 3d)
+	     (red body)
+	     (red joint)
+	     )
 
 (set-window-title! "RED")
 
@@ -30,77 +39,24 @@ exit
 ;; - łączenie dwóch ciał więzami; odpowiednia zmiana pozycji
 ;;   więzów
 ;; - zmiana parametrów więzów
+(define-method (add-joint! #;between (body-1 <physical-body>)
+				     #;and (body-2 <physical-body>)
+					   #;to (rig <3d-stage>))
+  (let ((joint (make <physical-joint> #:body-1 body-1 #:body-2 body-2)))
+    (add-object! joint #;to rig)))
 
-(define-class <editable-object> (<3d-object>))
 
-(define-class <physical-body> (<editable-object>)
-  (mesh-cache #:allocation #:class #:init-value #[])
-  (default-dimensions #:allocation #:class
-    #:init-value '((sphere (radius . 0.5))
-		   (box (x . 0.5) (y . 0.5) (z . 0.5))
-		   (cylinder (radius . 0.5) (height . 1.0))))
-  (generators 
-   #:allocation #:class
-   #:init-value 
-   `((sphere . ,generate-sphere)
-     (cylinder . ,generate-tube)
-     (box . ,generate-box)))
-  (dimension-editors 
-   #:allocation #:class
-   #:init-value '()) ;; initalized elsewhere
-  (shapes
-   #:allocation #:virtual
-   #:slot-ref (lambda(self)(map first #[self 'generators]))
-   #:slot-set! noop)
-  (%shape #:init-value 'box #:init-keyword #:shape)
-  (dimensions #:init-value #f #:init-keyword #:dimensions)
-  (shape 
-   #:allocation #:virtual
-   #:slot-ref
-   (lambda (self)
-     #[self '%shape])
-   #:slot-set!
-   (lambda (self shape)
-     (set! #[self '%shape] shape)
-     (set! #[self 'dimensions] (copy-tree #[self : 'default-dimensions : shape]))))
-  (mass #:init-value 1.0 #:init-keyword #:mass)
-  (center-of-mass #:init-value #f32(0 0 0) #:init-keyword #:center-of-mass)
-  (inertia-tensor #:init-value #2f32((1 0 0)
-				     (0 1 0)
-				     (0 0 1)) #:init-keyword #:inertia-tensor)
-  (mesh 
-   #:allocation #:virtual
-   #:slot-ref
-   (lambda (self)
-     (let ((shape #[self '%shape])
-	   (dimensions #[self 'dimensions]))
-       (or #[self : 'mesh-cache : `(,shape ,@dimensions)]
-	   (let ((mesh (apply #[self : 'generators : shape] 
-			      (append-map (lambda ((name . value))
-					    `(,(symbol->keyword name) ,value))
-				   dimensions))))
-	     (format (current-error-port)"new mesh: ~a\n"`(,shape ,@dimensions))
-	     (set! #[self : 'mesh-cache : (copy-tree `(,shape ,@dimensions))] mesh)
-	     mesh))))
-   #:slot-set! noop))
-
-(define-method (initialize (self <physical-body>) args)
-  (next-method)
-  (if (not #[self 'dimensions])
-      (set! #[self 'dimensions]
-	    (copy-tree #[self : 'default-dimensions : #[self 'shape]]))))
-
-(define-method (set-body-shape! #;of (body <physical-body>) 
-				     #;to (shape <symbol>) . args)
-  (set! #[body 'shape] shape)
-  (set! #[body 'dimensions]
-	(replace-alist-bindings #;in #[body 'dimensions]
-				     #;with (keyword-args->alist args)))
-  (set! #[the-dimension-editor 'content]
-	#[body : 'dimension-editors : shape])
-  (set-target! #;of the-dimension-editor #;as body))
 
 (define the-rig (make <3d-stage>))
+
+(define-method (describe-rig (stage <3d-stage>))
+  (let-values (((bodies joints) (partition (λ(x)(is-a? x <physical-body>))
+					   #[stage 'objects])))
+    `(rig
+      (bodies
+       ,@(map describe-body bodies))
+      (joints
+       ,@(map describe-joint joints)))))
 
 (publish
  ;; tu jest -- w istocie, zgodzię się -- za dużo pisaniny!
@@ -113,10 +69,15 @@ exit
     inertia-tensor-1
     inertia-tensor-2
     inertia-tensor-3
+    name-editor
     dimension-editor))
  (define the-dimension-editor dimension-editor)
  where
  (define body (make <physical-body>))
+ (define name-editor
+   (property-editor
+    body
+    ("name: " #[body 'name])))
  (define position-editor
    (parameter-editor 
     body
@@ -133,28 +94,28 @@ exit
  (define mass-editor
    (parameter-editor
     body
-    ("mass: " #[body 'mass])
+    ("mass:" #[body 'mass])
     (" x: " #[body : 'center-of-mass : 0])
     (" y: " #[body : 'center-of-mass : 1])
     (" z: " #[body : 'center-of-mass : 2])))
  (define inertia-tensor-1 
    (parameter-editor
     body 
-    ("t" #[#[body 'inertia-tensor] 0 0])
-    ("e" #[#[body 'inertia-tensor] 0 1])
-    ("n" #[#[body 'inertia-tensor] 0 2])))
+    (" te " #[#[body 'inertia-tensor] 0 0])
+    (" ns " #[#[body 'inertia-tensor] 0 1])
+    (" or " #[#[body 'inertia-tensor] 0 2])))
  (define inertia-tensor-2 
    (parameter-editor
     body 
-    ("s" #[#[body 'inertia-tensor] 1 0])
-    ("o" #[#[body 'inertia-tensor] 1 1])
-    ("r" #[#[body 'inertia-tensor] 1 2])))
+    ("    " #[#[body 'inertia-tensor] 1 0])
+    (" of " #[#[body 'inertia-tensor] 1 1])
+    ("  i " #[#[body 'inertia-tensor] 1 2])))
  (define inertia-tensor-3
    (parameter-editor
     body 
-    ("i" #[#[body 'inertia-tensor] 2 0])
-    ("n" #[#[body 'inertia-tensor] 2 1])
-    ("e" #[#[body 'inertia-tensor] 2 2])))
+    (" ne " #[#[body 'inertia-tensor] 2 0])
+    (" rt " #[#[body 'inertia-tensor] 2 1])
+    (" ia " #[#[body 'inertia-tensor] 2 2])))
  (define dimension-editor
    (make <container-widget> #:min-h 12))
  (add-object! body #;to the-rig)
@@ -163,28 +124,42 @@ exit
  (set! #[body 'dimension-editors]
        (map (lambda ((name . parameters))
 	      `(,name
-		.
-		,(apply 
-		  (layout #:lay-out lay-out-horizontally)
-		  (map (lambda ((param . _))
-			 (make <numeric-input> #:w 80 #:h 12
-			       #:label 
-			       (string-append (symbol->string param) ": ")
-			       #:accessor
-			       (accessor x #[x : 'dimensions : param])))
-		       parameters))))
+		. ,(apply 
+		    (layout #:lay-out lay-out-horizontally)
+		    (map (lambda ((param . _))
+			   (make <numeric-input> #:w 80 #:h 12
+				 #:label 
+				 (string-append (symbol->string param) ": ")
+				 #:accessor
+				 (accessor x #[x : 'dimensions : param])))
+			 parameters))))
 	    #[body 'default-dimensions])))
 
 (add-child! body-editor #;to *stage*)
 
+(publish
+ (define joint-editor
+   (apply (layout #:x 640 #:y (+ #[body-editor 'y] #[body-editor 'h] 100))
+	  (map (lambda ((name . default-value))
+		 (make <numeric-input> #:w 120 #:h 12 
+		       #:label (symbol->string name)
+		       #:taget joint
+		       #:accessor (accessor joint name)))
+	       #[joint 'default-common-parameters])))
+ where
+ (define joint (make <physical-joint>)))
 
-(define-method (select-object! (o <editable-object>) #;from (v <3d-editor>))
+(define-method (select-object! (o <physical-body>) #;from (v <3d-editor>))
   (next-method)
   (set! #[the-dimension-editor 'content]
 	#[o : 'dimension-editors : #[o 'shape]])
   (set-target! #;of body-editor #;as o))
 
-(define view (make <3d-editor> 
+(define-method (select-object! (o <physical-joint>) #;from (v <3d-editor>))
+  (next-method)
+  (format #t "selecting a joint ~a\n" o))
+
+(define view (make <3d-editor>
 	       #:x 10 #:y 10 
 	       #:w 620
 	       #:h 460
@@ -196,7 +171,9 @@ exit
 
 (set! #[view 'left-click]
       (lambda (x y)
-	(unselect-all! view)
+	(if (or (>= (length #[view 'selected]) 2)
+		(any (λ(x)(is-a? x <physical-joint>)) #[view 'selected]))
+	    (unselect-all! view))
 	(let ((object (object-at-position x y view)))
 	  (if object
 	      (select-object! object #;from view)
@@ -221,6 +198,16 @@ exit
 (key 'left (lambda () (relative-turn! #[view 'camera] 2 0)))
 (key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
+(keydn 'esc (lambda () (unselect-all! view)))
+
+(keydn 'j (lambda ()
+	    (and-let* ((selected #[view 'selected])
+		       ((= (length selected) 2)))
+	      (add-joint! #;between (first selected) #;and (second selected)
+				    #;to the-rig))))
+
+(keydn '/ (lambda () (pretty-print (describe-rig the-rig))))
+
 (keydn "1" (lambda () 
 	     (set! #[view : 'camera : 'orientation] 
 		   `(0.0 . #f32(1 0 0)))))
@@ -228,16 +215,6 @@ exit
 (keydn 'g (grab-mode view))
 (keydn 'h (rotate-mode view))
 (keydn 'delete (lambda () (delete-selected-objects! #;in view)))
-
-(define-method (shift-body-shape! (body <physical-body>) #;by (n <integer>))
-  (let* ((shapes #[body 'shapes])
-	 (l (length shapes))
-	 (new-shape (list-ref shapes
-			      (modulo (+ (list-index (equals? #[body 'shape])
-						     shapes)
-					 n)
-				      l))))
-    (set-body-shape! body new-shape)))
 
 (keydn ","
   (lambda ()
