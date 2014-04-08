@@ -6,8 +6,7 @@
   #:use-module (extra figures)
 
   #:use-module (red object)
-  #:export (<physical-body> set-body-shape! properties describe-body
-			    shift-body-shape!))
+  #:export (<physical-body> properties describe-body))
 
 (define-class <physical-body> (<editable-object>)
   (default-dimensions #:allocation #:class
@@ -69,15 +68,6 @@
       (set! #[self 'dimensions]
 	    (copy-tree #[self : 'default-dimensions : #[self 'shape]]))))
 
-(define-method (set-body-shape! #;of (body <physical-body>) 
-				     #;to (shape <symbol>) . args)
-  (set! #[body 'shape] shape)
-  (set! #[body 'dimensions]
-	(replace-alist-bindings #;in #[body 'dimensions]
-				     #;with (keyword-args->alist args)))
-  (set! #[the-dimension-editor 'content]
-	#[body : 'dimension-editors : shape])
-  (set-target! #;of the-dimension-editor #;as body))
 
 (define-method (properties (body <physical-body>))
   (let ((common-properties `(#:mass ,#[body 'mass] 
@@ -108,12 +98,3 @@
 (define-method (describe-body (body <physical-body>))
   `(,#[body 'name] ,(properties body)))
 
-(define-method (shift-body-shape! (body <physical-body>) #;by (n <integer>))
-  (let* ((shapes #[body 'shapes])
-	 (l (length shapes))
-	 (new-shape (list-ref shapes
-			      (modulo (+ (list-index (equals? #[body 'shape])
-						     shapes)
-					 n)
-				      l))))
-    (set-body-shape! body new-shape)))

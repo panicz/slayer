@@ -169,6 +169,26 @@ exit
 
 ;;(<< #[*stage* 'x] ", " #[*stage* 'y] ", " #[*stage* 'w] ", " #[*stage* 'h])
 
+(define-method (set-body-shape! #;of (body <physical-body>) 
+				     #;to (shape <symbol>) . args)
+  (set! #[body 'shape] shape)
+  (set! #[body 'dimensions]
+	(replace-alist-bindings #;in #[body 'dimensions]
+				     #;with (keyword-args->alist args)))
+  (set! #[the-dimension-editor 'content]
+	#[body : 'dimension-editors : shape])
+  (set-target! #;of the-dimension-editor #;as body))
+
+(define-method (shift-body-shape! (body <physical-body>) #;by (n <integer>))
+  (let* ((shapes #[body 'shapes])
+	 (l (length shapes))
+	 (new-shape (list-ref shapes
+			      (modulo (+ (list-index (equals? #[body 'shape])
+						     shapes)
+					 n)
+				      l))))
+    (set-body-shape! body new-shape)))
+
 (set! #[view 'left-click]
       (lambda (x y)
 	(if (or (>= (length #[view 'selected]) 2)
