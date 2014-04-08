@@ -240,34 +240,6 @@
 			   (list    #[v 2]       0  (- #[v 0]))
 			   (list (- #[v 1])  #[v 0]        0))))
 
-(define-method (mean (n <number>) . numbers)
-  (let ((numbers (cons n numbers))
-	(n (1+ (length numbers))))
-    (/ (apply + numbers) n)))
-
-(define-method (mean (l <list>) . lists)
-  (let ((lists (cons l lists))
-	(n (1+ (length lists))))
-    (apply map (lambda args (/ (apply + args) n)) lists)))
-
-(define-method (mean (v <vector>) . vectors)
-  (let ((vectors (cons v vectors))
-	(n (1+ (length vectors))))
-    (apply vector-map (lambda args (/ (apply + args) n)) vectors)))
-
-;; mean means the mean value of its arguments,
-(e.g.
- (mean 1 2 3) ===> 2)
-
-;; when used with lists of numbers as arguments, it calculates the
-;; mean in each dimension separately,
-(e.g.
- (mean '(1 2 3) '(3 4 5)) ===> (2 3 4))
-
-;; it also works for vector arguments,
-(e.g.
- (mean #(1 2 3) #(3 4 5)) ===> #(2 3 4))
-
 (define (inv3x3 M)
   (assert (and (array? M) (= (columns M) (rows M) 3)))
   (let ((d (det3x3 M)))
@@ -441,3 +413,35 @@ to the direction of w"
        (,(* 2.0 (- (* #[v 0] #[v 2]) (* s #[v 1])))
 	,(* 2.0 (+ (* #[v 1] #[v 2]) (* s #[v 0])))
 	,(- 1.0 (* 2.0 (+ (* #[v 0] #[v 0]) (* #[v 1] #[v 1])))))))))
+
+
+(define-method (mean (n <number>) . numbers)
+  (let ((numbers (cons n numbers))
+	(n (1+ (length numbers))))
+    (/ (apply + numbers) n)))
+
+(define-method (mean (l <list>) . lists)
+  (let ((lists (cons l lists))
+	(n (1+ (length lists))))
+    (apply map (lambda args (/ (apply + args) n)) lists)))
+
+(define-method (mean (v <vector>) . vectors)
+  (let ((vectors (cons v vectors))
+	(n (1+ (length vectors))))
+    (apply vector-map (lambda args (/ (apply + args) n)) vectors)))
+
+(define-method (mean (v <uvec>) . vectors)
+  (list->uniform-array (apply mean (map array->list (cons v vectors)))))
+
+;; mean means the mean value of its arguments,
+(e.g.
+ (mean 1 2 3) ===> 2)
+
+;; when used with lists of numbers as arguments, it calculates the
+;; mean in each dimension separately,
+(e.g.
+ (mean '(1 2 3) '(3 4 5)) ===> (2 3 4))
+
+;; it also works for vector arguments,
+(e.g.
+ (mean #(1 2 3) #(3 4 5)) ===> #(2 3 4))
