@@ -33,6 +33,11 @@
 	   (height (body-property body 'height)))
        (generate-tube #:radius radius
 		      #:height height)))
+    ((capsule)
+     (let ((radius (body-property body 'radius))
+	   (height (body-property body 'height)))
+       (generate-capsule #:radius radius
+			 #:height height)))
     ((plane)
      (square-grid #:size 10.0 #:density 50))
     ((trimesh)
