@@ -17,45 +17,8 @@
 	    set-target!
 	    )
   #:re-export (make)
-  #:export-syntax (parameter-editor)
+  #:export-syntax (parameter-editor property-editor)
   )
-
-;; warto by to wyeksplikować, bo tutaj mamy mały PROBLEM!:
-;; rzecz w tym, że chcielibyśmy być informowani o tym, że
-;; stan widgetu się zmienił, żeby móc go narysować od nowa.
-
-;; być może wymagałoby to ponownego przemyślenia całej infrastruktury
-;; widgetowej. musielibyśmy założyć, że każdy widget albo ma skeszowany
-;; obrazek, który jest używany do wyświetlania na ekranie (w ten sposób
-;; dochodząc do tego, że przerenderowanie sceny to narysowanie jednego
-;; obrazka!), albo kesz zwraca false i wówczas rysujemy od nowa
-;; (według rekurencyjnej procedury)
-
-;; wymagałoby to pewnego przebudowania SLAYERa tak, żeby OpenGL
-;; mógł rysować do dowolnych buforów w pamięci, i dopiero stamtąd
-;; przerzucał zawartość buforów na ekran.
-
-;; na potrzeby SLAYERa 2.0 fajnie by było coś takiego zrobić, ale na razie
-;; lepiej wybrać jakąś drogę na skróty (do czasu stworzenia grywalnej KUTASY)
-
-;; w przypadku widgeta tekstowego projektant (czyli ja) musi zadbać o to,
-;; żeby synchronizacja z keszem się odbywała we właściwych momentach
-;; (wiadomo, że docelowo lepiej by było zwalić ten wysiłek na maszynę,
-;; która sama miałaby się domyślać, co trzeba przerysować i jakie zmienne
-;; spośród tych znajdujących się w obiekcie wpływają na jego wygląd)
-
-;; w przypadku tego widgeta tekstowego byłoby super mieć coś takiego,
-;; co potrafiłoby samo wywnioskować, które linie są widoczne, i wymuszać
-;; przerysowanie jedynie w przypadku modyfikacji tych, które rzeczywiście
-;; mają jakikolwiek wpływ na wygląd
-
-;; tym niemniej na razie postaramy się zrobić to jak najprościej -- tzn.
-;; nie przeszkadza nam pewna redundancja, jeżeli zwolni nas z myślenia
-;; (i pozwolimy, żeby to rzeczywistość wyciągała na razie za nas wnioski)
-
-;; konkretnie, idzie o to, że jak robimy
-;; (set! #[this : 'lines : n] cośtam)
-;; to żeby wywoływać jakiś sygnał w obiekcie "this"
 
 (define-class <text-area> (<image-clipper>)
   (%space #:init-value #f)  ;; 
@@ -494,7 +457,14 @@
 
 (define-method (initialize (self <parameter-editor>) args)
   (next-method)
-  (set! #[self '%lines-confirmed] #t))
+  (set! #[self '%lines-confirmed] #t)
+  (let-keywords args #t ((accessor noop))
+    (set! #[self 'value-getter]
+	  accessor)
+    (set! #[self 'value-setter]
+	  (lambda (target value)
+	    (let ((value (read-string value)))
+	      (set! (accessor target) value))))))
 
 (define-method (initialize (self <input>) args)
   (next-method)
@@ -535,6 +505,7 @@
 		       "^\\s*[+-]?[0-9]*\\.?[0-9]+\\s*$"
 		       #[lines 0])))))
 
+#|
 (define-method (initialize (self <numeric-parameter-editor>) args)
   (next-method)
   (let-keywords args #t ((accessor noop))
@@ -544,6 +515,7 @@
 	  (lambda (target value)
 	    (let ((value (read-string value)))
 	      (set! (accessor target) value))))))
+|#
 
 (define-class <numeric-input> (<input>)
   (default-editor-class #:allocation #:each-subclass 
@@ -552,6 +524,13 @@
 (define-syntax-rule (parameter-editor target (label property) ...)
   ((layout #:lay-out lay-out-horizontally)
    (make <numeric-input> #:w 60 #:h 12 #:label label
+	 #:target target
+	 #:accessor (accessor target property))
+   ...))
+
+(define-syntax-rule (property-editor target (label property) ...)
+  ((layout #:lay-out lay-out-horizontally)
+   (make <input> #:w 180 #:h 12 #:label label
 	 #:target target
 	 #:accessor (accessor target property))
    ...))
