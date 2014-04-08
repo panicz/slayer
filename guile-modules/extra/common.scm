@@ -1349,6 +1349,18 @@
  same-set?
  '((a . 1)(b . 2)(c . 3)))
 
+(define (alist->keyword-args alist)
+  (append-map (lambda (key.value)
+		(match key.value
+		  ((key . value)
+		   `(,(symbol->keyword key) ,value))))
+	      alist))
+
+(e.g.
+ (alist->keyword-args '((a . 1)(b . 2)(c . 3)))
+ same-set?
+ (map-n 2 list '(#:a 1 #:b 2 #:c 3)))
+
 (define (replace-alist-bindings bindings #;with other)
   (map (mlambda ((key . value))
 	 (match (assoc key other)
