@@ -14,7 +14,7 @@
 	    lay-out-vertically
 	    make-button
 	    make-container
-	    make-image)
+	    make-sprite)
   #:re-export (add-child! draw))
 
 (define-class <sprite> (<widget>)
@@ -70,7 +70,7 @@
       (set! #[container 'h] top))
     container))
 
-(define (make-image image x y)
+(define (make-sprite image #;at x y)
   (let ((image (make <sprite> #:image image #:x x #:y y 
 		     #:w (image-width image) 
 		     #:h (image-height image))))
@@ -118,7 +118,7 @@
 (define-method (add-child! (child <widget>) #;to (layout <layout>))
   (#[layout 'lay-out] child #;on layout)
   (next-method)
-)
+  )
 
 (define (layout . args)
   (let ((layout (apply make <layout> args)))
