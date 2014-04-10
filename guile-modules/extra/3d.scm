@@ -22,6 +22,7 @@
 	   skip-lights
 	   transform-mesh-vertices
 	   )
+  :export-syntax (replace/mesh)
   ;;:re-export (distance)
   )
 
@@ -301,8 +302,10 @@
 	      (translate-view! vector))
 	     (('rotate-view! quaternion)
 	      (rotate-view! quaternion))
+	     (('scale-view! factors ...)
+	      (apply scale-view! factors))
 	     (else
-	      (<< "unrecognised transformation: "else)))
+	      (throw 'unrecognised-transform)))
 	    transform-spec))
 
 (let-syntax ((process-mesh
@@ -314,7 +317,7 @@
 			       (('with-transforms transforms . actions)
 				(push-matrix!)
 				(transform-matrix! transforms)
-				(mesh-processor `(mesh ,actions))
+				(mesh-processor `(mesh ,@actions))
 				(pop-matrix!))
 			       pattern+actions ...
 			       (else
@@ -367,14 +370,18 @@
   (pop-matrix!))
 
 (define-syntax-rule (replace/mesh m (pattern replacement) ...)
-  (match m
-    (('mesh . primitives)
-     `(mesh ,@(map (lambda (primitive)
-		     (match primitive
-		       (pattern replacement)
-		       ...
-		       (else primitive)))
-		   primitives)))))
+  (letrec ((replace (lambda (primitive)
+		      (match primitive
+			(('with-transforms transforms . actions)
+			 `(with-transforms 
+			   ,transforms
+			   ,@(map replace actions)))
+			(pattern replacement)
+			...
+			(else primitive)))))
+    (match m
+      (('mesh . primitives)
+       `(mesh ,@(map replace primitives))))))
 
 (define-method (draw-object! (model <3d-object>))
   (push-matrix!)
