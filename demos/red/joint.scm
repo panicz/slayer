@@ -3,9 +3,28 @@
   #:use-module (extra common)
   #:use-module (extra ref)
   #:use-module (extra math)
+  #:use-module (extra 3d)
   #:use-module (widgets base)
   #:use-module (red object)
   #:export (<physical-joint> describe-joint))
+
+(publish
+ (define (hinge . _)
+   hinge-mesh)
+ where
+ (define hinge-mesh
+   (with-input-from-file "art/3d/hinge.3d" read)))
+
+(publish
+ (define (ball-socket . _)
+   ball-socket-mesh)
+ where
+ (define ball-socket-mesh
+   (match (with-input-from-file "art/3d/ball-socket.3d" read)
+     (('mesh definition ...)
+      `(mesh (color #f32(0.7 0.7 0.0 0.7))
+	     (with-transforms ((scale-view! 0.1))
+			      ,@definition))))))
 
 (define (no-mesh . _)
   '(mesh 
@@ -47,7 +66,7 @@
 
   (generators #:allocation #:class
 	      #:init-value 
-	      `((ball-socket . ,no-mesh)
+	      `((ball-socket . ,ball-socket)
 		(hinge . ,no-mesh)
 		(slider . ,no-mesh)
 		(universal . ,no-mesh)
@@ -60,10 +79,12 @@
 					  #[self 'default-common-parameters])))
 		      #[self 'default-specific-parameters]))
     #:slot-set! noop)
+
   (types #:allocation #:virtual
 	 #:slot-ref (lambda (self)
 		      (map first #[self 'default-parameters]))
 	 #:slot-set! noop)
+
   (%type #:init-value #f)
   (type #:allocation #:virtual
 	#:slot-ref (lambda (self) #[self '%type])
@@ -84,10 +105,16 @@
    #:slot-ref
    (lambda (self)
      (let ((type #[self 'type])
-	   (parameters #[self 'parameters]))
-       (or #[self : 'mesh-cache : `(,type ,@parameters)]
-	   (let ((mesh (apply #[self : 'generators : type] parameters)))
-	     (set! #[self : 'mesh-cache : (copy-tree `(,type ,@parameters))]
+	   (parameters #[self 'parameters])
+	   (body-1 #[self 'body-1])
+	   (body-2 #[self 'body-2]))
+       (or #[self : 'mesh-cache : `(,type ,body-1 ,body-2 ,@parameters)]
+	   (let ((mesh (apply #[self : 'generators : type] 
+			      #:body-1 body-1
+			      #:body-2 body-2
+			      (alist->keyword-args parameters))))
+	     (set! #[self : 'mesh-cache 
+			  : (copy-tree `(,type ,body-1 ,body-2 ,@parameters))]
 		   mesh)
 	     mesh))))
    #:slot-set! noop)

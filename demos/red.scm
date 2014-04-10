@@ -24,6 +24,7 @@ exit
 	     (widgets text-area)
 	     (widgets sprite)
 	     (widgets 3d)
+	     (red object)
 	     (red body)
 	     (red joint)
 	     )
@@ -44,8 +45,6 @@ exit
 					   #;to (rig <3d-stage>))
   (let ((joint (make <physical-joint> #:body-1 body-1 #:body-2 body-2)))
     (add-object! joint #;to rig)))
-
-
 
 (define the-rig (make <3d-stage>))
 
@@ -119,8 +118,6 @@ exit
  (define dimension-editor
    (make <container-widget> #:min-h 12))
  (add-object! body #;to the-rig)
- (keydn 'v (lambda ()
-	     (<< #[body 'dimensions])))
  (set! #[body 'dimension-editors]
        (map (lambda ((name . parameters))
 	      `(,name
@@ -139,15 +136,50 @@ exit
 
 (publish
  (define joint-editor
-   (apply (layout #:x 640 #:y (+ #[body-editor 'y] #[body-editor 'h] 100))
-	  (map (lambda ((name . default-value))
-		 (make <numeric-input> #:w 120 #:h 12 
-		       #:label (symbol->string name)
-		       #:taget joint
-		       #:accessor (accessor joint name)))
-	       #[joint 'default-common-parameters])))
+   (apply (layout #:x 640 #:y (+ #[body-editor 'y] #[body-editor 'h] 20))
+	  `(,name-editor
+	    ,@(map (lambda ((name . default-value))
+		     (make <numeric-input> #:w 180 #:h 12 
+			   #:label (string-append (symbol->string name) ": ")
+			   #:taget joint
+			   #:accessor (accessor joint 
+						#[joint : 'parameters : name])))
+		   #[joint 'default-common-parameters])
+	    ,position-editor
+	    ,specific-parameter-editor
+	    )))
+ (define the-joint-specific-parameter-editor specific-parameter-editor)
  where
- (define joint (make <physical-joint>)))
+ (define joint (make <physical-joint>))
+ (define name-editor
+   (property-editor
+    joint
+    ("name: " #[joint 'name])))
+
+ (define position-editor
+   (parameter-editor 
+    joint
+    (" x: " #[joint : 'position : 0])
+    (" y: " #[joint : 'position : 1])
+    (" z: " #[joint : 'position : 2])))
+ (define specific-parameter-editor
+   (make <container-widget> #:min-h 12))
+ (set! #[joint 'specific-parameter-editors]
+       (map (lambda ((name . parameters))
+	      `(,name 
+		. ,(apply
+		    (layout #:lay-out lay-out-horizontally)
+		    (map (lambda ((param . _))
+			   (make <numeric-input> #:w 180 #:h 12
+				 #:label
+				 (string-append (symbol->string param) ": ")
+				 #:accessor
+				 (accessor x #[x : 'parameters : param])))
+			 parameters))))
+	    #[joint 'default-specific-parameters]))
+ )
+
+(add-child! joint-editor #;to *stage*)
 
 (define-method (select-object! (o <physical-body>) #;from (v <3d-editor>))
   (next-method)
@@ -157,6 +189,9 @@ exit
 
 (define-method (select-object! (o <physical-joint>) #;from (v <3d-editor>))
   (next-method)
+  (set! #[the-joint-specific-parameter-editor 'content]
+	#[o : 'specific-parameter-editors : #[o 'type]])
+  (set-target! #;of joint-editor #;as o)
   (format #t "selecting a joint ~a\n" o))
 
 (define view (make <3d-editor>
@@ -168,6 +203,14 @@ exit
 (add-child! view #;to *stage*)
 
 ;;(<< #[*stage* 'x] ", " #[*stage* 'y] ", " #[*stage* 'w] ", " #[*stage* 'h])
+
+(define add-new? #f)
+
+(keydn 'n (lambda () (set! add-new? #t)))
+
+(define-method (add-object! (object <editable-object>) #;to (view <3d-stage>))
+  (next-method)
+  (set! add-new? #f))
 
 (define-method (set-body-shape! #;of (body <physical-body>) 
 				     #;to (shape <symbol>) . args)
@@ -189,6 +232,28 @@ exit
 				      l))))
     (set-body-shape! body new-shape)))
 
+(define-method (set-joint-type! #;of (joint <physical-joint>)
+				     #;to (type <symbol>) . args)
+  (let ((old-position #[joint 'position]))
+    (set! #[joint 'type] type)
+    (set! #[joint 'parameters]
+	  (replace-alist-bindings #;in #[joint 'parameters]
+				       #;with (keyword-args->alist args)))
+    (set! #[the-joint-specific-parameter-editor 'content]
+	  #[joint : 'specific-parameter-editors  : type])
+    (set-target! #;of the-joint-specific-parameter-editor #;as joint)
+    (set! #[joint 'position] old-position)))
+
+(define-method (shift-joint-type! (joint <physical-joint>) #;by (n <integer>))
+  (let* ((types #[joint 'types])
+	 (l (length types))
+	 (new-type (list-ref types
+			     (modulo (+ (list-index (equals? #[joint 'type])
+						    types)
+					n)
+				     l))))
+    (set-joint-type! joint new-type)))
+
 (set! #[view 'left-click]
       (lambda (x y)
 	(if (or (>= (length #[view 'selected]) 2)
@@ -197,9 +262,10 @@ exit
 	(let ((object (object-at-position x y view)))
 	  (if object
 	      (select-object! object #;from view)
-	      (add-object! 
-	       (make <physical-body> #:position (screen->3d view x y 0.95))
-	       #;to the-rig)))))
+	      (if add-new?
+		  (add-object! 
+		   (make <physical-body> #:position (screen->3d view x y 0.95))
+		   #;to the-rig))))))
 
 (set! #[view 'drag]
       (lambda(x y dx dy)
@@ -239,9 +305,12 @@ exit
 (keydn ","
   (lambda ()
     (match #[view 'selected]
-      ((body)
-       (if (is-a? body <physical-body>)
-	   (shift-body-shape! body -1)))
+      ((object)
+       (cond ((is-a? object <physical-body>)
+	      (shift-body-shape! object -1))
+	     ((is-a? object <physical-joint>)
+	      (shift-joint-type! object -1))
+	     ))
       (else
        (display "Exactly one object needs to be selected in order to change \
 its type")))))
@@ -249,9 +318,12 @@ its type")))))
 (keydn "."
   (lambda ()
     (match #[view 'selected]
-      ((body)
-       (if (is-a? body <physical-body>)
-	   (shift-body-shape! body +1)))
+      ((object)
+       (cond ((is-a? object <physical-body>)
+	      (shift-body-shape! object +1))
+	     ((is-a? object <physical-joint>)
+	      (shift-joint-type! object +1))
+	     ))
       (else
        (display "Exactly one object needs to be selected in order to change \
 its type")))))
