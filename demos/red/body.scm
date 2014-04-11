@@ -96,5 +96,4 @@
       )))
 
 (define-method (describe-body (body <physical-body>))
-  `(,#[body 'name] ,(properties body)))
-
+  `(,#[body 'name] ,(properties #;of body)))

@@ -13,7 +13,22 @@
    hinge-mesh)
  where
  (define hinge-mesh
-   (with-input-from-file "art/3d/hinge.3d" read)))
+   (match (with-input-from-file "art/3d/hinge.3d" read)
+     (('mesh definition ...)
+      `(mesh (color #f32(0.7 0.3 0.5 0.7))
+	     (with-transforms ((scale-view! 0.1))
+			      ,@definition))))))
+
+(publish
+ (define (hinge-2 . _)
+   hinge-2-mesh)
+ where
+ (define hinge-2-mesh
+   (match (with-input-from-file "art/3d/hinge-2.3d" read)
+     (('mesh definition ...)
+      `(mesh (color #f32(0.7 0.1 0.6 0.7))
+	     (with-transforms ((scale-view! 0.1))
+			      ,@definition))))))
 
 (publish
  (define (ball-socket . _)
@@ -23,6 +38,29 @@
    (match (with-input-from-file "art/3d/ball-socket.3d" read)
      (('mesh definition ...)
       `(mesh (color #f32(0.7 0.7 0.0 0.7))
+	     (with-transforms ((scale-view! 0.1))
+			      ,@definition))))))
+
+(publish
+ (define (universal . _)
+   universal-mesh)
+ where
+ (define universal-mesh
+   (match (with-input-from-file "art/3d/universal.3d" read)
+     (('mesh definition ...)
+      `(mesh (color #f32(0.1 0.3 0.7 0.7))
+	     (with-transforms ((scale-view! 0.1))
+			      ,@definition))))))
+
+
+(publish
+ (define (slider . _)
+   slider-mesh)
+ where
+ (define slider-mesh
+   (match (with-input-from-file "art/3d/slider.3d" read)
+     (('mesh definition ...)
+      `(mesh (color #f32(0.7 0.3 0.1 0.7))
 	     (with-transforms ((scale-view! 0.1))
 			      ,@definition))))))
 
@@ -67,10 +105,11 @@
   (generators #:allocation #:class
 	      #:init-value 
 	      `((ball-socket . ,ball-socket)
-		(hinge . ,no-mesh)
-		(slider . ,no-mesh)
-		(universal . ,no-mesh)
-		(hinge-2 . ,no-mesh)))
+		(hinge . ,hinge)
+		(hinge-2 . ,hinge-2)
+		(universal . ,universal)
+		(slider . ,slider)
+		))
 
   (default-parameters #:allocation #:virtual
     #:slot-ref (lambda (self)
@@ -145,5 +184,12 @@
   (format #t "parameters: ~a\n" #[self 'parameters])
   )
 
+(define-method (properties (joint <physical-joint>))
+  `(#:body-1  
+    ,#[joint : 'body-1 : 'name]
+    #:body-2 
+    ,#[joint : 'body-2 : 'name]
+    ,@(alist->keyword-args #[joint 'parameters])))
+
 (define-method (describe-joint (joint <physical-joint>))
-  '())
+  `(,#[joint 'name] (,#[joint 'type] ,@(properties #;of joint))))

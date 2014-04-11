@@ -10,6 +10,7 @@ exit
 ;; (use-modules (oop goops)(extra common)(extra ref))
 
 
+
 (use-modules (slayer) 
 	     (slayer 3d) 
 	     (extra common)
@@ -120,15 +121,15 @@ exit
  (add-object! body #;to the-rig)
  (set! #[body 'dimension-editors]
        (map (lambda ((name . parameters))
-	      `(,name
-		. ,(apply 
-		    (layout #:lay-out lay-out-horizontally)
-		    (map (lambda ((param . _))
-			   (make <numeric-input> #:w 80 #:h 12
-				 #:label 
-				 (string-append (symbol->string param) ": ")
-				 #:accessor
-				 (accessor x #[x : 'dimensions : param])))
+	      `(,name . ,(apply 
+			  (layout #:lay-out lay-out-horizontally)
+			  (map (lambda ((param . _))
+				 (make <numeric-input> #:w 80 #:h 12
+				       #:label 
+				       (string-append
+					(symbol->string param) ": ")
+				       #:accessor
+				       (accessor x #[x : 'dimensions : param])))
 			 parameters))))
 	    #[body 'default-dimensions])))
 
@@ -168,7 +169,7 @@ exit
        (map (lambda ((name . parameters))
 	      `(,name 
 		. ,(apply
-		    (layout #:lay-out lay-out-horizontally)
+		    (layout #:lay-out lay-out-vertically)
 		    (map (lambda ((param . _))
 			   (make <numeric-input> #:w 180 #:h 12
 				 #:label
