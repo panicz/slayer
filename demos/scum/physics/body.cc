@@ -8,7 +8,7 @@ static body_property_getter_map_t body_property_getter;
     body_t *body = new body_t;						\
     body->body = create_body(rig->parent->world);			\
     body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
-    OUT(# shape ": %p", body->geom);					\
+    WARN(# shape ": %p", body->geom);					\
     set_body(body->geom, body->body);					\
     body->id = rig->bodies.size();					\
     rig->bodies.push_back(body);					\
@@ -60,14 +60,14 @@ _dTriIndex_uniform_vector_internal(SCM v);
   if(scm_is_typed_array(v, s_u##bits)) {				\
     return v;								\
   }									\
-    scm_t_array_handle H, h;						\
-    scm_array_get_handle(v, &h);					\
-    int i, n = scm_array_handle_nelems(&h);				\
-    SCM V = scm_make_u##bits##vector(scm_from_int(n), SCM_UNDEFINED);	\
-    scm_array_get_handle(V, &H);					\
-    scm_t_uint##bits *dest						\
-     = scm_array_handle_u##bits##_writable_elements(&H);		\
-    if(0){}
+  scm_t_array_handle H, h;						\
+  scm_array_get_handle(v, &h);						\
+  int i, n = scm_array_handle_nelems(&h);				\
+  SCM V = scm_make_u##bits##vector(scm_from_int(n), SCM_UNDEFINED);	\
+  scm_array_get_handle(V, &H);						\
+  scm_t_uint##bits *dest						\
+  = scm_array_handle_u##bits##_writable_elements(&H);			\
+  if(0){}
 
 #define TRIINDEX_CONVERT_ARRAY_IF(type, src_t, dest_t)			\
   else if(scm_is_typed_array(v, s_##type)) {				\
@@ -269,6 +269,7 @@ body_plane_quaternion_setter(body_t *body, SCM value) {
 static void
 body_box_dimensions_setter(body_t *body, SCM value) {
   dVector3 v;
+  DEPRECATED("Please use #:x. #:y and #:z accessors instead.");
   scm_to_dVector3(value, &v);
   dGeomBoxSetLengths(body->geom, v[0], v[1], v[2]);
   scm_remember_upto_here_1(value);
@@ -277,9 +278,34 @@ body_box_dimensions_setter(body_t *body, SCM value) {
 static SCM
 body_box_dimensions_getter(body_t *body) {
   dVector3 v;
+  DEPRECATED("Please use #:x. #:y and #:z accessors instead.");
   dGeomBoxGetLengths(body->geom, v);
   return scm_from_dVector3(v);
 }
+
+
+#define DEF_BOX_DIMENSION_ACCESSORS(dimension, index)		\
+  static void							\
+  body_box_##dimension##_setter(body_t *body, SCM value) {	\
+    dVector3 v;							\
+    dGeomBoxGetLengths(body->geom, v);				\
+    v[index] = scm_to_double(value);				\
+    dGeomBoxSetLengths(body->geom, v[0], v[1], v[2]);		\
+    scm_remember_upto_here_1(value);				\
+  }								\
+  								\
+  static SCM							\
+  body_box_##dimension##_getter(body_t *body) {			\
+    dVector3 v;							\
+    dGeomBoxGetLengths(body->geom, v);				\
+    return scm_from_double(v[index]);				\
+  }
+
+DEF_BOX_DIMENSION_ACCESSORS(x, 0)
+DEF_BOX_DIMENSION_ACCESSORS(y, 1)
+DEF_BOX_DIMENSION_ACCESSORS(z, 2)
+
+#undef DEF_BOX_DIMENSION_ACCESSORS
 
 static void
 body_sphere_radius_setter(body_t *body, SCM value) {
@@ -462,8 +488,10 @@ init_body_property_accessors() {
 #define SET_BODY_ACCESSORS(ode_type, prefix, property)		\
   SET_BODY_NAMED_ACCESSORS(ode_type, prefix, property, # property)
   
-
   SET_BODY_ACCESSORS(dBoxClass, box_, dimensions);
+  SET_BODY_ACCESSORS(dBoxClass, box_, x);
+  SET_BODY_ACCESSORS(dBoxClass, box_, y);
+  SET_BODY_ACCESSORS(dBoxClass, box_, z);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, height);
   SET_BODY_ACCESSORS(dCylinderClass, cylinder_, radius);
   SET_BODY_ACCESSORS(dCCylinderClass, capsule_, height);
