@@ -88,7 +88,7 @@
 	    substitute-pattern
 	    fill-template
 	    with-output-to-utf8
-	    list-directory shell
+	    list-directory shell next-available-file-name
 	    << die first-available-input-port
 	    real->integer
 	    make-locked-mutex
@@ -102,6 +102,9 @@
 		   define-curried-syntax publish define-accessors
 		   define-template
 		   with-literal within-module
+		   with-output-port with-output-file with-output-string
+		   with-input-port with-input-file with-input-string
+		   with-error-port with-error-file 
 		   publish-with-fluids
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
@@ -121,6 +124,8 @@
 (set-port-encoding! (current-output-port) "UTF-8")
 (set-port-encoding! (current-error-port) "UTF-8")
 (fluid-set! %default-port-encoding "UTF-8")
+
+;;(use-modules (system base compile) (srfi srfi-11) (ice-9 match))
 
 (define* (expand-form e #:key (opts '()))
   (let-values (((exp env) (decompile 
@@ -1412,6 +1417,48 @@
 (define (with-output-to-utf8 thunk)
   (string->utf8 (with-output-to-string thunk)))
 
+(letrec-syntax ((define-port-redirect-syntax
+		  (lambda (x)
+		    (define (join-symbols-with delimiter . symbols)
+		      (string->symbol 
+		       (string-join (map symbol->string symbols) 
+				    (symbol->string delimiter))))
+		    (define (with . args)
+		      (datum->syntax x (apply 
+					join-symbols-with '-
+					`(with ,@(map syntax->datum args)))))
+		    (syntax-case x ()
+		      ((_ type (i/o preposition))
+		       (with-syntax ((with-i/o-type (with #'i/o #'type))
+				     (with-i/o-preposition-type
+				      (with #'i/o #'preposition #'type)))
+			 #'(define-syntax-rule (with-i/o-type type action . *)
+			     (with-i/o-preposition-type
+			      type (lambda () action . *))))))))
+		(define-port-redirect-syntaxes-for-type
+		  (syntax-rules ()
+		    ((_ type ((i/o preposition) ...))
+		     (begin
+		       (define-port-redirect-syntax type (i/o preposition))
+		       ...))))
+		(define-port-redirect-syntaxes
+		  (syntax-rules ()
+		    ((_ (type ...) ((direction preposition) ...))
+		     (begin
+		       (define-port-redirect-syntaxes-for-type type
+			 ((direction preposition) ...))
+		       ...)))))
+  (define-port-redirect-syntaxes (port file)
+    ((output to) (input from) (error to)))
+  ;; expands to
+  ;; (define-syntax-rule (with-output-port port action . *)
+  ;;   (with-output-to-port port (lambda () action . *)))
+  ;; ...
+  (define-port-redirect-syntax string (input from)))
+
+(define-syntax-rule (with-output-string action . *)
+  (with-output-to-string (lambda () action . *)))
+
 (define (list-directory directory)
   (let ((dir (opendir directory)))
     (let loop ((listed-files '()) 
@@ -1422,6 +1469,13 @@
 	    (else 
 	     (loop (cons file listed-files)
 		   (readdir dir)))))))
+
+(define (next-available-file-name base)
+  (let loop ((counter 0))
+    (let ((name (string-append base (format #f ".~3,'0x" counter))))
+      (if (file-exists? name)
+	  (loop (1+ counter))
+	  name))))
 
 (define (shell command)
   (let ((pipe (open-pipe command OPEN_READ)))
