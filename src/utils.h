@@ -121,6 +121,8 @@ unsigned int now() {
 
 #define WARN_ONCE(msg, ...) WARN_UPTO(1, msg, ## __VA_ARGS__ )
 
+#define DEPRECATED(msg) WARN_ONCE("This function is deprecated. " msg)
+
 #define TRY(f)								\
   if((f) == -1) {							\
     perror(__FILE__ ", " TOSTRING(__LINE__)  " [" #f "]");		\
