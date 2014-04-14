@@ -62,25 +62,47 @@
 	     mesh))))
    #:slot-set! noop))
 
+
 (define-method (initialize (self <physical-body>) args)
   (next-method)
   (if (not #[self 'dimensions])
       (set! #[self 'dimensions]
-	    (copy-tree #[self : 'default-dimensions : #[self 'shape]]))))
-
+	    (copy-tree #[self : 'default-dimensions : #[self 'shape]])))
+  (<< args)
+  (for (property . value) in (keyword-args->alist args)
+       (cond 
+	
+	((in? property (map first #[self 'dimensions]))
+	 (set! #[self : 'dimensions : property] value))
+	
+	((in? property (map first (class-slots (class-of self))))
+	 (set! #[self property] value))
+	
+	((eq? property 'mass-distribution)
+	 (match value
+	   ((center-of-mass . inertia-tensor)
+	    (set! #[self 'center-of-mass] center-of-mass)
+	    (set! #[self 'inertia-tensor] inertia-tensor))))
+	
+	(else
+	 (format #t "Unrecognised body property: ~a\n"  property)))))
 
 (define-method (properties (body <physical-body>))
   (let ((common-properties `(#:mass ,#[body 'mass] 
-				    #:position ,#[body 'position]
+				    #:position 
+				    ,(f32vector #[body : 'position : 0]
+						#[body : 'position : 1]
+						#[body : 'position : 2])
+				    #:quaternion ,#[body 'orientation]
 				    #:mass-distribution 
 				    (,#[body 'center-of-mass]
 				     . ,#[body 'inertia-tensor])))
 	(dimensions #[body 'dimensions]))
     (case #[body 'shape]
       ((box)
-       `(box #:dimensions ,(f32vector #[dimensions 'x]
-				      #[dimensions 'y]
-				      #[dimensions 'z])
+       `(box #:x ,#[dimensions 'x] 
+	     #:y ,#[dimensions 'y]
+	     #:z ,#[dimensions 'z]
 	     ,@common-properties))
       ((sphere)
        `(sphere #:radius ,#[dimensions 'radius]

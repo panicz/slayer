@@ -9,8 +9,6 @@ exit
 
 ;; (use-modules (oop goops)(extra common)(extra ref))
 
-
-
 (use-modules (slayer) 
 	     (slayer 3d) 
 	     (extra common)
@@ -118,7 +116,7 @@ exit
     (" ia " #[#[body 'inertia-tensor] 2 2])))
  (define dimension-editor
    (make <container-widget> #:min-h 12))
- (add-object! body #;to the-rig)
+ ;;(add-object! body #;to the-rig)
  (set! #[body 'dimension-editors]
        (map (lambda ((name . parameters))
 	      `(,name . ,(apply 
@@ -293,7 +291,12 @@ exit
 	      (add-joint! #;between (first selected) #;and (second selected)
 				    #;to the-rig))))
 
-(keydn '/ (lambda () (pretty-print (describe-rig the-rig))))
+(keydn '/ 
+  (lambda () 
+    (let ((file (next-available-file-name "the-rig")))
+      (with-output-file file
+	(pretty-print (describe-rig the-rig)))
+      (format #t "rig saved to ~s\n" file))))
 
 (keydn "1" (lambda () 
 	     (set! #[view : 'camera : 'orientation] 
@@ -328,3 +331,26 @@ its type")))))
       (else
        (display "Exactly one object needs to be selected in order to change \
 its type")))))
+
+(if (and (defined? '$1) (file-exists? $1))
+    (match (with-input-from-file $1 read)
+      (; STRUCTURE
+       ('rig
+	('bodies body-spec ...)
+	('joints joint-defs ...))
+       ;; ACTION
+       (let ((bodies #[]))
+	 (for (name (shape props ...)) in body-spec
+	      (let ((body (apply make <physical-body> #:shape shape props)))
+		(set! #[bodies name] body)
+		(add-object! body #;to the-rig)))
+	 (for (name (type props ...)) in joint-defs
+	      (let-values (((body-names props) 
+			    (partition (matches? ((or 'body-1 'body-2) . _))
+				       (keyword-args->alist props))))
+		(let ((joint (apply 
+			      make <physical-joint> 
+			      #:body-1 #[bodies : #[body-names 'body-1]]
+			      #:body-2 #[bodies : #[body-names 'body-2]]
+			      (alist->keyword-args props))))
+		  (add-object! joint #;to the-rig))))))))

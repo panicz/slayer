@@ -181,6 +181,11 @@
 	      (mean #[self : 'body-1 : 'position]
 		    #[self : 'body-2 : 'position]))
 	 #f32(0 0 0))))
+  (for (property . value) in (keyword-args->alist args)
+       (cond ((in? property (map first #[self 'parameters]))
+	      (set! #[self : 'parameters : property] value))
+	     ((not (in? property '(body-1 body-2)))
+	      (format #t "Unknown property: ~a (~a)\n" property value))))
   (format #t "parameters: ~a\n" #[self 'parameters])
   )
 
