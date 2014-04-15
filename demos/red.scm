@@ -345,12 +345,18 @@ its type")))))
 		(set! #[bodies name] body)
 		(add-object! body #;to the-rig)))
 	 (for (name (type props ...)) in joint-defs
-	      (let-values (((body-names props) 
-			    (partition (matches? ((or 'body-1 'body-2) . _))
-				       (keyword-args->alist props))))
-		(let ((joint (apply 
-			      make <physical-joint> 
-			      #:body-1 #[bodies : #[body-names 'body-1]]
-			      #:body-2 #[bodies : #[body-names 'body-2]]
-			      (alist->keyword-args props))))
-		  (add-object! joint #;to the-rig))))))))
+	      (let ((joint (apply 
+			    make <physical-joint> 
+			    (alist->keyword-args 
+			     (map (lambda ((property . value))
+				    (match value
+				      ((? symbol? body-name)
+				       `(,property . ,#[bodies body-name]))
+				      (('? property-name body-name)
+				       `(,property . ,#[#[bodies body-name] 
+							property-name]))
+				      (else
+				       `(,property . ,value))
+				      ))
+				  (keyword-args->alist props))))))
+		(add-object! joint #;to the-rig)))))))
