@@ -64,6 +64,7 @@
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
+	    equivalent-set?
 	    map-n for-each-n equivalence-classes argmin argmax clamp
 	    atom? symbol<
 	    insert rest head tail
@@ -99,6 +100,7 @@
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation:
+		   upto once
 		   define-curried-syntax publish define-accessors
 		   define-template
 		   with-literal within-module
@@ -124,8 +126,6 @@
 (set-port-encoding! (current-output-port) "UTF-8")
 (set-port-encoding! (current-error-port) "UTF-8")
 (fluid-set! %default-port-encoding "UTF-8")
-
-;;(use-modules (system base compile) (srfi srfi-11) (ice-9 match))
 
 (define* (expand-form e #:key (opts '()))
   (let-values (((exp env) (decompile 
@@ -409,6 +409,21 @@
      (f)))
  equal?
  '(30 20))
+
+(define-fluid LIMITED-ACTIONS-RECORD (make-hash-table))
+
+(define-syntax-rule (upto n #;times perform-action . *)
+  (let* ((here (current-source-location))
+	 (times-performed (or (hash-ref (fluid-ref LIMITED-ACTIONS-RECORD) here)
+			      0)))
+    (if (< times-performed n)
+	(begin 
+	  (hash-set! (fluid-ref LIMITED-ACTIONS-RECORD) here 
+		     (1+ times-performed))
+	  perform-action . *))))
+
+(define-syntax-rule (once perform-action . *)
+  (upto 1 #;time perform-action . *))
 
 ;; `define-curried-syntax' is not a curried definition!
 ;; It defines a new macro which generates an appropreate
@@ -801,8 +816,11 @@
 (define (adjoin lset . elements)
   (apply lset-adjoin equal? lset elements))
 
+(define (equivalent-set? equiv? lset . lsets)
+  (apply lset= equiv? lset lsets))
+
 (define (same-set? lset . lsets)
-  (apply lset= equal? lset lsets))
+  (apply equivalent-set? equal? lset lsets))
 
 (define (depth x)
   (if (list? x)
