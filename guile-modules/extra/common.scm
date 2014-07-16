@@ -828,10 +828,9 @@
       0))
 
 (define (tree-find pred tree)
-  (if (null? tree)
-      #f
-      (or (find pred tree)
-	  (tree-find pred (concatenate (filter list? tree))))))
+  (and (not (null? tree))
+       (or (find pred tree)
+	   (tree-find pred (concatenate (filter list? tree))))))
 
 (define (tree-map proc tree)
   (map (lambda (item)
@@ -941,7 +940,17 @@
 (e.g. (indexed '(a b c)) ===> ((0 a) (1 b) (2 c)))
 
 (define-syntax for
-  (syntax-rules (in .. =>)
+  (syntax-rules (in .. => indexed)
+    ((_ x in (indexed list-of-values) body ...)
+     (let loop ((n 0) 
+		(l list-of-values))
+       (match l
+	 (()
+	  (if #f #f))
+	 ((first . rest)
+	  (match (list n first)
+	    (x body ...))
+	  (loop (1+ n) rest)))))
     ((_ x in first .. last body ...)
      (let ((final last))
        (let loop ((x first))
@@ -1229,8 +1238,16 @@
 (define (all-pairs l)
   (all-tuples 2 l))
 
+(e.g.
+ (all-pairs '(a b c))
+ ===> '((a b) (a c) (b c)))
+
 (define (all-triples l)
   (all-tuples 3 l))
+
+(e.g.
+ (all-triples '(a b c d))
+ ===> '((a b c) (a b d) (a c d) (b c d)))
 
 (define (compose . fns)
   (let ((make-chain (lambda (fn chains)
@@ -1240,8 +1257,16 @@
 			  chains)))))
     (reduce make-chain values fns)))
 
+(e.g.
+ ((compose 1+ 1+ 1+) 0)
+ ===> 3)
+
 (define (iterations n f)
   (apply compose (make-list n f)))
+
+(e.g.
+ ((iterations 3 1+) 0)
+ ===> 3)
 
 (define (?not pred)(lambda(x)(not (pred x))))
 
@@ -1548,7 +1573,6 @@
 				   (lambda (s v)
 				     (set! ,body v))))))
 		 (gather-leaves 's tree))))
-
 
 (define (fill-template . args)
   (match args
