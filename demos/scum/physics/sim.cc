@@ -30,6 +30,11 @@ make_simulation_step(SCM x_sim) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   dJointGroupEmpty(sim->contact_group);
   dSpaceCollide(sim->space, sim, &on_potential_collision);
+
+  std::list<rig_t *>::iterator rig;
+  for(rig = sim->rigs.begin(); rig != sim->rigs.end(); ++rig) {
+    dSpaceCollide((*rig)->space, sim, &on_potential_collision);
+  }
   dWorldStep(sim->world, sim->dt);
   sim->step++;
   return SCM_UNSPECIFIED;

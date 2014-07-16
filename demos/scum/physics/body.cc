@@ -546,10 +546,9 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
 
   rig->id[gc_protected(s_name)] = body->id;
 
+  body->self_smob = gc_protected(body_to_smob(body));
   scm_remember_upto_here_1(x_rig);
   scm_remember_upto_here_2(s_type, s_name);
-  
-  body->self_smob = gc_protected(body_to_smob(body));
   return body->self_smob;
 }
 

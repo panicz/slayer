@@ -49,10 +49,11 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     sim->contacts.push_back(r);
 
-    if(abs(c[i].geom.depth) >= 0.1) {
-      //OUT("Contact %i penetration depth is %f", i, c[i].geom.depth);
-    }
-
+    /*
+    OUT("Contact %i penetration depth between %p (%s) and %p (%s) is %f", 
+	i, a, class_name[dGeomGetClass(a)], b, class_name[dGeomGetClass(b)], 
+	c[i].geom.depth);
+    */
   }
 }
 
