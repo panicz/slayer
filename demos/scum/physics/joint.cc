@@ -143,6 +143,8 @@ joint_body2_getter(joint_t * joint) {
   DEF_JOINT_VECTOR_SETTER(property_name, PropertyName)		\
   DEF_JOINT_VECTOR_GETTER(property_name, PropertyName)
 
+DEF_JOINT_VECTOR_ACCESSORS(ball_anchor, BallAnchor);
+
 DEF_JOINT_VECTOR_ACCESSORS(hinge_anchor, HingeAnchor);
 DEF_JOINT_VECTOR_ACCESSORS(hinge_axis, HingeAxis);
 
@@ -252,6 +254,8 @@ init_joint_property_accessors() {
 
 #define SET_JOINT_ACCESSORS(ode_type, prefix, property)			\
   SET_JOINT_NAMED_ACCESSORS(ode_type, prefix, property, # property)
+
+  SET_JOINT_ACCESSORS(dJointTypeBall, ball_, anchor);
 
   // HINGE
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, anchor);
