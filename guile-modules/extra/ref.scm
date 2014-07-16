@@ -2,7 +2,7 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref fref random-element)
+  #:export (ref aref fref random-element set-values!)
   #:export-syntax (accessor)
   )
 
@@ -78,7 +78,7 @@
 
 (define fref (make-procedure-with-setter fluid-ref fluid-set!))
 
-(define aref (make-procedure-with-setter 
+(define aref (make-procedure-with-setter
 	      (lambda(array indices)(apply array-ref array indices))
 	      (lambda(array indices value)(apply 
 					   array-set! 
@@ -110,6 +110,64 @@
 
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
+
+(define-generic set-values!)
+
+(define-method (set-values! (dest <array>) (source <list>))
+  (TODO this procedure should consider more complex cases,
+	like assigning list of arrays of lists and so on)
+  (let* ((dimensions (array-dimensions dest))
+	 (depth (1- (length dimensions))))
+    (let set-level! ((higher-indices '())
+		     (source-layer source))
+      (cond ((list? source-layer)
+	     (for (i v) in (indexed source-layer)
+		  (if (= (length higher-indices) depth)
+		      (apply array-set! dest v (reverse `(,i ,@higher-indices)))
+		      (set-level! `(,i ,@higher-indices) v))))
+	    ((generalized-vector? source-layer)
+	     (for i in 0 .. (1- (generalized-vector-length source-layer))
+		  (apply array-set! dest (generalized-vector-ref source-layer i)
+			 (reverse `(,i ,@higher-indices)))))))))
+
+(e.g.
+ (let ((a '#2f32((1 2 3)
+		 (4 5 6))))
+   (set-values! a '((10 20 30)
+		    (40 50 60)))
+   a)
+ ===> #2f32((10 20 30)
+	    (40 50 60)))
+
+(e.g.
+ (let* ((a '#2f32((1 2)
+		  (3 4)))
+	(b a))
+   (set-values! a '((5 6)
+		    (7 8)))
+   (eq? a b)))
+
+(e.g.
+ (let ((a '#2((1 2)
+	      (3 4))))
+   (set-values! a '(#(5 6) #(7 8)))
+   a)
+ ===> #2((5 6)
+	 (7 8)))
+
+(define-method (set-values! (dest <vector>) (source <list>))
+  (for (i v) in (indexed source)
+       (vector-set! dest i v)))
+
+(define-method (set-values! (dest <uvec>) (source <list>))
+  (for (i v) in (indexed source)
+       (uniform-vector-set! dest i v)))
+
+(e.g.
+ (let ((a '#f32(1 2 3)))
+   (set-values! a '(4 5 6))
+   a)
+ ===> #f32(4 5 6))
 
 (read-hash-extend 
  #\[
