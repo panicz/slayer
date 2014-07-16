@@ -1,5 +1,6 @@
 (define-module (scum physics)
   #:use-module (extra common)
+  #:use-module (extra math)
   #:export (define-rig-for make-rig
 	     primitive-make-simulation
 	     make-simulation-step!
@@ -42,7 +43,7 @@
 (define (define-rig-for simulation rig-name rig-def)
   (set-simulation-rig-maker! 
    simulation rig-name
-   (lambda (sim) 
+   (lambda (sim position orientation) 
      (match rig-def
        (; STRUCTURE
 	('rig
@@ -55,9 +56,15 @@
 	  (for (name (type props ...)) in body-spec
 	       (let ((body (make-body rig type name)))
 		 (for (property value) in (map-n 2 list props)
-		      (set-body-property! body 
-					  (keyword->symbol property) 
-					  value))))
+		      (set-body-property! body (keyword->symbol property) 
+					  value))
+		 (set-body-property! body 'position
+				     (+ position 
+					(rotate (body-property body 'position)
+						#;by orientation)))
+		 (set-body-property! body 'quaternion
+				     (* orientation 
+					(body-property body 'quaternion)))))
 	  (for (name (type props ...)) in joint-defs
 	       (let ((joint (make-joint rig type name))
 		     (literal (rec (literal x)
@@ -70,15 +77,32 @@
 				     (else 
 				      else)))))
 		 (for (property value) in (map-n 2 list props)
-		      (set-joint-property! joint 
-					   (keyword->symbol property)
-					   (literal value)))))
+		      (let ((property (keyword->symbol property)))
+			(cond 
+			 ((in? property '(axis axis-1 axis-2))
+			  (let ((new-value (rotate (literal value)
+						   #;by orientation)))
+			    (format #t "ROTATING ~a ~a to ~a\n" 
+				    property
+				    (literal value) new-value)
+			    (set-joint-property! joint property new-value)))
+
+			 ((in? property '(anchor anchor-1 anchor-2))
+			  (let ((new-value (+ position
+					      (rotate (literal value)
+						      #;by orientation))))
+			    (format #t "TRANSLATING ~a ~a to ~a\n" property
+				    (literal value) new-value)
+			  (set-joint-property! joint property new-value)))
+			 (else (set-joint-property! joint property
+						    (literal value))))))))
 	  rig))))))
 
-(define (make-rig simulation name)
+(define* (make-rig simulation name #:key (position #f32(0 0 0))
+		   (orientation '(1 . #f32(0 0 0))))
   (let ((rig-maker (simulation-rig-maker simulation name)))
     (if (procedure? rig-maker)
-	(rig-maker simulation)
+	(rig-maker simulation position orientation)
 	(throw 'undefined-rig simulation name))))
 
 (define* (force! body force #:key (local #f) (at #f) (relative #f))

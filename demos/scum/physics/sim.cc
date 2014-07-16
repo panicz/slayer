@@ -9,7 +9,8 @@ primitive_make_simulation() {
   sim->contact_group = dJointGroupCreate(0);
   sim->dt = 0.05;
   sim->step = 0;
-  return sim_to_smob(sim);
+  sim->self_smob = gc_protected(sim_to_smob(sim));
+  return sim->self_smob;
 }
 
 static SCM
@@ -18,9 +19,8 @@ simulation_rigs(SCM x_sim) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, result);
   std::list<rig_t *>::iterator rig;
   for(rig = sim->rigs.begin(); rig != sim->rigs.end(); ++rig) {
-    result = scm_cons(rig_to_smob(*rig), result);
+    result = scm_cons((*rig)->self_smob, result);
   }
-
   scm_remember_upto_here_1(x_sim);
   return result;
 }
@@ -54,7 +54,6 @@ set_simulation_rig_maker_x(SCM x_sim, SCM s_rig_name, SCM f_rig_maker) {
     scm_gc_unprotect_object(rig_def->second);
   }
   sim->rig_defs[s_rig_name] = gc_protected(f_rig_maker);
-  
   return SCM_UNSPECIFIED;
 }
 

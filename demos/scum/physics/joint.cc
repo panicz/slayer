@@ -64,8 +64,8 @@ make_joint(SCM x_rig, SCM s_type, SCM s_name) {
   if(s_name != SCM_UNDEFINED) {
     rig->joint_id[gc_protected(s_name)] = joint->id;
   }
-
-  return joint_to_smob(joint);
+  joint->self_smob = gc_protected(joint_to_smob(joint));
+  return joint->self_smob;
 }
 
 static SCM
@@ -81,7 +81,7 @@ joint_named(SCM s_name, SCM x_rig) {
     free(name);
     return SCM_BOOL_F;
   }
-  return joint_to_smob(rig->joints[id->second]);
+  return rig->joints[id->second]->self_smob;
 }
 
 static void
@@ -175,6 +175,9 @@ DEF_JOINT_REAL_GETTER(universal_angle2, UniversalAngle2);
 //DEF_JOINT_REAL_GETTER(universal_angle_rate1, UniversalAngleRate1);
 //DEF_JOINT_REAL_GETTER(universal_angle_rate2, UniversalAngleRate2);
 
+DEF_JOINT_REAL_GETTER(hinge_angle, HingeAngle);
+DEF_JOINT_REAL_GETTER(hinge_angle_rate, HingeAngleRate);
+
 DEF_JOINT_REAL_GETTER(hinge2_angle1, Hinge2Angle1);
 //DEF_JOINT_REAL_GETTER(hinge2_angle2, Hinge2Angle2);
 //DEF_JOINT_REAL_GETTER(hinge2_angle_rate1, Hinge2AngleRate1);
@@ -195,6 +198,7 @@ DEF_JOINT_REAL_GETTER(hinge2_angle1, Hinge2Angle1);
     return scm_from_double((dReal)dJointGet##Type##Param(joint->joint,	\
 							 Name));	\
   }
+
 
 #define DEF_JOINT_PARAM_ACCESSOR(type, Type, name, Name)	\
   DEF_JOINT_PARAM_GETTER(type, Type, name, Name)		\
@@ -243,12 +247,17 @@ init_joint_property_accessors() {
   index = make_pair(gc_protected(symbol(name)), ode_type);		\
   joint_property_getter[index] = joint_##prefix##property##_getter
 
+#define SET_JOINT_GETTER(ode_type, prefix, property)			\
+  SET_JOINT_NAMED_GETTER(ode_type, prefix, property, # property)
+
 #define SET_JOINT_ACCESSORS(ode_type, prefix, property)			\
   SET_JOINT_NAMED_ACCESSORS(ode_type, prefix, property, # property)
 
   // HINGE
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, anchor);
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, axis);
+  SET_JOINT_GETTER(dJointTypeHinge, hinge_, angle);
+  SET_JOINT_NAMED_GETTER(dJointTypeHinge, hinge_, angle_rate, "angle-rate");
 
   // SLIDER
   SET_JOINT_ACCESSORS(dJointTypeSlider, slider_, axis);
@@ -332,6 +341,10 @@ init_joint_property_accessors() {
 
 #undef SET_JOINT_ACCESSORS
 #undef SET_JOINT_NAMED_ACCESSORS
+
+#undef SET_JOINT_GETTER
+#undef SET_JOINT_NAMED_GETTER
+
 }
 
 

@@ -422,6 +422,13 @@ body_mass_distribution_setter(body_t *body, SCM center_tensor) {
   scm_to_dVector3(SCM_CAR(center_tensor), &M.c);
   scm_to_dMatrix3(SCM_CDR(center_tensor), &M.I);
 #define M_I(i, j) M.I[(i)*3+j]
+  OUT("Setting mass distribution to \n"
+      "[ %f, %f, %f ;\n"
+      "  %f, %f, %f ;\n"
+      "  %f, %f, %f ] at [ %f, %f, %f ]\n", 
+      M_I(0,0), M_I(0,1), M_I(0,2),
+      M_I(1,0), M_I(1,1), M_I(1,2),
+      M_I(2,0), M_I(2,1), M_I(2,2), M.c[0], M.c[1], M.c[2]);
   dMassSetParameters(&M, M.mass, M.c[0], M.c[1], M.c[2],
 		     M_I(0,0), M_I(1,1), M_I(2,2),
 		     M_I(0,1), M_I(0,2), M_I(1,2));
@@ -540,8 +547,10 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
   rig->id[gc_protected(s_name)] = body->id;
 
   scm_remember_upto_here_1(x_rig);
-  scm_remember_upto_here_2(s_type, s_name);  
-  return body_to_smob(body);
+  scm_remember_upto_here_2(s_type, s_name);
+  
+  body->self_smob = gc_protected(body_to_smob(body));
+  return body->self_smob;
 }
 
 static SCM
@@ -557,7 +566,7 @@ body_named(SCM s_name, SCM x_rig) {
     free(name);
     return SCM_BOOL_F;
   }
-  return body_to_smob(rig->bodies[id->second]);
+  return rig->bodies[id->second]->self_smob;
 }
 
 static SCM

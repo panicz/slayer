@@ -61,6 +61,7 @@ struct sim_t;
 struct joint_t;
 
 typedef struct joint_t {
+  SCM self_smob;
   rig_t *parent;
   dJointID joint;
   int id;
@@ -69,6 +70,7 @@ typedef struct joint_t {
 } joint_t;
 
 typedef struct body_t {
+  SCM self_smob;
   rig_t *parent;
   int id;
   dBodyID body;
@@ -86,6 +88,7 @@ typedef unordered_map<SCM, int, hash<SCM>, scm_eq> symbol_index_map_t;
 typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> general_scm_map_t;
 
 typedef struct rig_t {
+  SCM self_smob;
   sim_t *parent;
   symbol_index_map_t id;
   vector<body_t *> bodies;
@@ -96,6 +99,7 @@ typedef struct rig_t {
 } rig_t;
 
 typedef struct sim_t {
+  SCM self_smob;
   dWorldID world;
   dSpaceID space;
   std::list<rig_t *> rigs;
@@ -162,12 +166,12 @@ typedef unordered_map<SCM, SCM (*)(sim_t *), hash<SCM>, scm_eq>
     return smob;				\
   }
 
-DEF_TYPE_TO_SMOB(BODY, body);
-DEF_TYPE_TO_SMOB(RIG, rig);
-DEF_TYPE_TO_SMOB(SIM, sim);
-DEF_TYPE_TO_SMOB(JOINT, joint);
+DEF_TYPE_TO_SMOB(BODY, body); // body_to_smob
+DEF_TYPE_TO_SMOB(RIG, rig); // rig_to_smob
+DEF_TYPE_TO_SMOB(SIM, sim); // sim_to_smob
+DEF_TYPE_TO_SMOB(JOINT, joint); // joint_to_smob
 
-#undef TYPE_TO_SMOB
+#undef DEF_TYPE_TO_SMOB
 
 #if defined(dSINGLE)
 # define ARRAY_TYPE s_f32
@@ -287,7 +291,7 @@ DEF_SCM_FROM_DMATRIX(4);
 	  = scm_array_handle_f32_elements(&h);			\
 	for(int i = 0; i < n; ++i) {				\
 	  for(int j = 0; j < n; ++j) {				\
-	    (*m)[4*i+j] = (dReal) elements[n*i+j];		\
+	    (*m)[n*i+j] = (dReal) elements[n*i+j];		\
 	  }							\
 	}							\
       }								\
@@ -296,7 +300,7 @@ DEF_SCM_FROM_DMATRIX(4);
 	  = scm_array_handle_f64_elements(&h);			\
 	for(int i = 0; i < n; ++i) {				\
 	  for(int j = 0; j < n; ++j) {				\
-	    (*m)[4*i+j] = (dReal) elements[n*i+j];		\
+	    (*m)[n*i+j] = (dReal) elements[n*i+j];		\
 	  }							\
 	}							\
       }								\
@@ -304,7 +308,7 @@ DEF_SCM_FROM_DMATRIX(4);
 	SCM *elements = (SCM *) scm_array_handle_elements(&h);	\
 	for(int i = 0; i < n; ++i) {				\
 	  for(int j = 0; j < n; ++j) {				\
-	    (*m)[4*i+j]						\
+	    (*m)[n*i+j]						\
 	      = (dReal) scm_to_double(elements[n*i+j]);		\
 	  }							\
 	}							\
