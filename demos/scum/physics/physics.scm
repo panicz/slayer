@@ -10,9 +10,12 @@
 	     simulation-rigs
 	     simulation-property
 	     set-simulation-property!
+	     simulation-bodies
+	     simulation-joints
 	     
 	     primitive-make-rig
 	     rig-bodies
+	     rig-joints
 
 	     make-body
 	     set-body-property!
@@ -126,3 +129,9 @@
   (if local 
       (body-add-local-torque! body torque)
       (body-add-torque! body torque)))
+
+(define (simulation-bodies sim)
+  (append-map rig-bodies (simulation-rigs sim)))
+
+(define (simulation-joints sim)
+  (append-map rig-joints (simulation-rigs sim)))
