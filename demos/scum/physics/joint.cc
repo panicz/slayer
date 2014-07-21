@@ -98,7 +98,7 @@ static SCM
 joint_body1_getter(joint_t * joint) {
   dBodyID body = dJointGetBody(joint->joint, 0);
   if(body) {
-    return body_to_smob((body_t *) dBodyGetData(body));
+    return ((body_t *) dBodyGetData(body))->self_smob;
   }
   return SCM_BOOL_F;
 }
@@ -117,7 +117,7 @@ static SCM
 joint_body2_getter(joint_t * joint) {
   dBodyID body = dJointGetBody(joint->joint, 1);
   if(body) {
-    return body_to_smob((body_t *) dBodyGetData(body));
+    return ((body_t *) dBodyGetData(body))->self_smob;
   }
   return SCM_BOOL_F;
 }

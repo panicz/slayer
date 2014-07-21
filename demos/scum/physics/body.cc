@@ -542,7 +542,7 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
 
   body = (maker->second)(rig);
   body->parent = rig;
-  //dBodySetData(body->body, (void *) body);
+  dBodySetData(body->body, (void *) body);
 
   rig->id[gc_protected(s_name)] = body->id;
 
