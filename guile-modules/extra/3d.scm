@@ -225,7 +225,7 @@
 
 (define-class <3d> ()
   (position #:init-value #f32(0 0 0) #:init-keyword #:position)
-  (orientation #:init-value '(0.0 . #f32(1 0 0)) #:init-keyword #:orientation))
+  (orientation #:init-value '(1.0 . #f32(0 0 0)) #:init-keyword #:orientation))
 
 (define-method (distance (a <3d>) (b <3d>))
   (distance #[a 'position] #[b 'position]))
