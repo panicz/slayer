@@ -1,5 +1,8 @@
 #!/usr/bin/perl
 ## subtract lines of one file from lines of another file.
+## The order in which the lines appear doesn't matter, so the result is
+## like a set difference (unlike in the case of the `comm' tool). 
+## However, the order of lines from the input files is preserved.
 ##
 ## Usage:
 ## fsub [options] subtrahend minuend [> difference]
@@ -36,7 +39,7 @@ sub calls {
 
 my %pre = (
     'h' => \&help,    ##   -h   display this help message
-    'x' => \&neg,     ##   -x   output only subtracted files
+    'x' => \&neg,     ##   -x   output only subtracted lines
     );
 
 my %proc = (
