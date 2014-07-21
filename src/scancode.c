@@ -11,8 +11,10 @@
   { "tab", SDLK_TAB },
   { "clear", SDLK_CLEAR },
   { "return", SDLK_RETURN },
+  { "enter", SDLK_RETURN },
   { "pause", SDLK_PAUSE },
   { "esc", SDLK_ESCAPE },
+  { "escape", SDLK_ESCAPE },
   { "space", SDLK_SPACE },
 
   { "!", SDLK_EXCLAIM },
@@ -111,7 +113,12 @@
   { "home", SDLK_HOME },
   { "end", SDLK_END },
   { "pgup", SDLK_PAGEUP },
+  { "pageup", SDLK_PAGEUP },
+  { "page-up", SDLK_PAGEUP },
+  { "pgdn", SDLK_PAGEDOWN },
   { "pgdown", SDLK_PAGEDOWN },
+  { "pagedown", SDLK_PAGEDOWN },
+  { "page-down", SDLK_PAGEDOWN },
 
   { "f1", SDLK_F1 },
   { "f2", SDLK_F2 },
