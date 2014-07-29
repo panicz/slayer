@@ -22,7 +22,8 @@
 	     body-property
 	     body-type
 	     body-named
-
+	     body-name
+	     
 	     force!
 	     torque!
 
@@ -31,6 +32,7 @@
 	     joint-property
 	     joint-type
 	     joint-named
+	     joint-name
 	     )
   #:export-syntax (define-rigs-for))
 

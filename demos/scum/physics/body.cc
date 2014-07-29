@@ -422,6 +422,7 @@ body_mass_distribution_setter(body_t *body, SCM center_tensor) {
   scm_to_dVector3(SCM_CAR(center_tensor), &M.c);
   scm_to_dMatrix3(SCM_CDR(center_tensor), &M.I);
 #define M_I(i, j) M.I[(i)*3+j]
+  /*
   OUT("Setting mass distribution to \n"
       "[ %f, %f, %f ;\n"
       "  %f, %f, %f ;\n"
@@ -429,6 +430,7 @@ body_mass_distribution_setter(body_t *body, SCM center_tensor) {
       M_I(0,0), M_I(0,1), M_I(0,2),
       M_I(1,0), M_I(1,1), M_I(1,2),
       M_I(2,0), M_I(2,1), M_I(2,2), M.c[0], M.c[1], M.c[2]);
+  */
   dMassSetParameters(&M, M.mass, M.c[0], M.c[1], M.c[2],
 		     M_I(0,0), M_I(1,1), M_I(2,2),
 		     M_I(0,1), M_I(0,2), M_I(1,2));
@@ -542,7 +544,9 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
 
   body = (maker->second)(rig);
   body->parent = rig;
-  dBodySetData(body->body, (void *) body);
+  if(body->body) { // e.g. planes have no associated body data
+    dBodySetData(body->body, (void *) body);
+  }
 
   rig->id[gc_protected(s_name)] = body->id;
 
@@ -566,6 +570,21 @@ body_named(SCM s_name, SCM x_rig) {
     return SCM_BOOL_F;
   }
   return rig->bodies[id->second]->self_smob;
+}
+
+static SCM
+body_name(SCM x_body) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  symbol_index_map_t::iterator it;
+  it = find_if(body->parent->id.begin(), 
+	       body->parent->id.end(),
+	       [&](const symbol_index_map_t::value_type& the) -> bool { 
+		 return the.second == body->id;
+	       });
+  if(it == body->parent->id.end()) {
+    return SCM_BOOL_F;
+  }
+  return it->first;
 }
 
 static SCM
@@ -740,6 +759,7 @@ body_id(SCM x_body) {
   EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
   EXPORT_PROC("body-id", 1, 0, 0, body_id);				\
   EXPORT_PROC("body-named", 2, 0, 0, body_named);			\
+  EXPORT_PROC("body-name", 1, 0, 0, body_name);				\
   EXPORT_PROC("body-add-force!", 2, 0, 0, body_add_force_x);		\
   EXPORT_PROC("body-add-local-force!", 2, 0, 0, body_add_local_force_x); \
   EXPORT_PROC("body-add-force-at-position!", 3, 0, 0,			\

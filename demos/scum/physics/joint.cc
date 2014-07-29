@@ -84,6 +84,21 @@ joint_named(SCM s_name, SCM x_rig) {
   return rig->joints[id->second]->self_smob;
 }
 
+static SCM
+joint_name(SCM x_joint) {
+  JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
+  symbol_index_map_t::iterator it;
+  it = find_if(joint->parent->joint_id.begin(), 
+	       joint->parent->joint_id.end(),
+	       [&](const symbol_index_map_t::value_type& the) -> bool { 
+		 return the.second == joint->id;
+	       });
+  if(it == joint->parent->joint_id.end()) {
+    return SCM_BOOL_F;
+  }
+  return it->first;
+}
+
 static void
 joint_body1_setter(joint_t *joint, SCM value) {
   BODY_CONDITIONAL_ASSIGN(value, body1,);
@@ -407,7 +422,8 @@ joint_type(SCM x_joint) {
   EXPORT_PROC("set-joint-property!", 3, 0, 0, set_joint_property_x);	\
   EXPORT_PROC("joint-property", 2, 0, 0, joint_property);		\
   EXPORT_PROC("joint-type", 1, 0, 0, joint_type);			\
-  EXPORT_PROC("joint-named", 2, 0, 0, joint_named)
+  EXPORT_PROC("joint-named", 2, 0, 0, joint_named)			\
+  EXPORT_PROC("joint-name", 1, 0, 0, joint_name)
 
 #define INIT_JOINT_MODULE			\
   init_joint_maker();				\
