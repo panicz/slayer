@@ -79,9 +79,10 @@
 	    alist->hash-map assoc? assoc->hash assoc->hash/deep
 	    last-sexp-starting-position
 	    properize flatten
-	    cart cart-pow all-tuples all-pairs all-triples
-	    take-at-most drop-at-most
+	    cart cart-pow all-tuples all-pairs all-triples combinations
+	    take-at-most drop-at-most rotate-left rotate-right
 	    remove-keyword-args keyword-ref
+	    delete-first
 	    array-size
 	    random-array
 	    read-string write-string ->string
@@ -99,7 +100,7 @@
 	    RUN-TESTS TEST-RESULTS
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
-		   safely export-types e.g. observation:
+		   safely export-types e.g. observation: match*
 		   upto once
 		   define-curried-syntax publish define-accessors
 		   define-template
@@ -112,7 +113,7 @@
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
 		   string-match-all string-matches
-		   rec expand letrec-macros unquote
+		   rec expand letrec-macros quasiquote
 		   transform! increase! decrease! multiply!
 		   push! pop!)
   #:replace (compose
@@ -121,6 +122,73 @@
 	     (xdefine-syntax . define-syntax)
 	     (mlambda . lambda))
   )
+
+(define-syntax restructured
+  (lambda (stx)
+    (define (...? x)
+      (eq? x '...))
+    (define (restructure-form-variables form)
+      (define (extract-form-variables form)
+	(match form
+	  (('quote x)               '())
+	  (()                       '())
+	  (((? symbol? s) (? ...?)) (list s))
+	  (((? symbol? s) . tail)   (append-map extract-form-variables tail))
+	  ((head . tail)
+	   (append (extract-form-variables head)
+		   (append-map extract-form-variables tail)))
+	  (else                     (list form))))
+      (define (form-variables form)
+	(match form
+	  (('unquote x)             (extract-form-variables x))
+	  (('quote _)               '())
+	  ((head . tail)            (append (form-variables head) 
+					    (form-variables tail)))
+	  (else                     '())))
+      (delete-duplicates (filter symbol? (form-variables form)) eq?))
+    (define (drop-ellipses call) 
+      (match call
+	((f (? ...?))             (drop-ellipses f))
+	((head . tail)            (cons (drop-ellipses head) 
+					(map drop-ellipses tail)))
+	(else                     call)))
+    (define (restructure form)
+      (match form
+	(('unquote x)             (drop-ellipses x))
+	((head . tail)            (list 'cons (restructure head) 
+					(restructure tail)))
+	(x                        (list 'quote x))))
+    (syntax-case stx ()
+      ((_ form)
+       (with-syntax (((args ...) 
+		      (datum->syntax 
+		       #'form (restructure-form-variables (syntax->datum #'form))))
+		     (body (datum->syntax 
+			    #'form (restructure (syntax->datum #'form)))))
+	 #'(map (lambda (args ...) body) args ...))))))
+
+(define-syntax quasiquote 
+  (lambda (stx)
+    (syntax-case stx (unquote unquote-splicing quasiquote) 
+      ((_ (unquote form)) 
+       #'form)
+      ((_ (form ellipsis . rest))
+       (eq? (syntax->datum #'ellipsis) '...)
+       #'(append (restructured form) (quasiquote rest)))
+      ((_ ((unquote-splicing form) . rest))
+       #'(append form (quasiquote rest)))
+      ((_ (quasiquote form) . depth) 
+       #'(list 'quasiquote (quasiquote form #f . depth))) 
+      ((_ (unquote form)  x . depth) 
+       #'(list 'unquote (quasiquote form . depth))) 
+      ((_ (unquote-splicing form) x . depth) 
+       #'(list 'unquote-splicing (quasiquote form . depth))) 
+      ((_ (car . cdr) . depth) 
+       #'(cons (quasiquote car . depth) (quasiquote cdr . depth))) 
+      ((_ #(elt ...) . depth) 
+       #'(list->vector (quasiquote (elt ...) . depth))) 
+      ((_ atom . depth) 
+       #''atom))))
 
 (set-port-encoding! (current-input-port) "UTF-8")
 (set-port-encoding! (current-output-port) "UTF-8")
@@ -281,6 +349,7 @@
 
 (define-syntax-rule (observation: . args) (TODO))
 
+#|
 (define-syntax unquote
   (lambda (stx)
     (define (disquote expressions)
@@ -301,6 +370,7 @@
 
 ;; the "unquote" syntax (outside of "quasisyntax") is to allow splicing
 ;; arguments to function calls:
+|#
 
 #;(e.g.
  (let ((x '(2 3))
@@ -497,6 +567,16 @@
   (match x 
     (pattern #t)
     (else #f)))
+
+;; match* is like match, but if there's no matching pattern, it
+;; doesn't raise an error
+(define-syntax match*
+  (syntax-rules ()
+    ((_ structure (pattern action . *) ...)
+     (match structure
+       (pattern action . *)
+       ...
+       (else (if #f #f))))))
 
 (define-curried-syntax (equals? value x)
   (equal? value x))
@@ -719,6 +799,7 @@
  (unknot (cons 0 (circular-list 1 2 3)))
  ===> (0 1 2 3))
 
+
 (define (make-locked-mutex)
   (let ((m (make-mutex)))
     (lock-mutex m)
@@ -766,6 +847,10 @@
   (let ((result (make-hash-table)))
     (for-each (lambda(item)(hash-set! result item #t)) lst)
     (hash-map->list (lambda(k v)k) result)))
+
+(e.g.
+ (unique '(a b a c a d b a))
+ same-set? '(a b c d))
 
 (define* (insert new l condition 
 		 #:key (prefix '()) (right-bound +inf.0))
@@ -1210,7 +1295,6 @@
 		`(apply ,f ,@args ,rest)
 		`(,f ,@args)))))))
 
-
 (define (cart . lists)
   (match lists
     (() '())
@@ -1248,6 +1332,22 @@
 (e.g.
  (all-triples '(a b c d))
  ===> '((a b c) (a b d) (a c d) (b c d)))
+
+(define (combinations #;from-set A #;of-length n)
+  (cond ((= n 0)
+	 '())
+	((= n 1)
+	 (map list A))
+	(else
+	 (append-map (lambda(combination)
+		       (map (lambda(a)
+			      `(,a . ,combination)) A))
+		     (combinations #;from-set A #;of-length (- n 1))))))
+
+(e.g.
+ (combinations #;from-set '(a b) #;of-length 3)
+ same-set?
+ '((a a a) (b a a) (a b a) (b b a) (a a b) (b a b) (a b b) (b b b)))
 
 (define (compose . fns)
   (let ((make-chain (lambda (fn chains)
@@ -1364,26 +1464,28 @@
 		 (#t
 		  (throw 'mismatch-braces)))))))
 
-(define (cart . args)
-  (let ((n (length args)))
-    (cond ((= n 0) '())
-	  ((= n 1) (map list (car args)))
-	  (#t (append-map (lambda(x)
-			    (map (lambda(y)
-				   (cons y x))
-				 (car args)))
-			  (apply cart (cdr args)))))))
-
 (define (flatten l)
   (if (list? l)
     (append-map flatten l)
     (list l)))
+
+(e.g.
+ (flatten '((a) () (b ()) () (c)))
+ ===> (a b c))
 
 (define (take-at-most n from-list)
   (take from-list (min n (length from-list))))
 
 (define (drop-at-most n from-list)
   (drop from-list (min n (length list))))
+
+(define (rotate-left lst n)
+  (let-values (((left right) (split-at lst n)))
+    `(,@right ,@left)))
+
+(define (rotate-right lst n)
+  (let-values (((left right) (split-at lst (- (length lst) n))))
+    `(,@right ,@left)))
 
 (define (keyword-args->alist kwlist)
   (match kwlist
@@ -1446,6 +1548,14 @@
 	 (((? keyword?) . rest)
 	  (self rest))
 	 (() '()))))
+
+(define* (delete-first element #;from lst #:optional (= equal?))
+  (match lst
+    (() '())
+    ((first . rest)
+     (if (= first element)
+	 rest
+	 `(,first . ,(delete-first element rest =))))))
 
 (define* (random-array #:key (range 1.0)(type #t)(mean 0) #:rest dims)
   (let ((dims (remove-keyword-args dims)))
