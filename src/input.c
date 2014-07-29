@@ -254,16 +254,23 @@ build_keymap() {
 
 static inline int 
 get_scancode(SCM key) {
-  if(!(scm_is_string(key) || scm_is_symbol(key)))
+  if(!(scm_is_string(key) 
+       || scm_is_symbol(key) 
+       || scm_is_integer(key))) {
     return -1;
+  }
 
   SCM keycode = scm_hash_ref(scancodes, 
 			     (scm_is_symbol(key)
 			      ? scm_symbol_to_string(key)
-			      : key), 
+			      : (scm_is_integer(key) 
+				 ? scm_number_to_string(key, scm_from_int(10))
+				 : key)),
 			     SCM_UNSPECIFIED);
-  if(!scm_is_integer(keycode))
+
+  if(!scm_is_integer(keycode)) {
     return -1;
+  }
   return scm_to_int(keycode);
 }
 
