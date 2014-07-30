@@ -1,0 +1,87 @@
+(rig 
+ (bodies
+  (bar
+   (capsule #:radius 0.05 #:height 0.4
+	    #:position #f32(0 -0.1 1.7)
+	    #:quaternion (0.707106781186548 . #f32(0.707106781186548 0 0))))
+  #;(balancer
+   (capsule #:radius 0.05 #:height 0.5 #:mass 1.0
+           #:position #f32(-0.2 0.0 2.5)
+           #:quaternion
+	   (0.992507552543365 . #f32(0.0 -0.122183263301849 0.0))))
+
+
+  (left-foot
+   (capsule #:radius 0.05 #:height 0.2
+	    #:mass 0.2
+	    #:position #f32(0.0 -0.2 0.1)
+	    #:quaternion (0.707106781186548 
+			  . #f32(0.0 0.707106781186548 0.0))
+	    ))
+  (left-heep
+   (capsule #:radius 0.05 #:height 0.4
+	    #:mass 0.7
+	    #:position #f32(0.0 -0.2 0.6)
+	    #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+	    ))
+  (left-tight
+   (capsule #:radius 0.05 #:height 0.5
+	    #:mass 1.0
+	    #:position #f32(0.0 -0.2 1.4)
+	    #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+	    ))
+  (right-foot
+   (capsule #:radius 0.05 #:height 0.2
+	    #:mass 0.2
+	    #:position #f32(0.0 0.2 0.1)
+	    #:quaternion (0.707106781186548 
+			  . #f32(0.0 0.707106781186548 0.0))
+	    ))
+  (right-heep
+   (capsule #:radius 0.05 #:height 0.4
+	    #:mass 0.7
+	    #:position #f32(0.0 0.2 0.6)
+	    #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+	    ))
+  (right-tight
+   (capsule #:radius 0.05 #:height 0.5
+	    #:mass 1.0
+	    #:position #f32(0.0 0.2 1.4)
+	    #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+	    ))
+  )
+ (joints
+  (left-pelvis 
+   (hinge #:body-1 bar #:body-2 left-tight
+	  #:anchor #f32(0.0 -0.2 1.7) #:axis #f32(0 -1 0)))
+
+  (left-ankle
+   (hinge #:body-1 left-heep #:body-2 left-foot
+   	  #:hi-stop 3.0 #:lo-stop -3.0
+	  #:anchor #f32(0.0 -0.2 0.15) #:axis #f32(0 -1 0)))
+  (left-knee
+   (hinge #:body-1 left-tight #:body-2 left-heep
+	  #:anchor #f32(0.0 -0.2 0.85)
+   	  #:hi-stop 0.0 #:lo-stop -3.0
+	  #:axis #f32(0 -1 0)))
+
+  (right-pelvis 
+   (hinge #:body-1 bar #:body-2 right-tight
+	  #:anchor #f32(0.0 0.2 1.7) #:axis #f32(0 1 0)))
+
+  (right-ankle
+   (hinge #:body-1 right-heep #:body-2 right-foot
+   	  #:hi-stop 3.0 #:lo-stop -3.0
+	  #:anchor #f32(0.0 0.2 0.15) #:axis #f32(0 1 0)))
+  (right-knee
+   (hinge #:body-1 right-tight #:body-2 right-heep
+	  #:anchor #f32(0.0 0.2 0.85)
+   	  #:hi-stop 3.0 #:lo-stop 0.0
+	  #:axis #f32(0 1 0)))
+  #;(balance
+   (hinge #:body-1 bar #:body-2 balancer
+	  #:anchor #f32(0.0 0.0 1.8)
+	  #:axis #f32(1.0 0.0 0.0)
+	  #:lo-stop -inf.0 #:hi-stop +inf.0))
+  )
+ )
