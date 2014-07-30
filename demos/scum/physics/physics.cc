@@ -33,7 +33,11 @@ static char const *joint_type_name[] = {
 
 static void 
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
-  if(dAreConnected(dGeomGetBody(a), dGeomGetBody(b))) { return; }
+  if(dGeomGetBody(a) 
+     && dGeomGetBody(b)
+     && dAreConnected(dGeomGetBody(a), dGeomGetBody(b))) { 
+    return; 
+  }
   sim_t *sim = (sim_t *) s;
   dContact c[MAX_CONTACTS];
   int i, n = dCollide(a, b, MAX_CONTACTS, &c[0].geom, sizeof(dContact));
