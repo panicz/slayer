@@ -179,7 +179,6 @@
   (let ((s (/ (dot source onto) (square onto))))
     (array-map (lambda(x)(* x s)) onto)))
 
-
 (define (matrix-mul2 a b)
   (assert (= (columns a) (rows b)))
   (let ((result (make-typed-array (array-type a) (if #f #f) 
@@ -380,6 +379,12 @@
 
 (define-method (rotate (l <list>) #;by (q <quaternion>))
   (uniform-vector->list (rotate (list->f32vector l) q)))
+
+(define-method (rotate (v <uvec>) #;by (radians <real>)
+		       #;around (axis <uvec>))
+  (let ((q (quaternion (cos (* 0.5 radians))
+		       (* (sin (* 0.5 radians)) (normalized axis)))))
+    (rotate v #;by q)))
 
 (define (rotation-quaternion #;from u #;to w)
   "a quaternion that represents rotation from the direction of u \
