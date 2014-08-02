@@ -68,8 +68,8 @@
 	    map-n for-each-n equivalence-classes argmin argmax clamp
 	    atom? symbol<
 	    insert rest head tail
-	    tree-find tree-map map*
-	    depth array-map array-map/typed array-append
+	    tree-find tree-map map* depth 
+	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
 	    list->uniform-vector list->uniform-array
 	    contains-duplicates?
@@ -100,7 +100,7 @@
 	    RUN-TESTS TEST-RESULTS
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
-		   safely export-types e.g. observation: match*
+		   safely export-types e.g. observation: match* assert
 		   upto once
 		   define-curried-syntax publish define-accessors
 		   define-template
@@ -120,6 +120,7 @@
 	     (cdefine . define)
 	     (cdefine* . define*)
 	     (xdefine-syntax . define-syntax)
+	     (let-syntax-rules . let-syntax)
 	     (mlambda . lambda))
   )
 
@@ -275,6 +276,23 @@
     ((_ name value)
      (define-syntax name value))))
 
+(define-syntax let-syntax-helper
+  (syntax-rules ()
+    ((_ () processed-bindings body . *)
+     (let-syntax processed-bindings body . *))
+    ((_ (((name pattern ...) template) bindings ...) (processed ...) body . *)
+     (let-syntax-helper 
+      (bindings ...) 
+      (processed ... (name (syntax-rules () ((_ pattern ...) template))))
+      body . *))
+    ((_ ((name value) bindings ...) (processed ...) body . *)
+     (let-syntax-helper (bindings ...) (processed ... (name value)) body . *))))
+
+(define-syntax let-syntax-rules
+  (syntax-rules ()
+    ((_ (bindings ...) body . *)
+     (let-syntax-helper (bindings ...) () body . *))))
+
 (define-syntax define-fluid
   (syntax-rules ()
     ((_ (interface . args) body ...)
@@ -305,6 +323,8 @@
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
+(define-syntax-rule (assert condition ...) (begin))
+
 ;; (define-syntax prototype
 ;;   (syntax-rules (-> :)
 ;;     ((_ (name . arg-types) -> result-type)
@@ -330,22 +350,31 @@
   (TODO))
 
 (define-syntax e.g. 
-  (syntax-rules (===>)
-    ((_ expression ===> value)
-     (e.g. expression equal? 'value))
-    ((_ expression comparison value)
-     (if (fluid-ref RUN-TESTS)
-	 (let ((result expression))
-	   (fluid-set! TEST-RESULTS
-		       (cons `(,(if (comparison result value) 'pass: 'fail:)
-			       expression
-			       ,result
-			       comparison 
-			       value
-			       ,(current-source-location))
-			     (fluid-ref TEST-RESULTS))))))
-    ((_ expression)
-     (e.g. (not expression) eq? #f))))
+  (lambda (stx)
+    (syntax-case stx (===>)
+      ((_ expression ===> values ...)
+       #'(e.g. expression 
+	       (lambda(a b)
+		 (if (array? a)
+		     (array-equal? a b)
+		     (equal? a b)))
+	       'values ...))
+      ((_ expression comparison values ...)
+       (with-syntax (((labels ...) (generate-temporaries #'(values ...))))
+	 #'(if (fluid-ref RUN-TESTS)
+	       (let-values (((labels ...) expression))
+		 (fluid-set! TEST-RESULTS
+			     (cons `(,(if (and (comparison labels values) ...)
+					  'pass: 
+					  'fail:)
+				     expression
+				     ,labels ...
+				     comparison
+				     values ...
+				     ,(current-source-location))
+				   (fluid-ref TEST-RESULTS)))))))
+      ((_ expression)
+       #'(e.g. (not expression) eq? #f)))))
 
 (define-syntax-rule (observation: . args) (TODO))
 
@@ -1158,6 +1187,58 @@
    (array-type first)
    (length (array-dimensions first))
    (apply append (map array->list (cons first rest)))))
+
+(define (array-copy array)
+  (let* ((shape (array-shape array))
+	 (copy (apply make-typed-array (array-type array) (if #f #f) shape)))
+    (array-copy! array copy)
+    copy))
+
+(e.g.
+ (let* ((array #f32(1 2 3))
+	(copy (array-copy array)))
+   (and (array-equal? array copy)
+	(not (eq? array copy)))))
+
+
+(define (array-pointer array . address)
+  (let ((shape (array-shape array)))
+    (assert (every (lambda (index (lower upper))
+		     (<= lower index upper))
+		   address shape))
+    (cond ((= (length address) (length shape))
+	   (make-procedure-with-setter 
+	    (lambda () (apply array-ref array address))
+	    (lambda (value) (apply array-set! array value address))))
+	  ((< (length address) (length shape))
+	   (let ((view (apply make-shared-array array 
+			      (lambda args (apply list `(,@address ,@args)))
+			      (drop shape (length address)))))
+	     (make-procedure-with-setter
+	      (lambda () view)
+	      (lambda (value) (array-copy! value view)))))
+	  (else
+	   (error "Invalid array address")))))
+
+(e.g.
+ (let* ((A #2f32((0 1 2)
+		 (3 4 5)))
+	(*A/1/1 (array-pointer A 1 1))
+	(initial-A/1/1 (*A/1/1)))
+   (set! (*A/1/1) 8)
+   (values initial-A/1/1 (*A/1/1) A))
+ ===> 4.0 8.0 #2f32((0 1 2)
+		    (3 8 5)))
+
+(e.g.
+ (let* ((A #2f32((0 1 2)
+		 (3 4 5)))
+	(*A/1 (array-pointer A 1))
+	(initial-A/1 (array-copy (*A/1))))
+   (set! (*A/1) #(2 1 0))
+   (values initial-A/1 (*A/1) A))
+ ===> #f32(3 4 5) #f32(2 1 0) #2f32((0 1 2)
+				    (2 1 0)))
 
 (define (list->uniform-vector type list)
   (list->typed-array type 1 list))
