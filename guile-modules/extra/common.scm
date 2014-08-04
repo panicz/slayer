@@ -90,7 +90,9 @@
 	    substitute-pattern
 	    fill-template
 	    with-output-to-utf8
-	    list-directory shell next-available-file-name
+	    current-working-directory list-directory change-directory
+	    with-changed-working-directory
+	    shell next-available-file-name
 	    << die first-available-input-port
 	    real->integer
 	    make-locked-mutex
@@ -108,6 +110,7 @@
 		   with-output-port with-output-file with-output-string
 		   with-input-port with-input-file with-input-string
 		   with-error-port with-error-file 
+		   with-working-directory
 		   publish-with-fluids
 		   define-fluid with-default specify
 		   supply applicable-hash applicable-hash-with-default
@@ -1200,7 +1203,6 @@
    (and (array-equal? array copy)
 	(not (eq? array copy)))))
 
-
 (define (array-pointer array . address)
   (let ((shape (array-shape array)))
     (assert (every (lambda (index (lower upper))
@@ -1692,6 +1694,19 @@
 
 (define-syntax-rule (with-output-string action . *)
   (with-output-to-string (lambda () action . *)))
+
+(define current-working-directory getcwd)
+
+(define change-directory chdir)
+
+(define (with-changed-working-directory dir thunk)
+  (let ((cwd (current-working-directory)))
+    (dynamic-wind (lambda () (change-directory dir))
+		  thunk
+		  (lambda () (change-directory cwd)))))
+
+(define-syntax-rule (with-working-directory dir action . *)
+  (with-changed-working-directory dir (lambda () action . *)))
 
 (define (list-directory directory)
   (let ((dir (opendir directory)))
