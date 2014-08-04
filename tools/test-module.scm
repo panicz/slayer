@@ -19,6 +19,23 @@
     (lambda key+args
       `(,name failure: ,key+args))))
 
+(define (test-script name)
+  (catch #t
+    (lambda ()
+      (with-fluids ((RUN-TESTS #t)
+		    (TEST-RESULTS `(success: ,name)))
+	(primitive-load name)
+	(reverse (fluid-ref TEST-RESULTS))))
+    (lambda key+args
+      `(,name failure: ,key+args))))
+
+(define (test-unit . spec)
+  (match spec
+    (((? file-exists? filename))
+     (test-script filename))
+    (else
+     (test-module (map string->symbol spec)))))
+
 (define (extract-fluids var)
   (cond ((list? var)
 	 (map extract-fluids var))
@@ -36,7 +53,7 @@
 
 (define (main (program-name args ...))
   (let ((error-code 0))
-    (match (test-module (map string->symbol args))
+    (match (apply test-unit args)
       ((module-name 'failure: reasons ...)
        (print "Failed to load module ~a: " module-name)
        (for (key function message . args) in reasons
