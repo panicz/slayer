@@ -3,6 +3,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (srfi srfi-18)
   #:use-module (srfi srfi-31)
+  #:use-module (srfi srfi-60)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 pretty-print)
@@ -12,14 +13,15 @@
   #:use-module (ice-9 optargs)
   #:use-module (ice-9 expect)
   #:use-module (system base compile)
-
   #:use-module ((rnrs) :version (6) 
 		:select (make-bytevector 
 			 utf8->string string->utf8 
 			 bytevector-fill!
 			 vector-map vector-for-each
+			 native-endianness endianness
 			 )
 		)
+  #:use-module ((rnrs bytevectors) :version (6))
 
   ;;  #:use-module ((rnrs) #:version (6))
   #:re-export (;; srfi-1
@@ -28,7 +30,7 @@
 	       first second third fourth fifth sixth seventh eighth ninth tenth
 	       car+cdr take drop take-right drop-right split-at last
 	       concatenate zip unzip1 unzip2 unzip3 unzip4 unzip5
-	       fold fold-right pair-fold reduce reduce-right unfold unfold-right
+	       fold fold-right pair-fold reduce reduce-right unfold-right
 	       append-map filter-map partition remove remove! find find-tail
 	       take-while drop-while span break any every list-index
 	       delete delete! delete-duplicates delete-duplicates!
@@ -36,6 +38,9 @@
 	       lset-difference lset-xor lset-diff+intersection
 	       ;; srfi-11
 	       let-values let*-values
+	       ;; srfi-60
+	       bitwise-and bitwise-ior bitwise-xor bitwise-not 
+	       integer->list list->integer
 	       ;; ice-9 match
 	       match match-let match-let* match-lambda match-lambda*
 	       ;; ice-9 regex
@@ -55,6 +60,7 @@
 	       make-bytevector 
 	       utf8->string string->utf8 
 	       bytevector-fill!
+	       native-endianness endianness
 	       ;; ice-9 format, ice-9 pretty-print
 	       pretty-print format
 	       )
@@ -65,7 +71,8 @@
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
 	    equivalent-set?
-	    map-n for-each-n equivalence-classes argmin argmax clamp
+	    map-n for-each-n unzip chunk-list
+	    equivalence-classes argmin argmax clamp
 	    atom? symbol<
 	    insert rest head tail
 	    tree-find tree-map map* depth 
@@ -90,6 +97,8 @@
 	    substitute-pattern
 	    fill-template
 	    with-output-to-utf8
+	    u8->list u8->bitvector bytevector->list bytevector->bitvector
+	    unpack pack extend
 	    current-working-directory list-directory change-directory
 	    with-changed-working-directory
 	    shell next-available-file-name
@@ -116,10 +125,12 @@
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
 		   string-match-all string-matches
-		   rec expand letrec-macros quasiquote
+		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
 		   push! pop!)
-  #:replace (compose
+  #:replace (compose 
+	     (unfold-facade . unfold)
+	     quasiquote
 	     (cdefine . define)
 	     (cdefine* . define*)
 	     (xdefine-syntax . define-syntax)
@@ -323,6 +334,10 @@
      (begin
        (eval 'action module)
        ...))))
+
+(define* (unfold-facade stop? transform generate seed 
+			#:optional (tail-gen (lambda(x)'())))
+  (unfold stop? transform generate seed tail-gen))
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
@@ -912,6 +927,10 @@
 (define (atom? x)
   (and (not (pair? x)) (not (null? x))))
 
+(define (natural? n)
+  (and (integer? n)
+       (>= n 0)))
+
 (define rest cdr)
 
 (define head (make-procedure-with-setter car set-car!))
@@ -990,7 +1009,7 @@
 
 (e.g.
  (equivalence-classes (lambda(x y)(= (modulo x 3) (modulo y 3))) (iota 9))
- ===> '((0 3 6) (1 4 7) (2 5 8)))
+ ===> ((0 3 6) (1 4 7) (2 5 8)))
 
 (observation:
  (for-all <procedure>
@@ -1011,7 +1030,7 @@
   (catch #t (lambda () (values sexp #t))
     (lambda (key . args)
       (with-output-to-port (current-output-port)
-	(lambda()
+	(lambda ()
 	  ;;(backtrace)
 	  (display `(error calling sexp : ,key ,args))
 	  (values (if #f #f) #f))))
@@ -1474,10 +1493,67 @@
 	(apply fn (take lst n))
 	(for-each-n n fn (drop lst n)))))
 
+(define (unzip n l)
+  (apply values (take (apply map list l) n)))
+
+(define (chunk-list l . chunk-sizes)
+  (assert (and (list? l)
+	       (every natual? chunk-sizes)
+	       (<= (fold + 0 chunk-sizes) (length l))))
+  (let loop ((result '())
+	     (sizes chunk-sizes)
+	     (rest l))
+    (match sizes
+      (()
+       (reverse result))
+      ((size . sizes)
+       (let-values (((this rest) (split-at rest size)))
+	 (loop `(,this ,@result) sizes rest))))))
+
+(define* (extend l #;to size #;with #:optional (fill #f))
+  (let ((extension-size (- size (length l))))
+    (if (> extension-size 0)
+	`(,@l ,@(make-list extension-size fill))
+	l)))
+
+(e.g. (extend '(1 2 3) 5 0) ===> (1 2 3 0 0))
+
 (define (keyword-args->hash-map kw-list)
   (let ((result (make-hash-table)))
     (for-each-n 2 (\ hash-set! result _ _) kw-list)
     result))
+
+(define (u8->list u8)
+  (integer->list u8 8))
+
+(define (u8->bitvector u8)
+  (list->bitvector (u8->list u8)))
+
+(define (bytevector->list bv)
+  (append-map u8->list (bytevector->u8-list bv)))
+
+(define (bytevector->bitvector bv)
+  (list->bitvector (bytevector->list bv)))
+
+(define (unpack bv . chunk-sizes)
+  (apply values 
+	 (map list->integer 
+	      (apply chunk-list (bytevector->list bv) chunk-sizes))))
+
+(define (integer->list/warning value size)
+  (let ((min-size (integer-length value)))
+    (if (< size min-size)
+	(warn "truncating" value "to fit" size "bits (instead of"min-size")"))
+    (integer->list value size)))
+
+(define (pack . values+sizes)
+  (match (map-n 2 list values+sizes)
+    (((value size) ...)
+     (let* ((bits (append-map integer->list/warning value size))
+	    (size (* 8 (ceiling-quotient (length bits) 8))))
+       (u8-list->bytevector
+	(map list->integer 
+	     (map-n 8 list (extend bits #;to size #;with #f))))))))
 
 (define* (last-sexp-starting-position 
 	  str #:key 
@@ -1590,7 +1666,7 @@
 	      alist))
 
 (e.g.
- (alist->keyword-args '((a . 1)(b . 2)(c . 3)))
+ (map-n 2 list (alist->keyword-args '((a . 1)(b . 2)(c . 3))))
  same-set?
  (map-n 2 list '(#:a 1 #:b 2 #:c 3)))
 
@@ -1646,9 +1722,9 @@
 		(apply make-typed-array type mean dims))))
 
 (define (array-size a)
-  (apply * (map (match-lambda((lower upper) 
-			      (1+ (abs (- upper lower)))))
-		(array-shape a))))
+  (fold * 1.0 (map (match-lambda((lower upper) 
+				 (1+ (abs (- upper lower)))))
+		   (array-shape a))))
 
 (define (with-output-to-utf8 thunk)
   (string->utf8 (with-output-to-string thunk)))
