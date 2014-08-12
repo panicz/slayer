@@ -125,6 +125,11 @@ texture_p(SCM image) {
 }
 
 static SCM
+image_p(SCM smob) {
+  return scm_from_bool(SCM_SMOB_PREDICATE(image_tag, smob));
+}
+
+static SCM
 screen_p(SCM image) {
   return (IS_SURFACE(image) && (SURFACE(image) == screen))
     ? SCM_BOOL_T
@@ -623,13 +628,16 @@ image_size(SCM image_smob) {
 
 SCM 
 rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
-  if(BytesPerPixel == SCM_UNDEFINED) {
+  if(!GIVEN(BytesPerPixel)) {
     BytesPerPixel = scm_from_int(4);
   }
   SDL_Surface *image 
     = sdl_surface(scm_to_int(w), scm_to_int(h), scm_to_int(BytesPerPixel));
-  if(color != SCM_UNDEFINED) {
-    SDL_Color c = sdl_color(scm_to_uint(color));
+  if(GIVEN(color)) {
+    SDL_Color c = scm_is_integer(color) 
+      ? sdl_color(scm_to_uint(color))
+      : sdl_color(0);
+
     SDL_FillRect(image, NULL, 
 		 SDL_MapRGBA(image->format, c.r, c.g, c.b, 0xff-c.unused));
   }
@@ -817,6 +825,7 @@ export_symbols(void *unused) {
 		   compose_color_from_rgba);
   EXPORT_PROCEDURE("make-texture", 2, 0, 0, make_texture);
 
+  EXPORT_PROCEDURE("image?", 1, 0, 0, image_p);
   EXPORT_PROCEDURE("surface?", 1, 0, 0, surface_p);
   EXPORT_PROCEDURE("texture?", 1, 0, 0, texture_p);
   EXPORT_PROCEDURE("screen?", 1, 0, 0, screen_p);
