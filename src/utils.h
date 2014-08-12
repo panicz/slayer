@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
+#include <limits.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
