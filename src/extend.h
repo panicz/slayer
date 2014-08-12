@@ -38,7 +38,6 @@ scm_array_handle_nelems(scm_t_array_handle *handle) {
 }
 
 #define GIVEN(scm) (!SCM_UNBNDP(scm))
-#define IS_SCM_UNSPECIFIED(scm) (scm == SCM_UNSPECIFIED)
 
 #define ZILCH(val, ...) NULL
 #define DONT(val, ...) do {} while(0)
