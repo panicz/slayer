@@ -40,7 +40,7 @@
 	       let-values let*-values
 	       ;; srfi-60
 	       bitwise-and bitwise-ior bitwise-xor bitwise-not 
-	       integer->list list->integer
+	       integer->list list->integer arithmetic-shift
 	       ;; ice-9 match
 	       match match-let match-let* match-lambda match-lambda*
 	       ;; ice-9 regex
@@ -71,9 +71,9 @@
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
 	    equivalent-set?
-	    map-n for-each-n unzip chunk-list
-	    equivalence-classes argmin argmax clamp
-	    atom? symbol<
+	    map-n for-each-n unfold-n unzip chunk-list
+	    equivalence-classes min+max argmin argmax clamp
+	    atom? symbol< natural?
 	    insert rest head tail
 	    tree-find tree-map map* depth 
 	    array-map array-map/typed array-append array-copy array-pointer
@@ -112,6 +112,7 @@
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation: match* assert
+		   reassurance:
 		   upto once
 		   define-curried-syntax publish define-accessors
 		   define-template
@@ -339,6 +340,14 @@
 			#:optional (tail-gen (lambda(x)'())))
   (unfold stop? transform generate seed tail-gen))
 
+(define (unfold-n n next seed)
+  (let loop ((count (- n 1))
+	     (result `(,seed)))
+    (if (<= count 0)
+	(reverse result)
+	(loop (- count 1) `(,(next (first result))
+			    ,@result)))))
+
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
 (define-syntax-rule (assert condition ...) (begin))
@@ -395,6 +404,8 @@
        #'(e.g. (not expression) eq? #f)))))
 
 (define-syntax-rule (observation: . args) (TODO))
+
+(define-syntax-rule (reassurance: . args) (TODO))
 
 #|
 (define-syntax unquote
@@ -723,8 +734,8 @@
 (define-syntax private+public
   (lambda (stx)
     (define (sorted-private/interfaces+names+bodies private specs)
-      ;; both sorting and name extraction need to take place in the
-      ;; same function called from with-syntax, because only that
+      ;; both sorting and name extraction takes place in the
+      ;; same function called from with-syntax, because that
       ;; way we can tell the macro processor that the bindings in
       ;; the code belong to the same scope
       (define (interface-name interface)
@@ -806,6 +817,18 @@
        (define-macro (name . args) definition ...)
        ...
        body ...))))
+
+(define (min+max first . args)
+  (let loop ((min first)
+	     (max first)
+	     (remaining args))
+    (match remaining
+      (()
+       (values min max))
+      ((current . remaining)
+       (loop (if (< current min) current min)
+	     (if (> current max) current max)
+	     remaining)))))
 
 (publish
  (define (argmin property #;from list-of-elements)
@@ -959,7 +982,7 @@
   (apply equivalent-set? equal? lset lsets))
 
 (define (depth x)
-  (if (list? x)
+  (if (and (list? x) (not (null? x)))
       (1+ (apply max (map depth x)))
       0))
 
@@ -1037,7 +1060,7 @@
     (lambda args (backtrace))))
 
 (define-syntax-rule (export-types symbol ...)
-  `((symbol ,symbol) ...))
+  `((symbol . ,symbol) ...))
 
 (define-syntax-rule (transform! fx x args ...)
   (set! x (fx x args ...)))
@@ -1103,7 +1126,10 @@
 		  (else (throw 'invalid-for-clause else))) list))))
 
 (define-syntax for-every 
-  (syntax-rules (in)
+  (syntax-rules (in ..)
+    ((_ var in (first .. last) predicate)
+     (for-every var in (iota (- last first -1) first)
+       predicate))
     ((_ var in set predicate)
      (every (match-lambda (var predicate) (_ #f)) set))))
 
