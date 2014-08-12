@@ -72,11 +72,10 @@ render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
     surface = sdl_surface(1, TTF_FontLineSkip(ttf), 1);
   } 
   else {
-    surface = 
-      (!GIVEN(bgcolor) || isnt(bgcolor)) 
-      ? TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)))
-      : TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), 
-			      sdl_color(scm_to_uint(bgcolor)));      
+    surface = (GIVEN(bgcolor) && scm_is_integer(bgcolor))
+      ? TTF_RenderUTF8_Shaded(ttf, string, sdl_color(scm_to_uint(color)), 
+			      sdl_color(scm_to_uint(bgcolor)))
+      : TTF_RenderUTF8_Blended(ttf, string, sdl_color(scm_to_uint(color)));
   }
 
   if (!surface) {
@@ -91,14 +90,12 @@ render_text(SCM text, SCM font, SCM color, SCM bgcolor) {
   }
   SDL_Surface *image = SDL_ConvertSurface(surface, &rgba32, SDL_SRCALPHA);
   SDL_FreeSurface(surface);
-  /*
   if(video_mode & SDL_OPENGL) {
     SCM tex = texture_smob_from_pixel_data(image->w, image->h, image->pixels,
 					   NO(mirror_x), DO(mirror_y));
     SDL_FreeSurface(image);
     return tex;
   }
-  */
   scm_remember_upto_here_1(font);
   return surface_smob(image, AS(x, 0), AS(y, 0), image->w, image->h, 
 		      IMAGE_ACCESS_PROXY);
