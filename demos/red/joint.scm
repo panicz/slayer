@@ -130,7 +130,6 @@
 	#:slot-set! 
 	(lambda (self type)
 	  (set! #[self '%type] type)
-	  (format #t "choosing ~a from ~a\n" type #[self 'types])
 	  (set! #[self 'parameters]
 		(copy-tree #[self : 'default-parameters : type]))))
   (parameters #:init-value #f)
@@ -185,9 +184,7 @@
        (cond ((in? property (map first #[self 'parameters]))
 	      (set! #[self : 'parameters : property] value))
 	     ((not (in? property '(body-1 body-2)))
-	      (format #t "Unknown property: ~a (~a)\n" property value))))
-  (format #t "parameters: ~a\n" #[self 'parameters])
-  )
+	      (format #t "Unknown property: ~a (~a)\n" property value)))))
 
 (define-method (properties (joint <physical-joint>))
   `(#:body-1  
