@@ -12,7 +12,8 @@
 	     (extra common)
 	     (extra math)
 	     (extra shape)
-	     (extra figures))
+	     (extra figures)
+	     (statprof))
 
 (keydn 'esc quit)
 
@@ -41,15 +42,28 @@
 
 (add-child! view #;to *stage*)
 
+(let ((image (make-texture 640 480) #;(rectangle 640 480 0)))
+  (keydn 'o (lambda ()
+	      (call-with-video-output-to
+	       image
+	       (lambda ()
+		 (wipe-screen!)
+		 (draw view)))))
+  (add-child! (make-sprite image #;x 300 #;y 200) #;to *stage*))
+
+
 (add-object! 3d-object #;to world)
 
-(add-child! #;(make <image-clipper> #:image ku #:x 580 #:y 400 #:w 40 #:h 40)
- (parameter-editor
-  3d-object 
-  ("x: " #[3d-object : 'position : 0])
-  ("y: " #[3d-object : 'position : 1])
-  ("z: " #[3d-object : 'position : 2]))
- #;to *stage*)
+
+(for i in 0 .. 4
+     (let ((e (parameter-editor
+	       3d-object 
+	       ("x: " #[3d-object : 'position : 0])
+	       ("y: " #[3d-object : 'position : 1])
+	       ("z: " #[3d-object : 'position : 2]))))
+       (set! #[e 'y] (* i #[e 'h]))
+       (add-child! e #;to *stage*)
+       ))
 
 ) (else (begin))) ;; cond-expand slayer-3d
 
@@ -89,7 +103,7 @@
 
 (define ku (load-image "./art/ku.png"))
 
-(add-child! (make-image ku 475 25) #;to *stage*)
+(add-child! (make-sprite ku #;x 475 #;y 25) #;to *stage*)
 
 (cond-expand (slayer-audio
 
@@ -150,3 +164,13 @@
 (key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
 ) (else (begin))) ;;cond-expand slayer-3d
+
+(keydn 'f12
+  (lambda ()
+    (statprof-reset 0 50000 #t)
+    (statprof-start)))
+
+(keyup 'f12
+  (lambda ()
+    (statprof-stop)
+    (statprof-display)))
