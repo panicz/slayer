@@ -29,6 +29,14 @@
 			 (set! #[self 'h] h)))
 	 #:init-keyword #:image))
 
+(define-method (initialize (sprite <sprite>))
+  (next-method)
+  (let-keywords args #t ((image #f))
+    (cond ((string? image)
+	   (set! #[sprite 'image] (load-image image)))
+	  ((image? image)
+	   (set! #[sprite 'image] image)))))
+
 (define-method (draw (i <sprite>))
   (specify ((first identity)
 	    (rest #[_ 'parent])
