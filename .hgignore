@@ -41,3 +41,4 @@ ignore*
 .dirstamp
 *.m4.c
 *.m4.h
+demos/the-rig.*
