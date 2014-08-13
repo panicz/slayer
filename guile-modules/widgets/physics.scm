@@ -113,22 +113,27 @@
     body . *))
 
 (define (new-mesh-for-joint joint)
-  (access-joint-properties joint (anchor axis angle hi-stop lo-stop body-1)
-    (let* ((target (body-property body-1 'position))
-	   (direction (normalized (- target anchor)))
-	   (hi-stop-axis (rotate direction #;by hi-stop #;rads #;around axis))
-	   (lo-stop-axis (rotate direction #;by lo-stop #;rads #;around axis)))
-      `(mesh
-	(colors #2f32((1 0 0)(1 1 0)
-		      (0 0 1)(0 1 0)
-		      (0 0 1)(0 1 0)
-		      ))
-	(vertices ,(list->typed-array 
-		    'f32 2
-		    `((0 0 0) (0 0 1)
-		      ,(uniform-vector->list direction)
-		      #;,(uniform-vector->list lo-stop-axis))))
-	(faces (lines #u8(0 1 0 2)))))))
+  (case (joint-type joint)
+    ((hinge)
+     (access-joint-properties joint (anchor axis angle hi-stop lo-stop body-1)
+       (let* ((target (body-property body-1 'position))
+	      (direction (normalized (- target anchor)))
+	      (hi-stop-axis (rotate direction #;by hi-stop #;rads #;around axis))
+	      (lo-stop-axis (rotate direction #;by lo-stop #;rads #;around axis)))
+	 `(mesh
+	   (colors #2f32((1 0 0)(1 1 0)
+			 (0 0 1)(0 1 0)
+			 (0 0 1)(0 1 0)
+			 ))
+	   (vertices ,(list->typed-array 
+		       'f32 2
+		       `((0 0 0) (0 0 1)
+			 ,(uniform-vector->list direction)
+			 #;,(uniform-vector->list lo-stop-axis))))
+	   (faces (lines #u8(0 1 0 2)))))))
+    (else
+     '(mesh (vertices #2f32((0 0 0)))
+	    (faces (points #u8(0)))))))
 
 (define-class <physics-stage> (<3d-stage>)
   (%body=>object #:init-thunk make-hash-table)
