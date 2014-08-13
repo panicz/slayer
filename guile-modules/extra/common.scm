@@ -569,17 +569,14 @@
 	 ...)))
     ((_ name (args ... last) (templates ...))
      (define-curried-syntax-helper name (args ...)
-       (templates ... ((__ args ...)
+       (templates ... ((name args ...)
 		       (lambda (last)
 			 (name args ... last))))))))
 
-(define-syntax define-curried-syntax
-  (syntax-rules ()
-    ((_ (name args ...) body . *)
-     (define-curried-syntax-helper 
-       name (args ...) 
-       (((__ args ...)
-	 (begin body . *)))))))
+(define-syntax-rule (define-curried-syntax (name args ...) body . *)
+  (define-curried-syntax-helper name (args ...) 
+    (((name args ...)
+      (begin body . *)))))
 
 (define-curried-syntax (string-match-all pattern string)
   (let loop ((n 0)
