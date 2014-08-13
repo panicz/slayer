@@ -11,12 +11,12 @@
   #:use-module (slayer)
   #:use-module (slayer 3d)
   #:export (<physics-stage> <physical-object>)
-  #:re-export (<3d-view>
-	       relative-turn!
-	       relative-twist!
-	       relative-move!
-	       X-SENSITIVITY
-	       Y-SENSITIVITY))
+  #:re-export (<3d-view> 
+	       <3d-editor> 
+	       select-object! unselect-object! unselect-all!
+	       relative-turn! relative-twist! relative-move!
+	       X-SENSITIVITY Y-SENSITIVITY
+	       ))
 
 (define (new-mesh-for-body body)
   (case (body-type body)
@@ -36,8 +36,19 @@
     ((capsule)
      (let ((radius (body-property body 'radius))
 	   (height (body-property body 'height)))
-       (generate-capsule #:radius radius
-			 #:height height)))
+       (match (generate-capsule #:radius radius
+				#:height height)
+	 (('mesh . data)
+	  `(mesh ,@(replace-alist-bindings 
+		    data
+		    (match (assoc-ref data 'faces)
+		      (((type . data) ...) 
+		       `((faces (,(case type
+				    ((quad-strip) 'line-strip 'points)
+				    ((quads) 'line-loop)
+				    (else type))
+				 . ,data) ...))))))))))
+
     ((plane)
      (square-grid #:size 10.0 #:density 50))
     ((trimesh)
@@ -71,8 +82,58 @@
 (define-method (initialize (self <physical-object>) args)
   (next-method))
 
+(define-class <physical-joint> (<3d-model>)
+  (position
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (or (joint-property #[self 'joint] 'anchor) #f32(1 1 1)))
+   #:slot-set!
+   (lambda (self value)
+     (set-joint-property! #[self 'joint] 'anchor value)))
+  (orientation 
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (case (joint-type #[self 'joint])
+       ((hinge slider)
+	(let ((axis (joint-property #[self 'joint] 'axis)))	  
+	  (rotation-quaternion #;from #f32(0 0 1) #;to axis)))
+       (else
+	'(1.0 . #f32(0 0 0)))))
+   #:slot-set!
+   (lambda (self value)
+     (set-joint-property! #[self 'joint] 'axis
+			  (rotate #f32(0 0 1) #;by value))))
+  (joint #:init-value #f #:init-keyword #:joint)
+  )
+
+(define-syntax-rule (access-joint-properties joint (prop ...) body . *)
+  (let ((prop (joint-property joint 'prop)) ...)
+    body . *))
+
+(define (new-mesh-for-joint joint)
+  (access-joint-properties joint (anchor axis angle hi-stop lo-stop body-1)
+    (let* ((target (body-property body-1 'position))
+	   (direction (normalized (- target anchor)))
+	   (hi-stop-axis (rotate direction #;by hi-stop #;rads #;around axis))
+	   (lo-stop-axis (rotate direction #;by lo-stop #;rads #;around axis)))
+      `(mesh
+	(colors #2f32((1 0 0)(1 1 0)
+		      (0 0 1)(0 1 0)
+		      (0 0 1)(0 1 0)
+		      ))
+	(vertices ,(list->typed-array 
+		    'f32 2
+		    `((0 0 0) (0 0 1)
+		      ,(uniform-vector->list direction)
+		      #;,(uniform-vector->list lo-stop-axis))))
+	(faces (lines #u8(0 1 0 2)))))))
+
 (define-class <physics-stage> (<3d-stage>)
   (%body=>object #:init-thunk make-hash-table)
+  (%joint=>object #:init-thunk make-hash-table)
+  (%permanent-objects #:init-value '())
   (%objects-cache #:init-value '())
   (%last-synchronized-simulation-step #:init-value #f)
   (simulation #:init-value #f #:init-keyword #:simulation)
@@ -86,19 +147,37 @@
        (unless (eq? step #[self '%last-synchronized-simulation-step])
 	 (for rig in (simulation-rigs #[self 'simulation])
 	      (for body in (rig-bodies rig)
-		   (if (not #[self : '%body=>object : body])
-		       (set! #[self : '%body=>object : body]
-			     (make <physical-object> 
-			       #:body body
-			       #:mesh (new-mesh-for-body body))))
+		   (when (not #[self : '%body=>object : body])
+		     (set! #[self : '%body=>object : body]
+			   (make <physical-object> 
+			     #:body body
+			     #:mesh (new-mesh-for-body body))))
 		   (TODO check if the mesh hasn't changed and if it did,
-			 modify accordingly!)
+			 modify accordingly! -- or just tie the specific 
+			 parameters to certain locations to make sure that 
+			 they're the same -- however, it might be difficult 
+			 with a more advanced GPU architecture)
 		   (let ((object #[self : '%body=>object : body]))
 		     (set! #[object 'step] step)
+		     (push! objects object)))
+	      (for joint in (rig-joints rig)
+		   (when (not #[self : '%joint=>object : joint])
+		     (set! #[self : '%joint=>object : joint]
+			   (make <physical-joint>
+			     #:joint joint
+			     #:mesh (new-mesh-for-joint joint))))
+		   (let* ((object #[self : '%joint=>object : joint])
+			  (mesh #[object 'mesh])
+			  (the (lambda(prop)(joint-property joint prop))))
+		     #;(match mesh
+		       (('mesh . data)
+			(set-values! (first #[data 'vertices])
+				     `(,(the 'anchor)
+				       ,(+ (the 'anchor) (the 'axis))))))
 		     (push! objects object))))
 	 (set! #[self '%objects-cache] objects)
 	 (TODO remove all objects from %body=>object whose step
 	       value hasn't been modified!)
 	 (set! #[self '%last-synchronized-simulation-step] step))
-       #[self '%objects-cache]))
+       `(,@#[self '%permanent-objects] ,@#[self '%objects-cache])))
    #:slot-set! noop))
