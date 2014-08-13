@@ -8,6 +8,12 @@
 
 (use-modules (extra common) (extra ref) (extra ansi-color))
 
+#| Chciałoby się rozszerzyć pattern-matcher o "liczące elipsy":
+(match '(1 2 3 4 5)
+  ((x (... n) y z (... n))
+   n)) ===> 2
+|#
+
 (define (test-module name)
   (catch #t
     (lambda ()
