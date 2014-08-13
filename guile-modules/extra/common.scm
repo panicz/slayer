@@ -112,7 +112,7 @@
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation: match* assert
-		   reassurance:
+		   reassurance: deprecated:
 		   upto once
 		   define-curried-syntax publish define-accessors
 		   define-template
@@ -407,35 +407,11 @@
 
 (define-syntax-rule (reassurance: . args) (TODO))
 
-#|
-(define-syntax unquote
-  (lambda (stx)
-    (define (disquote expressions)
-      (define (disquoted expression)
-	(match expression
-	  (((or 'unquote 'unquote-splicing) something)
-	   expression)
-	  ((head . tail)
-	   (list 'unquote (list 'apply head 
-				(list 'quasiquote (map disquoted tail)))))
-	  (else
-	   (list 'unquote expression))))
-      (datum->syntax stx (map disquoted (map syntax->datum expressions))))
-    (syntax-case stx ()
-      ((_ (f x ...))
-       (with-syntax (((x ...) (disquote #'(x ...))))
-	 #'(apply f `(x ...)))))))
-
-;; the "unquote" syntax (outside of "quasisyntax") is to allow splicing
-;; arguments to function calls:
-|#
-
-#;(e.g.
- (let ((x '(2 3))
-       (y 4))
-   ,(+ 1 ,@x (+ 4 5 ,@x)))
- =
- (+ 1 2 3 4))
+(define-syntax deprecated:
+  (syntax-rules (--deprecated)
+    ((_ definitions ... --deprecated)
+     (begin
+       definitions ...))))
 
 ;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
 ;; "define-macro", and as such doesn't seem to be referentially transparent,
@@ -486,8 +462,7 @@
      (let ((the-person 'Nelson-Mandela))
        (demand 'free the-person)))
    people)
- eq?
- '(Nelson-Mandela))
+ ===> (Nelson-Mandela))
 
 (define-fluid SPECIFIC-CONTEXT (make-hash-table))
 
@@ -526,7 +501,6 @@
 		    (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
 	 ...)))))
 
-
 (e.g.                                   ; this is how the trio 'with-default',
  (let ()                                ; 'specific' and 'specify' can be used
    (with-default ((x 10)
@@ -534,9 +508,8 @@
      (define (f)
        `(,(specific x) ,(specific y))))
    (specify ((x 30))
-     (f)))
- equal?
- '(30 20))
+     (f))) 
+ ===> (30 20))
 
 (define-fluid LIMITED-ACTIONS-RECORD (make-hash-table))
 
@@ -585,26 +558,28 @@
 ;; The macro is a modified version of a define-macro based one and I think
 ;; it would do good to rewrite it from scratch with a better understanding
 ;; of syntax-case
+
+(define-syntax define-curried-syntax-helper
+  (syntax-rules ()
+    ((_ name () ((pattern template) ...))
+     (define-syntax name
+       (syntax-rules ()
+	 (pattern
+	  template)
+	 ...)))
+    ((_ name (args ... last) (templates ...))
+     (define-curried-syntax-helper name (args ...)
+       (templates ... ((__ args ...)
+		       (lambda (last)
+			 (name args ... last))))))))
+
 (define-syntax define-curried-syntax
-  (lambda (def)
-    (define (definitions name args)
-      (datum->syntax
-       def
-       (let loop ((args* (syntax->datum args)))
-	 (match args*
-	   (() '())
-	   ((first ... last)
-	    (cons `((_ ,@first #;...)
-		    (lambda(,last)
-		      (,(syntax->datum name) ,@args*)))
-		  (loop first #;...)))))))
-    (syntax-case def ()
-      ((_ (name . args) . body)
-       #`(define-syntax name
-	   (syntax-rules ()
-	     ((_ . args)
-	      (begin . body))
-	     #,@(definitions #'name #'args)))))))
+  (syntax-rules ()
+    ((_ (name args ...) body . *)
+     (define-curried-syntax-helper 
+       name (args ...) 
+       (((__ args ...)
+	 (begin body . *)))))))
 
 (define-curried-syntax (string-match-all pattern string)
   (let loop ((n 0)
