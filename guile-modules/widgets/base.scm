@@ -61,43 +61,105 @@
 (define-generic add-child!)
 (define-generic remove-child!)
 
+(define ((getter property) object)
+  #[object property])
+
+(define ((hook-adder hook-name) self value)
+  (add-hook! (slot-ref self hook-name) value #t))
+
+(define (((hook-caller hook-name) self) . args)
+  (apply run-hook (slot-ref self hook-name) args))
+
+(define ((hook . args))
+  (make-hook (length args)))
+
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
   (children #:allocation #:virtual #:slot-ref (lambda _ '())
 	    #:slot-set! noop)
+  (left-mouse-down-hook #:init-thunk (hook 'x 'y))
+  (left-mouse-up-hook #:init-thunk (hook 'x 'y))
+  (left-click-hook #:init-thunk (hook 'x 'y))
+  (right-mouse-down-hook #:init-thunk (hook 'x 'y))
+  (right-mouse-up-hook #:init-thunk (hook 'x 'y))
+  (right-click-hook #:init-thunk (hook 'x 'y))
+
+  (left-mouse-down 
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'left-mouse-down-hook)
+   #:slot-set! (hook-adder 'left-mouse-down-hook))
+
+  (left-mouse-up 
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'left-mouse-up-hook)
+   #:slot-set! (hook-adder 'left-mouse-up-hook))
+  (left-click 
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'left-click-hook)
+   #:slot-set! (hook-adder 'left-click-hook))
+
+  (right-mouse-down 
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'right-mouse-down-hook)
+   #:slot-set! (hook-adder 'right-mouse-down-hook))
+  (right-mouse-up 
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'right-mouse-up-hook)
+   #:slot-set! (hook-adder 'right-mouse-up-hook))
+  (right-click 
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'right-click-hook)
+   #:slot-set! (hook-adder 'right-click-hook))
+#|
   (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
   (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
   (left-click #:init-value noop #:init-keyword #:left-click)
   (right-mouse-down #:init-value noop #:init-keyword #:right-mouse-down)
   (right-mouse-up #:init-value noop #:init-keyword #:right-mouse-up)
   (right-click #:init-value noop #:init-keyword #:right-click)
-
+|#
   (mouse-move                           ; issued whenever a mouse cursor
    #:init-value noop                    ; is moved over a widget
    #:init-keyword #:mouse-move)
   (drag-over                            ; issued when the active widget
    #:init-value noop                    ; becomes visible to some nearby
    #:init-keyword #:mouse-over)         ; widget
-
   (mouse-out #:init-value noop #:init-keyword #:mouse-out)
   (drag #:init-value noop #:init-keyword #:drag)
   (activate #:init-value noop #:init-keyword #:activate)
   (deactivate #:init-value noop #:init-keyword #:deactivate)
-  (resize #:init-value noop #:init-keyword #:resize); new-w new-h old-w old-h
-  (x #:init-value 0 #:init-keyword #:x)
-  (y #:init-value 0 #:init-keyword #:y)
-  (%w #:init-value 0 #:init-keyword #:w)
-  (%h #:init-value 0 #:init-keyword #:h)
+  (resize                               ; new-w new-h, issued before
+   #:init-value noop                    ; the actual resize, so the old
+   #:init-keyword #:resize)             ; values can be accessed
+  (move                                 ; new-x, new-y, issued before
+   #:init-value noop                    ; the position is changed
+   #:init-keyword #:move)
+  (%x #:init-value 0 #:init-keyword #:x) (%y #:init-value 0 #:init-keyword #:y)
+  (%w #:init-value 0 #:init-keyword #:w) (%h #:init-value 0 #:init-keyword #:h)
+  (x #:allocation #:virtual
+     #:slot-ref (getter '%x)
+     #:slot-set! (lambda(self x)
+		   (unless (= #[self '%x] x)
+		     (#[self 'move] x #[self '%y])
+		     (set! #[self '%x] x))))
+  (y #:allocation #:virtual
+     #:slot-ref (getter '%y)
+     #:slot-set! (lambda(self y)
+		   (unless (= #[self '%y] y)
+		     (#[self 'move] #[self '%x] y)
+		     (set! #[self '%y] y))))
   (w #:allocation #:virtual
-     #:slot-ref (lambda(self)#[self '%w])
+     #:slot-ref (getter '%w)
      #:slot-set! (lambda(self w)
-		   (#[self 'resize] w #[self '%h])
-		   (set! #[self '%w] w)))
+		   (unless (= #[self '%w] w)
+		     (#[self 'resize] w #[self '%h])
+		     (set! #[self '%w] w))))
   (h #:allocation #:virtual
-     #:slot-ref (lambda(self)#[self '%h])
+     #:slot-ref (getter '%h)
      #:slot-set! (lambda(self h)
-		   (#[self 'resize] #[self '%w] h)
-		   (set! #[self '%h] h))))
+		   (unless (= #[self '%h] h)
+		     (#[self 'resize] #[self '%w] h)
+		     (set! #[self '%h] h)))))
 
 (define-class <stage> (<widget>)
   (children #:init-value '()))
