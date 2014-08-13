@@ -3,33 +3,27 @@
   #:use-module (rnrs bytevectors)
   #:use-module (srfi srfi-60)
   #:export (
-	    u8vector-uint-ref
-	    u8vector-uint-set!
-	    u8vector-sint-ref
-	    u8vector-sint-set!
+	    bytevector-u8-ref/shared
+	    bytevector-u8-set!/shared
+	    bytevector-u16-ref/shared
+	    bytevector-u16-set!/shared
+	    bytevector-u32-ref/shared
+	    bytevector-u32-set!/shared
+	    bytevector-u64-ref/shared
+	    bytevector-u64-set!/shared
+	    bytevector-s8-ref/shared
+	    bytevector-s8-set!/shared
+	    bytevector-s16-ref/shared
+	    bytevector-s16-set!/shared
+	    bytevector-s32-ref/shared
+	    bytevector-s32-set!/shared
+	    bytevector-s64-ref/shared
+	    bytevector-s64-set!/shared
 
-	    u8vector-u8-ref
-	    u8vector-u8-set!
-	    u8vector-u16-ref
-	    u8vector-u16-set!
-	    u8vector-u32-ref
-	    u8vector-u32-set!
-	    u8vector-u64-ref
-	    u8vector-u64-set!
-
-	    u8vector-s8-ref
-	    u8vector-s8-set!
-	    u8vector-s16-ref
-	    u8vector-s16-set!
-	    u8vector-s32-ref
-	    u8vector-s32-set!
-	    u8vector-s64-ref
-	    u8vector-s64-set!
-
-	    u8vector-ieee-single-ref
-	    u8vector-ieee-single-set!
-	    u8vector-ieee-double-ref
-	    u8vector-ieee-double-set!
+	    bytevector-ieee-single-ref/shared
+	    bytevector-ieee-single-set!/shared
+	    bytevector-ieee-double-ref/shared
+	    bytevector-ieee-double-set!/shared
 	    ))
 
 ;; this module is to be thrown away once the bytevector-*-ref family
@@ -37,8 +31,80 @@
 ;; arrays, and later, when arrays themselves get to be thrown away,
 ;; replaced by a list of lists (once scheme* is plead to life)
 
+(define (bytevector-u8-ref/shared bv index endianness)
+  (bytevector-u8-ref (shared-array-root bv) 
+		     (+ index (shared-array-offset bv))))
+
+(define (bytevector-u8-set!/shared bv index value endianness)
+  (bytevector-u8-set! (shared-array-root bv) 
+		      (+ index (shared-array-offset bv))
+		      value))
+
+(define (bytevector-s8-ref/shared bv index endianness)
+  (bytevector-s8-ref (shared-array-root bv) 
+		     (+ index (shared-array-offset bv))))
+
+(define (bytevector-s8-set!/shared bv index value endianness)
+  (bytevector-s8-set! (shared-array-root bv) 
+		      (+ index (shared-array-offset bv))
+		      value))
+
+(let-syntax ((define-bytevector-accessors/shared
+	       (lambda (stx)
+		 (define (syntax-name . syntaxes)
+		   (datum->syntax 
+		    stx
+		    (string->symbol
+		     (fold-right string-append "" 
+				 (map ->string 
+				      (map syntax->datum  syntaxes))))))
+		 (syntax-case stx ()
+		   ((_ type)
+		    (with-syntax ((bytevector-*-set!/shared
+				   (syntax-name #'bytevector- #'type
+						#'-set!/shared))
+				  (bytevector-*-ref/shared
+				   (syntax-name #'bytevector- #'type
+						#'-ref/shared))
+				  (bytevector-*-set!
+				   (syntax-name #'bytevector- #'type #'-set!))
+				  (bytevector-*-ref
+				   (syntax-name #'bytevector- #'type #'-ref)))
+		      #'(begin
+			  (define (bytevector-*-set!/shared bv i val endian)
+			    (bytevector-*-set! (shared-array-root bv)
+					       (+ i (shared-array-offset bv))
+					       val endian))
+			  (define (bytevector-*-ref/shared bv i endian)
+			    (bytevector-*-ref (shared-array-root bv)
+					      (+ i (shared-array-offset bv))
+					      endian)))))))))
+  (define-bytevector-accessors/shared u16)
+  (define-bytevector-accessors/shared s16)
+  (define-bytevector-accessors/shared u32)
+  (define-bytevector-accessors/shared s32)
+  (define-bytevector-accessors/shared u64)
+  (define-bytevector-accessors/shared s64)
+  (define-bytevector-accessors/shared ieee-single)
+  (define-bytevector-accessors/shared ieee-double))
+
+;; THE CODE BELOW IS DEPERCATED AND REMAINS IN THIS SOURCE FILE
+;; ONLY TO HAVE A BIT MORE CODE FOR INSPIRATION (it is no longer
+;; exported, though)
+
+(deprecated:
+
+(define (shared-u8vector-ref bv index)
+  (u8vector-ref (shared-array-root bv) 
+		(+ index (shared-array-offset bv))))
+
+(define (shared-u8vector-set! bv index value)
+  (u8vector-set! (shared-array-root bv) 
+		 (+ index (shared-array-offset bv))
+		 value))
+
 (define (proper-u8-vector-boundaries? n v offset)
-  (and (u8vector? v)
+  (and (u8vector? (shared-array-root v))
        (positive? n) (integer? n)
        (natural? offset)
        (< offset (- (u8vector-length v) n))))
@@ -64,7 +130,7 @@
  (define (u8vector-read-unsigned-bytes/little-endian n v offset)
    (assert (proper-u8-vector-boundaries? n v offset))
    (fold + 0 (map (lambda(i)
-		    (* (u8vector-ref v (+ i offset)) (expt 256 i)))
+		    (* (shared-u8vector-ref v (+ i offset)) (expt 256 i)))
 		  (iota n))))
  (define (u8vector-write-unsigned-bytes/little-endian n v offset value)
    (assert (and (proper-u8-vector-boundaries? n v offset)
@@ -73,12 +139,13 @@
    (let loop ((i 0)
 	      (bits value))
      (when (< i n)
-       (u8vector-set! v (+ i offset) (bitwise-and bits #xff))
+       (shared-u8vector-set! v (+ i offset) (bitwise-and bits #xff))
        (loop (+ i 1) (arithmetic-shift bits -8)))))
  (define (u8vector-read-unsigned-bytes/big-endian n v offset)
    (assert (proper-u8-vector-boundaries? n v offset))
    (fold + 0 (map (lambda(i)
-		    (* (u8vector-ref v (+ i offset)) (expt 256 (- n i 1))))
+		    (* (shared-u8vector-ref v (+ i offset)) 
+		       (expt 256 (- n i 1))))
 		  (iota n))))
  (define (u8vector-write-unsigned-bytes/big-endian n v offset value)
    (assert (and (proper-u8-vector-boundaries? n v offset)
@@ -87,7 +154,7 @@
    (let loop ((i (- n 1))
 	      (bits value))
      (when (>= i 0)
-       (u8vector-set! v (+ i offset) (bitwise-and bits #xff))
+       (shared-u8vector-set! v (+ i offset) (bitwise-and bits #xff))
        (loop (- i 1) (arithmetic-shift bits -8))))))
 
 (publish
@@ -111,13 +178,13 @@
  (define (u8vector-read-signed-bytes/little-endian n v offset)
    (assert (proper-u8-vector-boundaries? n v offset))
    (let*-values (((n-1) (- n 1))
-		 ((v/n-1) (u8vector-ref v (+ offset n-1)))
+		 ((v/n-1) (shared-u8vector-ref v (+ offset n-1)))
 		 ((sign highest-value)
 		  (values (bitwise-and v/n-1 #b10000000)
 			  (bitwise-and v/n-1 #b01111111))))
      (fold + (* (- highest-value sign) (expt 256 n-1))
 	   (map (lambda(i)
-		  (* (u8vector-ref v (+ i offset)) (expt 256 i)))
+		  (* (shared-u8vector-ref v (+ i offset)) (expt 256 i)))
 		(iota n-1)))))
  (define (u8vector-write-signed-bytes/little-endian n v offset value)
    (let ((minus (if (negative? value) 1 0)))
@@ -130,21 +197,22 @@
 			  (+ value (* 1/2 (expt 256 n))))))
        (when (< i n)
 	 (if (= i (- n 1))
-	     (u8vector-set! v (+ i offset)
+	     (shared-u8vector-set! v (+ i offset)
 			    (bitwise-ior (arithmetic-shift minus 7)
 					 (bitwise-and bits #b01111111)))
-	     (u8vector-set! v (+ i offset) (bitwise-and bits #xff)))
+	     (shared-u8vector-set! v (+ i offset) (bitwise-and bits #xff)))
 	 (loop (+ i 1) (arithmetic-shift bits -8))))))
  (define (u8vector-read-signed-bytes/big-endian n v offset)
    (assert (proper-u8-vector-boundaries? n v offset))
    (let*-values (((n-1) (- n 1))
-		 ((v/0) (u8vector-ref v offset))
+		 ((v/0) (shared-u8vector-ref v offset))
 		 ((sign highest-value)
 		  (values (bitwise-and v/0 #b10000000)
 			  (bitwise-and v/0 #b01111111))))
      (fold + (* (- highest-value sign) (expt 256 n-1))
 	   (map (lambda(i)
-		  (* (u8vector-ref v (+ i offset 1)) (expt 256 (- n-1 i 1))))
+		  (* (shared-u8vector-ref v (+ i offset 1)) 
+		     (expt 256 (- n-1 i 1))))
 		(iota n-1)))))
  (define (u8vector-write-signed-bytes/big-endian n v offset value)
    (let ((minus (if (negative? value) 1 0)))
@@ -157,13 +225,11 @@
 			  (+ value (* 1/2 (expt 256 n))))))
        (when (>= i 0)
 	 (if (= i 0)
-	     (u8vector-set! v (+ i offset)
+	     (shared-u8vector-set! v (+ i offset)
 			    (bitwise-ior (arithmetic-shift minus 7)
 					 (bitwise-and bits #b01111111)))
-	     (u8vector-set! v (+ i offset) (bitwise-and bits #xff)))
+	     (shared-u8vector-set! v (+ i offset) (bitwise-and bits #xff)))
 	 (loop (- i 1) (arithmetic-shift bits -8)))))))
-
-#|
 
 (reassurance:
  (match-let (((bv index value endianness size) 
@@ -222,8 +288,6 @@
 					   endianness size)
 		       (= (u8vector-sint-ref bv index endianness size)
 			 signed-value))))))))))
-
-|#
 
 (let-syntax ((define-u8vector-accessors
 	       (lambda (stx)
@@ -314,3 +378,5 @@
 			 endianness)))))))))))
   (define-u8vector-ieee-accessors single 4)
   (define-u8vector-ieee-accessors double 8))
+
+--deprecated)
