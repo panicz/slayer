@@ -12,7 +12,6 @@
   #:re-export (start-gameplay make)
   )
 
-
 (define-class <simple-board-game> (<board-game> <board>)
   ;; <simple-board-gameplay> represents the simplest setup, namely
   ;; -- n human players playing a game on one computer.
@@ -35,7 +34,7 @@
    (lambda (checker #;at field #;on board)
      (cond (#[field 'allowed]
 	    (select-move! #;from #[checker : 'origin : 'position]
-				 #;as #[field 'move] #;on board)
+				 #;as #[field 'chosen-move] #;on board)
 	    (synchronize-fields! board #[board 'board-state]))
 	   (else
 	    (move! checker #;to #[checker 'origin] #;on board)))

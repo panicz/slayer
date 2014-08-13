@@ -54,7 +54,7 @@
 			 (set! #[object 'parent] self)))
   (position #:init-keyword #:position #;(x y))
   (allowed #:init-value #f)
-  (move #:init-value #f)
+  (chosen-move #:init-value #f)
   (last-move #:init-value #f)
   (children #:allocation #:virtual
 	    #:slot-ref (lambda (self)
@@ -127,7 +127,6 @@
 	(lambda (x y dx dy)
 	  (increase! #[self 'x] dx)
 	  (increase! #[self 'y] dy))))
-
 
 (define-method (draw (field <field>))
   (next-method)
@@ -210,7 +209,7 @@
 
 (define-method (allow! (field <field>) move)
   (set! #[field 'allowed] #t)
-  (set! #[field 'move] move)
+  (set! #[field 'chosen-move] move)
   (set! #[field 'image] (highlighted #[field 'image] #:green +50)))
 
 (define-method (reset! (board <board>))
@@ -218,6 +217,6 @@
     (for x in 0 .. (- w 1)
 	 (for y in 0 .. (- h 1)
 	      (set! #[ #[ #[board 'fields] y x ] 'allowed] #f)
-	      (set! #[ #[ #[board 'fields] y x ] 'move] #f)
+	      (set! #[ #[ #[board 'fields] y x ] 'chosen-move] #f)
 	      (set! #[ #[ #[board 'fields] y x ] 'image ]
 		    (#[board 'field-decorator] x y))))))
