@@ -72,7 +72,7 @@
 	    union intersection difference adjoin unique same-set?
 	    equivalent-set?
 	    map-n for-each-n unfold-n unzip chunk-list
-	    equivalence-classes min+max argmin argmax clamp
+	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
 	    insert rest head tail
 	    tree-find tree-map map* depth 
@@ -791,6 +791,8 @@
        body ...))))
 
 (define (min+max first . args)
+  (assert (and (number? first)
+	       (every number? args)))
   (let loop ((min first)
 	     (max first)
 	     (remaining args))
@@ -798,36 +800,75 @@
       (()
        (values min max))
       ((current . remaining)
-       (loop (if (< current min) current min)
-	     (if (> current max) current max)
-	     remaining)))))
+       (cond ((< current min)
+	      (loop current max remaining))
+	     ((> current max)
+	      (loop min current remaining))
+	     (else
+	      (loop min max remaining)))))))
+
+(e.g.
+ (min+max 5 4 6 3 7 2 8 1)
+ ===> 1 8)
 
 (publish
- (define (argmin property #;from list-of-elements)
-   (argopt < property #;from list-of-elements))
- (define (argmax property #;from list-of-elements)
-   (argopt > property #;from list-of-elements))
+ (define (argmin property element . elements)
+   (apply argopt < property element elements))
+ (define (argmax property element . elements)
+   (apply argopt > property element elements))
  where
- (define (argopt < property #;from list-of-elements)
-   (if (not (null? list-of-elements))
-       (let next-trial ((champion (first list-of-elements))
-			(elements (rest list-of-elements)))
-	 (if (null? elements)
-	     champion
-	     (if (< (property (first elements)) (property champion))
-		 (next-trial (first elements) (rest elements))
-		 (next-trial champion (rest elements)))))
-   #;else
-       (error "Trying to get optimum of an empty list"))))
+ (define (argopt < property element . elements)
+   (let next-trial ((champion element)
+		    (mastery (property element))
+		    (opponents elements))
+     (if (null? opponents)
+	 champion
+	 (let* ((rival (first opponents))
+		(challenge (property rival)))
+	   (if (< challenge mastery)
+	       (next-trial rival challenge (rest opponents))
+	       (next-trial champion mastery (rest opponents))))))))
+
+(e.g.
+ (argmin length '(1 2) '(3) '(4 5 6))
+ ===> (3))
+
+(define (argmin+argmax property element . elements)
+  (let ((quality (property element)))
+    (let next-trial ((winner element)
+		     (looser element)
+		     (mastery quality)
+		     (failure quality)
+		     (opponents elements))
+      (if (null? opponents)
+	  (values looser winner)
+	  (let* ((rival (first opponents))
+		 (quality (property rival)))
+	    (cond ((< quality failure)
+		   (next-trial winner rival mastery quality (rest opponents)))
+		  ((> quality mastery)
+		   (next-trial rival looser quality failure (rest opponents)))
+		  (else
+		   (next-trial winner looser mastery failure 
+			       (rest opponents)))))))))
+
+(e.g.
+ (argmin+argmax length '(1 2) '(3) '(4 5 6))
+ ===> (3) (4 5 6))
 
 (define (clamp min max)
   (lambda (x)
+    (assert (number? x))
     (cond ((< x min)
 	   min)
 	  ((> x max)
 	   max)
 	  (else
 	   x))))
+
+(e.g.
+ (map (clamp 2 5) '(1 2 3 4 5 6))
+ ===> (2 2 3 4 5 5))
 
 (define (unknot circular-list)
   (let next ((rewrite '()) (pending circular-list) (seen `(,circular-list ())))
