@@ -410,6 +410,13 @@ joint_property(SCM x_joint, SCM s_prop) {
 }
 
 static SCM
+joint_rig(SCM x_joint) {
+  JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
+  scm_remember_upto_here_1(x_joint);
+  return joint->parent->self_smob;
+}
+
+static SCM
 joint_type(SCM x_joint) {
   JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
   return symbol(joint_type_name[dJointGetType(joint->joint)]);
@@ -421,6 +428,7 @@ joint_type(SCM x_joint) {
   EXPORT_PROC("make-joint", 2, 1, 0, make_joint);			\
   EXPORT_PROC("set-joint-property!", 3, 0, 0, set_joint_property_x);	\
   EXPORT_PROC("joint-property", 2, 0, 0, joint_property);		\
+  EXPORT_PROC("joint-rig", 1, 0, 0, joint_rig);				\
   EXPORT_PROC("joint-type", 1, 0, 0, joint_type);			\
   EXPORT_PROC("joint-named", 2, 0, 0, joint_named)			\
   EXPORT_PROC("joint-name", 1, 0, 0, joint_name)

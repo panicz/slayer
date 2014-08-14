@@ -20,6 +20,7 @@
 	     make-body
 	     set-body-property!
 	     body-property
+	     body-rig
 	     body-type
 	     body-named
 	     body-name
@@ -30,6 +31,7 @@
 	     make-joint
 	     set-joint-property!
 	     joint-property
+	     joint-rig
 	     joint-type
 	     joint-named
 	     joint-name

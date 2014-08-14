@@ -737,6 +737,13 @@ body_property(SCM x_body, SCM s_prop) {
 }
 
 static SCM
+body_rig(SCM x_body) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
+  scm_remember_upto_here_1(x_body);
+  return body->parent->self_smob;
+}
+
+static SCM
 body_type(SCM x_body) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
   scm_remember_upto_here_1(x_body);
@@ -756,6 +763,7 @@ body_id(SCM x_body) {
   EXPORT_PROC("make-body", 3, 0, 0, make_body);				\
   EXPORT_PROC("set-body-property!", 2, 1, 0, set_body_property_x);	\
   EXPORT_PROC("body-property", 2, 0, 0, body_property);			\
+  EXPORT_PROC("body-rig", 1, 0, 0, body_rig);				\
   EXPORT_PROC("body-type", 1, 0, 0, body_type);				\
   EXPORT_PROC("body-id", 1, 0, 0, body_id);				\
   EXPORT_PROC("body-named", 2, 0, 0, body_named);			\
