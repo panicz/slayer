@@ -227,7 +227,7 @@
   (let ((candidates (all-widgets-under position #;from root)))
     (if (null? candidates)
 	#f
-	(argmax widget-depth candidates))))
+	(apply argmax widget-depth candidates))))
 
 (set-display-procedure! (lambda()(draw *stage*)))
 
@@ -264,14 +264,15 @@
 		    (not (in? *active-widget* `(,x ,@(ancestors x)))))
 		  widgets-below)))
     (if (not (null? non-active-widgets-below))
-	(let ((dragover-widget (argmax widget-depth non-active-widgets-below)))
+	(let ((dragover-widget (apply argmax widget-depth 
+				      non-active-widgets-below)))
 	  (when (not (equal? dragover-widget *nearby-widget*))
 	    (if *nearby-widget* 
 		(#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
 	    (set! *nearby-widget* dragover-widget)
 	    (#[ *nearby-widget* 'drag-over ] x y xrel yrel))))
     (if (not (null? widgets-below))
-	(let ((mousemove-widget (argmax widget-depth widgets-below)))
+	(let ((mousemove-widget (apply argmax widget-depth widgets-below)))
 	  (#[mousemove-widget 'mouse-move] x y xrel yrel)))
     (#[ *active-widget* 'drag ] x y xrel yrel)
     (set! left-click-time #f)))
@@ -323,7 +324,6 @@
 	 #[self 'min-h]))
    #:slot-set!
    noop))
-
 
 (define-method (draw (c <container-widget>))
   (if #[c 'content]
