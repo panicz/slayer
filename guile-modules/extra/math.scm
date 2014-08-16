@@ -382,13 +382,20 @@
 
 (define-method (rotate (v <uvec>) #;by (radians <real>)
 		       #;around (axis <uvec>))
-  (let ((q (quaternion (cos (* 0.5 radians))
-		       (* (sin (* 0.5 radians)) (normalized axis)))))
+  (let ((q (rotation-quaternion #;around axis #;by radians)))
     (rotate v #;by q)))
 
-(define (rotation-quaternion #;from u #;to w)
-  "a quaternion that represents rotation from the direction of u \
-to the direction of w"
+(define-method (rotate (v <uvec>) #;by (radians <real>)
+		       #;around (axis <uvec>) #;at (anchor <uvec>))
+  (let ((q (rotation-quaternion #;around axis #;by radians)))
+    (+ anchor (rotate (- v anchor) axis #;by q))))
+
+(define-method (rotate (v <uvec>) #;by (rads <real>) #;around (axis <uvec>))
+  (rotate v #;by rads #;around axis #;at #f32(0 0 0)))
+
+(define-method (rotation-quaternion #;from (u <uvec>) #;to (w <uvec>))
+  "a quaternion that represents rotation from the direction of u\
+ to the direction of w"
   (let ((u (normalized u))              ; This method is borrowed from Game
 	(w (normalized w)))             ; Programming Gems vol.1 chapter 2.10
     (let ((v (wedge3x3 u w))            ; written by Stan Melax 
@@ -404,6 +411,9 @@ to the direction of w"
 		(normalized 
 		 (- v (projection #:of v #:onto u))))))))))
 
+(define-method (rotation-quaternion #;around (axis <uvec>) #;by (rads <real>))
+  (quaternion (cos (* 0.5 rads)) (* (sin (* 0.5 rads)) (normalized axis))))
+
 (define (quaternion->matrix q)
   (let ((s (re q))
 	(v (im q)))
@@ -418,7 +428,6 @@ to the direction of w"
        (,(* 2.0 (- (* #[v 0] #[v 2]) (* s #[v 1])))
 	,(* 2.0 (+ (* #[v 1] #[v 2]) (* s #[v 0])))
 	,(- 1.0 (* 2.0 (+ (* #[v 0] #[v 0]) (* #[v 1] #[v 1])))))))))
-
 
 (define-method (mean (n <number>) . numbers)
   (let ((numbers (cons n numbers))
