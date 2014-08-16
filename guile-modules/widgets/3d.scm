@@ -212,9 +212,9 @@
       (let ((old-bindings (current-key-bindings))
 	    (first-selected (first #[view 'selected]))
 	    (original-positions (map #[_ 'position] #[view 'selected])))
-	(match-let (((x0 y0 z0) 
+	(match-let (((xs ys zs)
 		     (3d->screen view #[first-selected 'position])))
-	  (set-mouse-position! x0 y0)
+	  (set-mouse-position! xs ys)
 	  (set-key-bindings!
 	   (key-bindings
 	    (keydn 'esc
@@ -230,9 +230,12 @@
 	    
 	    (mousemove 
 	     (lambda (x y xrel yrel)
-	       (for object in #[view 'selected]
-		    (set! #[object 'position] 
-			  (screen->3d view x y z0)))))))))))
+	       (for (object position) in (zip #[view 'selected]
+					      original-positions)
+		 (set! #[object 'position] 
+		       (+ (screen->3d view x y zs) 
+			  (- position (first original-positions)))))))
+	    ))))))
 
 (define* ((rotate-mode view #:key (leave 'esc)))
   (if (not (null? #[view 'selected]))
