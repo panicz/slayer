@@ -160,7 +160,6 @@
     (world->screen/coordinates #[position 0] #[position 1] #[position 2]
 			       matrix projection (area view))))
 
-
 (define-class <3d-editor> (<3d-view>)
   (object-groups #:init-form (make-vector (1+ (max-display-index)) '()))
   (draw-objects!
@@ -238,30 +237,53 @@
 	    ))))))
 
 (define* ((rotate-mode view #:key (leave 'esc)))
-  (if (not (null? #[view 'selected]))
-      (let ((old-bindings (current-key-bindings))
-	    (first-selected (first #[view 'selected]))
-	    (original-orientations (map #[_ 'orientation] #[view 'selected])))
-	(match-let* ((center #[first-selected 'position])
-		     ((_ _ z0) (3d->screen view center))
-		     (q0 #[first-selected 'orientation])
-		     ((x0 y0) (mouse-position)))
-	  (set-key-bindings!
-	   (key-bindings
-	    (keydn leave
-	      (lambda ()
-		(for (object orientation) in (zip #[view 'selected]
-						  original-orientations)
-		     (set! #[object 'orientation] orientation))
-		(set-key-bindings! old-bindings)))
-	    (keydn 'mouse-left
-	      (lambda (x y)
-		(set-key-bindings! old-bindings)))
-	    (mousemove 
-	     (lambda (x y xrel yrel)		 
-	       (for object in #[view 'selected]
-		    (set! #[object 'orientation]
-			  (* (rotation-quaternion 
-			      #;from (- (screen->3d view x0 y0 z0) center)
-				     #;to (- (screen->3d view x y z0) center))
-			     q0)))))))))))
+  (unless (null? #[view 'selected])
+    (let ((old-bindings (current-key-bindings))
+	  (first-selected (first #[view 'selected]))
+	  (rotate-around-center #f)
+	  (original-positions (map #[_ 'position] #[view 'selected]))
+	  (original-orientations (map #[_ 'orientation] #[view 'selected])))
+      (match-let* ((center (apply mean original-positions))
+		   ((_ _ zs) (3d->screen view center))
+		   ((xs ys) (mouse-position)))
+	(set-key-bindings!
+	 (key-bindings
+	  (keydn leave
+	    (lambda ()
+	      (for (object orientation position) in (zip #[view 'selected]
+							 original-orientations
+							 original-positions)
+		(set! #[object 'orientation] orientation)
+		(set! #[object 'position] position))
+	      (set-key-bindings! old-bindings)))
+
+	  (keydn 'tab
+	    (lambda ()
+	      (if rotate-around-center
+		  (for (object position) in (zip #[view 'selected]
+						 original-positions)
+		    ;; restore original position
+		    (set! #[object 'position] position)))
+	      (set! rotate-around-center (not rotate-around-center))))
+
+	  (keydn 'mouse-left
+	    (lambda (x y)
+	      (set-key-bindings! old-bindings)))
+
+	  (mousemove 
+	   (lambda (x y xrel yrel)
+	     (let ((rotation (rotation-quaternion 
+			      #;from (- (screen->3d view xs ys zs) 
+					center)
+				     #;to (- (screen->3d view x y zs)
+					     center))))
+	       (for (object orientation position) in (zip #[view 'selected] 
+							  original-orientations
+							  original-positions)
+		 (set! #[object 'orientation]
+		       (rotate orientation #;by rotation))
+		 (when rotate-around-center
+		   (set! #[object 'position]
+			 (+ center (rotate (- position center)
+					   #;by rotation)))
+		   )))))))))))
