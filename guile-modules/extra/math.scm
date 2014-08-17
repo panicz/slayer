@@ -268,22 +268,18 @@
 	;;
 	(transpose 1/M)))))
 
-(define-syntax-rule (save-operation op #;as name #;for <type>)
-  (begin
-    (define name op)
-    (define-generic op)
-    (define-method (op (n <type>) (m <type>))
-      (name n m))
-    (define-method (op (n <type>) (m <type>) . rest)
-      (apply op (op n m) rest))))
-
-(save-operation + #;as add #;for <number>)
-
-(save-operation * #;as multiply #;for <number>)
-
-(save-operation / #;as divide #;for <number>)
-
-(save-operation - #;as subtract #;for <number>)
+(let-syntax (((save-operation op #;as name #;for <type>)
+	      (begin
+		(define name op)
+		(define-generic op)
+		(define-method (op (n <type>) (m <type>))
+		  (name n m))
+		(define-method (op (n <type>) (m <type>) . rest)
+		  (apply op (op n m) rest)))))
+  (save-operation + #;as add #;for <number>)
+  (save-operation * #;as multiply #;for <number>)
+  (save-operation / #;as divide #;for <number>)
+  (save-operation - #;as subtract #;for <number>))
 
 (define-method (* (s <number>) (p <point>)) 
   (array-map (lambda (x) (* x s)) p))
