@@ -465,24 +465,23 @@
  ===> (Nelson-Mandela))
 
 (define-fluid SPECIFIC-CONTEXT (make-hash-table))
-
-(define-macro (with-default bindings . actions)
-  (match bindings
-    (((names values) ...)
-     `(let-syntax 
-	  ((specific 
-	    (syntax-rules ,names 
-	      ,@(map (match-lambda 
-			 ((name value)
-			  `((_ ,name)
-			    (let ((default (hash-ref (fluid-ref
+		   
+(define-syntax with-default
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ((name value) ...) actions . *)
+       (with-syntax ((specific (datum->syntax stx 'specific)))
+	 #'(let-syntax ((specific 
+			 (syntax-rules (name ...)
+			   ((_ name)
+			    (let ((default (hash-ref (fluid-ref 
 						      SPECIFIC-CONTEXT)
-						     ',name '())))
+						     'name '())))
 			      (if (null? default)
-				  ,value
-				  (first default))))))
-		     bindings))))
-	,@actions))))
+				  value
+				  (first default))))
+			   ...)))
+	     actions . *))))))
 
 (define-syntax specify
   (syntax-rules ()
