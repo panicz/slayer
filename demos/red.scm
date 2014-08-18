@@ -302,31 +302,53 @@ exit
 		 `(0.0 . #f32(1 0 0)))))
 
 (keydn 'g (grab-mode view))
-(keydn 'h (rotate-mode view))
-(keydn 't (lambda()
-	    (match #[view 'selected]
-	      ((first second)
-	       (if (and (is-a? first <physical-body>)
-			(is-a? second <physical-body>)
-			(bodies-are-connected? first second))
-		   (let*-values (((joint) (joint-connecting-bodies 
-					   first second))
-				 ((left right) (split-bodies-at joint))
-				 ((move still) (cond ((in? first left)
-						      (values left right))
-						     ((in? first right)
-						      (values right left))
-						     (else
-						      (error)))))
-		     (unselect-all! #;from view)
-		     (for object in move
-		       (select-object! object #;from view)))
-		   #;else
-		   (display "operation requires two bodies connected with\
+
+(keydn 'h 
+  (rotate-mode 
+   view 
+   #:center 
+   (lambda(selected)
+     (or (and-let* ((selected-bodies (filter (lambda(x)
+					       (is-a? x <physical-body>))
+					     selected))
+		    ((not (null? selected-bodies)))
+		    (first-body (last selected-bodies))
+		    (joints (joints-attached-to first-body))
+		    (joints-attaching-unselected-bodies
+		     (filter (lambda(joint)
+			       (not (in? (body-attached-by joint 
+							   #;to first-body)
+				     selected-bodies)))
+			     joints))
+		    ((not (null? joints-attaching-unselected-bodies))))
+	   #[(first joints-attaching-unselected-bodies) 'position])
+	 (apply mean (map #[_ 'position] selected))))))
+
+(keydn 't 
+  (lambda()
+    (match #[view 'selected]
+      ((first second)
+       (if (and (is-a? first <physical-body>)
+		(is-a? second <physical-body>)
+		(bodies-are-connected? first second))
+	   (let*-values (((joint) (joint-connecting-bodies 
+				   first second))
+			 ((left right) (split-bodies-at joint))
+			 ((move still) (cond ((in? first left)
+					      (values left right))
+					     ((in? first right)
+					      (values right left))
+					     (else
+					      (error)))))
+	     (unselect-all! #;from view)
+	     (for object in move
+	       (select-object! object #;from view)))
+	   #;else
+	   (display "operation requires two bodies connected with\
  a joint to be selected\n")))
-	      (else
-	       (display "exactly two objects need to be selected\n")
-	       ))))
+      (else
+       (display "exactly two objects need to be selected\n")
+       ))))
 
 (keydn 'delete (lambda () (delete-selected-objects! #;in view)))
 

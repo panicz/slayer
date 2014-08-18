@@ -235,16 +235,17 @@
 		       (+ (screen->3d view x y zs) 
 			  (- position (first original-positions)))))))
 	    ))))))
-
-(define* ((rotate-mode view #:key (leave 'esc)))
+(define* ((rotate-mode view #:key (leave 'esc) 
+		       (center (lambda(selected)
+				 (apply mean (map #[_ 'position] selected))))))
   (unless (null? #[view 'selected])
     (let ((old-bindings (current-key-bindings))
 	  (first-selected (first #[view 'selected]))
+	  (center (center #[view 'selected]))
 	  (rotate-around-center #f)
 	  (original-positions (map #[_ 'position] #[view 'selected]))
 	  (original-orientations (map #[_ 'orientation] #[view 'selected])))
-      (match-let* ((center (apply mean original-positions))
-		   ((_ _ zs) (3d->screen view center))
+      (match-let* (((_ _ zs) (3d->screen view center))
 		   ((xs ys) (mouse-position)))
 	(set-key-bindings!
 	 (key-bindings
