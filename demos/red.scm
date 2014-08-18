@@ -26,6 +26,7 @@ exit
 	     (red object)
 	     (red body)
 	     (red joint)
+	     (red relations)
 	     )
 
 (set-window-title! "RED")
@@ -207,10 +208,6 @@ exit
 
 (keydn 'n (lambda () (set! add-new? #t)))
 
-(define-method (add-object! (object <editable-object>) #;to (view <3d-stage>))
-  (next-method)
-  (set! add-new? #f))
-
 (define-method (set-body-shape! #;of (body <physical-body>) 
 				     #;to (shape <symbol>) . args)
   (set! #[body 'shape] shape)
@@ -261,10 +258,12 @@ exit
 	(let ((object (object-at-position x y view)))
 	  (if object
 	      (select-object! object #;from view)
-	      (if add-new?
-		  (add-object! 
-		   (make <physical-body> #:position (screen->3d view x y 0.95))
-		   #;to the-rig))))))
+	      (when add-new?
+		(add-object! 
+		 (make <physical-body> #:position (screen->3d view x y 0.95))
+		 #;to the-rig)
+		(set! add-new? #f)
+		)))))
 
 (set! #[view 'drag]
       (lambda(x y dx dy)
@@ -298,12 +297,37 @@ exit
 	(pretty-print (describe-rig the-rig)))
       (format #t "rig saved to ~s\n" file))))
 
-(keydn "1" (lambda () 
-	     (set! #[view : 'camera : 'orientation] 
-		   `(0.0 . #f32(1 0 0)))))
+(keydn 1 (lambda () 
+	   (set! #[view : 'camera : 'orientation] 
+		 `(0.0 . #f32(1 0 0)))))
 
 (keydn 'g (grab-mode view))
 (keydn 'h (rotate-mode view))
+(keydn 't (lambda()
+	    (match #[view 'selected]
+	      ((first second)
+	       (if (and (is-a? first <physical-body>)
+			(is-a? second <physical-body>)
+			(bodies-are-connected? first second))
+		   (let*-values (((joint) (joint-connecting-bodies 
+					   first second))
+				 ((left right) (split-bodies-at joint))
+				 ((move still) (cond ((in? first left)
+						      (values left right))
+						     ((in? first right)
+						      (values right left))
+						     (else
+						      (error)))))
+		     (unselect-all! #;from view)
+		     (for object in move
+		       (select-object! object #;from view)))
+		   #;else
+		   (display "operation requires two bodies connected with\
+ a joint to be selected\n")))
+	      (else
+	       (display "exactly two objects need to be selected\n")
+	       ))))
+
 (keydn 'delete (lambda () (delete-selected-objects! #;in view)))
 
 (keydn ","
@@ -316,8 +340,8 @@ exit
 	      (shift-joint-type! object -1))
 	     ))
       (else
-       (display "Exactly one object needs to be selected in order to change \
-its type")))))
+       (display "Exactly one object needs to be selected in order to change\
+ its type")))))
 
 (keydn "."
   (lambda ()
@@ -329,8 +353,8 @@ its type")))))
 	      (shift-joint-type! object +1))
 	     ))
       (else
-       (display "Exactly one object needs to be selected in order to change \
-its type")))))
+       (display "Exactly one object needs to be selected in order to change\
+ its type")))))
 
 (if (and (defined? '$1) (file-exists? $1))
     (match (with-input-from-file $1 read)
