@@ -69,42 +69,25 @@ exit # this prevents from executing the rest of the file by the shell
 
 (define *sim-stage* (make <physics-stage> #:simulation *sim*))
 
-(define *view* 
+(define view 
   (make <3d-view> #:x 10 #:y 10 
 	#:w (- (screen-width) 10)
 	#:h (- (screen-height) 10)
 	#:stage *sim-stage*))
 
-(add-child! *view* #;to *stage*)
+(add-child! view #;to *stage*)
 
-;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
+;(set! #[view : 'camera : 'position] #f32(0 0 -5))
 
 (add-timer! 25 (lambda()(make-simulation-step! *sim*)))
 
-(key 'q (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 0.02))))
-(key 'e (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 -0.02))))
-(key 'w (lambda () (relative-move! #[*view* 'camera] #f32(0 0 -0.07))))
-(key 's (lambda () (relative-move! #[*view* 'camera] #f32(0 0 0.07))))
-(key 'a (lambda () (relative-move! #[*view* 'camera] #f32(-0.07 0 0))))
-(key 'd (lambda () (relative-move! #[*view* 'camera] #f32(0.07 0 0))))
-(key 'r (lambda () (relative-move! #[*view* 'camera] #f32(0 0.07 0))))
-(key 'f (lambda () (relative-move! #[*view* 'camera] #f32(0 -0.07 0))))
+(keydn '/ (lambda () (<< `(position: ,#[view : 'camera : 'position])
+			 `(rotation: ,#[view : 'camera : 'orientation]))))
 
-(key 'up (lambda () (relative-turn! #[*view* 'camera] 0 2)))
-(key 'down (lambda () (relative-turn! #[*view* 'camera] 0 -2)))
-
-(key 'left (lambda () (relative-turn! #[*view* 'camera] 2 0)))
-(key 'right (lambda () (relative-turn! #[*view* 'camera] -2 0)))
-
-(set! #[*view* 'drag] (lambda (x y dx dy)
-			(relative-turn! #[*view* 'camera] (- dx) (- dy))))
-
-(keydn '/ (lambda () (<< `(position: ,#[*view* : 'camera : 'position])
-			 `(rotation: ,#[*view* : 'camera : 'orientation]))))
-
-(set! #[*view* : 'camera : 'position] 
+(set! #[view : 'camera : 'position] 
       #f32(0 1.5 0.2))
 
-(set! #[*view* : 'camera : 'orientation] 
+(set! #[view : 'camera : 'orientation] 
       (quaternion 0.0 #f32(0.0 0.707106781186548 0.707106781186548)))
 
+(load "config.scm")

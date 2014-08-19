@@ -14,20 +14,17 @@
 
 (define *sim* (primitive-make-simulation))
 
-(set-simulation-property! *sim* 'gravity #f32(0 0 0))
+(set-simulation-property! *sim* 'gravity #f32(0 0 -0.1))
 ;(set-simulation-property! *sim* 'erp 0.8)
 ;(set-simulation-property! *sim* 'cfm 1.0)
 
 (define-rig-for *sim* 'ground (with-input-from-file "art/rigs/ground.rig" read))
-(make-rig *sim* 'ground #:position #f32(-2 -2 -2)
-	  )
+(make-rig *sim* 'ground #:position #f32(-2 -2 -2))
 
-(if (and (defined? '$1) (file-exists? $1))
-    (begin 
-      (define-rig-for *sim* 'object (with-input-from-file $1 read))
-      (make-rig *sim* 'object #:position #f32(0 0 0)
-		#:orientation '(0.707106781186548 . #f32(-0.707106781186548 0 0))
-		)))
+(when (and (defined? '$1) (file-exists? $1))
+  (define-rig-for *sim* 'object (with-input-from-file $1 read))
+  (make-rig *sim* 'object #:position #f32(0 0 0)
+	    #:orientation '(0.707 . #f32(-0.707 0 0))))
 
 (define *sim-stage* (make <physics-stage> #:simulation *sim*))
 
@@ -81,7 +78,7 @@
 
 (keydn 'space 
   (lambda () 
-    (match #[*view* 'selected]
+    (match #[view 'selected]
       ((the-body . _)
        (attach! the-force #;to the-body))
       (else
@@ -92,7 +89,7 @@
 #|
 (keydn 'return
   (lambda ()
-    (match #[*view* 'selected]
+    (match #[view 'selected]
       ((object . _)
        (if (is-a? object <physical-object>)
 	   (let ((body #[oobject 'body]))
@@ -138,15 +135,15 @@ in order to apply force to it\n")))))
   (keydn 'y (set-axis! #f32(0 1 0)))
   (keydn 'z (set-axis! #f32(0 0 1))))
 
-(define *view* 
+(define view 
   (make <3d-editor> #:x 10 #:y 10 
 	#:w (- (screen-width) 10)
 	#:h (- (screen-height) 10)
 	#:stage *sim-stage*))
 
-(add-child! *view* #;to *stage*)
+(add-child! view #;to *stage*)
 
-;(set! #[*view* : 'camera : 'position] #f32(0 0 -5))
+;(set! #[view : 'camera : 'position] #f32(0 0 -5))
 
 (add-timer! 
  25 
@@ -156,16 +153,6 @@ in order to apply force to it\n")))))
 
 (keydn 'b (lambda ()
 	    (display (map rig-bodies (simulation-rigs *sim*))) (newline)))
-
-(key 'q (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 0.02))))
-(key 'e (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 -0.02))))
-(key 'w (lambda () (relative-move! #[*view* 'camera] #f32(0 0 -0.07))))
-(key 's (lambda () (relative-move! #[*view* 'camera] #f32(0 0 0.07))))
-(key 'a (lambda () (relative-move! #[*view* 'camera] #f32(-0.07 0 0))))
-(key 'd (lambda () (relative-move! #[*view* 'camera] #f32(0.07 0 0))))
-(key 'r (lambda () (relative-move! #[*view* 'camera] #f32(0 0.07 0))))
-(key 'f (lambda () (relative-move! #[*view* 'camera] #f32(0 -0.07 0))))
-
 
 (publish 
  (define (select-next-body!)
@@ -177,35 +164,28 @@ in order to apply force to it\n")))))
  where
  (define (select-next-body-from-list! bodies)
    (if (not (null? bodies))
-       (and-let* ((body (if (null? #[*view* 'selected])
+       (and-let* ((body (if (null? #[view 'selected])
 			    (first bodies)
 			    (match (find-tail
 				    (equals? 
-				     #[(first #[*view* 'selected]) 'body])
+				     #[(first #[view 'selected]) 'body])
 				    bodies)
 			      ((this next . rest)
 			       next)
 			      (else
 			       (first bodies)))))
 		  (object #[*sim-stage* : '%body=>object : body]))
-	 (unselect-all! #;in *view*)
-	 (select-object! object #;from *view*)))))
+	 (unselect-all! #;in view)
+	 (select-object! object #;from view)))))
 
 (keydn "," select-previous-body!)
 (keydn "." select-next-body!)
-(keydn 'esc (lambda()(unselect-all! #;in *view*)))
+(keydn 'esc (lambda()(unselect-all! #;in view)))
 
-(key 'up (lambda () (relative-turn! #[*view* 'camera] 0 2)))
-(key 'down (lambda () (relative-turn! #[*view* 'camera] 0 -2)))
-
-(key 'left (lambda () (relative-turn! #[*view* 'camera] 2 0)))
-(key 'right (lambda () (relative-turn! #[*view* 'camera] -2 0)))
-
-(set! #[*view* 'drag] (lambda (x y dx dy)
-			(relative-turn! #[*view* 'camera] (- dx) (- dy))))
-
-(set! #[*view* : 'camera : 'position] 
+(set! #[view : 'camera : 'position] 
       #f32(0 1.5 0.2))
 
-(set! #[*view* : 'camera : 'orientation] 
+(set! #[view : 'camera : 'orientation] 
       (quaternion 0.0 #f32(0.0 0.707106781186548 0.707106781186548)))
+
+(load "config.scm")

@@ -100,11 +100,6 @@
     (reset-behaviors! #;of rig)
     (set-pose! #;of rig #;to pose)))
 
-
-
-(rotation-quaternion #f32(0 0 1) (normalized #f32(-0.2 0 0.8)))
-
-
 (define ((pd-drive kp kd) joint desired-value)
   (let ((the (lambda(name)(joint-property joint name))))
     (let ((axis (the 'axis))
@@ -140,8 +135,8 @@
 
 (define-rig-for the-simulation 'ground 
   (with-input-from-file "art/rigs/ground.rig" read))
-(define the-ground (make-rig the-simulation 'ground #:position #f32(0 0 0.05)))
 
+(define the-ground (make-rig the-simulation 'ground #:position #f32(0 0 0.05)))
 
 (define the-legs (make-rig #;in the-simulation #;instantiating 'legs))
 
@@ -257,9 +252,6 @@
 		  (circular-list stand left-up left-front left-straight
 				 stand right-up right-front right-straight)
 		  the-legs)))
-
-
-
 
 (define pause #f)
 (keydn 'p (lambda () (set! pause (not pause))))
