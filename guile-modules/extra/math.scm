@@ -384,7 +384,7 @@
 (define-method (rotate (v <uvec>) #;by (radians <real>)
 		       #;around (axis <uvec>) #;at (anchor <uvec>))
   (let ((q (rotation-quaternion #;around axis #;by radians)))
-    (+ anchor (rotate (- v anchor) axis #;by q))))
+    (+ anchor (rotate (- v anchor) #;by q))))
 
 (define-method (rotate (v <uvec>) #;by (rads <real>) #;around (axis <uvec>))
   (rotate v #;by rads #;around axis #;at #f32(0 0 0)))
