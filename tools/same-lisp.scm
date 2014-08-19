@@ -1,17 +1,7 @@
 #!/usr/bin/guile \
 -L ./guile-modules -L ../guile-modules -e main -s
 !#
-(use-modules (extra common)
-	     (extra ref))
-
-(define (read-file filename)
-  (with-input-from-file filename
-    (lambda ()
-      (let loop ((datum (read)) 
-		 (content '()))
-	(if (eof-object? datum)
-	    (reverse content)
-	    (loop (read) (cons datum content)))))))
+(use-modules (extra common))
 
 (define (main (program-name files ...))
   (catch 'read-error

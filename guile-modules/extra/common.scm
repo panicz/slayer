@@ -100,7 +100,7 @@
 	    u8->list u8->bitvector bytevector->list bytevector->bitvector
 	    unpack pack extend
 	    current-working-directory list-directory change-directory
-	    with-changed-working-directory
+	    with-changed-working-directory read-file
 	    shell next-available-file-name
 	    << die first-available-input-port
 	    real->integer
@@ -1808,6 +1808,15 @@
 
 (define-syntax-rule (with-output-string action . *)
   (with-output-to-string (lambda () action . *)))
+
+(define (read-file filename)
+  (with-input-from-file filename
+    (lambda ()
+      (let loop ((datum (read)) 
+		 (content '()))
+	(if (eof-object? datum)
+	    (reverse content)
+	    (loop (read) (cons datum content)))))))
 
 (define current-working-directory getcwd)
 
