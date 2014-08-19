@@ -1,4 +1,4 @@
-(define-module (rigged object)
+(define-module (editor rigged object)
   #:use-module (oop goops)
   #:use-module (extra common)
   #:use-module (extra ref)

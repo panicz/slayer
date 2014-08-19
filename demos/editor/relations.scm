@@ -1,4 +1,4 @@
-(define-module (rigged relations)
+(define-module (editor relations)
   #:use-module (extra common)
   #:export (
 	     bodies-linked-to

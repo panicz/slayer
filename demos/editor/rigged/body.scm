@@ -1,11 +1,11 @@
-(define-module (rigged body)
+(define-module (editor rigged body)
   #:use-module (oop goops)
   #:use-module (extra common)
   #:use-module (extra ref)
   #:use-module (extra math)
   #:use-module (extra figures)
 
-  #:use-module (rigged object)
+  #:use-module (editor rigged object)
   #:export (<physical-body> properties describe-body))
 
 (define-class <physical-body> (<editable-object>)
