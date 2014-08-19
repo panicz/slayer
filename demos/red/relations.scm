@@ -13,33 +13,27 @@
 	     joints-attached-to
 	    ))
 
-;; these procedures are introduced for compatibility with (scum physics)
-;; module, so that -- if needed -- the code below can be copied verbatim
-;; to the simulator
-(define (body-rig body)
-  #[body 'rig])
+(define ((please-specify value) . _)
+  (throw 'specify value))
 
-(define (joint-property joint property)
-  (assert (in? property '(body-1 body-2)))
-  #[joint property])
-
-(define (rig-joints rig)
-  (filter (lambda(x)(is-a? x <physical-joint>)) #[rig 'objects]))
-
-(define (two-bodies-attached-by joint)
-  `(,(joint-property joint 'body-1) ,(joint-property joint 'body-2)))
+(with-default ((joint-property-getter (please-specify 'joint-property-getter)))
+  (define (two-bodies-attached-by joint)
+    `(,((specific joint-property-getter) joint 'body-1) 
+      ,((specific joint-property-getter) joint 'body-2))))
 
 (define (attaches? joint body1 #;with body2)
   (let ((attached-bodies (two-bodies-attached-by joint)))
     (and (in? body1 attached-bodies)
 	 (in? body2 attached-bodies))))
 
-(define (joints-attached-to body)
-  (let* ((rig (body-rig body))
-	 (joints (rig-joints rig)))
-    (filter (lambda (joint)
-	      (in? body (two-bodies-attached-by joint)))
-	    joints)))
+(with-default ((body-rig-getter (please-specify 'body-rig-getter))
+	       (rig-joints-getter (please-specify 'rig-joints-getter)))
+  (define (joints-attached-to body)
+    (let* ((rig ((specific body-rig-getter) body))
+	   (joints ((specific rig-joints-getter) rig)))
+      (filter (lambda (joint)
+		(in? body (two-bodies-attached-by joint)))
+	      joints))))
 
 (define (body-attached-by joint #;to body)
   (first (delete body #;from (two-bodies-attached-by joint))))

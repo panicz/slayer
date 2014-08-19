@@ -303,52 +303,69 @@ exit
 
 (keydn 'g (grab-mode view))
 
+(define-syntax-rule (with-context-for-joint/body-relation action . *)
+  (specify ((joint-property-getter 
+	     (lambda (joint property)
+	       (assert (in? property '(body-1 body-2)))
+	       #[joint property]))
+	    (body-rig-getter 
+	     (lambda (body)
+	       #[body 'rig]))
+	    (rig-joints-getter 
+	     (lambda (rig)
+	       (filter (lambda(x)
+			 (is-a? x <physical-joint>))
+		       #[rig 'objects]))))
+    action . *))
+
 (keydn 'h 
-  (rotate-mode 
+  (rotate-mode
    view 
    #:center 
    (lambda(selected)
-     (or (and-let* ((selected-bodies (filter (lambda(x)
-					       (is-a? x <physical-body>))
-					     selected))
-		    ((not (null? selected-bodies)))
-		    (first-body (last selected-bodies))
-		    (joints (joints-attached-to first-body))
-		    (joints-attaching-unselected-bodies
-		     (filter (lambda(joint)
-			       (not (in? (body-attached-by joint 
-							   #;to first-body)
-				     selected-bodies)))
-			     joints))
-		    ((not (null? joints-attaching-unselected-bodies))))
-	   #[(first joints-attaching-unselected-bodies) 'position])
-	 (apply mean (map #[_ 'position] selected))))))
+     (with-context-for-joint/body-relation
+      (or (and-let* ((selected-bodies (filter (lambda(x)
+						(is-a? x <physical-body>))
+					      selected))
+		     ((not (null? selected-bodies)))
+		     (first-body (last selected-bodies))
+		     (joints (joints-attached-to first-body))
+		     (joints-attaching-unselected-bodies
+		      (filter (lambda(joint)
+				(not (in? (body-attached-by joint 
+							    #;to first-body)
+					  selected-bodies)))
+			      joints))
+		     ((not (null? joints-attaching-unselected-bodies))))
+	    #[(first joints-attaching-unselected-bodies) 'position])
+	  (apply mean (map #[_ 'position] selected)))))))
 
 (keydn 't 
   (lambda()
-    (match #[view 'selected]
-      ((first second)
-       (if (and (is-a? first <physical-body>)
-		(is-a? second <physical-body>)
-		(bodies-are-connected? first second))
-	   (let*-values (((joint) (joint-connecting-bodies 
-				   first second))
-			 ((left right) (split-bodies-at joint))
-			 ((move still) (cond ((in? first left)
-					      (values left right))
-					     ((in? first right)
-					      (values right left))
-					     (else
-					      (error)))))
-	     (unselect-all! #;from view)
-	     (for object in move
-	       (select-object! object #;from view)))
-	   #;else
-	   (display "operation requires two bodies connected with\
+    (with-context-for-joint/body-relation
+     (match #[view 'selected]
+       ((first second)
+	(if (and (is-a? first <physical-body>)
+		 (is-a? second <physical-body>)
+		 (bodies-are-connected? first second))
+	    (let*-values (((joint) (joint-connecting-bodies 
+				    first second))
+			  ((left right) (split-bodies-at joint))
+			  ((move still) (cond ((in? first left)
+					       (values left right))
+					      ((in? first right)
+					       (values right left))
+					      (else
+					       (error)))))
+	      (unselect-all! #;from view)
+	      (for object in move
+		(select-object! object #;from view)))
+	    #;else
+	    (display "operation requires two bodies connected with\
  a joint to be selected\n")))
-      (else
-       (display "exactly two objects need to be selected\n")
-       ))))
+       (else
+	(display "exactly two objects need to be selected\n")
+	)))))
 
 (keydn 'delete (lambda () (delete-selected-objects! #;in view)))
 
