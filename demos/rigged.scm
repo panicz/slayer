@@ -23,13 +23,13 @@ exit
 	     (widgets text-area)
 	     (widgets sprite)
 	     (widgets 3d)
-	     (red object)
-	     (red body)
-	     (red joint)
-	     (red relations)
+	     (rigged object)
+	     (rigged body)
+	     (rigged joint)
+	     (rigged relations)
 	     )
 
-(set-window-title! "RED")
+(set-window-title! "RIGGED: The RIG Editor")
 
 ;; TODO LIST:
 ;; - zapis rigów do pliku, odczyt rigów z pliku

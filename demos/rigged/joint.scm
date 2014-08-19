@@ -1,11 +1,11 @@
-(define-module (red joint)
+(define-module (rigged joint)
   #:use-module (oop goops)
   #:use-module (extra common)
   #:use-module (extra ref)
   #:use-module (extra math)
   #:use-module (extra 3d)
   #:use-module (widgets base)
-  #:use-module (red object)
+  #:use-module (rigged object)
   #:export (<physical-joint> describe-joint))
 
 (publish
