@@ -282,7 +282,7 @@
 							  original-orientations
 							  original-positions)
 		 (set! #[object 'orientation]
-		       (rotate orientation #;by rotation))
+		       (* rotation orientation))
 		 (when rotate-around-center
 		   (set! #[object 'position]
 			 (+ center (rotate (- position center)
