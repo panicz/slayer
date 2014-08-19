@@ -1,9 +1,5 @@
 (define-module (red relations)
-  #:use-module (oop goops)
   #:use-module (extra common)
-  #:use-module (extra ref)
-  #:use-module (red joint)
-  #:use-module (red body)
   #:export (
 	     bodies-linked-to
 	     split-bodies-at
@@ -65,31 +61,3 @@
 (define (bodies-are-connected? body-1 body-2)
   (not (null? (intersection (joints-attached-to body-1)
 			    (joints-attached-to body-2)))))
-
-#|
-(let*-values (((left right) (split-bodies-at joint))
-	      ((move still) (cond ((in? body left)
-				   (values left right))
-				  ((in? body right)
-				   (values right left))
-				  (else
-				   (error "bad argument")))))
-		((anchor axis) (values (joint-property joint 'anchor)
-				       (joint-property joint 'axis))))
-    (for body in move
-      (set! #[body 'position] (rotate #[body 'position]
-				      #;by (deg->rad some-degrees)
-					   #;around axis))
-      (set! #[body 'quaternion] 
-	    (* (rotation-quaternion #;around axis #;by (deg->rad some-degrees))
-	       #[body 'quaternion])))))
-								 
-		((positions orientations)
-		 (values 
-		  (map (lambda(b)(body-property b 'position)) rotated)
-		  (map (lambda(b)(body-property b 'quaternion)) rotated)))
-		((rotated-positions rotated-orientations)
-		 (values
-		  (map (lambda (position) ...) positions)
-		  (map (lambda (orientation) ...) orientations))))
-|#
