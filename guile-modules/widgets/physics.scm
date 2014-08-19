@@ -39,7 +39,7 @@
        (match (generate-capsule #:radius radius
 				#:height height)
 	 (('mesh . data)
-	  `(mesh ,@(replace-alist-bindings 
+	  `(mesh ,@data #;,@(replace-alist-bindings 
 		    data
 		    (match (assoc-ref data 'faces)
 		      (((type . data) ...) 
@@ -118,8 +118,10 @@
      (access-joint-properties joint (anchor axis angle hi-stop lo-stop body-1)
        (let* ((target (body-property body-1 'position))
 	      (direction (normalized (- target anchor)))
-	      (hi-stop-axis (rotate direction #;by hi-stop #;rads #;around axis))
-	      (lo-stop-axis (rotate direction #;by lo-stop #;rads #;around axis)))
+	      (hi-stop-axis (rotate direction #;by hi-stop #;rads 
+				    #;around axis))
+	      (lo-stop-axis (rotate direction #;by lo-stop #;rads 
+				    #;around axis)))
 	 `(mesh
 	   (colors #2f32((1 0 0)(1 1 0)
 			 (0 0 1)(0 1 0)
@@ -130,7 +132,8 @@
 		       `((0 0 0) (0 0 1)
 			 ,(uniform-vector->list direction)
 			 #;,(uniform-vector->list lo-stop-axis))))
-	   (faces (lines #u8(0 1 0 2)))))))
+	   (faces (points #u8(0))
+		  #;(lines #u8(0 1 0 2)))))))
     (else
      '(mesh (vertices #2f32((0 0 0)))
 	    (faces (points #u8(0)))))))
