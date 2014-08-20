@@ -206,14 +206,14 @@
        (delete-object! object #;from #[view 'stage]))
   (set! #[view 'selected] '()))
 
-(define* ((grab-mode view #:key (leave 'esc)))
+(define ((grab-mode view))
   (if (not (null? #[view 'selected]))
       (let ((old-bindings (current-key-bindings))
-	    (first-selected (first #[view 'selected]))
 	    (original-positions (map #[_ 'position] #[view 'selected])))
-	(match-let (((xs ys zs)
-		     (3d->screen view #[first-selected 'position])))
-	  (set-mouse-position! xs ys)
+	(match-let (;((xs ys) (mouse-position))
+		    ((xs ys zs) (3d->screen view 
+					  (last original-positions))))
+	  ;;(set-mouse-position! xs ys)
 	  (set-key-bindings!
 	   (key-bindings
 	    (keydn 'esc
@@ -235,21 +235,22 @@
 		       (+ (screen->3d view x y zs) 
 			  (- position (first original-positions)))))))
 	    ))))))
-(define* ((rotate-mode view #:key (leave 'esc) 
+
+(define* ((rotate-mode view #:key 
+		       (always-rotate-around-center #f)
+		       (rotate-around-center always-rotate-around-center)
 		       (center (lambda(selected)
 				 (apply mean (map #[_ 'position] selected))))))
   (unless (null? #[view 'selected])
     (let ((old-bindings (current-key-bindings))
-	  (first-selected (first #[view 'selected]))
 	  (center (center #[view 'selected]))
-	  (rotate-around-center #f)
 	  (original-positions (map #[_ 'position] #[view 'selected]))
 	  (original-orientations (map #[_ 'orientation] #[view 'selected])))
       (match-let* (((_ _ zs) (3d->screen view center))
 		   ((xs ys) (mouse-position)))
 	(set-key-bindings!
 	 (key-bindings
-	  (keydn leave
+	  (keydn 'esc
 	    (lambda ()
 	      (for (object orientation position) in (zip #[view 'selected]
 							 original-orientations
@@ -260,12 +261,14 @@
 
 	  (keydn 'tab
 	    (lambda ()
-	      (if rotate-around-center
+	      (if (and rotate-around-center
+		       (not always-rotate-around-center))
 		  (for (object position) in (zip #[view 'selected]
 						 original-positions)
 		    ;; restore original position
 		    (set! #[object 'position] position)))
-	      (set! rotate-around-center (not rotate-around-center))))
+	      (unless always-rotate-around-center
+		(set! rotate-around-center (not rotate-around-center)))))
 
 	  (keydn 'mouse-left
 	    (lambda (x y)
