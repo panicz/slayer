@@ -43,10 +43,6 @@
     (set! #[rig-poses rig]
 	  (replace-alist-bindings (or #[rig-poses rig] '()) pose))))
 
-(define (null-pose #;for rig)
-  (let ((joints (rig-joints rig)))
-    `(pose (,(joint-name joints) . 0.0) ...)))
-
 (define rig-behaviors #[])
 
 (define rig-poses #[])
@@ -142,109 +138,21 @@
 
 (set-simulation-property! the-simulation 'gravity #f32(0 0 -0.098))
 
-(define (combine-poses a b)
-  (match-let ((('pose . pose-a) a)
-	      (('pose . pose-b) b))
-    `(pose ,@(replace-alist-bindings pose-a pose-b))))
-
-(define stand (null-pose the-legs))
-(define left-up 
-  (combine-poses stand `(pose (left-knee . -0.5)
-			      (left-pelvis . 0.5)
-			      (right-ankle . #f)
-			      (balance . 0.5)
-			      )))
-(define left-front 
-  (combine-poses left-up `(pose (left-knee . -0.2)
-				(left-ankle . #f)
-				(right-knee . #f)
-				(balance . 0.8)
-				)))
-(define left-straight
-  (combine-poses left-front `(pose (left-knee . 0)
-				   (left-ankle . 0)
-				   (left-pelvis . 0)
-				   (balance . 0.5)
-				   (right-pelvis . 0.5))))
-
-
-(define right-up
-  (combine-poses stand `(pose (right-knee . 0.5)
-			      (right-pelvis . -0.5)
-			      (left-ankle . #f)
-			      (balance . -0.5)
-			      )))
-(define right-front 
-  (combine-poses right-up `(pose (right-knee . 0.2)
-				(right-ankle . #f)
-				(left-knee . #f)
-			      (balance . -0.8)
-				)))
-(define right-straight
-  (combine-poses right-front `(pose (right-knee . 0)
-				   (right-ankle . 0)
-				   (right-pelvis . 0)
-				   (balance . -0.5)
-				   (left-pelvis . -0.5))))
-
-(define duck
-  `(pose (left-pelvis . 2.2)
-	 (left-knee . -2.2)
-	 (left-ankle . 0.9)
-	 (right-pelvis . -2.2)
-	 (right-knee . 2.2)
-	 (right-ankle . -0.9)))
-
+(include "temporary-poses.scm")
 
 (set! #[rig-poses the-legs] (tail stand))
 
-
-#|
-(keydn 1 (lambda()(set-pose! #;of the-legs #;to stand)))
-(keydn 2 (lambda()(set-pose! #;of the-legs #;to duck)))
-(keydn 3 (lambda()(set-pose! #;of the-legs #;to left-up)))
-(keydn 4 (lambda()(set-pose! #;of the-legs #;to left-front)))
-(keydn 5 (lambda()(set-pose! #;of the-legs #;to left-straight)))
-(keydn 6 (lambda()(set-pose! #;of the-legs #;to right-up)))
-(keydn 7 (lambda()(set-pose! #;of the-legs #;to right-front)))
-(keydn 8 (lambda()(set-pose! #;of the-legs #;to right-straight)))
-|#
-
-
-(keydn 0 (lambda () (set-pose! #;of the-legs #;to stand)))
-(keydn 1 (lambda () (set-pose! #;of the-legs #;to left-up)))
-(keydn 2 (lambda () (set-pose! #;of the-legs #;to left-front)))
-(keydn 3 (lambda () (set-pose! #;of the-legs #;to left-straight)))
-(keydn 4 (lambda () (set-pose! #;of the-legs #;to right-up)))
-(keydn 5 (lambda () (set-pose! #;of the-legs #;to right-front)))
-(keydn 6 (lambda () (set-pose! #;of the-legs #;to right-straight)))
-(keydn 9 (lambda () (set-pose! #;of the-legs #;to duck)))
-
 (define stage (make <physics-stage> #:simulation the-simulation))
 
-(define *view*
+(define view
   (make <3d-editor> #:x 10 #:y 10 
 	#:w (- (screen-width) 10)
 	#:h (- (screen-height) 10)
 	#:stage stage))
 
-(add-child! *view* #;to *stage*)
+(add-child! view #;to *stage*)
 
-(key 'q (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 0.02))))
-(key 'e (lambda () (relative-twist! #[*view* 'camera] #f32(0 0 -0.02))))
-(key 'w (lambda () (relative-move! #[*view* 'camera] #f32(0 0 -0.07))))
-(key 's (lambda () (relative-move! #[*view* 'camera] #f32(0 0 0.07))))
-(key 'a (lambda () (relative-move! #[*view* 'camera] #f32(-0.07 0 0))))
-(key 'd (lambda () (relative-move! #[*view* 'camera] #f32(0.07 0 0))))
-(key 'r (lambda () (relative-move! #[*view* 'camera] #f32(0 0.07 0))))
-(key 'f (lambda () (relative-move! #[*view* 'camera] #f32(0 -0.07 0))))
-(key 'up (lambda () (relative-turn! #[*view* 'camera] 0 2)))
-(key 'down (lambda () (relative-turn! #[*view* 'camera] 0 -2)))
-
-(key 'left (lambda () (relative-turn! #[*view* 'camera] 2 0)))
-(key 'right (lambda () (relative-turn! #[*view* 'camera] -2 0)))
-(set! #[*view* 'drag] (lambda (x y dx dy)
-			(relative-turn! #[*view* 'camera] (- dx) (- dy))))
+(include "config.scm")
 
 (keydn 'return (lambda ()
 		 (reset-behaviors! #;of the-legs)
