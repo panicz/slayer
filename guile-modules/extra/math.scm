@@ -20,7 +20,7 @@
 	   <generalized-vector>
 	   <quaternion> 
 	   quaternion quaternion-real quaternion-imag re im ~ ^
-	   rotation-quaternion rotate
+	   quaternion-angle quaternion-axis rotation-quaternion rotate
 	   TOLERANCE
 	   ))
 
@@ -90,9 +90,9 @@
 (define (rad->deg x) (* x (/ 180 pi)))
 
 (define (sgn x) 
-  (cond ((> x 0) 1)
+  (cond ((> x 0) +1)
 	((< x 0) -1)
-	(#t 0)))
+	(else 0)))
 
 (define* (eye size #:optional (type #t))
   (let ((m (make-typed-array type 0 size size)))
@@ -140,8 +140,9 @@
   (sqrt (square v)))
 
 (define-method (normalize! (v <point>))
-  (let ((lv (norm v)))
-    (array-map! v (lambda(x)(/ x lv)) v)))
+  (let* ((lv (norm v))
+	 (1/lv (/ 1.0 lv)))
+    (array-map! v (lambda(x)(* x 1/lv)) v)))
 
 (define-method (normalized (v <point>))
   (let ((lv (norm v))
@@ -409,6 +410,15 @@
 
 (define-method (rotation-quaternion #;around (axis <uvec>) #;by (rads <real>))
   (quaternion (cos (* 0.5 rads)) (* (sin (* 0.5 rads)) (normalized axis))))
+
+(define (quaternion-angle q)
+  (* 2 (acos (quaternion-real q))))
+
+(define (quaternion-axis q)
+  (let* ((axis (quaternion-imag q))
+	 (norm (norm axis)))
+    (if (> (abs norm) #[TOLERANCE])
+	(* (/ 1.0 norm) axis))))
 
 (define (quaternion->matrix q)
   (let ((s (re q))
