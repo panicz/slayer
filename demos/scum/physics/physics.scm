@@ -12,10 +12,12 @@
 	     set-simulation-property!
 	     simulation-bodies
 	     simulation-joints
+	     simulation?
 	     
 	     primitive-make-rig
 	     rig-bodies
 	     rig-joints
+	     rig?
 
 	     make-body
 	     set-body-property!
@@ -24,6 +26,7 @@
 	     body-type
 	     body-named
 	     body-name
+	     body?
 	     
 	     force!
 	     torque!
@@ -35,6 +38,7 @@
 	     joint-type
 	     joint-named
 	     joint-name
+	     joint?
 	     )
   #:export-syntax (define-rigs-for))
 

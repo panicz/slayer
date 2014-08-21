@@ -29,10 +29,18 @@ DEF_RIG_GETTER(joint, joints); // rig_joints
 
 #undef DEF_RIG_GETTER
 
+static SCM
+rig_p(SCM smob) {
+  return (SCM_SMOB_PREDICATE(ode_tag, smob) && (SCM_SMOB_FLAGS(smob) != RIG))
+    ? SCM_BOOL_T
+    : SCM_BOOL_F;
+}
+
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_RIG_PROCEDURES						\
   DEFINE_PROC("primitive-make-rig", 1, 0, 0, primitive_make_rig);	\
+  EXPORT_PROC("rig?", 1, 0, 0, rig_p)					\
   EXPORT_PROC("rig-bodies", 1, 0, 0, rig_bodies)			\
   EXPORT_PROC("rig-joints", 1, 0, 0, rig_joints)
 

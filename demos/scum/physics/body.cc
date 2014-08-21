@@ -757,6 +757,13 @@ body_id(SCM x_body) {
   return scm_from_size_t((size_t) body);
 }
 
+static SCM
+body_p(SCM smob) {
+  return (SCM_SMOB_PREDICATE(ode_tag, smob) && (SCM_SMOB_FLAGS(smob) != BODY))
+    ? SCM_BOOL_T
+    : SCM_BOOL_F;
+}
+
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_BODY_PROCEDURES						\
@@ -779,6 +786,7 @@ body_id(SCM x_body) {
   EXPORT_PROC("body-add-local-force-at-relative-position!", 3, 0, 0,	\
 	      body_add_local_force_at_relative_position_x);		\
   EXPORT_PROC("body-add-torque!", 2, 0, 0, body_add_torque_x);		\
+  EXPORT_PROC("body?", 1, 0, 0, body_p)					\
   EXPORT_PROC("body-add-local-torque!", 2, 0, 0,			\
 	      body_add_local_torque_x)
 

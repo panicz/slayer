@@ -422,6 +422,13 @@ joint_type(SCM x_joint) {
   return symbol(joint_type_name[dJointGetType(joint->joint)]);
 }
 
+static SCM
+joint_p(SCM smob) {
+  return (SCM_SMOB_PREDICATE(ode_tag, smob) && (SCM_SMOB_FLAGS(smob) != JOINT))
+    ? SCM_BOOL_T
+    : SCM_BOOL_F;
+}
+
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_JOINT_PROCEDURES						\
@@ -431,6 +438,7 @@ joint_type(SCM x_joint) {
   EXPORT_PROC("joint-rig", 1, 0, 0, joint_rig);				\
   EXPORT_PROC("joint-type", 1, 0, 0, joint_type);			\
   EXPORT_PROC("joint-named", 2, 0, 0, joint_named)			\
+  EXPORT_PROC("joint?", 1, 0, 0, joint_p)				\
   EXPORT_PROC("joint-name", 1, 0, 0, joint_name)
 
 #define INIT_JOINT_MODULE			\

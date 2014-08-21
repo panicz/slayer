@@ -236,12 +236,18 @@ init_sim_property_accessors() {
 #undef SET_SIM_NAMED_ACCESSORS
 }
 
-
+static SCM
+simulation_p(SCM smob) {
+  return (SCM_SMOB_PREDICATE(ode_tag, smob) && (SCM_SMOB_FLAGS(smob) != SIM))
+    ? SCM_BOOL_T
+    : SCM_BOOL_F;
+}
 
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_SIM_PROCEDURES						\
   DEFINE_PROC("primitive-make-simulation",0,0,0,primitive_make_simulation); \
+  EXPORT_PROC("simulation?", 1, 0, 0, simulation_p)			\
   EXPORT_PROC("make-simulation-step!",1,0,0,make_simulation_step);	\
   EXPORT_PROC("current-simulation-step",1,0,0,current_simulation_step);	\
   EXPORT_PROC("set-simulation-rig-maker!",3,0,0,set_simulation_rig_maker_x); \
