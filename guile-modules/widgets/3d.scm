@@ -236,11 +236,15 @@
 			  (- position (first original-positions)))))))
 	    ))))))
 
+
+
 (define* ((rotate-mode view #:key 
+		       (axis #f)
 		       (always-rotate-around-center #f)
 		       (rotate-around-center always-rotate-around-center)
 		       (center (lambda(selected)
-				 (apply mean (map #[_ 'position] selected))))))
+				 (apply mean (map #[_ 'position] selected))))
+		       (on-exit noop)))
   (unless (null? #[view 'selected])
     (let ((old-bindings (current-key-bindings))
 	  (center (center #[view 'selected]))
@@ -257,7 +261,8 @@
 							 original-positions)
 		(set! #[object 'orientation] orientation)
 		(set! #[object 'position] position))
-	      (set-key-bindings! old-bindings)))
+	      (set-key-bindings! old-bindings)
+	      (on-exit)))
 
 	  (keydn 'tab
 	    (lambda ()
@@ -272,15 +277,23 @@
 
 	  (keydn 'mouse-left
 	    (lambda (x y)
-	      (set-key-bindings! old-bindings)))
+	      (set-key-bindings! old-bindings)
+	      (on-exit)))
 
 	  (mousemove 
 	   (lambda (x y xrel yrel)
-	     (let ((rotation (rotation-quaternion 
-			      #;from (- (screen->3d view xs ys zs) 
-					center)
-				     #;to (- (screen->3d view x y zs)
-					     center))))
+	     (let* ((screen-rotation (rotation-quaternion 
+				      #;from (- (screen->3d view xs ys zs) 
+						center)
+					     #;to (- (screen->3d view x y zs)
+						     center)))
+		    (rotation (if axis
+				  (rotation-quaternion 
+				   #;around 
+				   axis #;by (* (sgn #[(im screen-rotation) 2])
+						(quaternion-angle
+						 #;of screen-rotation)))
+				  screen-rotation)))
 	       (for (object orientation position) in (zip #[view 'selected] 
 							  original-orientations
 							  original-positions)
