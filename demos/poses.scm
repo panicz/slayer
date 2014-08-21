@@ -10,7 +10,8 @@
 	     (extra 3d)
 	     (extra math)
 	     (extra slayer)
-	     (scum physics))
+	     (scum physics)
+	     (editor poses))
 
 #|
 (set! %load-path (append '("." "./guile-modules" ".." "../guile-modules") 

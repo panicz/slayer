@@ -15,6 +15,7 @@ exit
 	     (widgets physics)
 	     (widgets 3d)
 	     (editor relations)
+	     (editor poses)
 	     (scum physics))
 
 (set-window-title! "POSED: The POSE Editor")
@@ -47,6 +48,13 @@ exit
 (define the-legs (make-rig the-simulation 'legs #:position #f32(0 0 0)
 			  #:orientation '(0.707 . #f32(-0.707 0 0))))
 
+(define rig-angles
+  (let ((rig-angles (make-hash-table)))
+    (match-let ((('pose . parameters) (null-pose #;of the-legs)))
+      (for (name . angle) in parameters
+	(hash-set! rig-angles name angle)))
+    rig-angles))
+
 (define (rotate-body! body #;by angle #;around axis #;at pivot)
   (let ((position (body-property body 'position))
 	(orientation (body-property body 'quaternion)))
@@ -58,14 +66,6 @@ exit
 							 #;by angle)
 			   orientation))))
 
-(define (rotate-joint! joint #;by angle #;around axis #;at pivot)
-  (assert (eq? (joint-type joint) 'hinge))
-  (let ((anchor (joint-property joint 'anchor))
-	(axis (joint-property joint 'axis)))
-    (set-joint-property! joint 'anchor (rotate anchor #;by angle 
-					       #;around axis #;at pivot))
-    (set-joint-property! joint 'axis (rotate axis #;by angle #;around axis))))
-
 (define (set-pose! #;of rig #;to pose)
   (assert (pose? pose))
   (with-context-for-joint/body-relation
@@ -74,8 +74,9 @@ exit
       (for (joint-name . angle) in parameters
 	(when angle
 	  (let*-values (((joint) (joint-named joint-name #;from rig))
-			((mobile-bodies immobile-bodies) 
+			((mobile-bodies immobile-bodies)
 			 (split-bodies-at joint))
+			((angle*) (- angle #[rig-angles joint-name]))
 			((mobile-joints) 
 			 (unique (fold union '()
 				       (map joints-attached-to
@@ -85,11 +86,9 @@ exit
 			   (assert (eq? (joint-type joint) 'hinge))
 			   (values (joint-property joint 'anchor)
 				   (joint-property joint 'axis)))))
+	    (set! #[rig-angles joint-name] angle)
 	    (for body in mobile-bodies
-	      (rotate-body! body #;by angle #;around axis #;at pivot))
-	    #;(for joint in mobile-joints
-	      (rotate-joint! joint #;by angle #;around axis 
-			     #;at pivot)))))))))
+	      (rotate-body! body #;by angle* #;around axis #;at pivot)))))))))
 
 (include "temporary-poses.scm")
 
@@ -117,12 +116,49 @@ exit
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
-(keydn 'g (grab-mode view))
+(define-method (select-body! body #;from (view <3d-view>))
+  (let ((object (find (lambda(x)
+			(and (is-a? x <physical-object>) 
+			     (equal? #[x 'body] body)))
+		      #[view : 'stage : 'objects])))
+    (if object
+	(select-object! object #;from view)
+	(format #t "no body found in ~s\n" #[view : 'stage : 'objects]))))
 
-(keydn 'h (rotate-mode view #:always-rotate-around-center #t))
+(keydn 'g (grab-mode view))
 
 (define pause #f)
 (keydn 'p (lambda () (set! pause (not pause))))
+
+(keydn 'h
+  (lambda()
+    (with-context-for-joint/body-relation
+     (match (map #[_ 'body] #[view 'selected])
+       ((first second)
+	(let*-values (((joint) (joint-connecting-bodies first second))
+		      ((left right) (split-bodies-at joint))
+		      ((move still) (cond ((in? first left)
+					   (values left right))
+					  ((in? first right)
+					   (values right left))
+					  (else
+					   (error)))))
+	  (unselect-all! #;from view)
+	  (for body in move
+	    (select-body! body #;from view))
+	  (let ((old-pause pause))
+	    (set! pause #t)
+	    ((rotate-mode 
+	      view
+	      #:axis (joint-property joint 'axis)
+	      #:center (lambda _ (joint-property joint 'anchor))
+	      #:always-rotate-around-center #t
+	      #:on-exit (lambda () (set! pause old-pause))))
+	    )))
+       (else
+	(display "exactly two objects need to be selected\n")
+	)))))
+
 
 (add-timer! 
  25 
