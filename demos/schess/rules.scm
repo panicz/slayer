@@ -10,15 +10,19 @@
 
 (define-class <board-game-rules> ()
   (game-name #:init-value "" #:init-keyword #:game-name)
-  (initial-state #:init-keyword #:initial-state)
-  (allowed-moves #:init-keyword #:allowed-moves)
-  (players
+  (initial-state ;type: ((figure ...) ...)
+   #:init-keyword #:initial-state)
+  (allowed-moves ;type: (player => (figure => ((initial final . _) ...)))
+   #:init-keyword #:allowed-moves)
+  (immobile ;type: (figure ...)
+   #:init-keyword #:immobile)
+  (players ;type: (player ...)
    #:allocation #:virtual
    #:slot-ref
    (lambda (self)
      (hash-keys #[self 'allowed-moves]))
    #:slot-set! noop)
-  (allowed-figures
+  (allowed-figures ;type: (figure ...)
    #:allocation #:virtual
    #:slot-ref ;; tutaj można by było dorobić cache'owanie
    (lambda (self)
@@ -30,40 +34,44 @@
    #:slot-set! noop)
   ;; we store image names here (instead of loading images) because
   ;; in some cases (e.g. server) 
-  (image-names #:init-keyword #:image-names #:init-value '())
-  (post-move #:init-keyword #:post-move #:init-thunk make-hash-table)
-  (order-of-play #:init-keyword #:order-of-play)
-  (final-condition #:init-keyword #:final-condition)
-  (wildcards #:init-keyword #:wildcards))
+  (image-names ;type: ((figure string) ...)
+   #:init-keyword #:image-names #:init-value '())
+  (post-move ;type: (player => ((initial final . _) ...))
+   #:init-keyword #:post-move #:init-thunk make-hash-table)
+  (order-of-play ;type: (player ...)
+   #:init-keyword #:order-of-play)
+  (final-condition ;type: expression
+   #:init-keyword #:final-condition)
+  (wildcards ;type: ((wildcard figures ...) ...)
+   #:init-keyword #:wildcards))
 
 (define (load-board-game game-description)
   (let ((description (with-input-from-file game-description read)))
     (match description
       (('define-game-rules name . description)
        (let ((initial-board (first #[description 'initial-board:]))
-	     (wildcards (or #[description 'wildcards:] '()))
+	     (wildcards (expand-wildcards (or #[description 'wildcards:] '())))
 	     (moves #[description 'moves:])
 	     (after-move-rules (or #[description 'after-move:] '()))
-	     (final-condition #[description 'finish:])
+	     (final-condition (first (or #[description 'finish:] '(#f))))
+	     (immobile (or #[description 'immobile:] '()))
 	     (image-names #[description 'images:]))
-	 (let ((wildcards (expand-wildcards wildcards))
-	       (width (rect-width initial-board))
+	 (let ((width (rect-width initial-board))
 	       (height (rect-height initial-board)))
 	   (specify ((wildcards wildcards))
 	     (let* ((allowed-moves (extract-moves moves width height))
 		    (order-of-play (or #[description 'order-of-play:]
 				       (hash-keys allowed-moves))))
-	       (make <board-game-rules> 
+	       (make <board-game-rules>
 		 #:game-name name
 		 #:initial-state initial-board
 		 #:image-names image-names
 		 #:allowed-moves allowed-moves
+		 #:immobile immobile
 		 #:order-of-play order-of-play
 		 #:post-move (extract-after-move-rules
 			      after-move-rules width height)
-		 #:final-condition (if (list? final-condition)
-				       `(begin ,@final-condition)
-				       final-condition)
+		 #:final-condition final-condition
 		 #:wildcards wildcards
 		 )))))))))
 

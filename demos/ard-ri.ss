@@ -25,6 +25,8 @@
    (T "art/chess/wlw.png")
    (X "art/chess/blbp.png"))
 
+  (immobile: T X)
+
   (moves:   
    (player-1
     (o
@@ -110,5 +112,4 @@
       (fits-somewhere? '((? i ?)
 			 (i Q i)
 			 (? i ?)) (board-state)))))
-) ;D define-game-rules
-
+  ) ;;-- define-game-rules

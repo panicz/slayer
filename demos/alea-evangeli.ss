@@ -22,6 +22,8 @@
     (X _ i _ _ i _ _ _ _ _ _ _ i _ _ i _ X)
 	))
 
+  (immobile: T X)
+
   (wildcards: (O (o Q))
 	      (i/_ (_ i))
 	      (_/i i/_)
