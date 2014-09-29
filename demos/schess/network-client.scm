@@ -101,7 +101,7 @@
 	    (remote
 	     board
 	     `(choose-move! #;from ,#[checker : 'origin : 'position]
-				   #;as ,#[field 'move])))
+				   #;as ,#[field 'chosen-move])))
 	   (else
 	    (move! checker #;to #[checker 'origin] #;on board)))
      (set! #[board 'above-fields] (delete checker #[board 'above-fields]))
