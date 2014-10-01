@@ -2,9 +2,21 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref fref random-element set-values!)
+  #:export (ref aref fref random-element set-values! <ref-interface>)
   #:export-syntax (accessor)
   )
+
+(define-class <ref-interface> ()
+  (getter ;;#:allocation #:each-subclass
+	  #:init-value 
+	  (lambda(object key)
+	    (format #t "getting ~s from ~s\n" key object))
+	  #:init-keyword #:getter)
+  (setter ;;#:allocation #:each-subclass
+	  #:init-value 
+	  (lambda(object key value)
+	    (format #t "setting ~s in ~s to ~s value\n" key object value))
+	  #:init-keyword #:setter))
 
 (define-syntax-rule (accessor x ref)
   (make-procedure-with-setter
@@ -20,6 +32,8 @@
 	 (hash-ref obj key))
 	((string? obj)
 	 (string-ref obj key))
+	((is-a? obj <ref-interface>)
+	 ((slot-ref obj 'getter) obj key))
 	((instance? obj)
 	 (slot-ref obj key))
 	((and (list? obj) (integer? key) (positive? key))
@@ -38,6 +52,8 @@
 	 (hash-set! obj key value))
 	((string? obj)
 	 (string-set! obj key value))
+	((is-a? obj <ref-interface>)
+	 ((slot-ref obj 'setter) obj key value))
 	((instance? obj)
 	 (slot-set! obj key value))
 	((and (list? obj) (integer? key) (positive? key))
@@ -84,6 +100,12 @@
 					   array-set! 
 					   array value indices))))
 
+(define iref (make-procedure-with-setter
+	      (lambda(object key)
+		((slot-ref object 'getter) object key))
+	      (lambda(object key value)
+		((slot-ref object 'setter) object key value))))
+
 (define-method (ref (fluid <fluid>) . rest)
   (apply ref (fluid-ref fluid) rest))
 
@@ -107,6 +129,9 @@
 
 (define-method (ref (bool <boolean>) key)
   #f)
+
+(define-method (ref (object <ref-interface>) key)
+  (iref object key))
 
 (define-method (ref (object <top>) (key <symbol>))
   (sref object key))
