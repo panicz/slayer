@@ -26,7 +26,7 @@
   ;;  #:use-module ((rnrs) #:version (6))
   #:re-export (;; srfi-1
 	       iota circular-list 
-	       proper-list? dotted-list? null-list? not-pair?
+	       proper-list? dotted-list? null-list? not-pair? circular-list?
 	       first second third fourth fifth sixth seventh eighth ninth tenth
 	       car+cdr take drop take-right drop-right split-at last
 	       concatenate zip unzip1 unzip2 unzip3 unzip4 unzip5
@@ -65,7 +65,7 @@
 	       pretty-print format
 	       )
   #:export (
-	    and-let* unknot
+	    and-let* unknot listify
 	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
@@ -92,7 +92,7 @@
 	    delete-first
 	    array-size
 	    random-array
-	    read-string write-string ->string
+	    read-string write-string display-string ->string ->string*
 	    string-remove-prefix string-remove-suffix
 	    substitute-pattern
 	    fill-template
@@ -297,7 +297,7 @@
      (let-syntax processed-bindings body . *))
     ((_ (((name pattern ...) template) bindings ...) (processed ...) body . *)
      (let-syntax-helper 
-      (bindings ...) 
+      (bindings ...)
       (processed ... (name (syntax-rules () ((_ pattern ...) template))))
       body . *))
     ((_ ((name value) bindings ...) (processed ...) body . *)
@@ -872,7 +872,7 @@
 (define (unknot circular-list)
   (let next ((rewrite '()) (pending circular-list) (seen `(,circular-list ())))
     (match pending
-      ((first . rest)
+      ((unknot first . rest)
        (if (memq rest seen)
 	   (reverse (cons first rewrite))
 	   (next (cons first rewrite) rest (cons rest seen)))))))
@@ -881,6 +881,10 @@
  (unknot (cons 0 (circular-list 1 2 3)))
  ===> (0 1 2 3))
 
+(define (listify x)
+  (if (list? x)
+      x
+      (list x)))
 
 (define (make-locked-mutex)
   (let ((m (make-mutex)))
@@ -912,7 +916,12 @@
 (define (write-string object)
   (with-output-to-string (lambda()(write object))))
 
+(define (display-string object)
+  (with-output-to-string (lambda()(display object))))
+
 (define ->string write-string)
+
+(define ->string* display-string)
 
 (define (read-string string)
   (with-input-from-string string read))
@@ -1474,6 +1483,7 @@
  ===> '((a b c) (a b d) (a c d) (b c d)))
 
 (define (combinations #;from-set A #;of-length n)
+  (assert (not (contains-duplicates? A)))
   (cond ((= n 0)
 	 '())
 	((= n 1)
