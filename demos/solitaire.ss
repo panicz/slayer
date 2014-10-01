@@ -8,6 +8,8 @@
     (X X o o o X X)
     (X X o o o X X)))
 
+  (immobile: X)
+
   (wildcards: (O (o)))
 
   (images:
