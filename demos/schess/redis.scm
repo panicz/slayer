@@ -4,6 +4,7 @@
   #:use-module (extra network) 
   #:use-module (extra redis)
   #:use-module (oop goops) 
+  #:use-module (schess elements)
   #:use-module (schess game)
   #:use-module (schess rules)
   #:use-module ((redis commands hashes) #:prefix redis:)
@@ -16,8 +17,10 @@
 	    rules-exist?
 	    create-game!
 	    game
+	    all-games
+	    make-move!
 	    )
-  #:re-export (select-move!))
+  #:re-export (allowed-moves))
 
 (define-class <redis-board-game> (<board-game-interface> <redis-proxy>)
   (game-type  #:allocation #:virtual
@@ -35,7 +38,6 @@
   (past-states #:allocation #:virtual
 	       #:slot-ref (redis-list-retriever 'past-states)
 	       #:slot-set! noop)
-  (environment #:init-value #f)
   (turn #:allocation #:virtual
 	#:slot-ref (redis-hash-getter 'game-state 'turn)
 	#:slot-set! (redis-hash-setter 'game-state 'turn))
@@ -61,38 +63,36 @@
   (let ((name (->string `(,@(slot-ref game 'redis-name) past-moves))))
     (redis-send 
      (slot-ref game 'redis)
-     (redis:rpush name (->string `((origin . ,origin)
-				   (player . ,#[game 'current-player])
-				   (move . ,move)))))))
+     (redis:rpush name `(,(->string `((origin . ,origin)
+				      (player . ,#[game 'current-player])
+				      (move . ,move))))))))
 
-(define-method (remember-state! #;in (game <redis-board-game>))
+(define-method (remember-state! state #;in (game <redis-board-game>))
   (let ((name (->string `(,@(slot-ref game 'redis-name) past-states))))
     (redis-send (slot-ref game 'redis)
-		(redis:rpush name (->string #[game 'board-state])))))
+		(redis:rpush name `(,(->string state))))))
 
-#|
-(define (select-move! #;from origin #;to destination #;in game)
-  ;; jeszcze zobaczymy!
-  (let* ((figure (apply take-from-rect #[game 'board-state] origin))
-	 (possible-moves (allowed-moves #;at origin #;in game))
-	 (move (find (lambda ((initial final . _))
-		       (equal?
-			destination
-			(map + origin
-			     (displacement #;of figure #;from initial
-						#;to final))))
-		     possible-moves)))
-    (if (not move)
-	(format #f "move from ~s to ~s not allowed in game ~s" origin
-		destination game-id)
-	(begin
-	  (redis:select-move! move #;from origin 
-			      #;to destination #;in game)
-	  ;; powinniśmy zwrócić bieżącego gracza, albo
-	  ;; informację o tym, że któraś ze stron wygrała,
-	  ;; a najlepiej po prostu stan gry
-	  'OK))))
-|#
+(define-method (make-move! #;by player #;from origin #;to destination
+				#;in (game <redis-board-game>))
+  (if (not (eq? player #[game 'current-player]))
+      (format #f "it is turn of ~s, not ~s" #[game 'current-player] player)
+      (let* ((figure (apply take-from-rect #[game 'board-state] origin))
+	     (possible-moves (allowed-moves #;at origin #;in game))
+	     (move (find (lambda ((initial final . _))
+			   (equal?
+			    destination
+			    (map + origin
+				 (displacement #;of figure #;from initial
+						    #;to final))))
+			 possible-moves)))
+	(if (not move)
+	    (format #f "illegal move from ~s to ~s" origin destination)
+	    (begin
+	      (apply-move! move #;from origin #;in game)
+	      (next-player! #;in game)
+	      (remember-move! #;from origin #;as move #;in game)
+	      `((current-player . ,#[game 'current-player]) 
+		(winner . ,(and (final? game) player))))))))
 
 (define (rules-exist? type)
   (let ((connection (redis-connect))
@@ -108,6 +108,9 @@
   (if (game-exists? game-id)
       (make <redis-board-game> #:redis-name `(game ,game-id))
       #f))
+
+(define (all-games)
+  (map read-string (redis-send (redis-connect) (redis:smembers "games"))))
 
 (define (create-game! type id)
   (let ((game (make <redis-board-game> #:redis-name `(game ,id) 

@@ -1,7 +1,7 @@
 #!/usr/bin/guile \
 -L ./guile-modules -L ../guile-modules -L . -e main -s
 !#
-o
+
 (set-port-encoding! (current-input-port) "UTF-8")
 (set-port-encoding! (current-output-port) "UTF-8")
 (set-port-encoding! (current-error-port) "UTF-8")
@@ -36,7 +36,7 @@ o
   ;; note that we write strings in case of errors, and non-strings
   ;; in case of success (therefore no object should be represented
   ;; as string)
-  (write-if-specified
+  (pretty-print ;write-if-specified
    (match/command-line
     (string->symbol program-name) command
     (('load-rules game-name)
@@ -46,12 +46,13 @@ o
 	   (let ((rules (load-board-game filename)))
 	     (make <redis-object-proxy> #:as game-name #:target rules)
 	     'OK))))
-    (('erase-rules game-name)
-     (let ((rules (make <redis-object-proxy> #:as game-name)))
+    (('erase-rules game-type)
+     (let ((rules (make <redis-object-proxy> #:as game-type)))
        (erase! rules)
        'OK))
-    (('available-games)
+    (('available-game-types)
      (filter (string-matches "\\.ss$") (list-directory ".")))
+    (('all-games) #;=> (redis:all-games))     
     (('create game-id type)
      (cond ((redis:game-exists? game-id)
 	    (let ((game (redis:game game-id)))
@@ -62,25 +63,18 @@ o
 	   (else
 	    (redis:create-game! type game-id)
 	    'OK)))
-    (('game-type game-id)
-     (with-game (game game-id)
-		#[game 'game-type]))
+    (('players game-id)
+     (unique (with-game (game game-id) #[game : 'rules : 'order-of-play])))
+    (('game-type game-id)        (with-game (game game-id) #[game 'game-type]))
     (('allowed-moves game-id x y)
-     (with-game (game game-id)
-		(allowed-moves #;at `(,x ,y) #;in game)))
-    (('current-state game-id)
-     (with-game (game game-id)
-		#[game 'board-state]))
+     (with-game (game game-id) (redis:allowed-moves #;at `(,x ,y) #;in game)))
+    (('current-state game-id)  (with-game (game game-id) #[game 'board-state]))
     (('current-player game-id)
-     (with-game (game game-id)
-		#[game 'current-player]))
-    (('current-turn game-id)
-     (with-game (game game-id)
-		#[game 'turn]))
-    (('select-move! game-id from-x from-y to-x to-y)
+     (with-game (game game-id) #[game 'current-player]))
+    (('current-turn game-id)          (with-game (game game-id) #[game 'turn]))
+    (('make-move player game-id from-x from-y to-x to-y)
      (with-game (game game-id)
 		(let ((origin `(,from-x ,from-y))
 		      (destination `(,to-x ,to-y)))
-		  (redis:select-move! #;from origin #;to destination
-					     #;in game))))))
-  (newline))
+		  (redis:make-move! #;by player #;from origin #;to destination
+					   #;in game)))))))
