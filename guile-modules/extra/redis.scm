@@ -40,6 +40,8 @@
        (match result
 	 (#(key ...)
 	  (make <redis-object-proxy> #:target self #:as key))
+	 ((? eof-object?)
+	  #f)
 	 (else
 	  result)))))
   (setter
