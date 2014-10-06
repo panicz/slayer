@@ -2,9 +2,13 @@
   #:use-module (oop goops)
   #:use-module (ice-9 match)
   #:use-module (extra common)
-  #:export (ref aref fref random-element set-values! <ref-interface>)
+  #:export (ref aref fref random-element set-values! <ref-interface> slots)
   #:export-syntax (accessor)
   )
+
+(define-method (slots (object <object>))
+  (map (match-lambda ((x . _) #;=> x) (x #;=> x))
+       (class-slots (class-of object))))
 
 (define-class <ref-interface> ()
   (getter ;;#:allocation #:each-subclass

@@ -2,21 +2,22 @@
   #:use-module (extra common)
   #:use-module (extra ref)
   #:use-module (oop goops)
-  #:use-module ((redis commands connection) #:prefix redis:)
-  #:use-module ((redis commands define) #:prefix redis:)
   #:use-module ((redis commands hashes) #:prefix redis:)
-  #:use-module ((redis commands keys) #:prefix redis:)
   #:use-module ((redis commands lists) #:prefix redis:)
-  #:use-module ((redis commands publish) #:prefix redis:)
-  #:use-module ((redis commands scripting) #:prefix redis:)
-  #:use-module ((redis commands server) #:prefix redis:)
-  #:use-module ((redis commands sets) #:prefix redis:)
-  #:use-module ((redis commands sortedsets) #:prefix redis:)
-  #:use-module ((redis commands strings) #:prefix redis:)
-  #:use-module ((redis commands transactions) #:prefix redis:)
   #:use-module (redis main)
-  #:use-module (redis connection)
-  #:export (<redis-proxy> <redis-object-proxy> keys erase!))
+  #:export (<redis-proxy> 
+	    <redis-object-proxy> 
+	    keys
+	    erase!
+	    list->redis!
+	    redis->list
+	    redis-list-retriever
+	    redis-list-establisher
+	    redis-list-getter
+	    redis-hash-getter
+	    redis-hash-setter
+	    )
+  )
 
 ;; slot-ref needs to be used to refer to slots of all classes that inherit
 ;; from <ref-interface>, because otherwise its internal getters will be
@@ -63,17 +64,12 @@
 			       (->string data))))))
   (redis-name #:init-value '()))
 
-(define-method (slots (object <object>))
-  (map (match-lambda ((x . _) #;=> x) (x #;=> x))
-       (class-slots (class-of object))))
-
 (define-method (initialize (self <redis-object-proxy>) args)
   (next-method)
   (let-keywords args #t ((parent #f)
 			 (target #f)
 			 (as #f))
-    (unless as
-      (throw 'keyword-argument-required #:as))
+    (unless as (throw 'keyword-argument-required #:as))
     (slot-set! self 'redis-name
 	       `(,@(slot-ref (or parent self) 'redis-name)
 		 ,@(listify as)))
@@ -81,7 +77,7 @@
 	   (for (key => value) in target
 	     (set! #[self key] value)))
 	  ((and (instance? target)
-		(not (is-a? target <redis-object-proxy>)))
+		(not (is-a? target <redis-proxy>)))
 	   (for key in (slots target)
 	     (set! #[self key] (slot-ref target key)))))))
 
@@ -98,3 +94,43 @@
       (redis-send (slot-ref data 'redis)
 		  (redis:hdel (->string (slot-ref data 'redis-name)) 
 			      `(,(->string key)))))))
+
+(define (list->redis! l redis-name connection)
+  (match l
+    (()
+     redis-name)
+    ((first . rest)
+     (redis-send connection (redis:rpush redis-name (list (->string first))))
+     (list->redis! rest redis-name connection))))
+
+(define (redis->list redis-name connection)
+  (map read-string (redis-send connection (redis:lrange redis-name 0 -1))))
+
+(define ((redis-list-retriever redis-list-name) redis-proxy)
+  (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
+			  ,redis-list-name))))
+    (reverse (redis->list name (slot-ref redis-proxy 'redis)))))
+
+(define ((redis-list-establisher redis-list-name) redis-proxy value)
+  (assert (list? value))
+  (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
+			  ,redis-list-name))))
+    (list->redis! value name (slot-ref redis-proxy 'redis))))
+
+(define ((redis-list-getter redis-list-name index) redis-proxy)
+  (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
+			  ,redis-list-name))))
+    (read-string (redis-send (slot-ref redis-proxy 'redis)
+			     (redis:lindex name (- -1 index))))))
+
+(define ((redis-hash-getter redis-hash-name key) redis-proxy)
+  (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
+			  ,redis-hash-name))))
+    (read-string (redis-send (slot-ref redis-proxy 'redis)
+			     (redis:hget name (->string key))))))
+
+(define ((redis-hash-setter redis-hash-name key) redis-proxy value)
+  (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
+			  ,redis-hash-name))))
+    (redis-send (slot-ref redis-proxy 'redis)
+		(redis:hset name (->string key) (->string value)))))
