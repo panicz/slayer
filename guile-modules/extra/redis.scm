@@ -117,7 +117,7 @@
   (assert (list? value))
   (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
 			  ,redis-list-name))))
-    (list->redis! value name (slot-ref redis-proxy 'redis))))
+    (list->redis! (reverse value) name (slot-ref redis-proxy 'redis))))
 
 (define ((redis-list-getter redis-list-name index) redis-proxy)
   (let ((name (->string `(,@(listify (slot-ref redis-proxy 'redis-name))
