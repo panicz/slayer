@@ -8,24 +8,41 @@
   #:use-module (ice-9 q)
   #:use-module (schess elements)
   #:use-module (schess rules)
-  #:export (<board-game> start-gameplay select-move! allowed-moves)
-  )
+  #:export (<board-game-interface>
+	    <board-game> 
+	    start-gameplay 
+	    select-move! 
+	    allowed-moves
+	    next-player!
+	    remember-move!
+	    remember-state!
+	    ))
 
-(define-class <board-game> ()
+(define new-module make-fresh-user-module)
+
+(define-class <board-game-interface> ()
   (rules #:init-value #f)               ; <- instance of <board-game-rules>
   (board-state #:init-value #f)         ; <- rect initialized in constructor
-  (order-of-play #:init-value #f)       ; <- circular list copied from rules
+  (order-of-play #:init-value '())      ; <- circular list copied from rules
 					;    in constructor
-  (history #:init-value '())            ; <- list of all moves
+  (past-moves #:init-value '())         ; <- list of previous moves
   (past-states #:init-value '())        ; <- previous states of the board
-  (environment #:init-value #f)         ; <- a module to evaluate conditions
+  (environment #:init-value #f)         ; <- module to evaluate conditions
   (turn #:init-value 0)
+  (current-player #:init-value #f)
+  (next-player #:init-value #f))
+
+(define-method (initialize (self <board-game-interface>) args)
+  (next-method)
+  (set! #[self 'environment] (schess-execution-module #;for self)))  
+
+(define-class <board-game> (<board-game-interface>)
   (current-player 
    #:allocation #:virtual
    #:slot-ref (lambda (self)
 		(first #[self 'order-of-play]))
    #:slot-set! noop)
-  (next-player 
+  (next-player
    #:allocation #:virtual
    #:slot-ref (lambda (self)
 		(first (rest #[self 'order-of-play])))
@@ -65,9 +82,7 @@
       (set! #[self 'board-state] #[self : 'rules : 'initial-state])
       (set! #[self 'order-of-play] 
 	    (apply circular-list #[self : 'rules : 'order-of-play]))
-      )
-    (set! #[self 'environment] (schess-execution-module #;for self))
-    ))
+      )))
 
 (define-method (gameplay (game <board-game>))
   (let turn ((n 0) (player #[game 'current-player]))
@@ -80,9 +95,24 @@
        #;else
 	  (turn (1+ n) (next-player! #;on game))))))
 
+(define-generic next-player!)
+
 (define-method (next-player! #;in (game <board-game>))
   (set! #[game 'order-of-play] (rest #[game 'order-of-play]))
   #[game 'current-player])
+
+(define-generic remember-move!)
+
+(define-method (remember-move! #;from origin #;as move #;in (game <board-game>))
+  (set! #[game 'past-moves] (cons `((origin . ,origin)
+				    (player . ,#[game 'current-player])
+				    (move . ,move))
+				  #[game 'past-moves])))
+
+(define-generic remember-state!)
+
+(define-method (remember-state! state #;in (game <board-game>))
+  (set! #[game 'past-states] (cons state #[game 'past-states])))
 
 ;; now this is interesting!
 (publish
@@ -95,11 +125,8 @@
    (abort-to-prompt schess-prompt-tag))
  (define-method (choose-move #;in (game <board-game>))
    (abort-to-prompt schess-prompt-tag))
- (define (select-move! #;from origin #;as move #;in game)
-   (set! #[game 'history] (cons `((origin . ,origin)
-				  (player . ,#[game 'current-player])
-				  (move . ,move))
-				#[game 'history]))
+ (define-method (select-move! #;from origin #;as move #;in (game <board-game>))
+   (remember-move! #;from origin #;as move #;in game)
    (yield origin)
    (yield move))
  where
@@ -129,7 +156,6 @@
   (eval
    #[game : 'rules : 'final-condition]
    #[game 'environment]))
-   
 
 (define-method (satisfied? conditions #;with pattern #;at x y
 			   #;in (game <board-game>))
@@ -142,7 +168,7 @@
 				  (subrect-indices pattern `((,figure))))
 				figures))))))
       ,@conditions)
-   #[game 'environment]))
+   #;in #[game 'environment]))
 
 (define (wins! player round)
   #;(window #:name 'winner-announcement
@@ -166,7 +192,7 @@
 	      state)))
 
 (define (apply-move (initial-state final-state . _) #;from (x0 y0) #;to game)
-  ;; this is a functional (non-mutating) version of apply-move!
+  ;; this is a functional (non-mutating) fragment of apply-move!
   (let ((figures #[game : 'rules : 'allowed-figures])
 	(figure (take-from-rect #[game 'board-state] x0 y0))
 	(wildcards (map first #[game : 'rules : 'wildcards])))
@@ -210,4 +236,4 @@
 			      (replace-subrect #[game 'board-state]
 					       #;with final-state*
 						      #;at x y))))))))
-    (set! #[game 'past-states] (cons fields #[game 'past-states]))))
+    (remember-state! fields #;in game)))
