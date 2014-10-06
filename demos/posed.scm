@@ -55,6 +55,14 @@ exit
 	(hash-set! rig-angles name angle)))
     rig-angles))
 
+(define (current-pose)
+  `(pose ,@(hash-map->list cons rig-angles)))
+
+(define (joint-angles rig)
+  `(pose ,@(map (lambda(joint)
+		  `(,(joint-name joint) . ,(joint-property joint 'angle)))
+		(rig-joints rig))))
+
 (define (rotate-body! body #;by angle #;around axis #;at pivot)
   (let ((position (body-property body 'position))
 	(orientation (body-property body 'quaternion)))
@@ -66,7 +74,9 @@ exit
 							 #;by angle)
 			   orientation))))
 
-(define (set-pose! #;of rig #;to pose)
+(define* (set-pose! #;of rig #;to pose 
+			 #:key (keeping (match pose (('pose (first . _) . _)
+						     first))))
   (assert (pose? pose))
   (with-context-for-joint/body-relation
    (match pose
@@ -92,26 +102,10 @@ exit
 
 (include "temporary-poses.scm")
 
-;; selekta!
-
-;; warunek dokonywania obrotów:
-;; 1. na początku muszą być zaznaczone dokładnie dwa ciała połączone
-;; więzem
-;; 2. wybieramy jedno z ciał do obracania wokół. a drugie jako nieruchome.
-;; pozycja więzu staje się punktem obrotu
-;; 3. obracania dokonujemy względem rzutu osi prostopadłej do ekranu na
-;; oś więzu
-
-;; konieczność napisania funkcji ładującej pozę i ustawiającą ją
-;; dla danego ciała
-
 (set! #[view 'left-click]
       (lambda (x y)
 	(let ((object (object-at-position x y view)))
 	  (when object
-	    (with-context-for-joint/body-relation
-	     (let ((joints (joints-attached-to #[object 'body])))
-	       (pretty-print (map joint-name joints))))
 	    (select-object! object #;from view)))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
@@ -123,20 +117,20 @@ exit
 		      #[view : 'stage : 'objects])))
     (if object
 	(select-object! object #;from view)
-	(format #t "no body found in ~s\n" #[view : 'stage : 'objects]))))
+	(format #t "no body found in ~s\n" #[view : 'stage : 'objects]))))    
 
 (keydn 'g (grab-mode view))
 
 (define pause #f)
 (keydn 'p (lambda () (set! pause (not pause))))
 
-(keydn 'h
-  (lambda()
-    (with-context-for-joint/body-relation
-     (match (map #[_ 'body] #[view 'selected])
-       ((first second)
-	(let*-values (((joint) (joint-connecting-bodies first second))
-		      ((left right) (split-bodies-at joint))
+(define ((rotate-around-joint/mode view))
+  (with-context-for-joint/body-relation
+   (match (map #[_ 'body] #[view 'selected])
+     ((first second)
+      (let ((joint (joint-connecting-bodies first second))
+	    (previously-selected #[view 'selected]))
+	(let*-values (((left right) (split-bodies-at joint))
 		      ((move still) (cond ((in? first left)
 					   (values left right))
 					  ((in? first right)
@@ -153,12 +147,26 @@ exit
 	      #:axis (joint-property joint 'axis)
 	      #:center (lambda _ (joint-property joint 'anchor))
 	      #:always-rotate-around-center #t
-	      #:on-exit (lambda () (set! pause old-pause))))
-	    )))
-       (else
-	(display "exactly two objects need to be selected\n")
-	)))))
+	      #:on-exit (lambda (angle)
+			  (increase! #[rig-angles (joint-name joint)] angle)
+			  (unselect-all! #;from view)
+			  (for object in (reverse previously-selected)
+			    (select-object! object #;from view))
+			  (set! pause old-pause))))
+	    ))))
+     (else
+      (display "exactly two objects need to be selected\n")))))
 
+(keydn 'h (rotate-around-joint/mode view))
+
+(keydn 'c (lambda ()
+	    (pretty-print (current-pose))))
+
+(keydn 'b (lambda ()
+	    (pretty-print (joint-angles the-legs))))
+
+(keydn 'v (lambda ()
+	    (set-pose! #;of the-legs #;to (current-pose))))
 
 (add-timer! 
  25 
