@@ -16,9 +16,10 @@
 	    next-player!
 	    remember-move!
 	    remember-state!
+	    apply-move!
+	    final?
+	    allowed-moves
 	    ))
-
-(define new-module make-fresh-user-module)
 
 (define-class <board-game-interface> ()
   (rules #:init-value #f)               ; <- instance of <board-game-rules>
@@ -31,6 +32,12 @@
   (turn #:init-value 0)
   (current-player #:init-value #f)
   (next-player #:init-value #f))
+
+(define-generic next-player!)
+
+(define-generic remember-move!)
+
+(define-generic remember-state!)
 
 (define-method (initialize (self <board-game-interface>) args)
   (next-method)
@@ -47,6 +54,19 @@
    #:slot-ref (lambda (self)
 		(first (rest #[self 'order-of-play])))
    #:slot-set! noop))
+
+(define-method (next-player! #;in (game <board-game>))
+  (set! #[game 'order-of-play] (rest #[game 'order-of-play]))
+  #[game 'current-player])
+
+(define-method (remember-move! #;from origin #;as move #;in (game <board-game>))
+  (set! #[game 'past-moves] (cons `((origin . ,origin)
+				    (player . ,#[game 'current-player])
+				    (move . ,move))
+				  #[game 'past-moves])))
+
+(define-method (remember-state! state #;in (game <board-game>))
+  (set! #[game 'past-states] (cons state #[game 'past-states])))
 
 (define (schess-execution-module game)
   (let ((module (make-fresh-user-module)))
@@ -81,38 +101,18 @@
       (set! #[self 'rules] (load-board-game rule-book))
       (set! #[self 'board-state] #[self : 'rules : 'initial-state])
       (set! #[self 'order-of-play] 
-	    (apply circular-list #[self : 'rules : 'order-of-play]))
-      )))
+	    (apply circular-list #[self : 'rules : 'order-of-play])))))
 
 (define-method (gameplay (game <board-game>))
   (let turn ((n 0) (player #[game 'current-player]))
     (set! #[game 'turn] n)
     (let ((origin (choose-checker #;in game))
 	  (move (choose-move #;in game)))
-      (apply-move! move #;from origin #;to game #;in-turn n)
+      (apply-move! move #;from origin #;to game)
       (if (final? game)
 	  (wins! player #;in-round n)
        #;else
 	  (turn (1+ n) (next-player! #;on game))))))
-
-(define-generic next-player!)
-
-(define-method (next-player! #;in (game <board-game>))
-  (set! #[game 'order-of-play] (rest #[game 'order-of-play]))
-  #[game 'current-player])
-
-(define-generic remember-move!)
-
-(define-method (remember-move! #;from origin #;as move #;in (game <board-game>))
-  (set! #[game 'past-moves] (cons `((origin . ,origin)
-				    (player . ,#[game 'current-player])
-				    (move . ,move))
-				  #[game 'past-moves])))
-
-(define-generic remember-state!)
-
-(define-method (remember-state! state #;in (game <board-game>))
-  (set! #[game 'past-states] (cons state #[game 'past-states])))
 
 ;; now this is interesting!
 (publish
@@ -141,9 +141,7 @@
 		     (apply next-stage! values)
 		     save-stage!)))
 
-(define-generic allowed-moves)
-
-(define-method (allowed-moves #;at field-position #;in (game <board-game>))
+(define (allowed-moves #;at field-position #;in game)
   (and-let* ((allowed-moves #[game : 'rules : 'allowed-moves 
 				   : #[game 'current-player]])
 	     (wildcards #[game : 'rules : 'wildcards]))
@@ -152,13 +150,13 @@
 			       #;using allowed-moves)
 	  '()))))
 
-(define-method (final? (game <board-game>))
+(define-method (final? (game <board-game-interface>))
   (eval
    #[game : 'rules : 'final-condition]
    #[game 'environment]))
 
 (define-method (satisfied? conditions #;with pattern #;at x y
-			   #;in (game <board-game>))
+			   #;in (game <board-game-interface>))
   (eval
    `(let ((positions 
 	   (let ((pattern ',pattern))
@@ -181,8 +179,7 @@
   ;;(format #t "(substitute ~a ~a ~a ~a)\n" wildcards subrect rect state)
   (let ((substitutions (filter-map 
 			(lambda (state pattern)
-			  (and (in? pattern 
-				    (map first wildcards))
+			  (and (in? pattern (map first wildcards))
 			       (in? state #[wildcards pattern])
 			       `(,pattern . ,state)))
 			(concatenate rect)
@@ -191,33 +188,33 @@
 		(or #[substitutions x] x))
 	      state)))
 
-(define (apply-move (initial-state final-state . _) #;from (x0 y0) #;to game)
-  ;; this is a functional (non-mutating) fragment of apply-move!
-  (let ((figures #[game : 'rules : 'allowed-figures])
-	(figure (take-from-rect #[game 'board-state] x0 y0))
-	(wildcards (map first #[game : 'rules : 'wildcards])))
-    (match-let* ((((dx dy)) (subrect-indices initial-state `((,figure))))
-		 ((x y) `(,(- x0 dx) ,(- y0 dy)))
-		 ((w h) (rect-size initial-state))
-		 (board-substate (take-subrect #[game 'board-state] x y w h)))
-      (values
-       (substitute #[game : 'rules : 'wildcards]
-		   #;from initial-state
-			  #;within board-substate
-				   #;in final-state)
-       `(,x ,y)))))
+(publish
+ (define-method (apply-move! move #;from origin 
+			     #;to (game <board-game-interface>))
+   (let*-values (((new-substate x&y) (apply-move move #;from origin #;to game))
+		 ((x y) (apply values x&y))
+		 ((old) #[game 'board-state])
+		 ((new) (replace-subrect old #;with new-substate #;at x y)))
+     (remember-state! old #;in game)
+     (set! #[game 'board-state] new)
+     (apply-after-move-rules! game)))
+ where
+ (define (apply-move (initial-state final-state . _) #;from (x0 y0) #;to game)
+   (let ((figures #[game : 'rules : 'allowed-figures])
+	 (figure (take-from-rect #[game 'board-state] x0 y0))
+	 (wildcards (map first #[game : 'rules : 'wildcards])))
+     (match-let* ((((dx dy)) (subrect-indices initial-state `((,figure))))
+		  ((x y) `(,(- x0 dx) ,(- y0 dy)))
+		  ((w h) (rect-size initial-state))
+		  (board-substate (take-subrect #[game 'board-state] x y w h)))
+       (values
+	(substitute #[game : 'rules : 'wildcards]
+		    #;from initial-state
+			   #;within board-substate
+				    #;in final-state)
+	`(,x ,y))))))
 
-(define-method (apply-move! move #;from origin
-			    #;to (game <board-game>) #;in-turn n)
-  (let*-values (((new-substate x&y) (apply-move move #;from origin #;to game))
-		((x y) (apply values x&y))
-		((old) #[game 'board-state])
-		((new) (replace-subrect old #;with new-substate #;at x y)))
-    (set! #[game 'past-states] (cons old #[game 'past-states]))
-    (set! #[game 'board-state] new)
-    (apply-after-move-rules! game #;in-turn n)))
-
-(define-method (apply-after-move-rules! (game <board-game>) #;in-turn n)
+(define-method (apply-after-move-rules! (game <board-game-interface>))
   (and-let* ((rules #[game : 'rules : 'post-move : #[game 'current-player]])
 	     (fields #[game 'board-state]))
     (specify ((fit? (fit-wildcards #[game : 'rules : 'wildcards])))
