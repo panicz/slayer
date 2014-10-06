@@ -65,7 +65,7 @@
 	       pretty-print format
 	       )
   #:export (
-	    and-let* unknot listify
+	    and-let* unknot listify stringify
 	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
@@ -885,6 +885,11 @@
   (if (list? x)
       x
       (list x)))
+
+(define (stringify x)
+  (if (string? x)
+      x
+      (->string x)))
 
 (define (make-locked-mutex)
   (let ((m (make-mutex)))
