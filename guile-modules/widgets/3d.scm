@@ -248,6 +248,7 @@
   (unless (null? #[view 'selected])
     (let ((old-bindings (current-key-bindings))
 	  (center (center #[view 'selected]))
+	  (angle 0.0)
 	  (original-positions (map #[_ 'position] #[view 'selected]))
 	  (original-orientations (map #[_ 'orientation] #[view 'selected])))
       (match-let* (((_ _ zs) (3d->screen view center))
@@ -262,7 +263,7 @@
 		(set! #[object 'orientation] orientation)
 		(set! #[object 'position] position))
 	      (set-key-bindings! old-bindings)
-	      (on-exit)))
+	      (on-exit 0.0)))
 
 	  (keydn 'tab
 	    (lambda ()
@@ -278,7 +279,7 @@
 	  (keydn 'mouse-left
 	    (lambda (x y)
 	      (set-key-bindings! old-bindings)
-	      (on-exit)))
+	      (on-exit angle)))
 
 	  (mousemove 
 	   (lambda (x y xrel yrel)
@@ -287,18 +288,20 @@
 						center)
 					     #;to (- (screen->3d view x y zs)
 						     center)))
+		    (screen-angle (* (sgn #[(im screen-rotation) 2])
+				     (quaternion-angle
+				      #;of screen-rotation)))
 		    (rotation (if axis
 				  (rotation-quaternion 
-				   #;around 
-				   axis #;by (* (sgn #[(im screen-rotation) 2])
-						(quaternion-angle
-						 #;of screen-rotation)))
-				  screen-rotation)))
+				   #;around axis #;by screen-angle)
+			      screen-rotation)))
+	       (set! angle screen-angle)
 	       (for (object orientation position) in (zip #[view 'selected] 
 							  original-orientations
 							  original-positions)
 		 (set! #[object 'orientation]
 		       (* rotation orientation))
+
 		 (when rotate-around-center
 		   (set! #[object 'position]
 			 (+ center (rotate (- position center)
