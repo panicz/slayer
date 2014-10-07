@@ -19,6 +19,7 @@
 	    game
 	    all-games
 	    make-move!
+	    allowed-destinations
 	    )
   #:re-export (allowed-moves))
 
@@ -72,6 +73,13 @@
     (redis-send (slot-ref game 'redis)
 		(redis:rpush name `(,(->string state))))))
 
+(define-method (allowed-destinations #;from origin
+					    #;in (game <redis-board-game>))
+  (let ((figure (apply take-from-rect #[game 'board-state] origin)))
+    (map (lambda ((initial final . _))
+	   (map + origin (displacement #;of figure #;from initial #;to final)))
+	 (allowed-moves #;at origin #;in game))))
+
 (define-method (make-move! #;by player #;from origin #;to destination
 				#;in (game <redis-board-game>))
   (if (not (eq? player #[game 'current-player]))
@@ -105,9 +113,8 @@
     (not (zero? (redis-send connection (redis:exists essential-key))))))
 
 (define (game game-id)
-  (if (game-exists? game-id)
-      (make <redis-board-game> #:redis-name `(game ,game-id))
-      #f))
+  (and (game-exists? game-id)
+       (make <redis-board-game> #:redis-name `(game ,game-id))))
 
 (define (all-games)
   (map read-string (redis-send (redis-connect) (redis:smembers "games"))))
