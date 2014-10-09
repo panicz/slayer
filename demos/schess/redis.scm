@@ -17,6 +17,7 @@
 	    rules-exist?
 	    create-game!
 	    game
+	    game-state
 	    all-games
 	    make-move!
 	    allowed-destinations
@@ -47,7 +48,10 @@
 		  #:slot-set! noop)
   (next-player  #:allocation #:virtual
 		#:slot-ref (redis-list-getter 'order-of-play 1)
-		#:slot-set! noop))
+		#:slot-set! noop)
+  (winner #:allocation #:virtual
+	  #:slot-ref (redis-hash-getter 'game-state 'winner)
+	  #:slot-set! (redis-hash-setter 'game-state 'winner)))
 
 (define-method (initialize (self <redis-board-game>) args)
   (next-method)
@@ -73,6 +77,13 @@
     (redis-send (slot-ref game 'redis)
 		(redis:rpush name `(,(->string state))))))
 
+(define (game-state game)
+  `((board ,#[game 'board-state])
+    (turn ,#[game 'turn])
+    (player ,#[game 'current-player])
+    (next-player ,#[game 'next-player])
+    (winner ,#[game 'winner])))
+
 (define-method (allowed-destinations #;from origin
 					    #;in (game <redis-board-game>))
   (let ((figure (apply take-from-rect #[game 'board-state] origin)))
@@ -80,27 +91,26 @@
 	   (map + origin (displacement #;of figure #;from initial #;to final)))
 	 (allowed-moves #;at origin #;in game))))
 
-(define-method (make-move! #;by player #;from origin #;to destination
-				#;in (game <redis-board-game>))
-  (if (not (eq? player #[game 'current-player]))
-      (format #f "it is turn of ~s, not ~s" #[game 'current-player] player)
-      (let* ((figure (apply take-from-rect #[game 'board-state] origin))
-	     (possible-moves (allowed-moves #;at origin #;in game))
-	     (move (find (lambda ((initial final . _))
-			   (equal?
-			    destination
-			    (map + origin
-				 (displacement #;of figure #;from initial
-						    #;to final))))
-			 possible-moves)))
-	(if (not move)
-	    (format #f "illegal move from ~s to ~s" origin destination)
-	    (begin
-	      (apply-move! move #;from origin #;in game)
-	      (next-player! #;in game)
-	      (remember-move! #;from origin #;as move #;in game)
-	      `((current-player . ,#[game 'current-player]) 
-		(winner . ,(and (final? game) player))))))))
+(define-method (make-move! #;from origin #;to destination
+				  #;in (game <redis-board-game>))
+  (let* ((figure (apply take-from-rect #[game 'board-state] origin))
+	 (possible-moves (allowed-moves #;at origin #;in game))
+	 (move (find (lambda ((initial final . _))
+		       (equal?
+			destination
+			(map + origin
+			     (displacement #;of figure #;from initial
+						#;to final))))
+		     possible-moves)))
+    (if (not move)
+	(format #f "illegal move from ~s to ~s" origin destination)
+	(begin
+	  (apply-move! move #;from origin #;in game)
+	  (next-player! #;in game)
+	  (remember-move! #;from origin #;as move #;in game)
+	  (let ((winner (and (final? game) #[game 'current-player])))
+	    (set! #[game 'winner] winner)
+	    (game-state game))))))
 
 (define (rules-exist? type)
   (let ((connection (redis-connect))
@@ -127,5 +137,6 @@
     (set! #[game 'rules] (make <redis-object-proxy> #:as type))
     (set! #[game 'order-of-play] #[game : 'rules : 'order-of-play])
     (set! #[game 'board-state] #[game : 'rules : 'initial-state])
+    (set! #[game 'winner] #f)
     (set! #[game 'turn] 0)
     game))
