@@ -158,7 +158,11 @@
 					 #:on-pick #[board 'on-pick-checker]
 					 #:on-drop #[board 'on-drop-checker]
 					 #:image image #:type checker-type)))
-			  (when (in? checker-type #[board : 'rules : 'immobile])
+			  (when (and ;; NASTY HACK!!!
+				 (defined? '<board-game>)
+				 (is-a? board <board-game>)
+				 (in? checker-type 
+				      #[board : 'rules : 'immobile]))
 			    (set! #[checker 'drag] noop))
 			  (set! #[field 'children] '())
 			  (add-child! checker #;to field)))))))))

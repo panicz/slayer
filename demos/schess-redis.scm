@@ -7,7 +7,7 @@
 (set-port-encoding! (current-error-port) "UTF-8")
 (fluid-set! %default-port-encoding "UTF-8")
 
-(use-modules (extra common) (extra ref) (extra network) (extra redis)
+(use-modules (extra common) (extra ref) (extra redis)
 	     (schess rules) (ice-9 threads) (oop goops)
 	     ((schess redis) #:prefix redis:))
 

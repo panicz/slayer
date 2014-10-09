@@ -1,7 +1,6 @@
 (define-module (schess redis)
   #:use-module (extra common) 
   #:use-module (extra ref) 
-  #:use-module (extra network) 
   #:use-module (extra redis)
   #:use-module (oop goops) 
   #:use-module (schess elements)

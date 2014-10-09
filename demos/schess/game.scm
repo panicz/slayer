@@ -3,7 +3,6 @@
   ;; (changing states, applying rules, verifying final condtions etc.)
   #:use-module (extra common)
   #:use-module (extra ref)
-  #:use-module (extra time)
   #:use-module (oop goops)
   #:use-module (ice-9 q)
   #:use-module (schess elements)
