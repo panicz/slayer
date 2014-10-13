@@ -72,7 +72,7 @@
 
     (('players game-id)
      (with-game (game game-id) 
-	 (unique #[game : 'rules : 'order-of-play])))
+	 (delete-duplicates #[game : 'rules : 'order-of-play])))
 
     (('game-type game-id)
      (with-game (game game-id) 
