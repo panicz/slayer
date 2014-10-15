@@ -105,6 +105,7 @@
 	(format #f "illegal move from ~s to ~s" origin destination)
 	(begin
 	  (apply-move! move #;from origin #;in game)
+	  (set! #[game 'turn] (+ #[game 'turn] 1))
 	  (next-player! #;in game)
 	  (remember-move! #;from origin #;as move #;in game)
 	  (let ((winner (and (final? game) #[game 'current-player])))
