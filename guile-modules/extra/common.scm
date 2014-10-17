@@ -122,7 +122,7 @@
 		   with-error-port with-error-file 
 		   with-working-directory
 		   publish-with-fluids
-		   define-fluid with-default specify
+		   define-fluid with-default without-default specify
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
 		   string-match-all string-matches
@@ -134,7 +134,7 @@
 	     quasiquote
 	     (cdefine . define)
 	     (cdefine* . define*)
-	     (xdefine-syntax . define-syntax)
+	     (define-syntax~ . define-syntax)
 	     (let-syntax-rules . let-syntax)
 	     (mlambda . lambda))
   )
@@ -282,11 +282,25 @@
     ((_ . rest)
      (define* . rest))))
 
-(define-syntax xdefine-syntax
+(define-syntax syntax-lambda
+  (lambda (stx)
+    (syntax-case stx ()
+      ((syntax-lambda (syntax-argument) body . *)
+       (with-syntax ((literal (datum->syntax stx 'literal))
+		     (with-literal (datum->syntax stx 'with-literal)))
+	 #'(lambda (syntax-argument)
+	     (define (literal identifier)
+	       (datum->syntax syntax-argument identifier))
+	     (define-syntax-rule (with-literal (literals (... ...)) action . +)
+	       (with-syntax ((literals (literal 'literals)) (... ...))
+		 action . +))
+	     body . *))))))
+
+(define-syntax define-syntax~
   (syntax-rules ()
     ((_ (name . args) body ...)
      (define-syntax name
-       (lambda args
+       (syntax-lambda args
 	 body ...)))
     ((_ name value)
      (define-syntax name value))))
@@ -330,31 +344,12 @@
     ((rec NAME EXPRESSION)
      (letrec ( (NAME EXPRESSION) ) NAME))))
 
-(define-syntax with-literal
-  (syntax-rules ()
-    ((_ stx (identifier ...)
-	body . *)
-     (with-syntax ((identifier (datum->syntax stx 'identifier)) ...)
-       body . *))))
-
 (define-syntax within-module
   (syntax-rules ()
     ((_ module action ...)
      (begin
        (eval 'action module)
        ...))))
-
-(define* (unfold-facade stop? transform generate seed 
-			#:optional (tail-gen (lambda(x)'())))
-  (unfold stop? transform generate seed tail-gen))
-
-(define (unfold-n n next seed)
-  (let loop ((count (- n 1))
-	     (result `(,seed)))
-    (if (<= count 0)
-	(reverse result)
-	(loop (- count 1) `(,(next (first result))
-			    ,@result)))))
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
@@ -478,44 +473,49 @@
 
 (define-fluid SPECIFIC-CONTEXT (make-hash-table))
 
-(define-syntax with-default
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ ((name expression) ...) actions . *)
-       (with-syntax ((specific (datum->syntax stx 'specific)))
-	 #'(let-syntax ((specific 
-			 (syntax-rules (name ...)
-			   ((_ name)
-			    (let* ((default (hash-ref (fluid-ref 
-						       SPECIFIC-CONTEXT)
-						      'name '()))
-				   (value expression))
-			      (if (null? default)
-				  value
-				  (first default))))
-			   ...)))
-	     actions . *))))))
+(let-syntax ((specific-literal-syntax
+	      (syntax-rules ()
+		((_ binding-structure name value)
+		 (lambda (stx)
+		   (assert (appears? #'name #;in #'binding-structure))
+		   (syntax-case stx ()
+		     ((_ (binding-structure (... ...)) actions . *)
+		      (with-syntax ((specific (datum->syntax stx 'specific)))
+			#'(let-syntax 
+			      ((specific
+				(syntax-rules (name (... ...))
+				  ((_ name)
+				   (let ((default (hash-ref
+						   (fluid-ref
+						    SPECIFIC-CONTEXT)
+						   'name '())))
+				     (if (null? default)
+					 value
+					 (first default))))
+				  (... ...))))
+			    actions . *)))))))))
+  (define-syntax with-default 
+    (specific-literal-syntax (name value) name value))
+  (define-syntax without-default 
+    (specific-literal-syntax name name (throw 'unspecified 'name))))
 
 (define-syntax specify
   (lambda (stx)
     (syntax-case stx ()
-      ((_ ((name expression) ...)
+      ((_ ((name value) ...)
 	  actions ...)
-       (with-syntax (((value ...) (generate-temporaries #'(expression ...))))
-	 #'(dynamic-wind
-	     (lambda ()
-	       (let ((value expression)
-		     ...)
-		 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
-			    (cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
-						  'name '())))
-		 ...))
-	     (lambda ()
-	       actions ...)
-	     (lambda ()
-	       (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
-			  (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
-	       ...)))))))
+       #'(dynamic-wind
+	   (lambda ()
+	     (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+			(cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
+					      'name '())))
+	     ...)
+	   (lambda ()
+	     actions ...)
+	   (lambda ()
+	     (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+			(rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
+	     ...))))))
 
 (e.g.                                   ; this is how the trio 'with-default',
  (let ()                                ; 'specific' and 'specify' can be used
@@ -524,8 +524,18 @@
      (define (f)
        `(,(specific x) ,(specific y))))
    (specify ((x 30))
-     (f))) 
+     (f)))
  ===> (30 20))
+
+(e.g.
+ (catch 'unspecified
+   (lambda ()
+     (without-default (x y)
+       (define (f)
+	 `(,(specific x) ,(specific y))))
+     (specify ((x 30))
+       (f)))
+   list) ===> (unspecified y))
 
 (define-fluid LIMITED-ACTIONS-RECORD (make-hash-table))
 
@@ -1591,6 +1601,22 @@
       ((size . sizes)
        (let-values (((this rest) (split-at rest size)))
 	 (loop `(,this ,@result) sizes rest))))))
+
+(define* (unfold-facade stop? transform generate seed 
+			#:optional (tail-gen (lambda(x)'())))
+  (unfold stop? transform generate seed tail-gen))
+
+(define (unfold-n n next seed)
+  (let loop ((count (- n 1))
+	     (result `(,seed)))
+    (if (<= count 0)
+	(reverse result)
+	(loop (- count 1) `(,(next (first result))
+			    ,@result)))))
+
+(e.g.
+ (unfold-n 10 1+ 1)
+ ===> (1 2 3 4 5 6 7 8 9 10))
 
 (define* (extend l #;to size #;with #:optional (fill #f))
   (let ((extension-size (- size (length l))))
