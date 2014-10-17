@@ -74,7 +74,7 @@
 	    map-n for-each-n unfold-n unzip chunk-list
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
-	    insert rest head tail
+	    insert rest element head tail
 	    tree-find tree-map map* depth 
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
@@ -291,22 +291,30 @@
     ((_ name value)
      (define-syntax name value))))
 
-(define-syntax let-syntax-helper
-  (syntax-rules ()
-    ((_ () processed-bindings body . *)
-     (let-syntax processed-bindings body . *))
-    ((_ (((name pattern ...) template) bindings ...) (processed ...) body . *)
-     (let-syntax-helper 
-      (bindings ...)
-      (processed ... (name (syntax-rules () ((_ pattern ...) template))))
-      body . *))
-    ((_ ((name value) bindings ...) (processed ...) body . *)
-     (let-syntax-helper (bindings ...) (processed ... (name value)) body . *))))
-
 (define-syntax let-syntax-rules
   (syntax-rules ()
     ((_ (bindings ...) body . *)
-     (let-syntax-helper (bindings ...) () body . *))))
+     (letrec-syntax ((let-syntax~
+		      (syntax-rules ()
+			((_ () ~processed-bindings ~body . ~)
+			 (let-syntax ~processed-bindings ~body . ~))
+			((_ (((~name ~pattern (... ...)) ~template)
+			     ~bindings (... ...))
+			    (~processed (... ...)) 
+			    ~body . ~)
+			 (let-syntax~
+			  (~bindings (... ...))
+			  (~processed (... ...)
+				      (~name (syntax-rules () 
+					       ((_ ~pattern (... ...))
+						~template))))
+			  ~body . ~))
+			((_ ((~name ~value) ~bindings (... ...)) 
+			    (~processed (... ...)) ~body . ~)
+			 (let-syntax~ (~bindings (... ...)) 
+				      (~processed (... ...) (~name ~value))
+				      ~body . ~)))))
+       (let-syntax~ (bindings ...) () body . *)))))
 
 (define-syntax define-fluid
   (syntax-rules ()
@@ -350,7 +358,7 @@
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
-(define-syntax-rule (assert condition ...) (begin))
+(define-syntax-rule (assert condition ...) (if #f #f))
 
 ;; (define-syntax prototype
 ;;   (syntax-rules (-> :)
@@ -406,6 +414,10 @@
 (define-syntax-rule (observation: . args) (TODO))
 
 (define-syntax-rule (reassurance: . args) (TODO))
+
+(define-syntax-rule (suggest: . args) (if #f #f))
+
+(define-syntax-rule (claim: . args) (TODO))
 
 (define-syntax deprecated:
   (syntax-rules (--deprecated)
@@ -465,18 +477,19 @@
  ===> (Nelson-Mandela))
 
 (define-fluid SPECIFIC-CONTEXT (make-hash-table))
-		   
+
 (define-syntax with-default
   (lambda (stx)
     (syntax-case stx ()
-      ((_ ((name value) ...) actions . *)
+      ((_ ((name expression) ...) actions . *)
        (with-syntax ((specific (datum->syntax stx 'specific)))
 	 #'(let-syntax ((specific 
 			 (syntax-rules (name ...)
 			   ((_ name)
-			    (let ((default (hash-ref (fluid-ref 
-						      SPECIFIC-CONTEXT)
-						     'name '())))
+			    (let* ((default (hash-ref (fluid-ref 
+						       SPECIFIC-CONTEXT)
+						      'name '()))
+				   (value expression))
 			      (if (null? default)
 				  value
 				  (first default))))
@@ -484,21 +497,25 @@
 	     actions . *))))))
 
 (define-syntax specify
-  (syntax-rules ()
-    ((_ ((name value) ...)
-	actions ...)
-     (dynamic-wind
-       (lambda ()
-	 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
-		    (cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
-					  'name '())))
-	 ...)
-       (lambda ()
-	 actions ...)
-       (lambda ()
-	 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
-		    (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
-	 ...)))))
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ((name expression) ...)
+	  actions ...)
+       (with-syntax (((value ...) (generate-temporaries #'(expression ...))))
+	 #'(dynamic-wind
+	     (lambda ()
+	       (let ((value expression)
+		     ...)
+		 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+			    (cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
+						  'name '())))
+		 ...))
+	     (lambda ()
+	       actions ...)
+	     (lambda ()
+	       (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+			  (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
+	       ...)))))))
 
 (e.g.                                   ; this is how the trio 'with-default',
  (let ()                                ; 'specific' and 'specify' can be used
@@ -536,46 +553,47 @@
 ;;
 ;; (define-syntax f 
 ;;   (syntax-rules () 
-;;     ((_ a b c d) 
+;;     ((f a b c d) 
 ;;      (begin (list a b c d))) 
-;;     ((_ a b c) 
+;;     ((f a b c) 
 ;;      (lambda(d) 
 ;;        (f a b c d))) 
-;;     ((_ a b) 
+;;     ((f a b) 
 ;;      (lambda(c) 
 ;;        (f a b c))) 
-;;     ((_ a) 
+;;     ((f a) 
 ;;      (lambda(b) 
 ;;        (f a b))) 
-;;     ((_) 
+;;     ((f) 
 ;;      (lambda(a) 
 ;;        (f a)))))
 ;;
 ;; A more realistic example is given below, in the `matches?' macro
 ;; definition. 
-;;
-;; The macro is a modified version of a define-macro based one and I think
-;; it would do good to rewrite it from scratch with a better understanding
-;; of syntax-case
-
-(define-syntax define-curried-syntax-helper
-  (syntax-rules ()
-    ((_ name () ((pattern template) ...))
-     (define-syntax name
-       (syntax-rules ()
-	 (pattern
-	  template)
-	 ...)))
-    ((_ name (args ... last) (templates ...))
-     (define-curried-syntax-helper name (args ...)
-       (templates ... ((name args ...)
-		       (lambda (last)
-			 (name args ... last))))))))
 
 (define-syntax-rule (define-curried-syntax (name args ...) body . *)
-  (define-curried-syntax-helper name (args ...) 
-    (((name args ...)
-      (begin body . *)))))
+  (letrec-syntax ((define-curried-syntax~
+		    (syntax-rules ()
+		      ((_ ~name () ((~pattern 
+				     ~template) 
+				    (... 
+				     ...)))
+		       (define-syntax ~name
+			 (syntax-rules ()
+			   (~pattern
+			    ~template)
+			   (... 
+			    ...))))
+		      ((_ ~name (~args (... ...) ~last) 
+			  ((~pattern ~template) (... ...)))
+		       (define-curried-syntax~ ~name (~args (... ...))
+			 ((     ~pattern             ~template     ) 
+			  (        ...                  ...        )
+			  ((~name ~args (... ...)) (lambda (~last)
+						     (~name ~args (... ...)
+							    ~last)))))))))
+    (define-curried-syntax~ name (args ...) (((name args ...)
+					    (begin body . *))))))
 
 (define-curried-syntax (string-match-all pattern string)
   (let loop ((n 0)
@@ -981,6 +999,12 @@
        (>= n 0)))
 
 (define rest cdr)
+
+(define element car)
+
+(assert (let ((l (a list?))) 
+	  (if (not (null? l)) 
+	      (in? (element l) l))))
 
 (define head (make-procedure-with-setter car set-car!))
 
@@ -1463,6 +1487,8 @@
   (apply cart (make-list n set)))
 
 (define (all-tuples n l)
+  (suggest: (rename #;to combinations))
+  (suggest: swap-arguments)
   (cond
    ((= n 0) '())
    ((= n 1) (map list l))
@@ -1474,6 +1500,7 @@
 	       (all-tuples n rest)))))))
 
 (define (all-pairs l)
+  (suggest: remove)
   (all-tuples 2 l))
 
 (e.g.
@@ -1481,6 +1508,7 @@
  ===> '((a b) (a c) (b c)))
 
 (define (all-triples l)
+  (suggest: remove)
   (all-tuples 3 l))
 
 (e.g.
@@ -1488,6 +1516,7 @@
  ===> '((a b c) (a b d) (a c d) (b c d)))
 
 (define (combinations #;from-set A #;of-length n)
+  (suggest: (rename #;to multicombinations))
   (assert (not (contains-duplicates? A)))
   (cond ((= n 0)
 	 '())
