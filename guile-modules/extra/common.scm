@@ -70,12 +70,12 @@
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
-	    equivalent-set?
+	    equivalent-set? equiv?
 	    map-n for-each-n unfold-n unzip chunk-list
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
 	    insert rest element head tail
-	    tree-find tree-map map* depth 
+	    tree-find tree-map map* depth find-map
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
 	    list->uniform-vector list->uniform-array
@@ -1067,6 +1067,14 @@
 	`(,(apply proc (map (specific first) ls))
 	  ,@(apply map* proc (map (specific rest) ls))))))
 
+(define (find-map proc l)
+  (match l
+    (()
+     #f)
+    ((head . tail)
+     (or (and-let* ((mapped (proc head))) mapped)
+	 (find-map proc tail)))))
+
 ;; equivalence classes with partial order preserved
 (define (equivalence-classes equivalent? set)
   (let next-item ((set set)(result '()))
@@ -1201,6 +1209,11 @@
   (syntax-rules (in)
     ((_ var in set predicate)
      (any (match-lambda (var predicate) (_ #f)) set))))
+
+(define (equiv? . args)
+  "logical equivalence"
+  (or (every (lambda(x)x) args)
+      (every not args)))
 
 (define-syntax-rule (hash-table (key value) ...)
   (let ((new-hash-table (make-hash-table)))
