@@ -25,14 +25,14 @@
 
   ;;  #:use-module ((rnrs) #:version (6))
   #:re-export (;; srfi-1
-	       iota circular-list 
+	       iota circular-list every any
 	       proper-list? dotted-list? null-list? not-pair? circular-list?
 	       first second third fourth fifth sixth seventh eighth ninth tenth
 	       car+cdr take drop take-right drop-right split-at last
 	       concatenate zip unzip1 unzip2 unzip3 unzip4 unzip5
 	       fold fold-right pair-fold reduce reduce-right unfold-right
 	       append-map filter-map partition remove remove! find find-tail
-	       take-while drop-while span break any every list-index
+	       take-while drop-while span break list-index
 	       delete delete! delete-duplicates delete-duplicates!
 	       lset<= lset= lset-adjoin lset-union lset-intersection
 	       lset-difference lset-xor lset-diff+intersection
@@ -65,7 +65,7 @@
 	       pretty-print format
 	       )
   #:export (
-	    and-let* unknot listify stringify
+	    and-let* unknot listify stringify every. any.
 	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
@@ -74,7 +74,7 @@
 	    map-n for-each-n unfold-n unzip chunk-list
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
-	    insert rest element head tail
+	    insert rest element head tail length+last-tail
 	    tree-find tree-map map* depth find-map
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
@@ -85,9 +85,9 @@
 	    replace-alist-bindings
 	    alist->hash-map assoc? assoc->hash assoc->hash/deep
 	    last-sexp-starting-position
-	    properize flatten
+	    properize flatten last-tail
 	    cart cart-pow all-tuples all-pairs all-triples combinations
-	    take-at-most drop-at-most rotate-left rotate-right
+	    take-at-most drop-at-most rotate-left rotate-right sublist
 	    remove-keyword-args keyword-ref
 	    delete-first
 	    array-size
@@ -136,8 +136,29 @@
 	     (cdefine* . define*)
 	     (define-syntax~ . define-syntax)
 	     (let-syntax-rules . let-syntax)
-	     (mlambda . lambda))
+	     (mlambda . lambda)
+	     (named-match-let . let)
+	     (let*-replacement . let*))
   )
+
+;; every and any that work for dotted lists:
+(define (every. pred l)
+  (match l
+    ((h . t)
+     (and (pred h) (every. pred t)))
+    (()
+     #t)
+    (else
+     (pred l))))
+
+(define (any. pred l)
+  (match l
+    ((h . t)
+     (or (pred h) (any. pred t)))
+    (()
+     #f)
+    (else
+     (pred l))))
 
 (define-syntax restructured
   (lambda (stx)
@@ -281,6 +302,46 @@
        (lambda* rest body body* ...)))
     ((_ . rest)
      (define* . rest))))
+
+(define-syntax named-match-let
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ((identifier expression) ...) ;; optimization: plain "let" form
+	  body + ...)
+       (every identifier? #'(identifier ...))
+       #'(let ((identifier expression) ...)
+	   body + ...))
+
+      ((_ name ((identifier expression) ...) ;; optimization: regular named-let
+	  body + ...)
+       (and (identifier? #'name) (every identifier? #'(identifier ...)))
+       #'(let name ((identifier expressio) ...) 
+	   body + ...))
+
+      ((_ name ((structure expression) ...)
+	  body + ...)
+       (identifier? #'name)
+       #'(letrec ((name (mlambda (structure ...) body + ...)))
+	   (name expression ...)))
+
+      ((_ ((structure expression) ...) 
+	  body + ...)
+       #'(match-let ((structure expression) ...) 
+	   body + ...)))))
+
+(define-syntax let*-replacement
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ((identifier expression) ...) ;; optimization: regular let*
+	  body + ...)
+       (every identifier? #'(identifier ...))
+       #'(let* ((identifier expression) ...)
+	   body + ...))
+      
+      ((_ ((structure expression) ...)
+	  body + ...)
+       #'(match-let* ((structure expression) ...)
+	   body + ...)))))
 
 (define-syntax syntax-lambda
   (lambda (stx)
@@ -502,20 +563,22 @@
 (define-syntax specify
   (lambda (stx)
     (syntax-case stx ()
-      ((_ ((name value) ...)
+      ((_ ((name expression) ...)
 	  actions ...)
-       #'(dynamic-wind
-	   (lambda ()
-	     (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
-			(cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
-					      'name '())))
-	     ...)
-	   (lambda ()
-	     actions ...)
-	   (lambda ()
-	     (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
-			(rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
-	     ...))))))
+       (with-syntax (((value ...) (generate-temporaries #'(expression ...))))
+	 #'(let ((value expression) ...)
+	     (dynamic-wind
+	       (lambda ()
+		 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+			    (cons value (hash-ref (fluid-ref SPECIFIC-CONTEXT) 
+						  'name '())))
+		 ...)
+	       (lambda ()
+		 actions ...)
+	       (lambda ()
+		 (hash-set! (fluid-ref SPECIFIC-CONTEXT) 'name
+			    (rest (hash-ref (fluid-ref SPECIFIC-CONTEXT) 'name)))
+		 ...))))))))
 
 (e.g.                                   ; this is how the trio 'with-default',
  (let ()                                ; 'specific' and 'specify' can be used
@@ -909,6 +972,16 @@
  (unknot (cons 0 (circular-list 1 2 3)))
  ===> (0 1 2 3))
 
+(define (length+last-tail l)
+  "length- can receive a dotted list"
+  (define (inner-length l n)
+    (match l
+      ((h . t)
+       (inner-length t (+ 1 n)))
+      (else
+       (values n l))))
+  (inner-length l 0))
+
 (define (listify x)
   (if (list? x)
       x
@@ -1179,6 +1252,15 @@
 	    (x body ...))
 	  (loop (1+ n) rest)))))
     ((_ x in first .. last body ...)
+     ;; this form should be made obsolete in favour of the next one
+     (let ((final last))
+       (let loop ((x first))
+	 (if (<= x final)
+	     (begin
+	       body ...
+	       (loop (1+ x)))))))
+    ((_ x in (first .. last) body ...)
+     ;; this form should be made obsolete in favour of the next one
      (let ((final last))
        (let loop ((x first))
 	 (if (<= x final)
@@ -1293,6 +1375,13 @@
 	 (reverse dst))
 	(else 
 	 (reverse (cons src dst)))))
+
+(define (last-tail l)
+  (match l
+    ((h . t)
+     (last-tail t))
+    (else
+     l)))
 
 (define (array-map/typed type proc arg1 . args)
   (let ((result (apply make-typed-array type (if #f #f) 
@@ -1510,7 +1599,7 @@
   (apply cart (make-list n set)))
 
 (define (all-tuples n l)
-  (suggest: (rename #;to combinations))
+  (suggest: (rename #;to subsets))
   (suggest: swap-arguments)
   (cond
    ((= n 0) '())
@@ -1591,6 +1680,12 @@
       '()
       (cons (apply fn (append-map (lambda(l)(take l n)) (cons l lists)))
 	    (apply map-n n fn (map (lambda(l)(drop l n)) (cons l lists))))))
+
+(define* (sublist sequence #:optional 
+	      #;from (first 0) #;to (last (- (length sequence) 1)))
+  (if (< last first)
+      (reverse (sublist sequence #;from last #;to first))
+      (take (drop sequence first) (- last first -1))))
 
 (define (for-each-n n fn lst)
   (if (<= n (length lst))
