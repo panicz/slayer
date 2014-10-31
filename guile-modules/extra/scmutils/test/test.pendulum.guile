@@ -1,0 +1,34 @@
+#!/usr/bin/guile \
+-l ../load.scm -s 
+!#
+
+(eval-when (load compile eval)
+	   (set-current-module generic-environment))
+
+(define (((pendulum-solution-series alpha beta) state) time)
+  (let ((E ((Hpendulum alpha beta) state)))
+    (let ((omega (pendulum-frequency alpha beta E))
+	  (beta (abs beta)))    
+      (if (< E beta)
+	  (let ((k (sqrt (/ (+ E beta) (* 2 beta))))
+		(omega-0 (sqrt (abs (/ beta alpha)))))
+	    (let ((Kp (first-elliptic-integral (sqrt (- 1 (square k))))))
+	      (define (term n)
+		(let ((omega-n (* omega (- (* 2 n) 1))))
+		  (/ (sin (* omega-n time))
+		     (* omega-n (cosh (/ (* omega-n Kp) omega-0))))))
+	      (* 4 omega (series:generate (lambda (i) (term (+ i 1)))))))
+	  (let ((k (sqrt (/ (* 2 beta) (+ E beta))))
+		(omega-R (sqrt (abs (/ (+ E beta) (* 2 alpha))))))
+	    (let ((Kp (first-elliptic-integral (sqrt (- 1 (square k))))))
+	      (define ((term time) n)
+		(let ((omega-n (* omega n)))
+		  (/ (sin (* omega-n time))
+		     (* omega-n (cosh (/ (* omega-n Kp) omega-R))))))
+	      (+ (* omega time)
+		 (* 2 omega (series:generate (lambda (i) ((term time) (+ i 1))))))))))))
+
+(series:print
+ (((pendulum-solution-series 1. 9.8)
+   (->H-state 0. 0. 4.9006733894348145)) 't)
+ 10)

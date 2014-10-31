@@ -1,0 +1,20 @@
+#!/usr/bin/guile \
+-l ../load.scm -s 
+!#
+
+(eval-when (load compile eval)
+	   (set-current-module generic-environment))
+
+(define ((H-harmonic m k) state)
+  (let ((q (coordinate state))
+	(p (momentum state)))
+    (+ (/ (square p) (* 2 m))
+       (* 1/2 k (square q)))))
+
+;;; This works, but it takes forever! -- hung in deriv, not in simplify!
+
+(series:for-each print-expression
+ (((Lie-transform (H-harmonic 'm 'k) 'dt)
+   state->q)
+  (->H-state 0 'x_0 'p_0))
+ 4)

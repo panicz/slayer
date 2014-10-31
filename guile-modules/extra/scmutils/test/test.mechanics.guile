@@ -1,0 +1,25 @@
+#!/usr/bin/guile \
+-l ../load.scm -s 
+!#
+
+; replace + * etc with generic operators
+(eval-when (load compile eval)
+	   (set-current-module generic-environment))
+
+(define m  (matrix-by-rows '(0 1) '(1 0)))
+(pp (matrix->eigenvalues-eigenvectors m ))
+
+
+(define ((L-harmonic m k) local) 
+  (let ((q (coordinate local)) 
+	(v (velocity local))) 
+    (- (* 1/2 m (square v)) 
+       (* 1/2 k (square q))))) 
+
+(define q 
+  (find-path (L-harmonic 1.0 1.0) 0. 1. pi/2 0. 3))
+
+(pp (q 0.5))
+
+(pp (q .75))
+

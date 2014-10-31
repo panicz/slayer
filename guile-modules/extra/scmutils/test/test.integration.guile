@@ -1,0 +1,8 @@
+#!/usr/bin/guile \
+-l ../load.scm -s 
+!#
+
+(pe (definite-integral cos 0 30))
+(pe (definite-integral sin 0 (* 2 pi)))
+(pe (definite-integral exp 0 1))
+(pe (definite-integral exp 0 30))

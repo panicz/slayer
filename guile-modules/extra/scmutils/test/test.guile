@@ -1,0 +1,64 @@
+#!/usr/bin/guile \
+-l ../load.scm -s 
+!#
+
+; replace + * etc with generic operators
+(eval-when (load compile eval)
+	   (set-current-module generic-environment))
+
+(define D derivative)
+
+(define f (literal-function 'f))
+(define f^2 (expt f 2))	
+(pe ((D f^2) 't))
+
+(pe ((D sin) 's))
+
+(pe ((partial-derivative (lambda (x y) (* x y)) 0) 's 't ))
+
+(pe ((partial-derivative (lambda (x y) (* x y)) 1) 's 't ))
+
+(pp (expression
+  (let ((k (literal-number 'k)) (m (literal-number 'm)))
+    ((D
+      (lambda (v)
+       (let ((t (s:ref v 0))
+             (q (s:ref v 1))
+             (p (s:ref v 2)))
+         (+ (/ (square p)
+                   (* 2 m))
+            (* 1/2 k (square q))
+            (sin t)))))
+     (up (literal-number 't)
+        (up (literal-number 'x)
+            (literal-number 'y))
+        (down (literal-number 'px)
+              (literal-number 'py)))))))
+
+; can't apply vector as function.
+; must define q as a lambda expr instead of as a vector of literal functions.
+(define q (lambda (t) (up ((literal-function 'x) t)  
+			  ((literal-function 'y) t)  
+			  ((literal-function 'z) t))))
+
+(define ((L-free-particle mass) local)
+  (let ((v (ref local 2)))
+    (* 1/2 mass (square v))))
+
+(define ((Gamma q) t)
+  (up t
+      (q t)
+      ((D q) t)))
+
+(define ((Lagrange-equations Lagrangian) q)
+  (let ((state-path (Gamma q)))
+    (- (D (compose ((partial 2) Lagrangian) state-path))
+       (compose ((partial 1) Lagrangian) state-path))))
+
+(define (test-path t)
+  (up (+ (* 'a t) 'a0)
+      (+ (* 'b t) 'b0)
+      (+ (* 'c t) 'c0)))
+
+(pp (expression ((Gamma q) 't)))
+(pp (expression (((Lagrange-equations (L-free-particle 'm)) test-path) 't)))

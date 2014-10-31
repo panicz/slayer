@@ -1,0 +1,50 @@
+#!/usr/bin/guile \
+-l ../load.scm -s 
+!#
+
+(eval-when (load compile eval)
+	   (set-current-module generic-environment))
+
+(define Sx (compose (component 0) coordinate))
+(define Sy (compose (component 1) coordinate))
+(define Sz (compose (component 2) coordinate))
+
+(define Spx (compose (component 0) momentum))
+(define Spy (compose (component 1) momentum))
+(define Spz (compose (component 2) momentum))
+
+;;; for example L = [Lx, Ly, Lz] 
+;;; where Li are components of angular momentum
+
+(define Lx (- (* Sy Spz) (* Spy Sz)))
+(define Ly (- (* Sz Spx) (* Spz Sx)))
+(define Lz (- (* Sx Spy) (* Spx Sy)))
+(define (L q) (down (Lx q) (Ly q) (Lz q)))
+
+(define 3-state 
+  (->H-state 't 
+	     (coordinate-tuple 'x 'y 'z)
+	     (momentum-tuple 'p_x 'p_y 'p_z)))
+
+(pe ((Poisson-bracket Lx L) 3-state))
+
+
+
+(define ((H-rectangular m V) H-state)
+  (let ((q (coordinate H-state))
+        (p (momentum H-state)))
+    (+ (/ (square p) (* 2 m))
+       (V (ref q 0) (ref q 1)))))
+
+(show-expression 
+ (((Hamilton-equations
+    (H-rectangular 
+     'm
+     (literal-function 'V (-> (X Real Real) Real))))
+   (lambda (t) 
+     (coordinate-tuple ((literal-function 'x) t)
+                       ((literal-function 'y) t)))
+   (lambda (t)
+     (momentum-tuple ((literal-function 'p_x) t)
+                     ((literal-function 'p_y) t))))
+   't))
