@@ -21,7 +21,7 @@
 	    make-move!
 	    allowed-destinations
 	    )
-  #:re-export (allowed-moves))
+  #:re-export (allowed-moves erase!))
 
 (define-class <redis-board-game> (<board-game-interface> <redis-proxy>)
   (game-type  #:allocation #:virtual
@@ -57,6 +57,19 @@
   (if #[self 'game-type]
       (set! #[self 'rules] (make <redis-object-proxy> 
 			     #:as #[self 'game-type]))))
+
+(define-method (erase! (self <redis-board-game>))
+  (let ((redis-name (slot-ref self 'redis-name)))
+    (match redis-name
+      (('game id)
+       (redis-send 
+	(slot-ref self 'redis) 
+	(list
+	 (redis:del (list (->string `(,@redis-name game-state))
+			  (->string `(,@redis-name order-of-play))
+			  (->string `(,@redis-name past-moves))
+			  (->string `(,@redis-name past-states))))
+	 (redis:srem "games" (list (->string id)))))))))
 
 (define-method (next-player! #;in (game <redis-board-game>))
   (let ((name (->string `(,@(slot-ref game 'redis-name) order-of-play))))
@@ -112,22 +125,24 @@
 	    (set! #[game 'winner] winner)
 	    (game-state game))))))
 
-(define (rules-exist? type)
-  (let ((connection (redis-connect))
-	(essential-key (->string `(,type))))
-    (not (zero? (redis-send connection (redis:exists essential-key))))))
-
-(define (game-exists? game-id)
-  (let ((connection (redis-connect))
-	(essential-key (->string `(game ,game-id game-state))))
-    (not (zero? (redis-send connection (redis:exists essential-key))))))
-
 (define (game game-id)
   (and (game-exists? game-id)
        (make <redis-board-game> #:redis-name `(game ,game-id))))
 
-(define (all-games)
-  (map read-string (redis-send (redis-connect) (redis:smembers "games"))))
+(with-default ((redis-connection (redis-connect)))
+  (define (all-games)
+    (map read-string (redis-send (specific redis-connection) 
+				 (redis:smembers "games"))))
+
+  (define (rules-exist? type)
+    (let ((connection (specific redis-connection))
+	  (essential-key (->string `(,type))))
+      (not (zero? (redis-send connection (redis:exists essential-key))))))
+
+  (define (game-exists? game-id)
+    (let ((connection (specific redis-connection))
+	  (essential-key (->string `(game ,game-id game-state))))
+      (not (zero? (redis-send connection (redis:exists essential-key)))))))
 
 (define (create-game! type id)
   (let ((game (make <redis-board-game> #:redis-name `(game ,id) 

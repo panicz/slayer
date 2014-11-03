@@ -25,7 +25,13 @@
 
 (define-class <redis-proxy> ()
   (redis-name #:init-keyword #:redis-name #:init-value #f)
-  (redis #:init-keyword #:redis #:init-thunk redis-connect))
+  (redis #:init-value #f #:init-keyword #:redis))
+
+(with-default ((redis-connection (redis-connect)))
+  (define-method (initialize (self <redis-proxy>) args)
+    (next-method)
+    (unless (slot-ref self 'redis)
+      (slot-set! self 'redis (specific redis-connection)))))
 
 (define-class <redis-object-proxy> (<redis-proxy> <ref-interface>)
   (getter 
