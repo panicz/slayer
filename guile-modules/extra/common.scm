@@ -315,7 +315,7 @@
       ((_ name ((identifier expression) ...) ;; optimization: regular named-let
 	  body + ...)
        (and (identifier? #'name) (every identifier? #'(identifier ...)))
-       #'(let name ((identifier expressio) ...) 
+       #'(let name ((identifier expression) ...)
 	   body + ...))
 
       ((_ name ((structure expression) ...)
