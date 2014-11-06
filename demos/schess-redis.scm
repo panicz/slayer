@@ -72,6 +72,10 @@
 		(redis:create-game! type game-id)
 		'OK)))
 
+	(('figures game-type)
+	 (let ((rules (make <redis-object-proxy> #:as game-type)))
+	   #[rules 'figures]))
+
 	(('players game-id)
 	 (with-game (game game-id) 
 	     (delete-duplicates #[game : 'rules : 'order-of-play])))

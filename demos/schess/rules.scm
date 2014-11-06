@@ -29,8 +29,19 @@
      (let ((result #[]))
        (for (player => rules) in #[self 'allowed-moves]
 	    (for (figure => moves) in rules
-		 (set! #[result figure] #t)))
+	      (set! #[result figure] #t)))
        (hash-keys result)))
+   #:slot-set! noop)
+  (figures ;type: (((or '*immobile* player) (figure ...)) ...)
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (let ((result #[]))
+       (for (player => rules) in #[self 'allowed-moves]
+	 (for (figure => moves) in rules
+	   (set! #[result player] `(,figure . ,(or #[result player] '())))))
+       `((*immobile* ,#[self 'immobile])
+	 ,@(hash-map->list list result))))
    #:slot-set! noop)
   ;; we store image names here (instead of loading images) because
   ;; in some cases (e.g. server) 
@@ -113,6 +124,8 @@
     (for (player . description) in movement-description
 	 (match description
 	   ((('transform player-name . details))
+	    (if (eq? player-name '*immobile*)
+		(error "The symbol *immobile* can't be used as player name"))
 	    (let ((moves #[player-moves player-name])
 		  (opposite (let* ((opposites (or #[details 'opposites:] '()))
 				   (reciprocal `(,@(map reverse opposites)
