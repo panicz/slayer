@@ -1,9 +1,15 @@
 (rig 
  (bodies
-  (bar
-   (capsule #:radius 0.05 #:height 0.4
-	    #:position #f32(0 -0.1 1.7)
+  (left-bar
+   (capsule #:radius 0.02 #:height 0.09
+	    #:position #f32(0 -0.12 1.7)
 	    #:quaternion (0.707106781186548 . #f32(0.707106781186548 0 0))))
+
+  (right-bar
+   (capsule #:radius 0.02 #:height 0.09
+	    #:position #f32(0.0 0.12 1.7)
+	    #:quaternion (0.707106781186548 . #f32(-0.707106781186548 0 0))))
+
   #;(balancer
    (capsule #:radius 0.05 #:height 0.5 #:mass 1.0
            #:position #f32(-0.2 0.0 2.5)
@@ -51,8 +57,13 @@
 	    ))
   )
  (joints
+
+  (middle
+   (hinge #:body-1 left-bar #:body-2 right-bar
+	  #:anchor #f32(0 0 1.7) #:axis #f32(1 0 0)))
+
   (left-pelvis 
-   (hinge #:body-1 bar #:body-2 left-tight
+   (hinge #:body-1 left-bar #:body-2 left-tight
 	  #:anchor #f32(0.0 -0.2 1.7) #:axis #f32(0 -1 0)))
 
   (left-ankle
@@ -66,7 +77,7 @@
 	  #:axis #f32(0 -1 0)))
 
   (right-pelvis 
-   (hinge #:body-1 bar #:body-2 right-tight
+   (hinge #:body-1 right-bar #:body-2 right-tight
 	  #:anchor #f32(0.0 0.2 1.7) #:axis #f32(0 1 0)))
 
   (right-ankle
