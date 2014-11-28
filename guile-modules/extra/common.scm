@@ -109,6 +109,7 @@
 	    demand SPECIFIC-CONTEXT
 	    iterations
 	    RUN-TESTS TEST-RESULTS
+	    arity impose-arity
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation: match* assert
@@ -128,13 +129,14 @@
 		   string-match-all string-matches
 		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
-		   push! pop!)
+		   push! pop!
+		   n-lambda)
   #:replace (compose 
 	     (unfold-facade . unfold)
 	     quasiquote
+	     (procedure-property-with-setter . procedure-property)
 	     (cdefine . define)
 	     (cdefine* . define*)
-	     (define-syntax~ . define-syntax)
 	     (let-syntax-rules . let-syntax)
 	     (mlambda . lambda)
 	     (named-match-let . let)
@@ -342,29 +344,6 @@
 	  body + ...)
        #'(match-let* ((structure expression) ...)
 	   body + ...)))))
-
-(define-syntax syntax-lambda
-  (lambda (stx)
-    (syntax-case stx ()
-      ((syntax-lambda (syntax-argument) body . *)
-       (with-syntax ((literal (datum->syntax stx 'literal))
-		     (with-literal (datum->syntax stx 'with-literal)))
-	 #'(lambda (syntax-argument)
-	     (define (literal identifier)
-	       (datum->syntax syntax-argument identifier))
-	     (define-syntax-rule (with-literal (literals (... ...)) action . +)
-	       (with-syntax ((literals (literal 'literals)) (... ...))
-		 action . +))
-	     body . *))))))
-
-(define-syntax define-syntax~
-  (syntax-rules ()
-    ((_ (name . args) body ...)
-     (define-syntax name
-       (syntax-lambda args
-	 body ...)))
-    ((_ name value)
-     (define-syntax name value))))
 
 (define-syntax let-syntax-rules
   (syntax-rules ()
@@ -2108,6 +2087,23 @@
 				args)))
        `(define-macro ,interface
 	  `(display (fill-template ,,@kw-list ,,template)))))))
+
+(define procedure-property-with-setter
+  (make-procedure-with-setter procedure-property set-procedure-property!))
+
+(define (arity procedure)
+  (assert (procedure? procedure))
+  (or (procedure-property procedure 'imposed-arity)
+      (procedure-property procedure 'arity)))
+
+(define-syntax-rule (n-lambda n args body + ...)
+  (let ((the-procedure (lambda args (assert (= (length args) n)) body + ...)))
+    (set-procedure-property! the-procedure 'imposed-arity `(,n 0 #f))
+    the-procedure))
+
+(define (impose-arity n procedure)
+  (set-procedure-property! procedure 'imposed-arity n)
+  procedure)
 
 ;; (expand '(define-accessors (a (b c 2))))
 
