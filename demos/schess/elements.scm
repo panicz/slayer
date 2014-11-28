@@ -196,38 +196,23 @@
 ;; r[i+n][j+m] = s[n][m]. Wówczas parę (i, j) nazwiemy współrzędnymi
 ;; podtablicy s w tablicy r.
 
-(prototype (subrect-indices (rect <rect>) (sub <rect>))
-	   (assert (and (<= (rect-width sub) (rect-width rect))
-			(<= (rect-height sub) (rect-height rect))))
-	   -> ((<integer> <integer>) ...))
-
-(define (subrect-indices rect sub)
-  (let ((w (rect-width sub))
-	(h (rect-height sub)))
+(define (subrect-indices #;of subrect #;in rect)
+  (let ((w (rect-width subrect))
+	(h (rect-height subrect)))
     (filter (lambda ((left top))
-	      (rect-match? (take-subrect rect left top w h) sub))
+	      (rect-match? (take-subrect rect left top w h) subrect))
 	    (cart (iota (- (rect-width rect) w -1)) 
 		  (iota (- (rect-height rect) h -1))))))
 
-(prototype (displacement <symbol> <rect> <rect>) -> (<integer> <integer>))
-
 (define (displacement #;of figure #;from source #;to dest)
-  (let ((dest-position (subrect-indices dest `((,figure))))
-	(source-position (subrect-indices source `((,figure)))))
+  (assert (and (rect? source)
+	       (rect? dest)))
+  (let ((dest-position (subrect-indices #;of `((,figure)) #;in dest))
+	(source-position (subrect-indices #;of `((,figure)) #;in source)))
     (if (or (null? source-position) (null? dest-position))
 	#f
 	(map - (match dest-position ((x) x))
 	     (match source-position ((x) x))))))
-#|
-(match `(,(subrect-indices source `((,figure)))
-	 ,(subrect-indices dest `((,figure))))
-  ((or (() _) (_ ()))
-   #f)
-  ((((xs ys)) ((xd yd)))
-   `(,(- xd xs) ,(- yd yd)))
-  (else
-   (error "non-unique source or dest")))
-|#
 
 (e.g. (displacement #;of '♞ #;from '((_ ?)
 				     (? ?)
@@ -320,7 +305,7 @@
 
 (e.g.
  (append-map (lambda(rect)
-	       (subrect-indices rect '((X))))
+	       (subrect-indices #;of '((X)) #;in rect))
 	     (all-rotations '((_ _ _ _ _)
 			      (_ X _ _ _)
 			      (_ _ _ _ _)
@@ -480,8 +465,8 @@
 
 (publish
  (define (complements state-description board-width board-height)
-   (let ((arrow-positions (subrect-indices state-description
-					   '(((← ↑ → ↓ ↖ ↗ ↘ ↙)))))
+   (let ((arrow-positions (subrect-indices #;of '(((← ↑ → ↓ ↖ ↗ ↘ ↙)))
+						#;in state-description))
 	 (D state-description) (W board-width) (H board-height)
 	 (w (rect-width state-description)) (h (rect-height state-description)))
      (match arrow-positions
@@ -733,12 +718,12 @@
     (unique
      (filter-map
       (lambda ((initial-state final-state . extra))
-	(match (subrect-indices initial-state `((,figure)))
+	(match (subrect-indices #;of `((,figure)) #;in initial-state)
 	  (((dx dy))
 	   (and 
 	    (not (null? (filter 
 			 (equals? `(,(- x dx) ,(- y dy)))
-			 (subrect-indices board/rect initial-state))))
+			 (subrect-indices #;of initial-state #;in board/rect))))
 	    `(,initial-state ,final-state . ,extra)))))
       moves))))
 
