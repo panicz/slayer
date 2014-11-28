@@ -87,7 +87,7 @@
 		      #[past-states (- number-of-moves in-turn 1)]
 		      #f)))))
       (define (fits-somewhere? pattern board-state)
-	(not (null? (subrect-indices board-state pattern))))
+	(not (null? (subrect-indices #;of pattern #;in board-state))))
       (define (current-turn) #[the-game 'turn])
       (define (current-player) #[the-game 'current-player])
       (define field take-from-rect))
@@ -162,7 +162,8 @@
 	     (lambda figures
 	       (map (lambda ((x y)) `(,(+ x ,x) ,(+ y ,y)))
 		    (append-map (lambda(figure)
-				  (subrect-indices pattern `((,figure))))
+				  (subrect-indices 
+				   #;of `((,figure)) #;in pattern))
 				figures))))))
       ,@conditions)
    #;in #[game 'environment]))
@@ -202,7 +203,8 @@
    (let ((figures #[game : 'rules : 'allowed-figures])
 	 (figure (take-from-rect #[game 'board-state] x0 y0))
 	 (wildcards (map first #[game : 'rules : 'wildcards])))
-     (match-let* ((((dx dy)) (subrect-indices initial-state `((,figure))))
+     (match-let* ((((dx dy)) (subrect-indices 
+			      #;of `((,figure)) #;in initial-state))
 		  ((x y) `(,(- x0 dx) ,(- y0 dy)))
 		  ((w h) (rect-size initial-state))
 		  (board-substate (take-subrect #[game 'board-state] x y w h)))
@@ -219,7 +221,7 @@
     (specify ((fit? (fit-wildcards #[game : 'rules : 'wildcards])))
       (for (initial-state final-state . conditions) in rules
 	   (match-let (((w h) (rect-size initial-state)))
-	     (for (x y) in (subrect-indices fields initial-state)
+	     (for (x y) in (subrect-indices #;of initial-state #;in fields)
 		  (if (satisfied? conditions #;with initial-state #;at x y
 				  #;in game)
 		      (let* ((current-substate (take-subrect fields x y w h))
