@@ -9,6 +9,7 @@
 	   vectors->matrix
 	   dot norm square ; project
 	   normalize! normalized
+	   normalized-radians
 	   det3x3 inv3x3 wedge3x3 crossm3x3
 	   matrix-mul matrix-vector-mul
 	   sgn
@@ -103,8 +104,19 @@
 	  (loop (1+ i)))))
     m))
 
-(define (transpose a)
+(define-generic transpose)
+
+(define-method (transpose (a <array>))
   (transpose-array a 1 0))
+
+(define-method (transpose (lol <list>))
+  (apply map list lol))
+
+(e.g.
+ (transpose '((a b c)
+	      (d e f))) ===> '((a d)
+			       (b e)
+			       (c f)))
 
 (define (rows a) 
   (car (array-dimensions a)))
@@ -153,6 +165,10 @@
 	(begin
 	  (array-map! u (lambda(x)(/ x lv)) v)
 	  u))))
+
+(define (normalized-radians radians)
+  "get radians in range between -π and π"
+  (angle (make-polar 1 radians)))
 
 (define-method (normalized (p <pair>))
   ;; this procedure had to be written in this manner, because GOOPS doesn't
@@ -227,6 +243,13 @@
 	 (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
 	 (- (* #[u 0] #[v 1])(* #[u 1] #[v 0])))))
 
+(define-method (wedge3x3 (u <generalized-vector>) (v <generalized-vector>))
+  (list->typed-array
+   (array-type u) 1 
+   (list (- (* #[u 1] #[v 2])(* #[u 2] #[v 1]))
+	 (- (* #[u 2] #[v 0])(* #[u 0] #[v 2]))
+	 (- (* #[u 0] #[v 1])(* #[u 1] #[v 0])))))
+
 (define-method (wedge3x3 (u <list>) (v <list>))
   (match (list u v)
     (((ux uy uz . _) (vx vy vz . _))
@@ -282,10 +305,22 @@
   (save-operation / #;as divide #;for <number>)
   (save-operation - #;as subtract #;for <number>))
 
+(define-method (* (s <number>) (p <list>)) 
+  (map (lambda (x) (* x s)) p))
+
 (define-method (* (s <number>) (p <point>)) 
   (array-map (lambda (x) (* x s)) p))
 
+(define-method (* (p <list>) (s <number>))
+  (map (lambda (x) (* x s)) p))
+
 (define-method (* (p <point>) (s <number>))
+  (array-map (lambda (x) (* x s)) p))
+
+(define-method (* (s <number>) (p <generalized-vector>)) 
+  (array-map (lambda (x) (* x s)) p))
+
+(define-method (* (p <generalized-vector>) (s <number>))
   (array-map (lambda (x) (* x s)) p))
 
 (define-method (* (m <array>) (v <generalized-vector>))
@@ -303,6 +338,9 @@
 (define-method (+ (p <point>) . rest)
   (apply array-map add p rest))
 
+(define-method (+ (p <generalized-vector>) . rest)
+  (apply array-map add p rest))
+
 (define-method (+ (l <list>) . rest)
   (apply map + l rest))
 
@@ -312,13 +350,25 @@
 (define-method (- (p <point>) . rest)
   (apply array-map subtract p rest))
 
+(define-method (- (p <generalized-vector>) . rest)
+  (apply array-map subtract p rest))
+
 (define-method (/ (p <point>) (n <number>))
+  (* p (/ 1.0 n)))
+
+(define-method (/ (p <generalized-vector>) (n <number>))
+  (* p (/ 1.0 n)))
+
+(define-method (/ (p <list>) (n <number>))
   (* p (/ 1.0 n)))
 
 (define-method (^ (n <number>) (m <number>))
   (expt n m))
 
 (define-method (^ (u <point>) (v <point>))
+  (wedge3x3 u v))
+
+(define-method (^ (u <generalized-vector>) (v <generalized-vector>))
   (wedge3x3 u v))
 
 (define-method (^ (u <list>) (v <list>))
@@ -329,11 +379,11 @@
 (define-method (- (n <number>) (p <point>))
   (array-map (lambda(x)(- n x)) p)) 
 
-(define-method (* (p <quaternion>) . rest)
-  (fold (lambda(q p)(quaternion-multiply2 p q)) p rest))
+(define-method (* (p <quaternion>) (q <quaternion>) . rest)
+  (fold (lambda(q p)(quaternion-multiply2 p q)) p (cons q rest)))
 
-(define-method (+ (p <quaternion>) . rest)
-  (fold quaternion-add2 p rest))
+(define-method (+ (p <quaternion>) (q <quaternion>) . rest)
+  (fold quaternion-add2 p (cons q rest)))
 
 (define-generic ~)
 
@@ -409,7 +459,11 @@
 		 (- v (projection #:of v #:onto u))))))))))
 
 (define-method (rotation-quaternion #;around (axis <uvec>) #;by (rads <real>))
-  (quaternion (cos (* 0.5 rads)) (* (sin (* 0.5 rads)) (normalized axis))))
+  (let* ((rads/2 (* 0.5 (normalized-radians rads)))
+	 (normalized-axis (if (zero? rads/2) ; if the angle is 0, we allow
+			      axis           ; arbitrary axes
+			      (normalized axis))))
+    (quaternion (cos rads/2) (* (sin rads/2) normalized-axis))))
 
 (define (quaternion-angle q)
   (* 2 (acos (quaternion-real q))))
