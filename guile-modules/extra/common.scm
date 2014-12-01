@@ -89,7 +89,7 @@
 	    cart cart-pow all-tuples all-pairs all-triples combinations
 	    take-at-most drop-at-most rotate-left rotate-right sublist
 	    remove-keyword-args keyword-ref
-	    delete-first
+	    delete-first alter
 	    array-size
 	    random-array
 	    read-string write-string display-string ->string ->string*
@@ -1910,6 +1910,17 @@
      (if (= first element)
 	 rest
 	 `(,first . ,(delete-first element rest =))))))
+
+(define (alter #;element-number n #;in list #;with replacement)
+  (let (((head . tail) list))
+    (if (= n 0)
+	`(,replacement . ,tail)
+	`(,head . ,(alter #;element-number (- n 1) 
+					   #;in tail #;with replacement)))))
+
+(e.g.
+ (alter #;element-number 1 #;in '(ząb dupa zębowa) #;with 'zupa)
+ ===> (ząb zupa zębowa))
 
 (define* (random-array #:key (range 1.0)(type #t)(mean 0) #:rest dims)
   (let ((dims (remove-keyword-args dims)))
