@@ -1912,7 +1912,7 @@
 	 `(,first . ,(delete-first element rest =))))))
 
 (define (alter #;element-number n #;in list #;with replacement)
-  (let (((head . tail) list))
+  (match-let (((head . tail) list))
     (if (= n 0)
 	`(,replacement . ,tail)
 	`(,head . ,(alter #;element-number (- n 1) 
