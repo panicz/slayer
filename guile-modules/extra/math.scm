@@ -13,7 +13,7 @@
 	   det3x3 inv3x3 wedge3x3 crossm3x3
 	   matrix-mul matrix-vector-mul
 	   sgn
-	   pi/4 pi/2 pi 2pi π/4 π/2 π 2π e
+	   pi/4 pi/2 pi 2pi e
 	   deg->rad rad->deg
 	   multiply add subtract divide
 	   mean
@@ -23,6 +23,7 @@
 	   quaternion quaternion-real quaternion-imag re im ~ ^
 	   quaternion-angle quaternion-axis rotation-quaternion rotate
 	   TOLERANCE
+	   jacobian-approximation isotropic-jacobian-approximation
 	   ))
 
 (define-fluid TOLERANCE 0.0001)
@@ -70,19 +71,11 @@
 
 (define pi/4 (atan 1))
 
-(define π/4 pi/4)
-
 (define pi/2 (acos 0))
-
-(define π/2 pi/2)
 
 (define pi (* 2 pi/2))
 
-(define π pi)
-
 (define 2pi (* 2 pi))
-
-(define 2π 2pi)
 
 (define e (exp 1))
 
@@ -519,3 +512,24 @@
 ;; it also works for vector arguments,
 (e.g.
  (mean #(1 2 3) #(3 4 5)) ===> #(2 3 4))
+
+(define ((jacobian-approximation #;of f) #;by dV)
+  (let (((N 0 #f) (arity f)))
+    (impose-arity
+     N
+     (lambda #;at V
+       (assert (and (list? dV) (= (length dV) N) (every real? dV)
+		    (list? V)  (= (length V) N)  (every real? V)))
+       (transpose
+	(map (lambda (i)
+	       (let ((Vi (list-ref V i))
+		     (dVi (list-ref dV i)))
+		 (/ (- (apply f (alter i #;th-element #;in V 
+				       #;with (+ Vi dVi)))
+		       (apply f V))
+		    dVi)))
+	     (iota N)))))))
+
+(define ((isotropic-jacobian-approximation #;of f) #;by delta)
+  (let (((N 0 #f) (arity f)))
+    ((jacobian-approximation #;of f) #;by (make-list N delta))))
