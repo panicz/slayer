@@ -115,6 +115,7 @@
 		   safely export-types e.g. observation: match* assert
 		   reassurance: deprecated:
 		   upto once
+		   values->list
 		   define-curried-syntax publish define-accessors
 		   define-template
 		   with-literal within-module
@@ -142,6 +143,9 @@
 	     (named-match-let . let)
 	     (let*-replacement . let*))
   )
+
+(define-syntax-rule (values->list call)
+  (call-with-values (lambda () call) list))
 
 ;; every and any that work for dotted lists:
 (define (every. pred l)
@@ -326,7 +330,7 @@
        #'(letrec ((name (mlambda (structure ...) body + ...)))
 	   (name expression ...)))
 
-      ((_ ((structure expression) ...) 
+      ((_ ((structure expression) ...)
 	  body + ...)
        #'(match-let ((structure expression) ...) 
 	   body + ...)))))
