@@ -115,7 +115,7 @@
 		   safely export-types e.g. observation: match* assert
 		   reassurance: deprecated:
 		   upto once
-		   values->list
+		   values->list list<-values
 		   define-curried-syntax publish define-accessors
 		   define-template
 		   with-literal within-module
@@ -140,12 +140,9 @@
 	     (cdefine* . define*)
 	     (let-syntax-rules . let-syntax)
 	     (mlambda . lambda)
-	     (named-match-let . let)
+	     (named-match-let-values . let)
 	     (let*-replacement . let*))
   )
-
-(define-syntax-rule (values->list call)
-  (call-with-values (lambda () call) list))
 
 ;; every and any that work for dotted lists:
 (define (every. pred l)
@@ -309,45 +306,11 @@
     ((_ . rest)
      (define* . rest))))
 
-(define-syntax named-match-let
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ ((identifier expression) ...) ;; optimization: plain "let" form
-	  body + ...)
-       (every identifier? #'(identifier ...))
-       #'(let ((identifier expression) ...)
-	   body + ...))
+(define-syntax-rule (values->list call)
+  (call-with-values (lambda () call) list))
 
-      ((_ name ((identifier expression) ...) ;; optimization: regular named-let
-	  body + ...)
-       (and (identifier? #'name) (every identifier? #'(identifier ...)))
-       #'(let name ((identifier expression) ...)
-	   body + ...))
-
-      ((_ name ((structure expression) ...)
-	  body + ...)
-       (identifier? #'name)
-       #'(letrec ((name (mlambda (structure ...) body + ...)))
-	   (name expression ...)))
-
-      ((_ ((structure expression) ...)
-	  body + ...)
-       #'(match-let ((structure expression) ...) 
-	   body + ...)))))
-
-(define-syntax let*-replacement
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ ((identifier expression) ...) ;; optimization: regular let*
-	  body + ...)
-       (every identifier? #'(identifier ...))
-       #'(let* ((identifier expression) ...)
-	   body + ...))
-      
-      ((_ ((structure expression) ...)
-	  body + ...)
-       #'(match-let* ((structure expression) ...)
-	   body + ...)))))
+(define-syntax-rule (list<-values call)
+  (values->list call))
 
 (define-syntax let-syntax-rules
   (syntax-rules ()
@@ -373,6 +336,82 @@
 				      (~processed (... ...) (~name ~value))
 				      ~body . ~)))))
        (let-syntax~ (bindings ...) () body . *)))))
+
+(define-syntax named-match-let-values
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ((identifier expression) ...) ;; optimization: plain "let" form
+	  body + ...)
+       (every identifier? #'(identifier ...))
+       #'(let ((identifier expression) ...)
+	   body + ...))
+
+      ((_ name ((identifier expression) ...) ;; optimization: regular named-let
+	  body + ...)
+       (and (identifier? #'name) (every identifier? #'(identifier ...)))
+       #'(let name ((identifier expression) ...)
+	   body + ...))
+
+      ((_ name ((structure expression) ...)
+	  body + ...)
+       (identifier? #'name)
+       #'(letrec ((name (mlambda (structure ...) body + ...)))
+	   (name expression ...)))
+
+      ((_ ((structure expression) ...)
+	  body + ...)
+       #'(match-let ((structure expression) ...) 
+	   body + ...))
+
+      ((_ ((structures ... expression) ...)
+	  body + ...)
+       #'(match-let (((structures ...) (list<-values expression)) ...)
+	   body + ...))
+      
+      ((_ name ((structures ... expression) ...)
+	  body + ...)
+       (identifier? #'name) 
+       #'(letrec ((loop 
+		   (mlambda ((structures ...) ...)
+			    (let-syntax-rules (((name args (... ...))
+						(loop (list<-values args)
+						      (... ...))))
+					      body + ...))))
+	   (loop (list<-values expression) ...)))
+      )))
+
+(define-syntax let*-replacement
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ ((identifier expression) ...) ;; optimization: regular let*
+	  body + ...)
+       (every identifier? #'(identifier ...))
+       #'(let* ((identifier expression) ...)
+	   body + ...))
+      
+      ((_ ((structure expression) ...)
+	  body + ...)
+       #'(match-let* ((structure expression) ...)
+	   body + ...))
+
+      ((_ ((identifier expression) remaining-bindings ...)
+	  body + ...)
+       (identifier? #'identifier)
+       #'(let ((identifier expression))
+	   (let*-replacement (remaining-bindings ...) body + ...)))
+
+      ((_ ((structure expression) remaining-bindings ...)
+	  body + ...)
+       #'(match-let ((structure expression))
+	   (let*-replacement (remaining-bindings ...) body + ...)))
+      
+      ((_ ((structure structures ... expression) remaining-bindings ...)
+	  body + ...)
+       #'(call-with-values (lambda () expression) 
+	   (mlambda (structure structures ...)
+		    (let*-replacement (remaining-bindings ...) body + ...))))
+      
+      )))
 
 (define-syntax define-fluid
   (syntax-rules ()
