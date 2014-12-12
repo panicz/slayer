@@ -580,7 +580,12 @@
   (define-syntax with-default 
     (specific-literal-syntax (name value) name value))
   (define-syntax without-default 
-    (specific-literal-syntax name name (throw 'unspecified 'name))))
+    (specific-literal-syntax name name (throw 'unspecified 
+					      #:name 'name
+					      #:context:
+					      (hash-map->alist 
+					       (fluid-ref SPECIFIC-CONTEXT))
+					      ))))
 
 (define-syntax specify
   (lambda (stx)
@@ -2156,7 +2161,7 @@
     the-procedure))
 
 (define (impose-arity n procedure)
-  (set-procedure-property! procedure 'imposed-arity n)
+  (set-procedure-property! procedure 'imposed-arity `(,n 0 #f))
   procedure)
 
 ;; (expand '(define-accessors (a (b c 2))))
