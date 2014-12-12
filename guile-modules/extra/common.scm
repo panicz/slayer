@@ -1672,24 +1672,6 @@
  same-set?
  '((a a a) (b a a) (a b a) (b b a) (a a b) (b a b) (a b b) (b b b)))
 
-(define (compose . fns)
-  (let ((make-chain (lambda (fn chains)
-		      (lambda args
-			(call-with-values 
-			    (lambda () (apply fn args)) 
-			  chains)))))
-    (reduce make-chain values fns)))
-
-(e.g.
- ((compose 1+ 1+ 1+) 0)
- ===> 3)
-
-(define (iterations n f)
-  (apply compose (make-list n f)))
-
-(e.g.
- ((iterations 3 1+) 0)
- ===> 3)
 
 (define (?not pred)(lambda(x)(not (pred x))))
 
@@ -2161,8 +2143,28 @@
     the-procedure))
 
 (define (impose-arity n procedure)
-  (set-procedure-property! procedure 'imposed-arity `(,n 0 #f))
+  (set-procedure-property! procedure 'imposed-arity n)
   procedure)
+
+(define (compose . fns)
+  (define (make-chain fn chains)
+    (lambda args
+      (call-with-values 
+	  (lambda () (apply fn args)) 
+	chains)))
+  (impose-arity (arity (last fns)) (reduce make-chain values fns)))
+
+(e.g.
+ ((compose 1+ 1+ 1+) 0)
+ ===> 3)
+
+(define (iterations n f)
+  (apply compose (make-list n f)))
+
+(e.g.
+ ((iterations 3 1+) 0)
+ ===> 3)
+
 
 ;; (expand '(define-accessors (a (b c 2))))
 
