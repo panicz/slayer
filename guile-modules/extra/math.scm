@@ -2,7 +2,8 @@
   :use-module (extra common)
   :use-module (extra ref)
   :use-module (oop goops)
-  :use-module ((rnrs) :version (6))  
+  :use-module ((extra scmutils) :prefix scmutils:)
+  :use-module ((rnrs) :version (6) :hide (assert))
   :export (eye transpose reciprocal
 	   rows columns row column
 	   matrix->vector vector->matrix
@@ -22,9 +23,17 @@
 	   <quaternion> 
 	   quaternion quaternion-real quaternion-imag re im ~ ^
 	   quaternion-angle quaternion-axis rotation-quaternion rotate
+	   neutral-quaternion
 	   TOLERANCE
 	   jacobian-approximation isotropic-jacobian-approximation
+	   pseudoinverse
 	   ))
+
+(define (tensor-dimensions tensor)
+  (assert (tensor? tensor))
+  (if (pair? tensor)
+      `(,(length tensor) . ,(tensor-dimensions (car tensor)))
+      '()))
 
 (define-fluid TOLERANCE 0.0001)
 
@@ -60,11 +69,11 @@
   (imag-part c))
 
 (define (quaternion-multiply2 p q)
-  (cons (- (* (re p) (re q))
-	   (* (im p) (im q)))
-	(+ (* (re p) (im q))
-	   (* (re q) (im p))
-	   (* (wedge3x3 (im p) (im q))))))
+  `(,(- (* (re p) (re q))
+	(* (im p) (im q)))
+    . ,(+ (* (re p) (im q))
+	  (* (re q) (im p))
+	  (* (wedge3x3 (im p) (im q))))))
 
 (define (quaternion-add2 p q)
   (quaternion (+ (re p) (re q)) (+ (im p) (im q))))
@@ -317,16 +326,19 @@
   (array-map (lambda (x) (* x s)) p))
 
 (define-method (* (m <array>) (v <generalized-vector>))
-  (matrix-vector-mul m v))
+  (shared-array-root (matrix-vector-mul m v)))
 
 (define-method (* (u <generalized-vector>) (v <generalized-vector>))
   (dot u v))
 
-(define-method (* (p <point>))
-  p)
+(define-method (* x)
+  x)
 
 (define-method (* (m1 <array>) (m2 <array>) . rest)
   (apply matrix-mul m1 (cons m2 rest)))
+
+(define-method (* (p <quaternion>) (q <quaternion>) . rest)
+  (fold (lambda(q p)(quaternion-multiply2 p q)) p (cons q rest)))
 
 (define-method (+ (p <point>) . rest)
   (apply array-map add p rest))
@@ -337,6 +349,9 @@
 (define-method (+ (l <list>) . rest)
   (apply map + l rest))
 
+(define-method (+ (p <quaternion>) (q <quaternion>) . rest)
+  (fold quaternion-add2 p (cons q rest)))
+
 (define-method (- (l <list>) . rest)
   (apply map - l rest))
 
@@ -345,6 +360,11 @@
 
 (define-method (- (p <generalized-vector>) . rest)
   (apply array-map subtract p rest))
+
+; this has to be added to support unary minus, as guile probably 
+; implements it as (define (- (first <number>)) (- 0 first)) ...
+(define-method (- (n <number>) (p <point>))
+  (array-map (lambda(x)(- n x)) p)) 
 
 (define-method (/ (p <point>) (n <number>))
   (* p (/ 1.0 n)))
@@ -366,17 +386,6 @@
 
 (define-method (^ (u <list>) (v <list>))
   (wedge3x3 u v))
-
-; this has to be added to support unary minus, as guile probably 
-; implements it as (define (- (first <number>)) (- 0 first)) ...
-(define-method (- (n <number>) (p <point>))
-  (array-map (lambda(x)(- n x)) p)) 
-
-(define-method (* (p <quaternion>) (q <quaternion>) . rest)
-  (fold (lambda(q p)(quaternion-multiply2 p q)) p (cons q rest)))
-
-(define-method (+ (p <quaternion>) (q <quaternion>) . rest)
-  (fold quaternion-add2 p (cons q rest)))
 
 (define-generic ~)
 
@@ -433,6 +442,8 @@
 (define-method (rotate (v <uvec>) #;by (rads <real>) #;around (axis <uvec>))
   (rotate v #;by rads #;around axis #;at #f32(0 0 0)))
 
+(define neutral-quaternion '(1.0 . #f32(0 0 0)))
+
 (define-method (rotation-quaternion #;from (u <uvec>) #;to (w <uvec>))
   "a quaternion that represents rotation from the direction of u\
  to the direction of w"
@@ -443,7 +454,7 @@
       (cond ((> f #[TOLERANCE])
 	     (quaternion (* 0.5 f) (/ v f)))
 	    ((> (* u v) 0)
-	     (quaternion 1.0 #f32(0 0 0)))
+	     neutral-quaternion)
 	    (else
 	     (let ((v (random-vector 3 #:type (array-type u))))
 	       (quaternion 
@@ -458,6 +469,7 @@
 			      (normalized axis))))
     (quaternion (cos rads/2) (* (sin rads/2) normalized-axis))))
 
+
 (define (quaternion-angle q)
   (* 2 (acos (quaternion-real q))))
 
@@ -465,7 +477,8 @@
   (let* ((axis (quaternion-imag q))
 	 (norm (norm axis)))
     (if (> (abs norm) #[TOLERANCE])
-	(* (/ 1.0 norm) axis))))
+	(* (/ 1.0 norm) axis)
+	axis)))
 
 (define (quaternion->matrix q)
   (let ((s (re q))
@@ -518,14 +531,20 @@
     (impose-arity
      N
      (lambda #;at V
-       (assert (and (list? dV) (= (length dV) N) (every real? dV)
-		    (list? V)  (= (length V) N)  (every real? V)))
+       (assert (and (= (length dV) N) (every real? dV)
+		    (= (length V) N)  (every real? V)
+		    (let ((partial-result (apply f V))
+			  (result (((jacobian-approximation #;of f) 
+				    #;by dV) #;at V)))
+		      (let ((M (length partial-result)))
+			(equal? (tensor-dimensions result)
+				`(,M #;rows #;by ,N #;columns))))))
        (transpose
 	(map (lambda (i)
-	       (let ((Vi (list-ref V i))
-		     (dVi (list-ref dV i)))
-		 (/ (- (apply f (alter i #;th-element #;in V 
-				       #;with (+ Vi dVi)))
+	       (let ((Vi #[V i])
+		     (dVi #[dV i]))
+		 (/ (- (apply f (alter #;element-number i #;in V 
+							#;with (+ Vi dVi)))
 		       (apply f V))
 		    dVi)))
 	     (iota N)))))))
@@ -533,3 +552,20 @@
 (define ((isotropic-jacobian-approximation #;of f) #;by delta)
   (let (((N 0 #f) (arity f)))
     ((jacobian-approximation #;of f) #;by (make-list N delta))))
+
+(define (pseudoinverse matrix)
+  (assert (and (list? matrix) (every list? matrix)
+	       (typed-array? (pseudoinverse matrix) 'f64)))
+  ;; I know that those conversions are terrible. They stem directly from
+  ;; the fact that there are so many possible representations of matrices
+  ;; in Scheme. The code will be reduced once the vectors are thrown away
+  ;; from Scheme and assertion inference systems would allow to know
+  ;; whether a list can be treated as a uniform vector.
+  (list->typed-array 
+   'f64 2
+   (map vector->list
+	(vector->list
+	 (scmutils:matrix->array
+	  (scmutils:svd-invert (scmutils:array->matrix 
+				(list->vector 
+				 (map list->vector matrix)))))))))
