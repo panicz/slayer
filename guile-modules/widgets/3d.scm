@@ -91,16 +91,16 @@
       (for-each remove-light! lights))))
 
 (define-method (draw-border! (view <3d-view>))
-  (match-let (((x y w h) (area view)))
+  (let (((x y w h) (area view)))
     (draw-image! #[view '%horizontal-frame] x y)
     (draw-image! #[view '%vertical-frame] x y)
     (draw-image! #[view '%horizontal-frame] x (+ y h))
     (draw-image! #[view '%vertical-frame] (+ x w -1) y)))
 
 (define-method (draw (view <3d-view>))
-  (match-let ((original-viewport (current-viewport))
-	      ((x y w h) (area view))
-	      (camera #[view 'camera]))
+  (let ((original-viewport (current-viewport))
+	((x y w h) (area view))
+	(camera #[view 'camera]))
     (draw-border! view)
     (set-viewport! (+ x 1) (+ y 1) (- w 2) (- h 2))
     (set-perspective-projection! #[camera 'fovy])
@@ -142,6 +142,10 @@
 	     (rotate direction #[object 'orientation])))
 
 (define* (screen->3d view x y #:optional (z #f))
+  (assert (let ((result (screen->3d view position)))
+	    (if result 
+		(and (uniform-vector? result)
+		     (eq? (array-type result) 'f64)))))
   (let* ((camera #[view 'camera])
 	 (matrix (* (translation-matrix (- #[camera 'position]))
 		    (quaternion->matrix (~ #[camera 'orientation]))))
@@ -151,6 +155,9 @@
     (screen->world/coordinates x y z matrix projection (area view))))
 
 (define-method (3d->screen (view <3d-view>) (position <point>))
+  (assert (let ((result (3d->screen view position)))
+	    (if result
+		(matches? ((? real?) (? real?) (? real?)) result))))
   (let* ((camera #[view 'camera])
 	 (matrix (* (translation-matrix (- #[camera 'position]))
 		    (quaternion->matrix (~ #[camera 'orientation]))))
@@ -183,11 +190,11 @@
 (define-method (object-at-position x y #;from (editor <3d-editor>))
   (and-let* ((n (display-index x y))
 	     (candidates #[editor : 'object-groups : n]))
-    (case (length candidates)
-      ((0)
+    (match candidates
+      (()
        #f)
-      ((1)
-       (first candidates))
+      ((only)
+       only)
       (else
        (format #t "ambiguous display-index candidates\n")))))
 
@@ -207,36 +214,31 @@
   (set! #[view 'selected] '()))
 
 (define ((grab-mode view))
-  (if (not (null? #[view 'selected]))
-      (let ((old-bindings (current-key-bindings))
-	    (original-positions (map #[_ 'position] #[view 'selected])))
-	(match-let (;((xs ys) (mouse-position))
-		    ((xs ys zs) (3d->screen view 
-					  (last original-positions))))
-	  ;;(set-mouse-position! xs ys)
-	  (set-key-bindings!
-	   (key-bindings
-	    (keydn 'esc
-	      (lambda () 
-		(for (object position) in (zip #[view 'selected]
-					       original-positions)
-		     (set! #[object 'position] position))
-		(set-key-bindings! old-bindings)))
+  (unless (null? #[view 'selected])
+    (let* ((old-bindings (current-key-bindings))
+	   (original-positions (map #[_ 'position] #[view 'selected]))
+	   ((_ _ zs) (3d->screen view (first original-positions))))
+      (set-key-bindings!
+       (key-bindings
+	(keydn 'esc
+	  (lambda () 
+	    (for (object position) in (zip #[view 'selected]
+					   original-positions)
+	      (set! #[object 'position] position))
+	    (set-key-bindings! old-bindings)))
+	
+	(keydn 'mouse-left
+	  (lambda (x y)
+	    (set-key-bindings! old-bindings)))
 	    
-	    (keydn 'mouse-left
-	      (lambda (x y)
-		(set-key-bindings! old-bindings)))
-	    
-	    (mousemove 
-	     (lambda (x y xrel yrel)
-	       (for (object position) in (zip #[view 'selected]
-					      original-positions)
-		 (set! #[object 'position] 
-		       (+ (screen->3d view x y zs) 
-			  (- position (first original-positions)))))))
-	    ))))))
-
-
+	(mousemove 
+	 (lambda (x y xrel yrel)
+	   (for (object position) in (zip #[view 'selected]
+					  original-positions)
+	     (set! #[object 'position] 
+		   (+ (screen->3d view x y zs) 
+		      (- position (first original-positions)))))))
+	)))))
 
 (define* ((rotate-mode view #:key 
 		       (axis #f)
@@ -251,8 +253,8 @@
 	  (angle 0.0)
 	  (original-positions (map #[_ 'position] #[view 'selected]))
 	  (original-orientations (map #[_ 'orientation] #[view 'selected])))
-      (match-let* (((_ _ zs) (3d->screen view center))
-		   ((xs ys) (mouse-position)))
+      (let (((_ _ zs) (3d->screen view center))
+	    ((xs ys) (mouse-position)))
 	(set-key-bindings!
 	 (key-bindings
 	  (keydn 'esc
