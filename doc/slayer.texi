@@ -18,7 +18,7 @@
 @end direntry
 
 @copying
-Copyright @copyright{} 2013 Panicz Maciej Godek
+Copyright @copyright{} 2013, 2014, 2015 Panicz Maciej Godek
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
