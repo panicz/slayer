@@ -1,0 +1,296 @@
+SplineFontDB: 3.0
+FontName: Untitled1
+FullName: Untitled1
+FamilyName: Untitled1
+Weight: Medium
+Copyright: Created by Maciek Godek,,, with FontForge 2.0 (http://fontforge.sf.net)
+UComments: "2014-11-4: Created." 
+Version: 001.000
+ItalicAngle: 0
+UnderlinePosition: -100
+UnderlineWidth: 50
+Ascent: 800
+Descent: 200
+LayerCount: 2
+Layer: 0 0 "Warstwa t+AUIA-a"  1
+Layer: 1 0 "Plan pierwszy"  0
+NeedsXUIDChange: 1
+XUID: [1021 925 1111650658 7657468]
+OS2Version: 0
+OS2_WeightWidthSlopeOnly: 0
+OS2_UseTypoMetrics: 1
+CreationTime: 1415131276
+ModificationTime: 1415310456
+OS2TypoAscent: 0
+OS2TypoAOffset: 1
+OS2TypoDescent: 0
+OS2TypoDOffset: 1
+OS2TypoLinegap: 0
+OS2WinAscent: 0
+OS2WinAOffset: 1
+OS2WinDescent: 0
+OS2WinDOffset: 1
+HheadAscent: 0
+HheadAOffset: 1
+HheadDescent: 0
+HheadDOffset: 1
+OS2Vendor: 'PfEd'
+DEI: 91125
+Encoding: ISO8859-1
+UnicodeInterp: none
+NameList: Adobe Glyph List
+DisplaySize: -24
+AntiAlias: 1
+FitToEm: 1
+WinInfo: 57 19 6
+BeginChars: 256 10
+
+StartChar: T
+Encoding: 84 84 0
+Width: 1000
+VWidth: 0
+Flags: H
+LayerCount: 2
+Fore
+SplineSet
+456 12.001 m 7
+ 427 12.001 425.999 11.499 425.999 40 c 7
+ 425.999 121 426 574 426 628.999 c 13
+ 379.98 629 354.02 629 308 629 c 23
+ 269.672 629 269.999 627.941 270 662.003 c 4
+ 270 697.099 270.002 720.559 270 758 c 4
+ 270 796.013 271.777 792 308 792 c 12
+ 457.762 791.999 559 792 692 792 c 4
+ 732.012 792 730 796 730 758 c 12
+ 730 723.68 730 681 730 662 c 7
+ 730 624.999 730.001 628.999 692 629 c 12
+ 645.588 629 621 629 574 629 c 5
+ 574 572.5 574 71 574 40 c 7
+ 574 11.959 573 12.001 544 12.001 c 7
+ 456 12.001 l 7
+EndSplineSet
+EndChar
+
+StartChar: O
+Encoding: 79 79 1
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+500 174 m 4
+ 565 174 574 170 574 260 c 7
+ 574 379 574 466.945 574 540 c 7
+ 574 621 574 626 500 626 c 7
+ 432.5 626 426 624 426 540 c 15
+ 426 430.8 426 338 426 260 c 4
+ 426 177 428 174 500 174 c 4
+730 100 m 7
+ 730 13 730 12.001 610 12.001 c 7
+ 390 12.001 l 7
+ 272 12.001 270 9 270 100 c 4
+ 270 135.096 270 627.889 270 700 c 7
+ 270 789.006 274 792 390 792 c 7
+ 539.76 792 477 792 610 792 c 4
+ 730 792 730 789 730 700 c 4
+ 730 490.57 730 119 730 100 c 7
+EndSplineSet
+EndChar
+
+StartChar: A
+Encoding: 65 65 2
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+574 374 m 1
+ 426 374 l 1
+ 426 540 l 3
+ 426 624 432.5 626 500 626 c 3
+ 574 626 574 621 574 540 c 3
+ 574 374 l 1
+426 374 m 1
+426 237 m 1
+ 574 237 l 1
+ 574 12.001 l 1
+ 730 12 l 1
+ 730 700 l 0
+ 730 789 730 792 610 792 c 0
+ 477 792 539.76 792 390 792 c 3
+ 274 792 270 789.006 270 700 c 3
+ 270 12 l 1
+ 426 12.001 l 1
+ 426 237 l 1
+574 237 m 1
+730 179.583 m 1
+EndSplineSet
+EndChar
+
+StartChar: L
+Encoding: 76 76 3
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+630 12 m 1
+ 546 15 414 12 270 12 c 1
+ 270 47.096 270 719.889 270 792 c 1
+ 343 792 349 792 426 792 c 9
+ 426 792 426 252 426 174 c 1
+ 516 174 558 174 630 174 c 5
+ 630 109 630 102 630 12 c 1
+EndSplineSet
+EndChar
+
+StartChar: N
+Encoding: 78 78 4
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+426 12.001 m 17
+ 308 12.001 378 12 270 12 c 1
+ 270 792 l 1
+ 426 792 l 1
+ 426 792 452 750 574 540 c 1
+ 574 792 l 1
+ 730 792 l 1
+ 730 12 l 1
+ 664 12 694 12.001 574 12.001 c 9
+ 574 288 l 25
+ 574 288 508 402 426 540 c 9
+ 426 12.001 l 17
+EndSplineSet
+EndChar
+
+StartChar: U
+Encoding: 85 85 5
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+574 260 m 3
+ 574 170 565 174 500 174 c 0
+ 428 174 426 177 426 260 c 0
+ 426 792 l 3
+ 310 792 368 792 270 792 c 1
+ 270 719.889 270 135.096 270 100 c 0
+ 270 9 272 12.001 390 12.001 c 3
+ 610 12.001 l 3
+ 730 12.001 730 13 730 100 c 3
+ 730 119 730 582.57 730 792 c 1
+ 640 792 694 792 574 792 c 1
+ 574 792 574 379 574 260 c 3
+EndSplineSet
+EndChar
+
+StartChar: K
+Encoding: 75 75 6
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+558 474 m 1
+ 676 190 690 132 730 12 c 1
+ 660 12 632 12 574 12 c 1
+ 560 44.7968 444 276.797 426 312 c 9
+ 426 12.001 l 17
+ 308 12.001 350 12 270 12 c 1
+ 270 47.096 270 719.889 270 792 c 1
+ 374 792 310 792 426 792 c 1
+ 426.576 793.029 430 726.797 434 608.797 c 1
+ 512 734.797 558 764.797 574 792 c 1
+ 694 792 642 792 730 792 c 1
+ 731.713 795.042 612.221 582.89 558 474 c 1
+EndSplineSet
+EndChar
+
+StartChar: H
+Encoding: 72 72 7
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+426 792 m 1
+ 310 792 344 792 270 792 c 1
+ 270 12 l 1
+ 426 12.001 l 1
+ 426 400 l 1
+ 574 400 l 1
+ 574 12.001 l 1
+ 730 12 l 1
+ 730 792 l 1
+ 648 792 694 792 574 792 c 9
+ 574 628.98 574 726.8 574 564 c 0
+ 426 564 l 1
+ 426 792 l 1
+574 237 m 1
+730 179.583 m 1
+EndSplineSet
+EndChar
+
+StartChar: C
+Encoding: 67 67 8
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+500 626 m 3
+ 432.5 626 426 624 426 540 c 11
+ 426 430.8 426 338 426 260 c 0
+ 426 177 428 174 500 174 c 0
+ 565 174 540.3 174 630 174 c 17
+ 630 87 630 92 630 12.001 c 1
+ 390 12.001 l 3
+ 272 12.001 270 9 270 100 c 0
+ 270 135.096 270 627.889 270 700 c 3
+ 270 789.006 274 792 390 792 c 3
+ 539.76 792 497 792 630 792 c 1
+ 630 688 630 715 630 626 c 1
+ 630 626 574 626 500 626 c 3
+EndSplineSet
+EndChar
+
+StartChar: D
+Encoding: 68 68 9
+Width: 1000
+VWidth: 0
+Flags: HW
+LayerCount: 2
+Fore
+SplineSet
+500 174 m 0
+ 556 174 574 210 574 260 c 3
+ 574 379 574 466.945 574 540 c 3
+ 574 582 552 626 500 626 c 3
+ 432.5 626 510 626 426 626 c 9
+ 426 516.8 426 252 426 174 c 1
+ 518 174 428 174 500 174 c 0
+730 174 m 1
+ 716 100 666 32 574 12.001 c 1
+ 390 12.001 l 3
+ 272 12.001 406 12 270 12 c 1
+ 270 47.096 270 719.889 270 792 c 1
+ 366 792 274 792 390 792 c 3
+ 539.76 792 441 792 574 792 c 1
+ 648 774 718 720 730 626 c 1
+ 730 416.57 730 193 730 174 c 1
+EndSplineSet
+EndChar
+EndChars
+EndSplineFont
