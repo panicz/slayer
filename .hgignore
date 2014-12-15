@@ -43,3 +43,4 @@ ignore*
 *.m4.h
 demos/the-rig.*
 TAGS
+*.orig
