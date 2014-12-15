@@ -308,9 +308,9 @@ is run in a window manager, in non-fullscreen mode.
 
 @deffn {Procedure} keydn key [thunk]
 Set @var{thunk} to be invoked whenever @var{key} is pressed (including mouse
-buttons). @var{key} can either be a string or a symbol. If @var{thunk}
-is not given, or is given but is not a procedure, it returns the current
-procedure set for a given @var{key}.
+buttons) within the current key bindings. @var{key} can either be a string or
+a symbol. If @var{thunk} is not given, or is given but is not a procedure,
+it returns the current procedure set for a given @var{key}.
 @ref{Key names} table to get the names of specific keys.
 @end deffn
 
@@ -324,6 +324,29 @@ Set @var{proc} to be invoked whenever mouse is moved. @var{proc} takes four
 arguments: @code{(x y dx dy)}, where @code{(x y)} is the current mouse position
 and @code{(dx dy)} is the difference between the previous and the current
 position. If @var{proc} not given, returns the current procedure.
+@end deffn
+
+@deffn {Procedure} current-key-bindings
+Returns an object representing the current key bindings. This is useful
+for saving the set of current bindings for later use.
+@end deffn
+
+@deffn {Procedure} fresh-key-bindings
+Returns a new object that represents a set of key bindings. Initially, the
+object has no bindings. It can be bound to current input using the
+@code{set-key-bindings!} procedure.
+@end deffn
+
+@deffn {Procedure} set-key-bindings! key-bindings
+Set the current key bindings to @var{key-bindings}.
+@end deffn
+
+@deffn {Procedure} mouse-position
+Returns a list @code{(x y)} of current mouse cursor coordinates.
+@end deffn
+
+@deffn {Procedure} set-mouse-position! x y
+Set the current cursor position to @code{(x y)}.
 @end deffn
 
 @deffn {Procedure} modifier-pressed? modifier
