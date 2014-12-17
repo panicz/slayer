@@ -299,6 +299,7 @@ process_command_line_options(int argc,
   static struct option long_options[] = {
     {"help",      no_argument,       0,  0 },
     {"version",   no_argument,       0,  0 },
+    {"force-recompile", no_argument, 0, 'R'},
     {"output",    required_argument, 0, 'o'},
     {"extension", required_argument, 0, 'e'},
     {"disable",   required_argument, 0, 'd'},
@@ -311,7 +312,7 @@ process_command_line_options(int argc,
   };
   
   int opt;
-  while ((opt = getopt_long(argc, argv, "o:w:h:rfe:d:",
+  while ((opt = getopt_long(argc, argv, "o:w:h:rfe:d:R",
 			    long_options, &option_index)) != -1) {
     switch (opt) {
     case 0:
@@ -334,6 +335,9 @@ process_command_line_options(int argc,
 	show_usage(argv[0], exec_file_name);
 	exit(-1);
       }
+      break;
+    case 'R': // force recompile
+      putenv("GUILE_AUTO_COMPILE=fresh");
       break;
     case 'o': // output file
       TRY(asprintf(&arg->outfile, "%s", optarg));
