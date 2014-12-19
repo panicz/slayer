@@ -13,8 +13,8 @@
 	   normalized-radians
 	   det3x3 inv3x3 wedge3x3 crossm3x3
 	   matrix-mul matrix-vector-mul
-	   sgn
-	   pi/4 pi/2 pi 2pi e
+	   sgn sinc
+	   pi/4 pi/2 pi 2pi e epsilon
 	   deg->rad rad->deg
 	   multiply add subtract divide
 	   mean
@@ -24,7 +24,7 @@
 	   quaternion quaternion-real quaternion-imag re im ~ ^
 	   quaternion-angle quaternion-axis rotation-quaternion rotate
 	   neutral-quaternion
-	   TOLERANCE
+	   TOLERANCE near-zero?
 	   jacobian-approximation isotropic-jacobian-approximation
 	   pseudoinverse
 	   ))
@@ -36,6 +36,9 @@
       '()))
 
 (define-fluid TOLERANCE 0.0001)
+
+(define (near-zero? value)
+  (< (abs value) #[TOLERANCE]))
 
 (define <point> <uvec>) 
 
@@ -87,6 +90,17 @@
 (define 2pi (* 2 pi))
 
 (define e (exp 1))
+
+(define epsilon
+  (let me ((guess 1.0))
+    (if (= (+ 1.0 (/ guess 2.0)) 1.0)
+	guess
+	(me (/ guess 2.0)))))
+
+(define (sinc x)
+  (if (zero? x)
+      1.0
+      (/ (sin x) x)))
 
 (define (deg->rad x) (* x (/ pi 180)))
 
@@ -176,20 +190,29 @@
   ;; this procedure had to be written in this manner, because GOOPS doesn't
   ;; allow to distinguish between dotted pairs and non-empty lists
   (match p 
-    (((? number? _) ...) 
-     ;; list of numbers
-     (let ((l (norm p)))
-       (if (< l #[TOLERANCE])
-	   l
-	   (let ((1/l (/ 1.0 l)))
-	     (map (lambda(x)(* 1/l x)) p)))))
     (((? real? re) . (? array? im))
      ;; quaternion
      (let ((norm (sqrt (+ (* re re) (* im im)))))
        (if (< norm #[TOLERANCE])
 	   (quaternion 1.0 (make-typed-array (array-type im) 0 3))
 	   (let ((1/norm (/ 1 norm)))
-	     (quaternion (* 1/norm re) (* 1/norm im))))))))
+	     (quaternion (* 1/norm re) (* 1/norm im))))))
+
+    (else #;((? number? _) ...) 
+     ;; list of numbers
+     (let ((l (norm p)))
+       (if (< l #[TOLERANCE])
+	   l
+	   (let ((1/l (/ 1.0 l)))
+	     (map (lambda(x)(* 1/l x)) p)))))
+    ))
+
+(define-method (norm (p <pair>))
+  (match p
+    (((? real? re) . (? array? im))
+     (sqrt (+ (* re re) (* im im))))
+    (else
+     (sqrt (square p)))))
 
 ;; it turned out that this procedure is implemented twice -- here
 ;; and at the bottom (the 'projection procedure)
@@ -305,7 +328,8 @@
   (save-operation + #;as add #;for <number>)
   (save-operation * #;as multiply #;for <number>)
   (save-operation / #;as divide #;for <number>)
-  (save-operation - #;as subtract #;for <number>))
+  (save-operation - #;as subtract #;for <number>)
+  (save-operation = #;as numerically-equal? #;for <number>))
 
 (define-method (* (s <number>) (p <list>)) 
   (map (lambda (x) (* x s)) p))
@@ -372,7 +396,16 @@
 (define-method (/ (p <generalized-vector>) (n <number>))
   (* p (/ 1.0 n)))
 
-(define-method (/ (p <list>) (n <number>))
+(define-method (/ (l1 <list>) (l2 <list>) . rest)
+  (apply map / l1 l2 rest))
+
+(define-method (/ (p <point>) (q <point>))
+  (array-map / p q))
+
+(define-method (/ (p <generalized-vector>) (q <generalized-vector>))
+  (array-map / p q))
+
+(define-method (/ (p <point>) (n <number>))
   (* p (/ 1.0 n)))
 
 (define-method (^ (n <number>) (m <number>))
@@ -421,7 +454,8 @@
 	v)))
 
 (define-method (rotate (v <uvec>) #;by (q <quaternion>))
-  (im (* q (quaternion 0.0 v) (~ q))))
+  (let ((v* (* q (quaternion 0.0 v) (~ q))))
+    (im v*)))
 
 (define-method (rotate (p <quaternion>) #;by (q <quaternion>))
   (* q p (~ q)))
@@ -468,7 +502,6 @@
 			      axis           ; arbitrary axes
 			      (normalized axis))))
     (quaternion (cos rads/2) (* (sin rads/2) normalized-axis))))
-
 
 (define (quaternion-angle q)
   (* 2 (acos (quaternion-real q))))
