@@ -200,6 +200,27 @@ set_orthographic_projection_x(SCM left, SCM right,
   return SCM_UNSPECIFIED;
 }
 
+#define DEF_GL_PARAM_ACCESSORS(parameter_name, ParameterName,		\
+			       PARAMETER_NAME, type, Type, C)		\
+  static SCM								\
+  set_##parameter_name##_x(SCM _value) {				\
+    GL##type value = (GL##type) scm_to_##C(_value);			\
+    gl##ParameterName(value);						\
+    return SCM_UNSPECIFIED;						\
+  }									\
+  static SCM get_##parameter_name() {					\
+    GL##type result;							\
+    glGet##Type##v(GL_##PARAMETER_NAME, &result);			\
+    return scm_from_##C((C) result);					\
+  }
+
+DEF_GL_PARAM_ACCESSORS(point_size, PointSize, POINT_SIZE, 
+		       float, Float, double)
+DEF_GL_PARAM_ACCESSORS(line_width, LineWidth, LINE_WIDTH, 
+		       float, Float, double)
+
+#undef DEF_GL_PARAM_ACCESSORS
+
 static void
 export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc)		\
@@ -223,6 +244,15 @@ export_symbols(void *unused) {
 		   set_perspective_projection_x);
   EXPORT_PROCEDURE("set-orthographic-projection!", 4, 2, 0, 
 		   set_orthographic_projection_x);
+
+#define EXPORT_ACCESSORS(scm_name, c_name)				\
+  EXPORT_PROCEDURE("set-" scm_name "!", 1, 0, 0, set_##c_name##_x);	\
+  EXPORT_PROCEDURE(scm_name, 0, 0, 0, get_##c_name)
+
+  EXPORT_ACCESSORS("line-width", line_width);
+  EXPORT_ACCESSORS("point-size", point_size);
+
+#undef EXPORT_ACCESSORS
 
 #undef EXPORT_PROCEDURE
 }
