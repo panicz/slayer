@@ -114,10 +114,10 @@
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation: match* assert
 		   reassurance: deprecated:
-		   upto once
+		   upto once when-changed
 		   values->list list<-values
 		   define-curried-syntax publish define-accessors
-		   define-template
+		   define-template define-values
 		   with-literal within-module
 		   with-output-port with-output-file with-output-string
 		   with-input-port with-input-file with-input-string
@@ -131,7 +131,10 @@
 		   rec expand letrec-macros
 		   transform! increase! decrease! multiply!
 		   push! pop!
-		   n-lambda)
+		   symbol-match
+		   n-lambda
+		   !# check
+		   )
   #:replace (compose 
 	     (unfold-facade . unfold)
 	     quasiquote
@@ -143,6 +146,21 @@
 	     (named-match-let-values . let)
 	     (let*-replacement . let*))
   )
+
+(define-syntax define-values
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_ definienda ... definientia)
+       (every identifier? #'(definienda ...))
+       (with-syntax (((temporaria ...) 
+		      (generate-temporaries #'(definienda ...))))
+	 #'(begin 
+	     (define definienda #f)
+	     ...
+	     (call-with-values (lambda () definientia)
+	       (lambda (temporaria ...)
+		 (set! definienda temporaria)
+		 ...))))))))
 
 ;; every and any that work for dotted lists:
 (define (every. pred l)
@@ -642,6 +660,20 @@
 (define-syntax-rule (once perform-action . *)
   (upto 1 #;time perform-action . *))
 
+(define-fluid VALUE-RECORD (make-hash-table))
+
+(define-syntax-rule (when-changed value action + ...)
+  (let* ((here (current-source-location))
+	 (actual-value value)
+	 (previous-value (match (hash-get-handle (fluid-ref VALUE-RECORD) here)
+			   ((key . previous-value)
+			    previous-value)
+			   (else
+			    (not actual-value)))))
+    (unless (equal? actual-value previous-value)
+      (hash-set! (fluid-ref VALUE-RECORD) here actual-value)
+      action + ...)))
+
 ;; `define-curried-syntax' is not a curried definition!
 ;; It defines a new macro which generates an appropreate
 ;; procedure, if insufficient number of arguments is given.
@@ -714,6 +746,10 @@
   (match x 
     (pattern #t)
     (else #f)))
+
+(define-curried-syntax (symbol-match pattern symbol)
+  (assert (and (symbol? symbol) (string? pattern)))
+  (string-match pattern (symbol->string symbol)))
 
 ;; match* is like match, but if there's no matching pattern, it
 ;; doesn't raise an error
@@ -1672,6 +1708,41 @@
  same-set?
  '((a a a) (b a a) (a b a) (b b a) (a a b) (b a b) (a b b) (b b b)))
 
+(define (interlaces . sequences)
+  (define (interlaces2 a b)
+    (assert (type interlaces2 (a ...) (a ...) -> ((a ...) ...)))
+    (match `(,a ,b)
+      ((a ())
+       `(,a))
+      ((() b)
+       `(,b))
+      (((a* . a+) (b* . b+))
+       `(,@(map (lambda (A)
+		  `(,a* . ,A))
+		(interlaces2 a+ b))
+	 ,@(map (lambda (B)
+		  `(,b* . ,B))
+		(interlaces2 a b+))))))
+  ;; in order to generalize interlaces2 using reduce, it needs to be lifted
+  ;; to internal binary operation
+  (define (interlaces2* A B)
+    (assert (type interlaces2* ((a ...) ...) ((a ...) ...) -> ((a ...) ...)))
+    (append-map (lambda (ab) (apply interlaces2 ab)) (cart A B)))
+  (assert (type interlaces (a ...) ... -> ((a ...) ...)))
+  (let ((lifted (map list sequences)))
+    (reduce interlaces2* '() lifted)))
+
+(e.g. 
+ (interlaces '(a b) '(1 2))
+ same-set? 
+ '((a b 1 2) (a 1 b 2) (1 a b 2) (1 a 2 b) (1 2 a b) (a 1 2 b)))
+
+(assert
+ (let ((sequences (a list?)))
+   (if (and (every list? sequences)
+	    (not (contains-duplicates? sequences))
+	    (not (any contains-duplicates? sequences)))
+       (not (contains-duplicates? (apply interlaces sequences))))))
 
 (define (?not pred)(lambda(x)(not (pred x))))
 
@@ -2193,3 +2264,35 @@
 ;;        body  ... 
 ;;        (if condition (loop))))))
 
+;; the "!#" macro is used for debugging, and its name is intentionally
+;; obscure, as it should not appear in the production code
+(define-syntax !# 
+  (syntax-rules ()
+    ((_ datum)
+     `(datum ',datum))
+    ((_ data ...)
+     `((data ',data) ...))))
+
+(define-syntax check
+  (syntax-rules ()
+    ((_ condition expression)
+     (let ((value expression))
+       (unless (condition expression)
+	 (let* ((stack (make-stack #t))
+		(restricted '(eval for-each make-stack dynamic-wind catch-closure
+				   catch slot-ref))
+		(trace (filter-map (lambda (n)
+				     (and-let* ((frame (stack-ref stack n))
+						(proc (frame-procedure frame))
+						(name (procedure-name proc))
+						((not (in? name restricted))))
+				       name))
+				   (iota (stack-length stack))))
+		(location (current-source-location))
+		(file (assoc-ref location 'file))
+		(line (assoc-ref location 'line)))
+	   (format #t "Assertion ~a failed at ~a:~a with ~a ~a\n" 
+		   '(condition expression)
+		   file line value trace)))))
+    ((_ assertion)
+     (check values assertion))))
