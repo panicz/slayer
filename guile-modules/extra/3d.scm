@@ -10,6 +10,7 @@
   :export (
 	   <3d> 
 	   <3d-cam> 
+	   <3d-cam-clone>
 	   <3d-object>
 	   <3d-model>
 	   make-light
@@ -233,6 +234,30 @@
 (define-class <3d-cam> (<3d>)
   (fovy #:init-value 70.0)
   (light #:init-thunk (lambda()(make-light #:ambient #f32(0.3 0.3 0.3 0.3)))))
+
+(define ((get-original property) self)
+  #[#[self 'original] property])
+
+(define ((set-original! property) self value)
+  (if #[self 'read-only]
+      (throw 'not-allowed)
+      (set! #[#[self 'original] property] value)))
+
+(define-class <3d-cam-clone> (<3d-cam>)
+  (original #:init-keyword #:original #:init-value #f)
+  (read-only #:init-keyword #:read-only #:init-value #t)
+  (position #:allocation #:virtual
+	    #:slot-ref (get-original 'position)
+	    #:slot-set! (set-original! 'position))
+  (orientation #:allocation #:virtual
+	       #:slot-ref (get-original 'orientation)
+	       #:slot-set! (set-original! 'orientation))
+  (fovy #:allocation #:virtual
+	#:slot-ref (get-original 'fovy)
+	#:slot-set! (set-original! 'fovy))
+  (light #:allocation #:virtual
+	 #:slot-ref (get-original 'light)
+	 #:slot-set! (set-original! 'light)))
 
 (define-class <3d-object> (<3d>)
   (mesh #:init-value '(mesh 
