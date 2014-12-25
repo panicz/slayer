@@ -50,7 +50,7 @@
   `(,real . ,imag))
 
 (define (quaternion-real (real . imag))
-  real)
+  (real-part real))
 
 (define (quaternion-imag (real . imag))
   imag)
@@ -473,9 +473,6 @@
   (let ((q (rotation-quaternion #;around axis #;by radians)))
     (+ anchor (rotate (- v anchor) #;by q))))
 
-(define-method (rotate (v <uvec>) #;by (rads <real>) #;around (axis <uvec>))
-  (rotate v #;by rads #;around axis #;at #f32(0 0 0)))
-
 (define neutral-quaternion '(1.0 . #f32(0 0 0)))
 
 (define-method (rotation-quaternion #;from (u <uvec>) #;to (w <uvec>))
@@ -504,12 +501,12 @@
     (quaternion (cos rads/2) (* (sin rads/2) normalized-axis))))
 
 (define (quaternion-angle q)
-  (* 2 (acos (quaternion-real q))))
+  (* 2.0 (acos (quaternion-real q))))
 
 (define (quaternion-axis q)
   (let* ((axis (quaternion-imag q))
 	 (norm (norm axis)))
-    (if (> (abs norm) #[TOLERANCE])
+    (if (> norm #[TOLERANCE])
 	(* (/ 1.0 norm) axis)
 	axis)))
 
