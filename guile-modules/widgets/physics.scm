@@ -118,10 +118,15 @@
      (access-joint-properties joint (anchor axis angle hi-stop lo-stop body-1)
        (let* ((target (body-property body-1 'position))
 	      (direction (normalized (- target anchor)))
-	      (hi-stop-axis (rotate direction #;by hi-stop #;rads 
-				    #;around axis))
-	      (lo-stop-axis (rotate direction #;by lo-stop #;rads 
-				    #;around axis)))
+	      (hi-stop-axis (if (finite? hi-stop)
+				(rotate direction #;by hi-stop #;rads 
+					#;around axis)
+				direction))
+	      (lo-stop-axis (if (finite? lo-stop)
+				(rotate direction #;by lo-stop #;rads 
+					#;around axis)
+				direction)))
+	 ;(<< (!# direction axis hi-stop lo-stop))
 	 `(mesh
 	   (colors #2f32((1 0 0)(1 1 0)
 			 (0 0 1)(0 1 0)
