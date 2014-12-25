@@ -71,11 +71,11 @@
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
 	    equivalent-set? equiv?
-	    map-n for-each-n unfold-n unzip chunk-list
+	    map-n for-each-n unfold-n unzip chunk-list count
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
 	    insert rest element head tail length+last-tail
-	    tree-find tree-map map* depth find-map
+	    tree-find tree-map map* depth find-map copy map/values
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
 	    list->uniform-vector list->uniform-array
@@ -114,7 +114,7 @@
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
 		   safely export-types e.g. observation: match* assert
 		   reassurance: deprecated:
-		   upto once when-changed
+		   upto once changed?
 		   values->list list<-values
 		   define-curried-syntax publish define-accessors
 		   define-template define-values
@@ -662,7 +662,7 @@
 
 (define-fluid VALUE-RECORD (make-hash-table))
 
-(define-syntax-rule (when-changed value action + ...)
+(define-syntax-rule (changed? value)
   (let* ((here (current-source-location))
 	 (actual-value value)
 	 (previous-value (match (hash-get-handle (fluid-ref VALUE-RECORD) here)
@@ -670,9 +670,11 @@
 			    previous-value)
 			   (else
 			    (not actual-value)))))
-    (unless (equal? actual-value previous-value)
-      (hash-set! (fluid-ref VALUE-RECORD) here actual-value)
-      action + ...)))
+    (if (equal? actual-value previous-value)
+	#f
+	(begin
+	  (hash-set! (fluid-ref VALUE-RECORD) here actual-value)
+	  #t))))
 
 ;; `define-curried-syntax' is not a curried definition!
 ;; It defines a new macro which generates an appropreate
@@ -1203,6 +1205,20 @@
 	`(,(apply proc (map (specific first) ls))
 	  ,@(apply map* proc (map (specific rest) ls))))))
 
+(define (map/values f . ls)
+  (assert (pair? ls))
+  (let loop ((ls ls)
+	     (result '()))
+    (if (null? (car ls))
+	(unzip (length ls) (reverse result))
+	(loop (map cdr ls)
+	      (cons (call-with-values (lambda () (apply f (map car ls))) list)
+		    result)))))
+
+(e.g.
+ (map/values values '(1 2 3) '(a b c))
+ ===> (1 2 3) (a b c))
+
 (define (find-map proc l)
   (match l
     (()
@@ -1323,7 +1339,6 @@
 	       body ...
 	       (loop (1+ x)))))))
     ((_ x in (first .. last) body ...)
-     ;; this form should be made obsolete in favour of the next one
      (let ((final last))
        (let loop ((x first))
 	 (if (<= x final)
@@ -1472,6 +1487,17 @@
 	(copy (array-copy array)))
    (and (array-equal? array copy)
 	(not (eq? array copy)))))
+
+(define (copy object)
+  (cond ((list? object)
+	 (map copy object))
+	((array? object)
+	 (array-copy object))
+	((string? object)
+	 (string-copy object))
+	;;((instance? object)
+	;; (deep-clone object))
+	(else object)))
 
 (define (array-pointer array . address)
   (let ((shape (array-shape array)))
@@ -1760,6 +1786,17 @@
       '()
       (cons (apply fn (append-map (lambda(l)(take l n)) (cons l lists)))
 	    (apply map-n n fn (map (lambda(l)(drop l n)) (cons l lists))))))
+
+(define (count pred? l)
+  (let loop ((n 0)
+	     (l l))
+    (match l
+      (()
+       n)
+      ((head . tail)
+       (if (pred? head)
+	   (loop (1+ n) tail)
+	   (loop n tail))))))
 
 (define* (sublist sequence #:optional 
 	      #;from (first 0) #;to (last (- (length sequence) 1)))
@@ -2272,6 +2309,18 @@
      `(datum ',datum))
     ((_ data ...)
      `((data ',data) ...))))
+
+(define (common-prefix a b)
+  (let loop ((a a) (b b)     
+	     (result '()))
+    (match `(,a ,b)
+      (((a* . a+) (b* . b+))
+       (if (eq? a* b*)
+	   (loop a+ b+ (cons a* result))
+	   (reverse result)))
+      (else
+       (reverse result)))))
+ 
 
 (define-syntax check
   (syntax-rules ()
