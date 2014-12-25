@@ -43,7 +43,7 @@
   (%horizontal-frame #:init-value #f)
   (%vertical-frame #:init-value #f)
   (%resize #:init-value noop)
-  (camera #:init-thunk (lambda()(make <3d-cam>)))
+  (camera #:init-thunk (lambda()(make <3d-cam>)) #:init-keyword #:camera)
   (resize
    #:allocation #:virtual
    #:slot-ref (lambda(self)
