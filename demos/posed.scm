@@ -27,7 +27,6 @@ exit
 	    (rig-joints-getter rig-joints))
     action . *))
 
-
 (set-window-title! "POSED: The POSE Editor")
 
 (set-point-size! 10.0)
@@ -53,20 +52,10 @@ exit
 (add-child! view #;to *stage*)
 
 (define ((joint... . properties) joint)
-  (match properties
-    ((property)
-     (joint-property joint property))
-    (else
-     (map (lambda (property) (joint-property joint property)) properties))))
+  (map (lambda (property) (joint-property joint property)) properties))
 
 (define ((body... . properties) body)
-  (match properties
-    ((property)
-     (body-property joint property))
-    (else
-     (map (lambda (property) (body-property body property)) properties))))
-
-;; red green blue cyan magenta yellow white
+  (map (lambda (property) (body-property body property)) properties))
 
 (define *color-sequence*
   #2f32((0 0 1) ; blue
@@ -131,19 +120,6 @@ exit
 
 (keydn "]" (lambda () (set! v (- v #2f32((0 0 0.01))))))
 
-#| Przypomnienie z OpenGLa:
-
- glTranslate(...); 
- glRotate(...); 
- draw_object(); // TRv -- przesuń obrócone
- // w innym przypadku: RTv -- obróć przesunięte
-
-(define (deriv f)
-  (assert (type f (real? -> real?) -> (real? -> real?)))
-  (lim (x -> +0.0) 
-
-|#
-
 (define (mesh<-kinematic-chain chain)
   (define (kinematic-chain->mesh chain)
     (match chain
@@ -181,12 +157,13 @@ exit
 	   (set! global-skeleton-mesh '(mesh)))
 	  ((first . rest)
 	   (let* ((body #[first 'body])
-		  (joints end directions
+		  (joints end
 			  (shortest-joint-sequence-from+furthest-end #;to body))
 		  (N (length joints))
 		  (((anchors axes angles) ...)
-		   (map (joint... 'anchor 'axis 'angle) joints))
-		  (angles (map * angles directions))
+		   (hinge-joint-sequence-anchors+axes+angles joints))
+		  (orientations (map rotation-quaternion #;around axes 
+				     #;by angles))
 		  (kinematic-chain* (kinematic-chain<-anchors+axes+angles
 				    anchors axes angles))
 		  (angles (if the-current-joint
@@ -204,6 +181,9 @@ exit
 						      #;around axis
 							       #;by angle)))
 					kinematic-chain* angles))
+		  #;(kinematic-chain (kinematic-chain<-anchors+orientations
+				    (zip anchors orientations)))
+
 		  (translation rotation (kinematic-chain-substitute 
 					 kinematic-chain))
 		  (local-position #f32(0 0 0)
@@ -400,24 +380,18 @@ exit
 
 (define* (apply-inverse-kinematics! #;of selected-body #;to position 
 					#:optional #;anchored-at (fixed #f))
-  (let* ((joint-sequence fixed directions
-			 (if fixed
-			     (let ((sequence directions
-					     (shortest-joint-sequence 
-					      #;from fixed #;to selected-body)))
-			       (values sequence fixed directions))
+  (let* ((joint-sequence fixed
+			 (if fixed (shortest-joint-sequence
+				    #;from fixed #;to selected-body)
 			     (shortest-joint-sequence-from+furthest-end
 			      #;to selected-body)))
-	 (((anchors angles axes) ...)
-	  (map (lambda (joint) (map (lambda (property)
-				 (joint-property joint property))
-			       '(anchor angle axis)))
-	       joint-sequence))
-	 (anchors+orientations (map (lambda(anchor angle axis)
+	 (((anchors axes angles) ...)
+	  (hinge-joint-sequence-anchors+axes+angles joint-sequence))
+	 (anchors+orientations (map (lambda(anchor axis angle)
 				      `(,anchor ,(rotation-quaternion
 						  #;around axis
 							   #;by angle)))
-				    anchors angles axes))
+				    anchors axes angles))
 	 ((kinematic-chain ...)
 	  (kinematic-chain<-anchors+orientations anchors+orientations))
 	 (translation rotation (kinematic-chain-substitute kinematic-chain))

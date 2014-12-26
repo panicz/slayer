@@ -13,6 +13,8 @@
 	     body-island-leaves
 	     shortest-joint-sequence-from+furthest-end
 	     shortest-joint-sequence
+	     body-sequence<-hinge-joint-sequence
+	     hinge-joint-sequence-anchors+axes+angles
 	     ))
 
 ;; Throughout this module, we understand that two bodies are ATTACHED
@@ -70,11 +72,7 @@
 		     #;and (joints-attached-to body-2)))
 
 (define (joint-connecting-bodies body-1 body-2)
-  (let* ((joint (element #;of (joints-connecting-bodies body-1 body-2)))
-	 (direction (if (eq? body-1 (first (two-bodies-attached-by joint)))
-			-1
-			+1)))
-    (values joint direction)))
+  (element #;of (joints-connecting-bodies body-1 body-2)))
 
 (define (bodies-are-connected? body-1 body-2)
   (not (null? (intersection (joints-attached-to body-1)
@@ -117,8 +115,8 @@
 
 (define (shortest-joint-sequence #;from start #;to end)
   (let ((bodies (apply argmin length (body-sequences #;from start #;to end))))
-    (map/values joint-connecting-bodies 
-		(drop-right bodies 1) (drop bodies 1))))
+    (map joint-connecting-bodies 
+	 (drop-right bodies 1) (drop bodies 1))))
 
 (define (shortest-joint-sequence-from+furthest-end #;to body)
   (let* ((island (bodies-linked-to body))
@@ -133,11 +131,50 @@
 	  (reverse (apply argmin length 
 			  set-of-sequences-from-body-to-furthest-end)))
 	 (corresponding-joint-sequence
-	  directions
-	  (map/values 
-	   joint-connecting-bodies
-	   (drop-right shortest-body-sequence-from-furthest-end-to-body 1)
-	   (drop shortest-body-sequence-from-furthest-end-to-body 1))))
+	  (map joint-connecting-bodies
+	       (drop-right shortest-body-sequence-from-furthest-end-to-body 1)
+	       (drop shortest-body-sequence-from-furthest-end-to-body 1))))
     (values corresponding-joint-sequence
-	    (first shortest-body-sequence-from-furthest-end-to-body)
-	    directions)))
+	    (first shortest-body-sequence-from-furthest-end-to-body))))
+
+(define (body-sequence<-hinge-joint-sequence hinge-joint-sequence)
+  (let (((first second rest ...) hinge-joint-sequence)
+	((initial ... penultimate last) hinge-joint-sequence))
+    `(,(element (difference (two-bodies-attached-by first)
+			    (two-bodies-attached-by second)))
+      ,@(map (lambda (this next)
+	       (element (intersection (two-bodies-attached-by this)
+				      (two-bodies-attached-by next))))
+	     `(,@initial ,penultimate) `(,second ,@rest))
+      ,(element (difference (two-bodies-attached-by last)
+			    (two-bodies-attached-by penultimate))))))
+
+(define (hinge-joint-sequence-directions hinge-joint-sequence)
+  (let (((body-1 bodies-2...N-1 ... body-N)
+	 (body-sequence<-hinge-joint-sequence hinge-joint-sequence)))
+    (map (lambda (this next)
+	   (let ((joint (element #;of (joints-connecting-bodies this next))))
+	     (if (eq? this (first (two-bodies-attached-by joint)))
+		 -1
+		 +1)))
+	 `(,body-1 ,@bodies-2...N-1)
+	 `(,@bodies-2...N-1 ,body-N))))
+
+(without-default (joint-property-getter)
+  (define (hinge-joint-sequence-anchors+axes+angles hinge-joint-sequence)
+    (assert 
+     (let (((anchors axes angles)
+	    (hinge-joint-sequence-anchors+axes+angles hinge-joint-sequence))
+	   ((anchors/reverse axes/reverse angles/reverse)
+	    (hinge-joint-sequence-anchors+axes+angles 
+	     (reverse hinge-joint-sequence))))
+       (and (equal? angles (reverse angles/reverse))
+	    (equal? anchors (reverse anchors/reverse))
+	    (equal? axes (map (lambda (axis) (* axis -1)) 
+			       (reverse axes/reverse))))))    
+    (let ((directions (hinge-joint-sequence-directions hinge-joint-sequence)))
+      (map (lambda (joint direction)
+	     (let ((the (lambda (property) ((specific joint-property-getter)
+				       joint property))))
+	       `(,(the 'anchor) ,(* direction (the 'axis)) ,(the 'angle))))
+	   hinge-joint-sequence directions))))
