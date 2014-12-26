@@ -16,6 +16,7 @@ exit
 	     (widgets physics)
 	     (widgets 3d)
 	     (editor relations)
+	     (editor modes)
 	     (editor poses)
 	     (extra scmutils)
 	     (scum physics))
