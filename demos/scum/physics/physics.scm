@@ -57,57 +57,48 @@
    (lambda (sim position orientation) 
      (match rig-def
        (; STRUCTURE
-	('rig
-	 ('bodies
-	  body-spec ...)
-	 ('joints
-	  joint-defs ...))
+	('rig ('bodies body-spec ...)
+	      ('joints joint-defs ...))
 	;; ACTION
 	(let ((rig (primitive-make-rig sim)))
 	  (for (name (type props ...)) in body-spec
-	       (let ((body (make-body rig type name)))
-		 (for (property value) in (map-n 2 list props)
-		      (set-body-property! body (keyword->symbol property) 
-					  value))
-		 (set-body-property! body 'position
-				     (+ position 
-					(rotate (body-property body 'position)
-						#;by orientation)))
-		 (set-body-property! body 'quaternion
-				     (* orientation 
-					(body-property body 'quaternion)))))
+	    (let ((body (make-body rig type name)))
+	      (for (property value) in (map-n 2 list props)
+		(set-body-property! body (keyword->symbol property) value))
+	      (set-body-property! body 'position
+				  (+ position 
+				     (rotate (body-property body 'position)
+					     #;by orientation)))
+	      (set-body-property! body 'quaternion
+				  (* orientation 
+				     (body-property body 'quaternion)))))
 	  (for (name (type props ...)) in joint-defs
-	       (let ((joint (make-joint rig type name))
-		     (literal (rec (literal x)
-				   (match x
-				     ((? symbol? body-name)
-				      (body-named body-name rig))
-				     (('? property-name body-name)
-				      (body-property (body-named body-name rig)
-						     property-name))
-				     (else 
-				      else)))))
-		 (for (property value) in (map-n 2 list props)
-		      (let ((property (keyword->symbol property)))
-			(cond 
-			 ((in? property '(axis axis-1 axis-2))
-			  (let ((new-value (rotate (literal value)
-						   #;by orientation)))
-			    (format #t "ROTATING ~a ~a to ~a\n" 
-				    property
-				    (literal value) new-value)
-			    (set-joint-property! joint property new-value)))
+	    (let ((joint (make-joint rig type name))
+		  (literal (rec (literal x)
+				(match x
+				  ((? symbol? body-name)
+				   (body-named body-name rig))
+				  (('? property-name body-name)
+				   (body-property (body-named body-name rig)
+						  property-name))
+				  (else 
+				   else)))))
+	      (for (property value) in (map-n 2 list props)
+		(let ((property (keyword->symbol property)))
+		  (cond ((in? property '(axis axis-1 axis-2))
+			 (let ((new-value (rotate (literal value)
+						  #;by orientation)))
+			   (set-joint-property! joint property new-value)))
+			
+			((in? property '(anchor anchor-1 anchor-2))
+			 (let ((new-value (+ position
+					     (rotate (literal value)
+						     #;by orientation))))
+			   (set-joint-property! joint property new-value)))
 
-			 ((in? property '(anchor anchor-1 anchor-2))
-			  (let ((new-value (+ position
-					      (rotate (literal value)
-						      #;by orientation))))
-			    (format #t "TRANSLATING ~a ~a to ~a\n" property
-				    (literal value) new-value)
-			  (set-joint-property! joint property new-value)))
-			 (else (set-joint-property! joint property
-						    (literal value))))))))
-	  rig))))))
+			(else (set-joint-property! joint property
+						   (literal value))))))))
+	  #;return rig))))))
 
 (define* (make-rig simulation name #:key (position #f32(0 0 0))
 		   (orientation '(1 . #f32(0 0 0))))
