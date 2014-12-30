@@ -3,19 +3,21 @@
   #:use-module (extra math)
   #:use-module (extra ref)
   #:export (
-	     bodies-linked-to
-	     split-bodies-at
-	     bodies-are-connected?
-	     joint-connecting-bodies
-	     body-attached-by
-	     joints-attached-to
-	     body-sequences
-	     body-island-leaves
-	     shortest-joint-sequence-from+furthest-end
-	     shortest-joint-sequence
-	     body-sequence<-hinge-joint-sequence
-	     hinge-joint-sequence-anchors+axes+angles
-	     ))
+	    two-bodies-attached-by
+	    bodies-linked-to
+	    split-bodies-at
+	    bodies-are-connected?
+	    joint-connecting-bodies
+	    body-attached-by
+	    joints-attached-to
+	    body-sequences
+	    body-island-leaves
+	    shortest-joint-sequence-from+furthest-end
+	    shortest-joint-sequence
+	    body-sequence<-hinge-joint-sequence
+	    hinge-joint-sequence-directions
+	    hinge-joint-sequence-anchors+axes+angles+directions
+	    ))
 
 ;; Throughout this module, we understand that two bodies are ATTACHED
 ;; to each other if there exists a joint that connects those bodies
@@ -161,20 +163,23 @@
 	 `(,@bodies-2...N-1 ,body-N))))
 
 (without-default (joint-property-getter)
-  (define (hinge-joint-sequence-anchors+axes+angles hinge-joint-sequence)
+  (define (hinge-joint-sequence-anchors+axes+angles+directions joint-sequence)
     (assert 
      (let (((anchors axes angles)
-	    (hinge-joint-sequence-anchors+axes+angles hinge-joint-sequence))
+	    (hinge-joint-sequence-anchors+axes+angles joint-sequence))
 	   ((anchors/reverse axes/reverse angles/reverse)
 	    (hinge-joint-sequence-anchors+axes+angles 
-	     (reverse hinge-joint-sequence))))
+	     (reverse joint-sequence))))
        (and (equal? angles (reverse angles/reverse))
 	    (equal? anchors (reverse anchors/reverse))
 	    (equal? axes (map (lambda (axis) (* axis -1)) 
 			       (reverse axes/reverse))))))    
-    (let ((directions (hinge-joint-sequence-directions hinge-joint-sequence)))
+    (let ((directions (hinge-joint-sequence-directions joint-sequence)))
       (map (lambda (joint direction)
 	     (let ((the (lambda (property) ((specific joint-property-getter)
 				       joint property))))
-	       `(,(the 'anchor) ,(* direction (the 'axis)) ,(the 'angle))))
-	   hinge-joint-sequence directions))))
+	       `(,(the 'anchor) 
+		 ,(* direction (the 'axis)) 
+		 ,(the 'angle)
+		 ,(- direction))))
+	   joint-sequence directions))))
