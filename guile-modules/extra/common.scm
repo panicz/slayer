@@ -133,7 +133,7 @@
 		   push! pop!
 		   symbol-match
 		   n-lambda
-		   !# check
+		   !# check <<<
 		   )
   #:replace (compose 
 	     (unfold-facade . unfold)
@@ -2309,6 +2309,9 @@
      `(datum ',datum))
     ((_ data ...)
      `((data ',data) ...))))
+
+(define-syntax-rule (<<< messages ...)
+  (<< (!# messages ...)))
 
 (define (common-prefix a b)
   (let loop ((a a) (b b)     
