@@ -246,6 +246,7 @@
 		       (rotate-around-center always-rotate-around-center)
 		       (center (lambda(selected)
 				 (apply mean (map #[_ 'position] selected))))
+		       (rotation-direction 1)
 		       (on-exit noop)))
   (unless (null? #[view 'selected])
     (let ((old-bindings (current-key-bindings))
@@ -290,13 +291,14 @@
 						center)
 					     #;to (- (screen->3d view x y zs)
 						     center)))
-		    (screen-angle (* (sgn #[(im screen-rotation) 2])
+		    (screen-angle (* (sgn (* rotation-direction 
+					     #[(im screen-rotation) 2]))
 				     (quaternion-angle
 				      #;of screen-rotation)))
 		    (rotation (if axis
-				  (rotation-quaternion 
+				  (rotation-quaternion
 				   #;around axis #;by screen-angle)
-			      screen-rotation)))
+				  screen-rotation)))
 	       (set! angle screen-angle)
 	       (for (object orientation position) in (zip #[view 'selected] 
 							  original-orientations
