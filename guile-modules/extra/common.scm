@@ -1013,7 +1013,7 @@
 
 (define (clamp min max)
   (lambda (x)
-    (assert (number? x))
+    (assert (and (number? x) (< min max)))
     (cond ((< x min)
 	   min)
 	  ((> x max)
