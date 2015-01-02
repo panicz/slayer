@@ -316,7 +316,7 @@ exit
 	      #:axis (* direction axis)
 	      #:center (lambda _ center)
 	      #:always-rotate-around-center #t
-	      #:rotation-direction (sgn (* axis #f32(0 0 -1)))
+	      #:rotation-direction (- (2*heaviside-1 (* axis #f32(0 0 -1))))
 	      #:on-exit (lambda (angle)
 			  (increase! #[rig-angles (joint-name joint)] angle)
 			  (unselect-all! #;from view)
