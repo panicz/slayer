@@ -13,7 +13,7 @@
 	   normalized-radians
 	   det3x3 inv3x3 wedge3x3 crossm3x3
 	   matrix-mul matrix-vector-mul
-	   sgn sinc
+	   sgn sinc heaviside 2*heaviside-1
 	   pi/4 pi/2 pi 2pi e epsilon
 	   deg->rad rad->deg
 	   multiply add subtract divide
@@ -110,6 +110,14 @@
   (cond ((> x 0) +1)
 	((< x 0) -1)
 	(else 0)))
+
+(define (heaviside x)
+  (if (negative? x)
+      0
+      1))
+
+(define (2*heaviside-1 x)
+  (- (* 2 (heaviside x)) 1))
 
 (define* (eye size #:optional (type #t))
   (let ((m (make-typed-array type 0 size size)))
