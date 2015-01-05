@@ -88,6 +88,37 @@
   `(mesh (color #f32(1 0 0)) ,@(kinematic-chain->mesh chain)))
 
 (publish
+ (define (kinematic-chain-substitute kinematic-chain)
+   "a single translation and rotation that stand for the application of\
+ the whole kinematic chain (AND IT DOESN'T WORK)"
+   (translation+rotation kinematic-chain #f32(0 0 0) '(1.0 . #f32(0 0 0))))
+ where
+ (define (translation+rotation local-chain translation rotation)
+   (match local-chain
+     (()
+      (values translation rotation))
+     (((local-anchor local-rotation) . rest)
+      (let ((new-rotation (rotate rotation (~ local-rotation))))
+	(translation+rotation rest (+ translation (rotate local-anchor
+							  #;by (~ rotation)))
+			      new-rotation))))))
+
+(define (global-positions<-kinematic-chain kinematic-chain)
+  (match kinematic-chain
+    (()
+     '())
+    (((position rotation) . rest)
+     `(,position ,@(global-positions<-kinematic-chain
+		    (map (lambda ((dependent-position dependent-rotation))
+			   `(,(rotate (+ dependent-position position)
+					 #;by rotation)
+			     (* rotation dependent-rotation #;rotation)))
+			 rest))))
+    (else
+     kinematic-chain)))
+
+
+(publish
  (define ((custom-mesh context) 3d-chain-proxy)
    (with-context-for-joint/body-relation
     (and-let* ((target-view #[3d-chain-proxy 'target])

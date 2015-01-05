@@ -54,8 +54,25 @@ exit
    (color-dot #f32(0.4 0.5 1))
    (color-dot #f32(0.5 0.6 1))
    ))
+;;;(set! #[physical-objects '%permanent-objects] dots)
 
-;(set! #[physical-objects '%permanent-objects] dots)
+#|
+ ZADANIE:
+
+1. dla owego prostego (prostackiego? prymitywnego?) przypadku wylicz jakobian
+"na piechotę". wynik porównaj z uzyskanym w komputerze. Następnie wylicz jego
+(pseudo)odwrotność i zobacz
+
+2. zmodyfikuj program w taki sposób, aby w widoku 2 -- zamiast globalnych
+położeń więzów -- wyświetlać (w różnych kolorach) położenia układu dla
+niewielkich przemieszczeń względem danego.
+
+generalnie owych przemieszczeń dokonuje się w trakcie liczenia jakobianu.
+idea jest zatem taka, żeby zmodyfikować funkcję liczącą położenie liścia
+łańcucha kinematograficznego w taki sposób, żeby jednocześnie ustawiała
+odpowiednią siatkę w podwidoku 2
+
+|#
 
 (define-rig-for the-simulation 
   'legs (with-input-from-file "art/rigs/legs.rig" read))
@@ -67,11 +84,11 @@ exit
 
 (add-child! view #;to *stage*)
 
-(load "posed-trash.scm")
+;;(load "posed-trash.scm")
 
-(define the-number-of-joints 2)
+(define the-number-of-joints 4)
 
-(keydn "[" 
+(keydn "["
   (lambda () 
     (if the-number-of-joints
 	(set! the-number-of-joints 
@@ -197,56 +214,31 @@ exit
 	 (joint-sequence (if the-number-of-joints
 			     (take-right joint-sequence the-number-of-joints)
 			     joint-sequence))
-
-	 (bodies (body-sequence<-hinge-joint-sequence joint-sequence))
-
-	 (global-body-position (body-property selected-body 'position))
+	 (global-position (body-property selected-body 'position))
 	 
 	 (((anchors+ axes+ angles+ directions+) ...)
 	  `(,@(hinge-joint-sequence-anchors+axes+angles+directions 
 	       joint-sequence)
-	    (,global-body-position #f32(1 0 0) 0.0 +1)))
+	    (,global-position #f32(0 0 0) 0.0 +1)))
+	 
+	 ((kinematic-chain ... (local-position . _)) (kinematic-chain 
+						      anchors+ axes+ angles+))
 
-	 (((local-anchors local-axes _) ... (local-body-position . _))
-	   (kinematic-chain<-anchors+axes+angles anchors+ axes+ angles+))
+	 (system-equation (position<-angles kinematic-chain local-position))
 
-	 ((anchors ... _) (axes ... _) (angles ... _) (directions ... _)
-	  (values anchors+ axes+ angles+ directions+))
+	 ((angles ... _) (directions ... _) (values angles+ directions+))
 
-	 (kinematic-chain (zip local-anchors (map rotation-quaternion
-						   #;around axes #;by angles)))
+	 (new-angles (desired-configuration global-position position angles
+					    system-equation directions))
 
-	 (system-equation (position<-angles (zip anchors axes)
-					    local-body-position))
+	 (new-pose `(pose ,@(map (lambda (joint new-angle)
+				   `(,(joint-name joint) . ,new-angle))
+				 joint-sequence new-angles))))
 
-	 (new-angles (desired-configuration global-body-position
-					    position angles
-					    system-equation
-					    directions))
-	 (new-configuration (map (lambda (joint new-angle)
-				   `(,(joint-name joint) . ,(- new-angle)))
-				 joint-sequence new-angles))
-	 (the-configuration current-configuration)
-	 (('pose . current-configuration) (current-pose))
-	 (new-pose `(pose . ,(replace-alist-bindings 
-			      #;in current-configuration
-				   #;with new-configuration)))
-	 ;;((x y z) (3d->screen view (apply system-equation angles)))
-	 )
     (assert (and (apply eq? 'hinge (map joint-type joint-sequence))
 		 (= global-body-position (apply system-equation angles))))
-    #;(<< "bodies (b4) " 
-	(map (lambda (body) (body-property body 'position)) body-sequence))
     (if (every finite? angles)
-	(begin 
-	  (set-pose! #;of the-legs #;to new-pose #:keeping fixed)
-	  (<<< (body-property (last bodies) 'position)
-	       current-configuration
-	       new-configuration
-	       (the-configuration)
-	       (current-pose))
-	  ;(set-mouse-position! x y)
-	  )
+	(set-pose! #;of the-legs #;to new-pose #:keeping fixed)
 	#;else
 	(pretty-print `(inverse-kinematics-singularity: ,angles)))))
 
