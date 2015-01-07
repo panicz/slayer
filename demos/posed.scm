@@ -29,57 +29,18 @@ exit
 
 (set-window-title! "POSED: The POSE Editor")
 
-(set-point-size! 10.0)
-
-(set-line-width! 5.0)
-
 (define the-simulation (primitive-make-simulation))
 
 (set-simulation-property! the-simulation 'gravity #f32(0 0 0))
 
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
 
-(define (color-dot color)
-  (make <3d-object>
-    #:mesh `(mesh (color ,color)
-		  (vertices #2f32((0 0 0)))
-		  (faces (points #u8(0))))))
-
-(define dots   (list
-   (color-dot #f32(0 0 1))
-   (color-dot #f32(0 0.1 1))
-   (color-dot #f32(0.1 0.2 1))
-   (color-dot #f32(0.2 0.3 1))
-   (color-dot #f32(0.3 0.4 1))
-   (color-dot #f32(0.4 0.5 1))
-   (color-dot #f32(0.5 0.6 1))
-   ))
-;;;(set! #[physical-objects '%permanent-objects] dots)
-
-#|
- ZADANIE:
-
-1. dla owego prostego (prostackiego? prymitywnego?) przypadku wylicz jakobian
-"na piechotę". wynik porównaj z uzyskanym w komputerze. Następnie wylicz jego
-(pseudo)odwrotność i zobacz
-
-2. zmodyfikuj program w taki sposób, aby w widoku 2 -- zamiast globalnych
-położeń więzów -- wyświetlać (w różnych kolorach) położenia układu dla
-niewielkich przemieszczeń względem danego.
-
-generalnie owych przemieszczeń dokonuje się w trakcie liczenia jakobianu.
-idea jest zatem taka, żeby zmodyfikować funkcję liczącą położenie liścia
-łańcucha kinematograficznego w taki sposób, żeby jednocześnie ustawiała
-odpowiednią siatkę w podwidoku 2
-
-|#
-
 (define-rig-for the-simulation 
   'legs (with-input-from-file "art/rigs/legs.rig" read))
 
 (define view (make <3d-editor>
 	       #:x  0 #:y  0 
-	       #:w 320 #:h 480
+	       #:w 640 #:h 480
 	       #:stage physical-objects))
 
 (add-child! view #;to *stage*)
@@ -203,34 +164,36 @@ odpowiednią siatkę w podwidoku 2
 
 (define* (apply-inverse-kinematics! #;of selected-body #;to position 
 					#:optional #;anchored-at (fixed #f))
-  (let* ((joint-sequence fixed
-			 (if fixed 
-			     (values (shortest-joint-sequence
-				      #;from fixed #;to selected-body)
-				     fixed)
-			     (shortest-joint-sequence-from+furthest-end
-			      #;to selected-body)))
-
+  (let* ((joint-sequence+ fixed
+			  (if fixed 
+			      (values (shortest-joint-sequence
+				       #;from fixed #;to selected-body)
+				      fixed)
+			      (shortest-joint-sequence-from+furthest-end
+			       #;to selected-body)))
 	 (joint-sequence (if the-number-of-joints
-			     (take-right joint-sequence the-number-of-joints)
-			     joint-sequence))
+			     (take-right joint-sequence+ the-number-of-joints)
+			     joint-sequence+))
 	 (global-position (body-property selected-body 'position))
-	 
-	 (((anchors+ axes+ angles+ directions+) ...)
-	  `(,@(hinge-joint-sequence-anchors+axes+angles+directions 
-	       joint-sequence)
-	    (,global-position #f32(0 0 0) 0.0 +1)))
-	 
+
+	 (((anchors+ axes+ angles+) ...)
+	  `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
+	    (,global-position #f32(0 0 0) 0.0)))
+
 	 ((kinematic-chain ... (local-position . _)) (kinematic-chain 
 						      anchors+ axes+ angles+))
-
 	 (system-equation (position<-angles kinematic-chain local-position))
 
-	 ((angles ... _) (directions ... _) (values angles+ directions+))
+	 ((angles ... _) angles+)
 
-	 (new-angles (desired-configuration global-position position angles
-					    system-equation directions))
+	 ((new-angles- ... _) (desired-configuration global-position position 
+						     angles system-equation))
+	 ((axes- ... last-axis _) (map normalized axes+))
 
+	 (new-angles `(,@new-angles- 
+		       ,(apply - 0.0 (map (lambda (angle axis)
+					    (* angle (* axis last-axis)))
+					  new-angles- axes-))))
 	 (new-pose `(pose ,@(map (lambda (joint new-angle)
 				   `(,(joint-name joint) . ,new-angle))
 				 joint-sequence new-angles))))
@@ -308,7 +271,7 @@ odpowiednią siatkę w podwidoku 2
 	      #:axis (* direction axis)
 	      #:center (lambda _ center)
 	      #:always-rotate-around-center #t
-	      #:rotation-direction (- (2*heaviside-1 (* axis #f32(0 0 -1))))
+	      #:rotation-direction (- direction)
 	      #:on-exit (lambda (angle)
 			  (increase! #[rig-angles (joint-name joint)] angle)
 			  (unselect-all! #;from view)
@@ -331,6 +294,7 @@ odpowiednią siatkę w podwidoku 2
 (keydn 'x (gimme (joint-axes the-legs)))
 
 (keydn 'z (gimme (joint-anchors the-legs)))
+
 
 (keydn 'v (lambda ()
 	    (set-pose! #;of the-legs #;to 

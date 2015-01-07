@@ -81,8 +81,7 @@
 	`(,@angles 0.0))))))
 
 (define (desired-configuration initial-position desired-position
-			       initial-configuration system-equation
-			       direction-correction)
+			       initial-configuration system-equation)
   ;; inverse kinematics routine.
   ;; initial and desired positions are expressed in global coordinate system.
   ;; 
@@ -93,7 +92,6 @@
 		       initial-position desired-position 
 		       initial-configuration system-equation))))
   (let* ((position-increment (- desired-position initial-position))
-	 ;;(increment-magnitude (norm position-increment))
 	 (jacobian (apply ((isotropic-jacobian-approximation 
 			    #;of (compose uniform-vector->list 
 					  system-equation))
@@ -102,9 +100,8 @@
 	 (jacobian+ (pseudoinverse #;of jacobian))
 	 (angle-increment (uniform-vector->list 
 			   (* jacobian+ position-increment)))
-	 (result (map * direction-correction
-		      (map normalized-radians 
-			   (map + initial-configuration angle-increment)))))
+	 (result (map normalized-radians 
+		      (map + initial-configuration angle-increment))))
     (assert (and (list? jacobian) (every list? jacobian)
 		 (array? jacobian+) (in? (array-type jacobian+) '(f32 f64))))
     result))

@@ -16,7 +16,7 @@
 	    shortest-joint-sequence
 	    body-sequence<-hinge-joint-sequence
 	    hinge-joint-sequence-directions
-	    hinge-joint-sequence-anchors+axes+angles+directions
+	    hinge-joint-sequence-anchors+axes+angles
 	    ))
 
 ;; Throughout this module, we understand that two bodies are ATTACHED
@@ -163,7 +163,7 @@
 	 `(,@bodies-2...N-1 ,body-N))))
 
 (without-default (joint-property-getter)
-  (define (hinge-joint-sequence-anchors+axes+angles+directions joint-sequence)
+  (define (hinge-joint-sequence-anchors+axes+angles joint-sequence)
     (assert 
      (let (((anchors axes angles)
 	    (hinge-joint-sequence-anchors+axes+angles joint-sequence))
@@ -173,13 +173,12 @@
        (and (equal? angles (reverse angles/reverse))
 	    (equal? anchors (reverse anchors/reverse))
 	    (equal? axes (map (lambda (axis) (* axis -1)) 
-			       (reverse axes/reverse))))))    
+			       (reverse axes/reverse))))))
     (let ((directions (hinge-joint-sequence-directions joint-sequence)))
       (map (lambda (joint direction)
 	     (let ((the (lambda (property) ((specific joint-property-getter)
 				       joint property))))
 	       `(,(the 'anchor) 
 		 ,(* direction (the 'axis)) 
-		 ,(the 'angle)
-		 ,(- direction))))
+		 ,(the 'angle))))
 	   joint-sequence directions))))
