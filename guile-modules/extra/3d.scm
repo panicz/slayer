@@ -22,11 +22,15 @@
 	   extract-lights
 	   skip-lights
 	   transform-mesh-vertices
+	   x-axis y-axis z-axis
 	   )
   :export-syntax (replace/mesh)
   ;;:re-export (distance)
   )
 
+(define x-axis #f32(1 0 0))
+(define y-axis #f32(0 1 0))
+(define z-axis #f32(0 0 1))
 
 ;(use-modules (extra common) (extra math))
 
