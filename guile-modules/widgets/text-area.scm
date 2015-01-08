@@ -30,14 +30,13 @@
    #:slot-ref
    (lambda (self)
      (or #[self '%%image]
-	 (let ((image (rectangle (max #[self 'w] #[self 'width]) 
+	 (let ((image (rectangle (max #[self 'w] #[self 'width])
 				 (max #[self 'h] #[self 'height])
 				 #[self 'background-color])))
 	   (with-video-output-to image (render self))
 	   (set! #[self '%%image] image)
 	   image)))
    #:slot-set! noop)
-
   (%original-lines #:init-value #f) ;; if type is #:field, here's where
   ;; the original text is stored
   (%original-row #:init-value 0)
@@ -74,8 +73,7 @@
 				     #[self 'lines])))))
    #:slot-set! noop)
   (special-keys #:init-thunk 
-		(lambda()
-		  (make-vector (vector-length *key-names*) noop)))
+		(lambda () (make-vector (vector-length *key-names*) noop)))
   (lines #:init-value '#(""))
   (max-lines #:init-value +inf.0 #:init-keyword #:max-lines)
   (on-max-lines-reached 
@@ -102,8 +100,7 @@
 	(set! #[t '%background] 
 	      (rectangle (max #[t 'w] #[t 'width]) 
 			 (max #[t 'h] #[t 'height]) 
-			 #[t 'background-color]))
-	)
+			 #[t 'background-color])))
       (draw-image! #[t '%background]))
     (for n in 0 .. (1- (vector-length lines))
 	 (let ((image (or #[t : '%render-cache : n]
@@ -370,10 +367,20 @@
    #:slot-ref (lambda (self) (make-vector (vector-length #[self 'lines]) #f))
    #:slot-set! noop)
 
+  (%%%image #:init-value #f)
+  (previous-value #:init-value #f)
   (%%image
    #:allocation #:virtual
-   #:slot-ref (lambda (self) #f)
-   #:slot-set! noop)
+   #:slot-ref (lambda (self)
+		(if (equal? #[self 'value] #[self 'previous-value])
+		    #[self '%%%image]
+		#;else 
+		    (begin
+		      (set! #[self 'previous-value] #[self 'value])
+		      (set! #[self '%%%image] #f)
+		      #f)))
+   #:slot-set! (lambda (self value)
+		 (set! #[self '%%%image] value)))
 
   (%cropped-image
    #:allocation #:virtual
