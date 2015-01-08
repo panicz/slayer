@@ -28,78 +28,81 @@
   (and (list? object)
        (every (lambda(x)(goops:is-a? x class)) object)))
 
-(define-syntax (define-class stx)
-  (define (proper-name? syntax-object)
-    (and (identifier? syntax-object)
-	 (let ((name (symbol->string (syntax->datum syntax-object))))
-	   (and (not (string-match "^%" name))
-		(not (string-match "-hook$" name))))))
-  (define (syntax-name . syntaxes)
-    (datum->syntax stx (string->symbol 
-			(fold-right string-append "" 
-				    (map ->string 
-					 (map syntax->datum  syntaxes))))))
-  (define (getter syntax-object)
-    (syntax-case syntax-object (?)
-      (((name %name) ())
-       #'(lambda(self)(goops:slot-ref self '%name)))
-      ((*name (? value . _))
-       #'(lambda(self) value))
-      ((*name (_ value . rest))
-       (getter #'(*name rest)))))
-  (define (setter syntax-object)
-    (define ((arg/value name value) arg)
-      (if (bound-identifier=? arg name)
-	  value
-	  #`(goops:slot-ref self '#,arg)))
-    (syntax-case syntax-object (? !)
-      (((name %name) ())
-       #'(lambda(self value)
-	   (goops:slot-set! self '%name value)))
-      ((*name (? value))
-       #'noop)
-      (((name %name) (! (hook args ...) . _))
-       (with-syntax (((args ...) (map (arg/value #'name #'value) 
-				      #'(args ...))))
+(define-syntax define-class
+  (lambda (stx)
+    (define (->syntax datum) (datum->syntax stx datum))
+    (define (proper-name? syntax-object)
+      (and (identifier? syntax-object)
+	   (let ((name (symbol->string (syntax->datum syntax-object))))
+	     (and (not (string-match "^%" name))
+		  (not (string-match "-hook$" name))))))
+    (define (syntax-name . syntaxes)
+      (->syntax (string->symbol 
+		 (fold-right string-append "" 
+			     (map ->string 
+				  (map syntax->datum syntaxes))))))
+    (define (getter syntax-object)
+      (syntax-case syntax-object (?)
+	(((name %name) ())
+	 #'(lambda(self)(goops:slot-ref self '%name)))
+	(((name %name) (? value . _))
+	 #'(lambda(self) value))
+	(((name %name) (_ value . rest))
+	 (getter #'(*name rest)))))
+    (define (setter syntax-object)
+      (define ((arg/value name value) arg)
+	(if (bound-identifier=? arg name)
+	    value
+	    #`(goops:slot-ref self '#,arg)))
+      (syntax-case syntax-object (? !)
+	(((name %name) ())
 	 #'(lambda(self value)
-	     (unless (equal? (goops:slot-ref self '%name) value)
-	       ((goops:slot-ref self 'hook) 
-		args ...)
-	     (goops:slot-set! self '%name value)))))
-      ((*name (_ value . rest))
-       (setter #'(*name rest)))))
-  (define (goopsify syntax-object)
-    (syntax-case syntax-object ()
-      (((name arguments ...))
-       (proper-name? #'name)
-       (with-syntax ((name-hook (syntax-name #'name #'-hook)))
-	 #'((name-hook #:init-thunk 
-		       (lambda () (make-hook (length '(arguments ...)))))
-	    (name #:allocation #:virtual
-		  #:slot-ref 
-		  (lambda (self)
-		    (lambda args
-		      (apply run-hook (goops:slot-ref self 'name-hook) args)))
-		  #:slot-set!
-		  (lambda (self value)
-		    (add-hook! (goops:slot-ref self 'name-hook) value #t))))))
-      ((type name accessors ...)
-       (proper-name? #'name)
-       (with-syntax ((%name (syntax-name #'% #'name)))
-	 (with-syntax ((ref (getter #'((name %name) (accessors ...))))
-		       (set! (setter #'((name %name) (accessors ...)))))
-	 #'((%name #:init-value #f)
-	    (name #:allocation #:virtual
-		  #:slot-ref ref
-		  #:slot-set! set!)))))))
-  (syntax-case stx ()
-    ((_ class-name (supers ...)
-	slot-specifications ...)
-     (with-syntax (((goops-slots ...) 
-		    (append-map goopsify #'(slot-specifications ...))))
-       #'(goops:define-class 
-	  class-name (supers ...)
-	  goops-slots ...)))))
+	     (goops:slot-set! self '%name value)))
+	(((name %name) (? value))
+	 #'noop)
+	(((name %name) (! (hook args ...) . _))
+	 (with-syntax (((args ...) (map (arg/value #'name #'value) 
+					#'(args ...))))
+	   #'(lambda(self value)
+	       (unless (equal? (goops:slot-ref self '%name) value)
+		 ((goops:slot-ref self 'hook) 
+		  args ...)
+		 (goops:slot-set! self '%name value)))))
+	(((name %name) (_ value . rest))
+	 (setter #'(*name rest)))))
+    (define (goopsify syntax-object)
+      (syntax-case syntax-object ()
+	(((name arguments ...))
+	 (proper-name? #'name)
+	 (with-syntax ((name-hook (syntax-name #'name #'-hook)))
+	   #'((name-hook #:init-thunk 
+			 (lambda () (make-hook (length '(arguments ...)))))
+	      (name 
+	       #:allocation #:virtual
+	       #:slot-ref 
+	       (lambda (self)
+		 (lambda args
+		   (apply run-hook (goops:slot-ref self 'name-hook) args)))
+	       #:slot-set!
+	       (lambda (self value)
+		 (add-hook! (goops:slot-ref self 'name-hook) value #t))))))
+	((type name accessors ...)
+	 (proper-name? #'name)
+	 (with-syntax ((%name (syntax-name #'% #'name)))
+	   (with-syntax ((ref (getter #'((name %name) (accessors ...))))
+			 (set! (setter #'((name %name) (accessors ...)))))
+	     #'((%name #:init-value #f)
+		(name #:allocation #:virtual
+		      #:slot-ref ref
+		      #:slot-set! set!)))))))
+    (syntax-case stx ()
+      ((_ class-name (supers ...)
+	  slot-specifications ...)
+       (with-syntax (((goops-slots ...) 
+		      (append-map goopsify #'(slot-specifications ...))))
+	 #'(goops:define-class 
+	    class-name (supers ...)
+	    goops-slots ...))))))
 
 (e.g.
  (define-class <widget> ()
