@@ -101,4 +101,4 @@
 	      (empty? (?not #[_ 'parent])))
       (let ((x (apply + (map* #[_ 'x] c)))
 	    (y (apply + (map* #[_ 'y] c))))
-    (draw-image! cropped-image x y)))))
+	(draw-image! cropped-image x y)))))
