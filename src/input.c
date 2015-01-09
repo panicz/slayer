@@ -532,6 +532,63 @@ export_symbols(void *unused) {
 #undef EXPORT_OBJECT
 }
 
+#define COMPRESS_MOTION_EVENT(src, dest)	\
+  dest.motion.x = src.motion.x;			\
+  dest.motion.y = src.motion.y;			\
+  dest.motion.xrel += src.motion.xrel;		\
+  dest.motion.yrel += src.motion.yrel;		\
+  src.type = SDL_USEREVENT;			\
+  src.user.code = -1
+
+static int
+compress_mouse_moves(SDL_Event *e) {
+  static SDL_Event queue[256];
+  static int unprocessed = 0;
+  static int base = 0;
+  int i, j;
+
+ yield:
+  if(unprocessed) {
+    --unprocessed;
+    while(queue[base].type == SDL_USEREVENT
+	  && queue[base].user.code == -1) {
+      ++base;
+    }
+    *e = queue[base];
+    base = (base + 1) % NELEMS(queue);
+    return 1;
+  }
+
+  unprocessed = SDL_PeepEvents(&queue[base], NELEMS(queue) - base, 
+			       SDL_GETEVENT, SDL_ALLEVENTS);
+  if(!unprocessed) {
+    return 0;
+  }
+  
+  for(i = 0; i < unprocessed; ++i) {
+    if(queue[base+i].type == SDL_MOUSEMOTION) {
+      break;
+    }
+  }
+  
+  for(j = i + 1; j < unprocessed; ++j) {
+    if(queue[base+j].type == SDL_MOUSEMOTION) {
+      if(queue[base+j].motion.state != queue[base+i].motion.state) {
+	i = j;
+      }
+      else {
+	--unprocessed;
+	COMPRESS_MOTION_EVENT(queue[base+j], queue[base+i]);
+      }
+    }
+  }
+  goto yield;
+}
+
+#undef COMPRESS_MOTION_EVENT
+
+int (*getting_events)(SDL_Event *e) = compress_mouse_moves; //SDL_PollEvent;
+
 void 
 input_init() {
   int i;
@@ -567,17 +624,13 @@ input_init() {
   set_direct_input_mode_x();
 }
 
-void (*handle_events)(SDL_Event *e);
-
 SCM 
 input_handle_events() {
   SDL_Event event;
   SCM c;
 
   if(SDL_WaitEvent(NULL)) {
-    int i = 0;
-    while(SDL_PollEvent(&event)) {
-      ++i;
+    while(getting_events(&event)) {
       if(input_mode == DIRECT_MODE) {
 	(*event_handler[event.type])(&event);
       } else if(input_mode == TYPING_MODE) {
