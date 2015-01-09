@@ -542,7 +542,7 @@ export_symbols(void *unused) {
 
 static int
 compress_mouse_moves(SDL_Event *e) {
-  static SDL_Event queue[256];
+  static SDL_Event queue[16];
   static int unprocessed = 0;
   static int base = 0;
   int i, j;
@@ -562,7 +562,7 @@ compress_mouse_moves(SDL_Event *e) {
   unprocessed = SDL_PeepEvents(&queue[base], NELEMS(queue) - base, 
 			       SDL_GETEVENT, SDL_ALLEVENTS);
   if(!unprocessed) {
-    return 0;
+    return base = 0;
   }
   
   for(i = 0; i < unprocessed; ++i) {
