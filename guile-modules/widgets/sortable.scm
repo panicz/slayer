@@ -84,7 +84,20 @@
    #:init-value
    (lambda (box)
      #t))
-  )
+  (x #:allocation #:virtual
+     #:slot-ref (lambda (self) #[self : 'parent : 'x])
+     #:slot-set! noop)
+  (y #:allocation #:virtual
+     #:slot-ref 
+     (lambda (self)
+       (let* ((parent #[self 'parent])
+	      (margin #[parent 'margin]))
+	 (let next (((some . siblings) #[parent 'children])
+		    (vertical-position 0))
+	   (if (eq? some self)
+	       vertical-position
+	       (next siblings (+ vertical-position #[some 'h] margin))))))
+     #:slot-set! noop)) 
 
 (define-method (draw (self <sortable-box>))
   (draw #[self 'target]))
@@ -120,6 +133,9 @@
 	     (set! #[*nearby-widget* 'parent] #f))
 	   )
 	  (else
+	   (<< (map (lambda(x)
+		      `(,x #:x ,#[x 'x] #:y ,#[x 'y] #:w ,#[x 'w] #:h ,#[x 'h]))
+		    #[*nearby-widget* 'children]))
 	   (let* ((parent #[self 'parent])
 		  (original-parent #[self 'original-parent])
 		  (nearby-parent #[*nearby-widget* 'parent])
@@ -134,6 +150,7 @@
 
 	     (set! #[self 'parent] original-parent)
 	     (when (eq? nearby-parent original-parent)
+	       (<< "deleting the placeholder")
 	       (set! #[nearby-parent 'children]
 		 (delete *nearby-widget* #;from #[nearby-parent : 'children]))
 	       (set! #[*nearby-widget* 'parent] #f))
