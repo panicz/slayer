@@ -29,7 +29,7 @@
 			 (set! #[self 'h] h)))
 	 #:init-keyword #:image))
 
-(define-method (initialize (sprite <sprite>))
+(define-method (initialize (sprite <sprite>) args)
   (next-method)
   (let-keywords args #t ((image #f))
     (cond ((string? image)
@@ -125,8 +125,7 @@
 
 (define-method (add-child! (child <widget>) #;to (layout <layout>))
   (#[layout 'lay-out] child #;on layout)
-  (next-method)
-  )
+  (next-method))
 
 (define (layout . args)
   (let ((layout (apply make <layout> args)))
