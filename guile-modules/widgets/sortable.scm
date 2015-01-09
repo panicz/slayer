@@ -11,16 +11,7 @@
   #:re-export (add-child!))
 
 (define-class <sortable-container> (<widget>)
-  (%children #:init-value '())
-
-  (children 
-   #:allocation #:virtual
-   #:slot-ref (lambda (self)
-		#[self '%children])
-   #:slot-set! (lambda (self value)
-		 (format #t "setting children to ~s\n" value)
-		 (set! #[self '%children] value)))
-
+  (children #:init-value '())
   (margin #:init-value 1 #:init-keyword #:margin)
   (w #:allocation #:virtual
      #:slot-ref (lambda (self)
@@ -29,12 +20,7 @@
   (h #:allocation #:virtual
      #:slot-ref (lambda (self)
 		  (fold + 0 (map #[_ 'h] #[self 'children])))
-     #:slot-set! noop)
-  (drag-over 
-   #:init-value 
-   (lambda (x y dx dy)
-     (format #t "dragging ~s over ~s at (~s, ~s)\n"
-	     *active-widget* *nearby-widget* x y))))
+     #:slot-set! noop))
 
 (define ((target-getter property) self)
   #[self : 'target : property])
@@ -124,8 +110,7 @@
       (alter #;element-number n #;in siblings #;with placeholder))
     (set! #[self 'original-parent] parent)
     (set! #[self 'original-index] n)
-    (add-child! self #;to #[parent 'parent])
-    ))
+    (add-child! self #;to #[parent 'parent])))
 
 (define ((box-left-mouse-up self) x y)
   (when (eq? self *active-widget*)
@@ -138,28 +123,19 @@
 	     (set! #[self 'parent] parent)
 	     (set! #[parent 'children]
 	       (alter #;element-number n #;in #[parent 'children] #;with self))
-	     (set! #[*nearby-widget* 'parent] #f))
-	   )
+	     (set! #[*nearby-widget* 'parent] #f)))
 	  (else
-	   (let* ((parent #[self 'parent])
-		  (original-parent #[self 'original-parent])
-		  (nearby-parent #[*nearby-widget* 'parent])
-		  (earlier later (split-at #[original-parent 'children]
-					   (or #[self 'original-index] 0))))
-
-	     (set! #[parent 'children]
-	       (delete self #;from #[parent 'children]))
-
-	     (set! #[original-parent : 'children]
-	       `(,@earlier ,self ,@later))
-
-	     (set! #[self 'parent] original-parent)
-	     (when (eq? nearby-parent original-parent)
-	       (set! #[nearby-parent 'children]
-		 (delete *nearby-widget* #;from #[nearby-parent : 'children]))
-	       (set! #[*nearby-widget* 'parent] #f))
-	     (reset! self)
-	     )))))
+	   ;; putting back the piece
+	   (let* ((grandpa #[self 'parent])
+		  (parent #[self 'original-parent])
+		  (siblings (remove (lambda (child)
+				      (is-a? child <sortable-placeholder>))
+				    #[parent 'children]))
+		  (younger older (split-at siblings #[self 'original-index])))
+	     (set! #[grandpa 'children] (delete self #[grandpa 'children]))
+	     (set! #[self 'parent] parent)
+	     (set! #[parent 'children] `(,@younger ,self ,@older))
+	     (reset! self))))))
 
 (define ((box-drag-over self) x y dx dy)
   (check (eq? self *nearby-widget*))

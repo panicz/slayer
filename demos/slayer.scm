@@ -54,14 +54,12 @@
 
 (add-object! 3d-object #;to world)
 
-(for i in 0 .. 4
-     (let ((e (parameter-editor
-	       3d-object 
-	       ("x: " #[3d-object : 'position : 0])
-	       ("y: " #[3d-object : 'position : 1])
-	       ("z: " #[3d-object : 'position : 2]))))
-       (set! #[e 'y] (* i #[e 'h]))
-       (add-child! e #;to *stage*)))
+(let ((e (parameter-editor
+	  3d-object 
+	  ("x: " #[3d-object : 'position : 0])
+	  ("y: " #[3d-object : 'position : 1])
+	  ("z: " #[3d-object : 'position : 2]))))
+  (add-child! e #;to *stage*))
 
 ) (else (begin))) ;; cond-expand slayer-3d
 
