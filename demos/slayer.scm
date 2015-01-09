@@ -6,6 +6,7 @@
 	     (widgets sprite)
 	     (widgets image-clipper)
 	     (widgets text-area)
+	     (widgets sortable)
 	     (oop goops)
 	     (extra slayer)
 	     (extra ref)
@@ -51,9 +52,7 @@
 		 (draw view)))))
   (add-child! (make-sprite image #;x 300 #;y 200) #;to *stage*))
 
-
 (add-object! 3d-object #;to world)
-
 
 (for i in 0 .. 4
      (let ((e (parameter-editor
@@ -62,8 +61,7 @@
 	       ("y: " #[3d-object : 'position : 1])
 	       ("z: " #[3d-object : 'position : 2]))))
        (set! #[e 'y] (* i #[e 'h]))
-       (add-child! e #;to *stage*)
-       ))
+       (add-child! e #;to *stage*)))
 
 ) (else (begin))) ;; cond-expand slayer-3d
 
@@ -104,6 +102,19 @@
 (define ku (load-image "./art/ku.png"))
 
 (add-child! (make-sprite ku #;x 475 #;y 25) #;to *stage*)
+
+(define li (make <sortable-container> #:x 5 #:y 200))
+
+(add-child! li #;to *stage*)
+
+(add-child! (make-sprite (render-text " item 1 " *default-font* 0 #xccaaff) 0 0)
+	    #;to li)
+
+(add-child! (make-sprite (render-text " item 2 " *default-font* 0 #xaaffcc) 0 0)
+	    #;to li)
+
+(add-child! (make-sprite (render-text " item 3 " *default-font* 0 #xffccaa) 0 0)
+	    #;to li)
 
 (cond-expand (slayer-audio
 
