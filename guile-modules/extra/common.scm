@@ -74,8 +74,8 @@
 	    map-n for-each-n unfold-n unzip chunk-list count
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
-	    insert rest element head tail length+last-tail
-	    tree-find tree-map map* depth find-map copy map/values
+	    rest element head tail length+last-tail
+	    tree-find tree-map map* depth find-map copy map/values order
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
 	    list->uniform-vector list->uniform-array
@@ -1114,28 +1114,6 @@
  (unique '(a b a c a d b a))
  same-set? '(a b c d))
 
-(define* (insert new l condition 
-		 #:key (prefix '()) (right-bound +inf.0))
-  (match l
-    ((this next . rest)
-     (cond ((and (null? prefix) (condition new this next))
-	    (append prefix (list new this next) rest))
-	   ((condition this new next)
-	    (append prefix (list this new next) rest))
-	   (else 
-	    (insert new (cons next rest) condition 
-		    #:prefix (append prefix (list this))
-		    #:right-bound right-bound))))
-    ((last)
-     (cond ((and (null? prefix) (condition new last right-bound))
-	    (append prefix (list new last)))
-	   ((condition last new right-bound)
-	    (append prefix (list last new)))
-	   (else
-	    (append prefix (list last)))))
-    (()
-     (append prefix (list new)))))
-
 (define (symbol< a b)
   (string< (symbol->string a) (symbol->string b)))
 
@@ -1195,6 +1173,9 @@
 	     (tree-map proc item)
 	     (proc item)))
        tree))
+
+(define* (order #;of element #;in list #:key (identified-using eq?))
+  (list-index (lambda (x) (identified-using element x)) list))
 
 (with-default ((first car)
 	       (rest cdr)
