@@ -11,7 +11,16 @@
   #:re-export (add-child!))
 
 (define-class <sortable-container> (<widget>)
-  (children #:init-value '())
+  (%children #:init-value '())
+
+  (children 
+   #:allocation #:virtual
+   #:slot-ref (lambda (self)
+		#[self '%children])
+   #:slot-set! (lambda (self value)
+		 (format #t "setting children to ~s\n" value)
+		 (set! #[self '%children] value)))
+
   (margin #:init-value 1 #:init-keyword #:margin)
   (w #:allocation #:virtual
      #:slot-ref (lambda (self)
@@ -73,7 +82,6 @@
 		   (set! #[self 'dy] ((pick 1) - value #[self 'y])))))
 
 (define-method (reset! (self <sortable-box>))
-  (<< 'resetting)
   (set! #[self 'original-index] #f)
   (set! #[self 'original-parent] #f)
   (set! #[self 'dx] 0)
@@ -109,7 +117,7 @@
 	 (n (order #;of self #;in siblings))
 	 (placeholder (make <sortable-placeholder>
 			#:w #[self 'w] #:h #[self 'h]
-			#:parent parent)))
+			#:parent parent #:at n)))
     (set! #[self 'dx] (+ #[self : 'parent : 'x] #[self 'x]))
     (set! #[self 'dy] (+ #[self : 'parent : 'y] #[self 'y]))
     (set! #[parent 'children]
@@ -133,9 +141,6 @@
 	     (set! #[*nearby-widget* 'parent] #f))
 	   )
 	  (else
-	   (<< (map (lambda(x)
-		      `(,x #:x ,#[x 'x] #:y ,#[x 'y] #:w ,#[x 'w] #:h ,#[x 'h]))
-		    #[*nearby-widget* 'children]))
 	   (let* ((parent #[self 'parent])
 		  (original-parent #[self 'original-parent])
 		  (nearby-parent #[*nearby-widget* 'parent])
@@ -150,7 +155,6 @@
 
 	     (set! #[self 'parent] original-parent)
 	     (when (eq? nearby-parent original-parent)
-	       (<< "deleting the placeholder")
 	       (set! #[nearby-parent 'children]
 		 (delete *nearby-widget* #;from #[nearby-parent : 'children]))
 	       (set! #[*nearby-widget* 'parent] #f))
@@ -165,12 +169,10 @@
 			      #:w #[*active-widget* 'w]
 			      #:h #[*active-widget* 'h]
 			      #:parent parent)))
-      (set! #[parent 'children] 
-	(remove (lambda (child) (is-a? child <sortable-placeholder>))
-		#;from #[parent 'children]))
-      (<<< *active-widget* #[parent 'children])
       (let* ((n (order #;of *nearby-widget* #;in #[parent 'children]))
-	     (earlier later (split-at #[parent 'children] n)))
+	     (skim (remove (lambda (child) (is-a? child <sortable-placeholder>))
+			   #;from #[parent 'children]))
+	     (earlier later (split-at skim n)))
 	(set! #[parent 'children] `(,@earlier ,placeholder ,@later))))))
 
 (define-method (initialize (self <sortable-box>) args)
