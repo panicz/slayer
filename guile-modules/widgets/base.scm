@@ -260,20 +260,19 @@
 (define (drag-over x y xrel yrel)
   (let* ((widgets-below (all-widgets-under `(,x ,y) #;on *stage*))
 	 (non-active-widgets-below 
-	  (filter (lambda (x)
-		    (not (in? *active-widget* `(,x ,@(ancestors x)))))
+	  (filter (lambda (x) (not (in? *active-widget* `(,x ,@(ancestors x)))))
 		  widgets-below)))
-    (if (not (null? non-active-widgets-below))
-	(let ((dragover-widget (apply argmax widget-depth 
-				      non-active-widgets-below)))
-	  (when (not (equal? dragover-widget *nearby-widget*))
-	    (if *nearby-widget* 
-		(#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
-	    (set! *nearby-widget* dragover-widget)
-	    (#[ *nearby-widget* 'drag-over ] x y xrel yrel))))
-    (if (not (null? widgets-below))
-	(let ((mousemove-widget (apply argmax widget-depth widgets-below)))
-	  (#[mousemove-widget 'mouse-move] x y xrel yrel)))
+    (unless (null? non-active-widgets-below)
+      (let ((dragover-widget (apply argmax widget-depth 
+				    non-active-widgets-below)))
+	(unless (equal? dragover-widget *nearby-widget*)
+	  (if *nearby-widget* 
+	      (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
+	  (set! *nearby-widget* dragover-widget)
+	  (#[ *nearby-widget* 'drag-over ] x y xrel yrel))))
+    (unless (null? widgets-below)
+      (let ((mousemove-widget (apply argmax widget-depth widgets-below)))
+	(#[mousemove-widget 'mouse-move] x y xrel yrel)))
     (#[ *active-widget* 'drag ] x y xrel yrel)
     (set! left-click-time #f)))
 
