@@ -543,41 +543,43 @@ export_symbols(void *unused) {
 static int
 compress_mouse_moves(SDL_Event *e) {
   static SDL_Event queue[16];
-  static int unprocessed = 0;
+  static int left = 0;
   static int base = 0;
   int i, j;
 
  yield:
-  if(unprocessed) {
-    --unprocessed;
+  if(left) {
+    --left;
     while(queue[base].type == SDL_USEREVENT
 	  && queue[base].user.code == -1) {
       ++base;
     }
     *e = queue[base];
-    base = (base + 1) % NELEMS(queue);
+    ++base;
     return 1;
   }
+  else {
+    base = 0;
+  }
 
-  unprocessed = SDL_PeepEvents(&queue[base], NELEMS(queue) - base, 
-			       SDL_GETEVENT, SDL_ALLEVENTS);
-  if(!unprocessed) {
-    return base = 0;
+  left = SDL_PeepEvents(queue, NELEMS(queue), SDL_GETEVENT, SDL_ALLEVENTS);
+  if(!left) {
+    return 0;
   }
   
-  for(i = 0; i < unprocessed; ++i) {
+  for(i = 0; i < left; ++i) {
     if(queue[base+i].type == SDL_MOUSEMOTION) {
       break;
     }
   }
   
-  for(j = i + 1; j < unprocessed; ++j) {
+  for(j = i + 1; j < left; ++j) {
     if(queue[base+j].type == SDL_MOUSEMOTION) {
       if(queue[base+j].motion.state != queue[base+i].motion.state) {
 	i = j;
       }
       else {
-	--unprocessed;
+	--left;
 	COMPRESS_MOTION_EVENT(queue[base+j], queue[base+i]);
       }
     }
