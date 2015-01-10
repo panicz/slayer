@@ -549,39 +549,35 @@ compress_mouse_moves(SDL_Event *e) {
 
  yield:
   if(left) {
-    --left;
     while(queue[base].type == SDL_USEREVENT && queue[base].user.code == -1) {
       ++base;
     }
-    *e = queue[base];
-    ++base;
-    return 1;
-  }
-  else {
-    base = 0;
+    *e = queue[base++];
+    return left--;
   }
 
   left = SDL_PeepEvents(queue, NELEMS(queue), SDL_GETEVENT, SDL_ALLEVENTS);
   if(!left) {
     return 0;
   }
+  base = 0;
 
-  while(i < left && queue[base+i].type != SDL_MOUSEMOTION) {
+  while(i < left && queue[i].type != SDL_MOUSEMOTION) {
     ++i;
   }
   
   for(j = i + 1; j < left; ++j) {
-    if(queue[base+j].type == SDL_MOUSEMOTION) {
-      if(queue[base+j].motion.state != queue[base+i].motion.state) {
+    if(queue[j].type == SDL_MOUSEMOTION) {
+      if(queue[j].motion.state != queue[i].motion.state) {
 	i = j;
       }
       else {
 	--left;
-	COMPRESS_MOTION_EVENT(queue[base+j], queue[base+i]);
+	COMPRESS_MOTION_EVENT(queue[j], queue[i]);
       }
     }
     else {
-      while(j < left && queue[base+j].type != SDL_MOUSEMOTION) {
+      while(j < left && queue[j].type != SDL_MOUSEMOTION) {
 	++j;
       }
       i = j;
