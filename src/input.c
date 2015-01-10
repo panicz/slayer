@@ -545,13 +545,12 @@ compress_mouse_moves(SDL_Event *e) {
   static SDL_Event queue[16];
   static int left = 0;
   static int base = 0;
-  int i, j;
+  int i = 0, j;
 
  yield:
   if(left) {
     --left;
-    while(queue[base].type == SDL_USEREVENT
-	  && queue[base].user.code == -1) {
+    while(queue[base].type == SDL_USEREVENT && queue[base].user.code == -1) {
       ++base;
     }
     *e = queue[base];
@@ -566,11 +565,9 @@ compress_mouse_moves(SDL_Event *e) {
   if(!left) {
     return 0;
   }
-  
-  for(i = 0; i < left; ++i) {
-    if(queue[base+i].type == SDL_MOUSEMOTION) {
-      break;
-    }
+
+  while(i < left && queue[base+i].type != SDL_MOUSEMOTION) {
+    ++i;
   }
   
   for(j = i + 1; j < left; ++j) {
@@ -582,6 +579,12 @@ compress_mouse_moves(SDL_Event *e) {
 	--left;
 	COMPRESS_MOTION_EVENT(queue[base+j], queue[base+i]);
       }
+    }
+    else {
+      while(j < left && queue[base+j].type != SDL_MOUSEMOTION) {
+	++j;
+      }
+      i = j;
     }
   }
   goto yield;
