@@ -9,6 +9,7 @@
 	   matrix->vector vector->matrix
 	   vectors->matrix
 	   dot norm square ; project
+	   projection
 	   normalize! normalized
 	   normalized-radians
 	   det3x3 inv3x3 wedge3x3 crossm3x3
