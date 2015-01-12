@@ -14,3 +14,28 @@
 
 (set! #[view 'drag] (lambda (x y dx dy)
 		      (relative-turn! #[view 'camera] (- dx) (- dy))))
+
+(let ((ahead '(1.0 . #f32(0 0 0)))
+      (back '(0.0 . #f32(0 -1 0)))
+      (right '(-0.707 . #f32(0 0.707 0)))
+      (left '(0.707 . #f32(0 0.707 0)))
+      (up '(0.707 . #f32(0.707 0 0)))
+      (down '(0.707 . #f32(-0.707 0 0)))
+      (camera #[view 'camera]))
+  (let-syntax ((look (syntax-rules ()
+		       ((_ direction)
+			(begin 
+			  (format #t "looking ~s\n" 'direction) 
+			  (set! #[camera 'orientation] direction))))))
+    (keydn 1
+      (lambda _  (if (modifier-pressed? 'shift) 
+		(look back)
+		(look ahead))))
+    (keydn 2
+      (lambda _ (if (modifier-pressed? 'shift) 
+	       (look left)
+	       (look right))))
+    (keydn 3
+      (lambda _ (if (modifier-pressed? 'shift) 
+	       (look down)
+	       (look up))))))
