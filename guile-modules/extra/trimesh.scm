@@ -4,6 +4,7 @@
   #:use-module (extra ref)
   #:export (
 	    3d->trimesh
+	    trimesh->3d
 	    ))
 
 (define-syntax-rule (temporarily assertions ...)
@@ -58,3 +59,8 @@
 	(error "the vertex array should have 3 columns of f32 elements"))
       `(,vertices
 	. ,(list->typed-array 'u32 2 (append-map triangles faces))))))
+
+(define (trimesh->3d (vertices . indices))
+  `(mesh (vertices ,vertices)
+	 (color #f32(1 1 1 1))
+	 (indices ,indices)))

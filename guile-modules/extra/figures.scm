@@ -256,7 +256,8 @@
 	     (normals ,(list->typed-array 
 			'f32 2 
 			(map normalized (array->list new-vertices))))
-	     (colors ,(array-append colors colors))
+	     (color #f32(1 1 1 1))
+	     ;;(colors ,(array-append colors colors))
 	     #;(light #:position #f #:direction #f32(0 0 1)
 		    #:ambient #f32(1 1 1 1))
 	     (faces (quad-strip ,quad-strip)

@@ -13,14 +13,16 @@
     #:init-value '((sphere (radius . 0.5))
 		   (box (x . 0.5) (y . 0.5) (z . 0.5))
 		   (capsule (radius . 0.5) (height . 1.0))
-		   (cylinder (radius . 0.5) (height . 1.0))))
+		   (cylinder (radius . 0.5) (height . 1.0))
+		   (trimesh)))
   (generators 
    #:allocation #:class
    #:init-value 
    `((sphere . ,generate-sphere)
      (capsule . ,generate-capsule)
      (cylinder . ,generate-tube)
-     (box . ,generate-box)))
+     (box . ,generate-box)
+     (trimesh . ,error)))
   (dimension-editors 
    #:allocation #:class
    #:init-value '()) ;; initalized elsewhere
@@ -46,19 +48,21 @@
   (inertia-tensor #:init-value #2f32((1 0 0)
 				     (0 1 0)
 				     (0 0 1)) #:init-keyword #:inertia-tensor)
+  (trimesh #:init-value #f)
   (mesh 
    #:allocation #:virtual
    #:slot-ref
    (lambda (self)
      (let ((shape #[self 'shape])
 	   (dimensions #[self 'dimensions]))
-       (or #[self : 'mesh-cache : `(,shape ,@dimensions)]
+       (or #[self 'trimesh]
+	   #[self : 'mesh-cache : `(,shape ,@dimensions)]
 	   (let ((mesh (apply #[self : 'generators : shape] 
 			      (append-map (lambda ((name . value))
 					    `(,(symbol->keyword name) ,value))
-				   dimensions))))
+					  dimensions))))
 	     (set! #[self : 'mesh-cache : (copy-tree `(,shape ,@dimensions))]
-		   mesh)
+	       mesh)
 	     mesh))))
    #:slot-set! noop))
 
@@ -68,24 +72,28 @@
   (if (not #[self 'dimensions])
       (set! #[self 'dimensions]
 	    (copy-tree #[self : 'default-dimensions : #[self 'shape]])))
-  (<< args)
   (for (property . value) in (keyword-args->alist args)
-       (cond 
-	
-	((in? property (map first #[self 'dimensions]))
-	 (set! #[self : 'dimensions : property] value))
-	
-	((in? property (map first (class-slots (class-of self))))
-	 (set! #[self property] value))
-	
-	((eq? property 'mass-distribution)
-	 (match value
-	   ((center-of-mass . inertia-tensor)
-	    (set! #[self 'center-of-mass] center-of-mass)
-	    (set! #[self 'inertia-tensor] inertia-tensor))))
-	
-	(else
-	 (format #t "Unrecognised body property: ~a\n"  property)))))
+    (cond 
+     ((and (eq? property 'mesh)
+	   (eq? (first value) 'load-mesh))
+      (match (with-input-from-file (second value) read)
+	(('mesh . properties)
+	 (set! #[self 'trimesh] `(mesh (color #f32(1 1 1 1)) . ,properties)))))
+
+     ((in? property (map first #[self 'dimensions]))
+      (set! #[self : 'dimensions : property] value))
+     
+     ((in? property (map first (class-slots (class-of self))))
+      (set! #[self property] value))
+     
+     ((eq? property 'mass-distribution)
+      (match value
+	((center-of-mass . inertia-tensor)
+	 (set! #[self 'center-of-mass] center-of-mass)
+	 (set! #[self 'inertia-tensor] inertia-tensor))))
+     
+     (else
+      (format #t "Unrecognised body property: ~a\n"  property)))))
 
 (define-method (properties (body <physical-body>))
   (let ((common-properties `(#:mass ,#[body 'mass] 
@@ -115,6 +123,8 @@
        `(capsule #:radius ,#[dimensions 'radius]
 		 #:height ,#[dimensions 'height]
 		 ,@common-properties))
+      ((trimesh)
+       `(trimesh))
       )))
 
 (define-method (describe-body (body <physical-body>))
