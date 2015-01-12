@@ -1,6 +1,7 @@
 (define-module (scum physics)
   #:use-module (extra common)
   #:use-module (extra math)
+  #:use-module (extra trimesh)
   #:export (define-rig-for make-rig
 	     primitive-make-simulation
 	     make-simulation-step!
@@ -13,7 +14,7 @@
 	     simulation-bodies
 	     simulation-joints
 	     simulation?
-	     
+
 	     primitive-make-rig
 	     rig-bodies
 	     rig-joints
@@ -27,7 +28,7 @@
 	     body-named
 	     body-name
 	     body?
-	     
+
 	     force!
 	     torque!
 
@@ -64,7 +65,15 @@
 	  (for (name (type props ...)) in body-spec
 	    (let ((body (make-body rig type name)))
 	      (for (property value) in (map-n 2 list props)
-		(set-body-property! body (keyword->symbol property) value))
+		(let ((property (keyword->symbol property))
+		      (actual (lambda (value)
+				(match value
+				  (('load-mesh name)
+				   (3d->trimesh (with-input-from-file
+						    name read)))
+				  (else
+				   value)))))
+		  (set-body-property! body property (actual value))))
 	      (set-body-property! body 'position
 				  (+ position 
 				     (rotate (body-property body 'position)
