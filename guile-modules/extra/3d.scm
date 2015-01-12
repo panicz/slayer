@@ -337,29 +337,28 @@
 	      (throw 'unrecognised-transform)))
 	    transform-spec))
 
-(let-syntax ((process-mesh
-	      (syntax-rules ()
-		((_ mesh-processor arg pattern+actions ...)
-		 (match arg
-		   (('mesh . definition)
-		    (for-each (match-lambda
+
+(let-syntax (((process-mesh mesh-processor arg pattern+actions ...)
+	      (match arg
+		(('mesh . definition)
+		 (for-each (match-lambda
 			       (('with-transforms transforms . actions)
 				(push-matrix!)
 				(transform-matrix! transforms)
 				(mesh-processor `(mesh ,@actions))
 				(pop-matrix!))
-			       pattern+actions ...
-			       (else
-				(display `(mesh-processor 
-					   match-failure: ,else)))
-			       ) definition)
-		    (for-each forget-array! 
-			      '(vertex-array 
-				color-array 
-				normal-array 
-				texture-coord-array)))
-		   (else
-		    (display `(mesh-processor invalid-mesh: ,else))))))))
+			     pattern+actions ...
+			     (else
+			      (display `(mesh-processor 
+					 match-failure: ,else)))
+			     ) definition)
+		 (for-each forget-array! 
+		     '(vertex-array 
+		       color-array 
+		       normal-array 
+		       texture-coord-array)))
+		(else
+		 (display `(mesh-processor invalid-mesh: ,else))))))
 
   (define-method (draw-mesh! (mesh <list>))
     (process-mesh draw-mesh! mesh
@@ -372,9 +371,9 @@
 		  (('normals (? array? array))
 		   (set-normal-array! array))
 		  (('faces . faces)
-		   (for-each (match-lambda ((type array)
-					    (draw-faces! type array)))
-			     faces))))
+		   (for-each (lambda ((type array))
+			       (draw-faces! type array))
+		       faces))))
 
   (define-method (setup-lights! (lights <list>))
     (process-mesh setup-lights! lights
@@ -446,7 +445,9 @@
 			     `(color #f32(0 0.3 0.7 0.5)))))
   (pop-matrix!))
 
-#;(define (projection-matrix fovy aspect near far)
+
+#|
+(define (projection-matrix fovy aspect near far)
   (and-let* (( (not (= aspect 0)))
 	     (radians (* fovy 0.5 pi 1/180))
 	     (sine (sin radians))
@@ -461,3 +462,4 @@
 	(0                     ,cotangent 0                             0)
 	(0                     0          ,(- (/ (+ near far) depth))  -1)
 	(0                     0          ,(* -2 near far (/ 1 depth))  0))))))  
+|#
