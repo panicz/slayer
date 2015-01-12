@@ -217,9 +217,26 @@
   (unless (null? #[view 'selected])
     (let* ((old-bindings (current-key-bindings))
 	   (original-positions (map #[_ 'position] #[view 'selected]))
+	   (axis-mapping #f32(1 1 1))
+	   (lock (lambda (u #;on v)
+		   (list->typed-array 'f32 1 `(,(* #[u 0] #[v 0])
+					       ,(* #[u 1] #[v 1])
+					       ,(* #[u 2] #[v 2])))))
+	   (snap (lambda (v)
+		   (let ((v (* v 10.0)))
+		     (* 0.1
+			(list->typed-array 
+			 'f32 1
+			 `(,(floor #[v 0]) ,(floor #[v 1]) ,(floor #[v 2])))))))
 	   ((_ _ zs) (3d->screen view (first original-positions))))
       (set-key-bindings!
        (key-bindings
+	(keydn 'x (lambda () (set! axis-mapping x-axis)))
+
+	(keydn 'y (lambda () (set! axis-mapping y-axis)))
+
+	(keydn 'z (lambda () (set! axis-mapping z-axis)))
+
 	(keydn 'esc
 	  (lambda () 
 	    (for (object position) in (zip #[view 'selected]
@@ -236,8 +253,12 @@
 	   (for (object position) in (zip #[view 'selected]
 					  original-positions)
 	     (set! #[object 'position] 
-		   (+ (screen->3d view x y zs) 
-		      (- position (first original-positions)))))))
+	       (lock ((if (modifier-pressed? 'ctrl)
+			  snap
+			  identity)
+		      (+ (screen->3d view x y zs) 
+			 (- position (first original-positions))))
+		     #;on axis-mapping)))))
 	)))))
 
 (define* ((rotate-mode view #:key 
@@ -252,6 +273,8 @@
     (let ((old-bindings (current-key-bindings))
 	  (center (center #[view 'selected]))
 	  (angle 0.0)
+	  (snap (let ((mu (/ 180.0 2pi)))
+		  (lambda (x) (/ (floor (* x mu)) mu))))
 	  (original-positions (map #[_ 'position] #[view 'selected]))
 	  (original-orientations (map #[_ 'orientation] #[view 'selected])))
       (let (((_ _ zs) (3d->screen view center))
@@ -267,6 +290,10 @@
 		(set! #[object 'position] position))
 	      (set-key-bindings! old-bindings)
 	      (on-exit 0.0)))
+
+	(keydn 'x (lambda () (set! axis x-axis)))
+	(keydn 'y (lambda () (set! axis y-axis)))
+	(keydn 'z (lambda () (set! axis z-axis)))
 
 	  (keydn 'tab
 	    (lambda ()
@@ -293,12 +320,16 @@
 						     center)))
 		    (screen-angle (* (sgn (* rotation-direction 
 					     #[(im screen-rotation) 2]))
-				     (quaternion-angle
-				      #;of screen-rotation)))
-		    (rotation (if axis
-				  (rotation-quaternion
-				   #;around axis #;by screen-angle)
-				  screen-rotation)))
+				     ((if (modifier-pressed? 'ctrl)
+					  snap
+					  identity)
+				      (quaternion-angle
+				       #;of screen-rotation))))
+		    (axis (or axis (* (sgn (* rotation-direction 
+					      #[(im screen-rotation) 2]))
+				      (quaternion-axis screen-rotation))))
+		    (rotation (rotation-quaternion
+			       #;around axis #;by screen-angle)))
 	       (set! angle screen-angle)
 	       (for (object orientation position) in (zip #[view 'selected] 
 							  original-orientations
