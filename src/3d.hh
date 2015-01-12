@@ -143,4 +143,6 @@ DECLARE void init_color();
 DECLARE void init_buffers();
 DECLARE void init_transforms();
 
+DECLARE const char *light_properties_names[];
+
 #endif // _3D_HH

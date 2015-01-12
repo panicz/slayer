@@ -21,6 +21,20 @@ enum light_properties_enum {
   NUM_LIGHT_PROPERTIES = 11
 };
 
+const char *light_properties_names[] = {
+  "unsupported",
+  "ambient",
+  "diffuse",
+  "specular",
+  "position",
+  "direction",
+  "exponent",
+  "cutoff",
+  "constant-attenuation",
+  "linear-attenuation",
+  "quadratic-attenuation"
+};
+
 // up to GL_MAX_LIGHTS can be allocated
 static SCM removed_lights = SCM_EOL;
 static int next_light = 0;
@@ -122,8 +136,14 @@ DEF_GL_LIGHT_ACCESSORS(QUADRATIC_ATTENUATION, float)
 
 static SCM
 set_light_property_x(SCM light, SCM property, SCM value) {
-  int l = scm_to_int(light);
+  int l = scm_to_int(light);  
   int property_id = GET_PROPERTY_ID(property);
+  /*
+  OUT_("setting light property %s of light %i to ",
+      light_properties_names[property_id], l - GL_LIGHT0);
+  scm_display(value, scm_current_output_port());
+  OUT();
+  */
   (*light_property_setters[property_id])(l, value);
   return SCM_UNSPECIFIED;
 }
@@ -210,6 +230,7 @@ remove_light_x(SCM light) {
 	      "the last allocated light first.");
     removed_lights = gc_protected(scm_cons(light, removed_lights));
   }
+
   return SCM_UNSPECIFIED;
 }
 
@@ -231,9 +252,6 @@ export_symbols(void *unused) {
 void
 init_lights() {
   init_light_properties();
-
-  //glEnable(GL_LIGHTING);
-  //glEnable(GL_LIGHT0);
-
+  glEnable(GL_LIGHTING);
   scm_c_define_module("slayer 3d", export_symbols, NULL);
 }
