@@ -237,7 +237,12 @@
 
 (define-class <3d-cam> (<3d>)
   (fovy #:init-value 70.0)
-  (light #:init-thunk (lambda()(make-light #:ambient #f32(0.3 0.3 0.3 0.3)))))
+  (light #:init-thunk 
+	 (lambda ()
+	   (make-light 
+	    #:ambient #f32(0 0 0 1)
+	    #:specular #f32(0 0 0 1)
+	    #:diffuse #f32(1 1 1 1)))))
 
 (define ((get-original property) self)
   #[#[self 'original] property])
