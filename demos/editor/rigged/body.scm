@@ -21,8 +21,7 @@
    `((sphere . ,generate-sphere)
      (capsule . ,generate-capsule)
      (cylinder . ,generate-tube)
-     (box . ,generate-box)
-     (trimesh . ,error)))
+     (box . ,generate-box)))
   (dimension-editors 
    #:allocation #:class
    #:init-value '()) ;; initalized elsewhere
@@ -49,6 +48,7 @@
 				     (0 1 0)
 				     (0 0 1)) #:init-keyword #:inertia-tensor)
   (trimesh #:init-value #f)
+  (trimesh-file #:init-value #f)
   (mesh 
    #:allocation #:virtual
    #:slot-ref
@@ -78,6 +78,7 @@
 	   (eq? (first value) 'load-mesh))
       (match (with-input-from-file (second value) read)
 	(('mesh . properties)
+	 (set! #[self 'trimesh-file] value)
 	 (set! #[self 'trimesh] `(mesh (color #f32(1 1 1 1)) . ,properties)))))
 
      ((in? property (map first #[self 'dimensions]))
@@ -124,7 +125,8 @@
 		 #:height ,#[dimensions 'height]
 		 ,@common-properties))
       ((trimesh)
-       `(trimesh))
+       `(trimesh #:mesh ,#[body 'trimesh-file]
+		 ,@common-properties))
       )))
 
 (define-method (describe-body (body <physical-body>))
