@@ -14,7 +14,7 @@
 	(with-input-file input-file-name
 	  (match (read)
 	    (('mesh . details)
-	     (pretty-print (map x-mirror details)))))))))
+	     (pretty-print `(mesh . ,(map x-mirror details))))))))))
 
 (define (x-mirror spec)
   (match spec
