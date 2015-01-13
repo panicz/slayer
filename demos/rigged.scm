@@ -284,9 +284,10 @@ exit
 	(pretty-print (describe-rig the-rig)))
       (format #t "rig saved to ~s\n" file))))
 
-(keydn 1 (lambda () 
-	   (set! #[view : 'camera : 'orientation] 
-		 `(0.0 . #f32(1 0 0)))))
+
+(keydn '\
+  (lambda ()
+    (pretty-print (describe-rig the-rig))))
 
 (keydn 'g (grab-mode view))
 
@@ -331,7 +332,7 @@ exit
   (lambda()
     (with-context-for-joint/body-relation
      (match #[view 'selected]
-       ((first second)
+       ((first second . _)
 	(if (and (is-a? first <physical-body>)
 		 (is-a? second <physical-body>)
 		 (bodies-are-connected? first second))
@@ -351,7 +352,7 @@ exit
 	    (display "operation requires two bodies connected with\
  a joint to be selected\n")))
        (else
-	(display "exactly two objects need to be selected\n")
+	(display "at least two objects need to be selected\n")
 	)))))
 
 (keydn 'delete (lambda () (delete-selected-objects! #;in view)))
@@ -393,6 +394,7 @@ exit
 	 (for (name (shape props ...)) in body-spec
 	   (let ((body (apply make <physical-body> #:shape shape props)))
 	     (set! #[bodies name] body)
+	     (set! #[body 'name] name)
 	     (add-object! body #;to the-rig)))
 	 (for (name (type props ...)) in joint-defs
 	   (let ((joint (apply 
@@ -409,6 +411,7 @@ exit
 				    `(,property . ,value))
 				   ))
 			       (keyword-args->alist props))))))
+	     (set! #[joint 'name] name)
 	     (add-object! joint #;to the-rig)))))))
 
 (load "config.scm")
