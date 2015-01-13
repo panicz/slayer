@@ -135,7 +135,7 @@
 	 
 	 `(mesh
 	   (vertices ,(list->typed-array 'f32 2 (vector->list v)))
-	   (colors ,(list->typed-array 'f32 2 (vector->list v)))
+	   (color #f32(1 1 1))
 	   (faces (quads ,(list->uniform-array new-faces)))))))))
 
 (define* (generate-hemisphere #:key(radius 1.0)(slices 20)(stacks 8))
@@ -183,10 +183,7 @@
 			     'f32 2 (append
 				     vertices 
 				     '((0.0 0.0 1.0)))))
-		  (colors ,(list->typed-array 
-			      'f32 2 (append
-				      vertices 
-				      '((0.0 0.0 1.0)))))
+		  (color #f32(1 1 1))
 		  (faces
 		   (quad-strip ,(list->uniform-array faces))
 		   (triangle-fan
@@ -210,15 +207,7 @@
 	   (,-x  ,y ,-z)
 	   (,-x ,-y  ,z)
 	   (,-x ,-y ,-z))))
-      (colors
-       #2f32((0.5 0.7 0.2 1.0)
-	     (0.7 0.5 0.2 0.8)
-	     (0.2 0.7 0.5 0.7)
-	     (0.7 0.2 0.5 0.6)
-	     (0.5 0.2 0.7 0.5)
-	     (0.2 0.5 0.7 0.3)
-	     (0.7 0.7 0.2 0.2)
-	     (1.0 1.0 1.0 0.0)))
+      (color #f32(1 1 1))
       (faces
        (quads 
 	#2u8((0 1 3 2)
@@ -232,7 +221,7 @@
 			   (height 1.0) (radius 0.2))
   (match-let ((('mesh ('vertices vertices) 
 		      ('normals normals)
-		      ('colors colors) 
+		      ('color color) 
 		      ('faces ('quad-strip quad-strip)
 			      ('triangle-fan triangle-fan)))
 	      (generate-hemisphere #:radius radius #:slices points
@@ -257,9 +246,6 @@
 			'f32 2 
 			(map normalized (array->list new-vertices))))
 	     (color #f32(1 1 1 1))
-	     ;;(colors ,(array-append colors colors))
-	     #;(light #:position #f #:direction #f32(0 0 1)
-		    #:ambient #f32(1 1 1 1))
 	     (faces (quad-strip ,quad-strip)
 		    (triangle-fan ,triangle-fan)
 		    (quad-strip 
@@ -295,8 +281,5 @@
 	  `(mesh
 	    (vertices ,(list->typed-array 
 			'f32 2 (append bottom top)))
-	    (colors ,(list->typed-array 
-		      'f32 2 (append 
-			      (make-list base-points '(1 0 0))
-			      (make-list base-points '(0 0 1)))))
+	    (color #f32(1 1 1))
 	    (faces (quads ,(list->uniform-array faces)))))))))
