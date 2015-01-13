@@ -1,0 +1,147 @@
+(rig (bodies
+       (left-foot
+         (trimesh #:mesh (load-mesh "art/3d/rob/left-foot.3d")
+		  #:mass 1.0
+		  #:position #f32(0.5 0.0 -3.7)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0) 
+					   . #2f32((1.0 0.0 0.0) 
+						   (0.0 1.0 0.0) 
+						   (0.0 0.0 1.0)))))
+       (right-foot 
+	(trimesh #:mesh (load-mesh "art/3d/rob/right-foot.3d")
+		 #:mass 1.0
+		 #:position #f32(-0.5 0.0 -3.7)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (left-calf
+         (trimesh #:mesh (load-mesh "art/3d/rob/left-calf.3d")
+		  #:mass 1.0
+		  #:position #f32(0.5 0.1 -2.6)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0)
+					   . #2f32((1.0 0.0 0.0)
+						   (0.0 1.0 0.0)
+						   (0.0 0.0 1.0)))))
+       (right-calf
+         (trimesh #:mesh (load-mesh "art/3d/rob/right-calf.3d")
+		  #:mass 1.0
+		  #:position #f32(-0.5 0.1 -2.6)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0)
+					   . #2f32((1.0 0.0 0.0)
+						   (0.0 1.0 0.0)
+						   (0.0 0.0 1.0)))))
+       (left-tigh
+	(trimesh #:mesh (load-mesh "art/3d/rob/left-tigh.3d")
+		 #:mass 1.0
+		 #:position #f32(0.5 0.0 -1.4)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0) 
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (right-tigh
+	(trimesh #:mesh (load-mesh "art/3d/rob/right-tigh.3d")
+		 #:mass 1.0
+		 #:position #f32(-0.5 0.0 -1.4)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0) 
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (left-palm
+	(trimesh #:mesh (load-mesh "art/3d/rob/left-palm.3d")
+		 #:mass 1.0
+		 #:position #f32(1.0 0.2 -1.2)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (right-palm
+	(trimesh #:mesh (load-mesh "art/3d/rob/right-palm.3d")
+		 #:mass 1.0
+		 #:position #f32(-1.0 0.2 -1.2)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (left-forearm
+	(trimesh #:mesh (load-mesh "art/3d/rob/left-forearm.3d")
+		 #:mass 1.0
+		 #:position #f32(0.9 0.1 -0.3)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (right-forearm
+	(trimesh #:mesh (load-mesh "art/3d/rob/right-forearm.3d")
+		 #:mass 1.0
+		 #:position #f32(-0.9 0.1 -0.3)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (left-arm
+         (trimesh #:mesh (load-mesh "art/3d/rob/left-arm.3d")
+		  #:mass 1.0
+		  #:position #f32(0.7 0.1 0.9)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0)
+					   . #2f32((1.0 0.0 0.0)
+						   (0.0 1.0 0.0)
+						   (0.0 0.0 1.0)))))
+       (right-arm
+         (trimesh #:mesh (load-mesh "art/3d/rob/right-arm.3d")
+		  #:mass 1.0
+		  #:position #f32(-0.7 0.1 0.9)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0)
+					   . #2f32((1.0 0.0 0.0)
+						   (0.0 1.0 0.0)
+						   (0.0 0.0 1.0)))))
+
+       (pelvis
+         (trimesh #:mesh (load-mesh "art/3d/rob/pelvis.3d")
+		  #:mass 1.0
+		  #:position #f32(0.0 0.0 -0.6)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0)
+					   . #2f32((1.0 0.0 0.0)
+						   (0.0 1.0 0.0)
+						   (0.0 0.0 1.0)))))
+       (abdomen
+         (trimesh #:mesh (load-mesh "art/3d/rob/abdomen.3d")
+		  #:mass 1.0
+		  #:position #f32(0.0 0.0 -0.1)
+		  #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		  #:mass-distribution (#f32(0.0 0.0 0.0)
+					   . #2f32((1.0 0.0 0.0)
+						   (0.0 1.0 0.0)
+						   (0.0 0.0 1.0)))))
+       (chest 
+	(trimesh #:mesh (load-mesh "art/3d/rob/chest.3d")
+		 #:mass 1.0
+		 #:position #f32(0.0 0.0 0.8)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0)))))
+       (head
+	(trimesh #:mesh (load-mesh "art/3d/rob/head.3d")
+		 #:mass 1.0
+		 #:position #f32(0.0 0.0 2.0)
+		 #:quaternion (1.0 . #f32(0.0 0.0 0.0))
+		 #:mass-distribution (#f32(0.0 0.0 0.0)
+					  . #2f32((1.0 0.0 0.0)
+						  (0.0 1.0 0.0)
+						  (0.0 0.0 1.0))))))
+     (joints))
