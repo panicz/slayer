@@ -36,7 +36,6 @@
 				    . #2f32((1.0 0.0 0.0)
 					    (0.0 1.0 0.0)
 					    (0.0 0.0 1.0)))))
-
   (left-calf
    (trimesh #:mesh (load-mesh "art/3d/rob/left-calf.3d")
 	    #:mass 4.75
@@ -118,7 +117,6 @@
 				     . #2f32((1.0 0.0 0.0)
 					     (0.0 1.0 0.0)
 					     (0.0 0.0 1.0)))))
-
   (left-palm
    (trimesh #:mesh (load-mesh "art/3d/rob/left-palm.3d")
 	    #:mass 0.65
@@ -211,7 +209,7 @@
 				     . #2f32((1.0 0.0 0.0)
 					     (0.0 1.0 0.0)
 					     (0.0 0.0 1.0)))))
-  (left-shouldrer
+  (left-shoulder
    (sphere #:radius 0.18
 	   #:mass 0.1
 	   #:position #f32(0.56 0.18 1.2)
@@ -220,7 +218,7 @@
 				    . #2f32((1.0 0.0 0.0)
 					    (0.0 1.0 0.0)
 					    (0.0 0.0 1.0)))))
-  (right-shouldrer
+  (right-shoulder
    (sphere #:radius 0.18
 	   #:mass 0.1
 	   #:position #f32(-0.56 0.18 1.2)
@@ -238,16 +236,6 @@
 				     . #2f32((1.0 0.0 0.0)
 					     (0.0 1.0 0.0)
 					     (0.0 0.0 1.0)))))
-  (diaphragm
-   (sphere #:radius 0.25
-	   #:mass 0.1
-	   #:position #f32(0.0 0.0 0.25)
-	   #:quaternion (1.0 . #f32(0.0 0.0 0.0))
-	   #:mass-distribution (#f32(0.0 0.0 0.0)
-				    . #2f32((1.0 0.0 0.0)
-					    (0.0 1.0 0.0)
-					    (0.0 0.0 1.0)))))
-
   (chest
    (trimesh #:mesh (load-mesh "art/3d/rob/chest.3d")
 	    #:mass 22.0
@@ -266,7 +254,6 @@
 				    . #2f32((1.0 0.0 0.0)
 					    (0.0 1.0 0.0)
 					    (0.0 0.0 1.0)))))
-
   (head
    (trimesh #:mesh (load-mesh "art/3d/rob/head.3d")
 	    #:mass 8.26
@@ -275,5 +262,119 @@
 	    #:mass-distribution (#f32(0.0 0.0 0.0)
 				     . #2f32((1.0 0.0 0.0)
 					     (0.0 1.0 0.0)
-					     (0.0 0.0 1.0))))))
- (joints))
+					     (0.0 0.0 1.0)))))
+  )
+ (joints 
+  (neck-bend (hinge #:body-1 neck #:body-2 head
+		    #:anchor (? position neck) #:axis #f32(1 0 0)
+		    #:lo-stop -1.5 #:hi-stop 0.5))
+  (neck-turn (hinge #:body-1 chest #:body-2 neck
+		    #:anchor (? position neck) #:axis #f32(0 0 1)
+		    #:lo-stop -1.5 #:hi-stop 1.5))
+  (torso-bend (hinge #:body-1 chest #:body-2 abdomen
+		     #:anchor #f32(0 0 0.25) #:axis #f32(1 0 0)
+		     #:lo-stop -0.5 #:hi-stop 0.5))
+
+  (torso-turn (hinge #:body-1 abdomen #:body-2 pelvis
+		     #:anchor #f32(0 0 -0.4) #:axis #f32(0 0 1)
+		     #:lo-stop -0.7 #:hi-stop 0.7))
+
+  (left-hip-bend (hinge #:body-1 pelvis #:body-2 left-hip
+			#:anchor (? position left-hip) #:axis #f32(1 0 0)
+			#:lo-stop -1.6 #:hi-stop 1.6))
+
+  (left-hip-turn (hinge #:body-1 left-hip #:body-2 left-tigh
+			#:anchor (? position left-hip) #:axis #f32(0 1 0)
+			#:lo-stop -0.5  #:hi-stop 1.5))
+
+  (left-knee-bend (hinge #:body-1 left-tight #:body-2 left-knee
+			 #:anchor (? position left-knee) #:axis #f32(1 0 0)
+			 #:lo-stop 0.0 #:hi-stop 3.1))
+
+  (left-knee-twist (hinge #:body-1 left-knee #:body-2 left-calf
+			  #:anchor (? position left-knee) #:axis #f32(0 0 1)
+			  #:lo-stop -0.7 #:hi-stop 0.7))
+
+  (left-ankle-bend (hinge #:body-1 left-calf #:body-2 left-ankle
+			  #:anchor (? position left-ankle) #:axis #f32(1 0 0)
+			  #:lo-stop -0.5 #:hi-stop 0.5))
+
+  (left-ankle-twist (hinge #:body-1 left-ankle #:body-2 left-foot
+			   #:anchor (? position left-ankle) #:axis #f32(0 1 0)
+			   #:lo-stop -0.2 #:hi-stop 0.2))
+
+  (left-wrist-bend (hinge #:body-1 left-forearm #:body-2 left-wrist
+			  #:anchor (? position left-wrist) #:axis #f32(1 0 0)
+			  #:lo-stop -0.2 #:hi-stop 0.2))
+
+  (left-wrist-turn (hinge #:body-1 left-wrist #:body-2 left-palm
+			  #:anchor (? position left-wrist) #:axis #f32(0 1 0)
+			  #:lo-stop -1.5 #:hi-stop 1.5))
+
+  (left-elbow-bend (hinge #:body-1 left-arm #:body-2 left-elbow
+			  #:anchor (? position left-elbow) #:axis #f32(1 0 0)
+			  #:lo-stop 0.0 #:hi-stop 3.0))
+
+  (left-elbow-twist (hinge #:body-1 left-elbow #:body-2 left-forearm
+			   #:anchor (? position left-elbow) #:axis #f32(0 0 1)
+			   #:lo-stop -0.7 #:hi-stop 0.7))
+  (left-shoulder-raise (hinge #:body-1 chest #:body-2 left-shoulder
+			      #:anchor (? position left-shoulder) 
+			      #:axis #f32(0 1 0)
+			      #:lo-stop 0.0 #:hi-stop 2.0))
+  (left-shoulder-lead (hinge #:body-1 left-shoulder #:body-2 left-arm
+			     #:anchor (? position left-shoulder)
+			     #:axis #f32(1 0 0)
+			     #:lo-stop -1.5 #:hi-stop 1.5))
+  ;;;;;;;;;;;;;;
+
+  
+  (right-hip-bend (hinge #:body-1 pelvis #:body-2 right-hip
+			#:anchor (? position right-hip) #:axis #f32(-1 0 0)
+			#:lo-stop -1.6 #:hi-stop 1.6))
+
+  (right-hip-turn (hinge #:body-1 right-hip #:body-2 right-tigh
+			#:anchor (? position right-hip) #:axis #f32(0 1 0)
+			#:lo-stop -0.5  #:hi-stop 1.5))
+
+  (right-knee-bend (hinge #:body-1 right-tight #:body-2 right-knee
+			 #:anchor (? position right-knee) #:axis #f32(-1 0 0)
+			 #:lo-stop 0.0 #:hi-stop 3.1))
+
+  (right-knee-twist (hinge #:body-1 right-knee #:body-2 right-calf
+			  #:anchor (? position right-knee) #:axis #f32(0 0 1)
+			  #:lo-stop -0.7 #:hi-stop 0.7))
+
+  (right-ankle-bend (hinge #:body-1 right-calf #:body-2 right-ankle
+			  #:anchor (? position right-ankle) #:axis #f32(-1 0 0)
+			  #:lo-stop -0.5 #:hi-stop 0.5))
+
+  (right-ankle-twist (hinge #:body-1 right-ankle #:body-2 right-foot
+			   #:anchor (? position right-ankle) #:axis #f32(0 1 0)
+			   #:lo-stop -0.2 #:hi-stop 0.2))
+
+  (right-wrist-bend (hinge #:body-1 right-forearm #:body-2 right-wrist
+			  #:anchor (? position right-wrist) #:axis #f32(-1 0 0)
+			  #:lo-stop -0.2 #:hi-stop 0.2))
+
+  (right-wrist-turn (hinge #:body-1 right-wrist #:body-2 right-palm
+			  #:anchor (? position right-wrist) #:axis #f32(0 1 0)
+			  #:lo-stop -1.5 #:hi-stop 1.5))
+
+  (right-elbow-bend (hinge #:body-1 right-arm #:body-2 right-elbow
+			  #:anchor (? position right-elbow) #:axis #f32(-1 0 0)
+			  #:lo-stop 0.0 #:hi-stop 3.0))
+
+  (right-elbow-twist (hinge #:body-1 right-elbow #:body-2 right-forearm
+			   #:anchor (? position right-elbow) #:axis #f32(0 0 1)
+			   #:lo-stop -0.7 #:hi-stop 0.7))
+  (right-shoulder-raise (hinge #:body-1 chest #:body-2 right-shoulder
+			      #:anchor (? position right-shoulder) 
+			      #:axis #f32(0 1 0)
+			      #:lo-stop 0.0 #:hi-stop 2.0))
+  (right-shoulder-lead (hinge #:body-1 right-shoulder #:body-2 right-arm
+			     #:anchor (? position right-shoulder)
+			     #:axis #f32(-1 0 0)
+			     #:lo-stop -1.5 #:hi-stop 1.5))
+
+))
