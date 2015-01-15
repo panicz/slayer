@@ -109,6 +109,7 @@
 	    demand SPECIFIC-CONTEXT
 	    iterations
 	    RUN-TESTS TEST-RESULTS
+	    WARN
 	    arity impose-arity
 	    )
   #:export-syntax (TODO \ for for-every exists matches? equals? prototype
@@ -2304,7 +2305,19 @@
 	   (reverse result)))
       (else
        (reverse result)))))
- 
+
+(define-syntax-rule (WARN messages ...)
+  (let* ((location (current-source-location))
+	 (file (assoc-ref location 'file))
+	 (line (assoc-ref location 'line)))
+    (display "WARNING ")
+    (when file
+      (display file)
+      (display "/"))
+    (when line
+      (display line))
+    (display ": ")
+    (display messages) ... (newline)))
 
 (define-syntax check
   (syntax-rules ()
