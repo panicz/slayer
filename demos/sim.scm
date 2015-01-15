@@ -145,11 +145,19 @@ in order to apply force to it\n")))))
 
 ;(set! #[view : 'camera : 'position] #f32(0 0 -5))
 
+(define pause #t)
+
+(keydn 'p 
+  (lambda () 
+    (set! pause (not pause))
+    (format #t "pause ~a\n" (if pause 'on 'off))))
+
 (add-timer! 
  25 
  (lambda()
-   (make-simulation-step! *sim*)
-   ))
+   (unless pause
+     (make-simulation-step! *sim*)
+     )))
 
 (keydn 'b (lambda ()
 	    (display (map rig-bodies (simulation-rigs *sim*))) (newline)))
