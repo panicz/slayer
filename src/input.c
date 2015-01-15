@@ -629,9 +629,13 @@ SCM
 input_handle_events() {
   SDL_Event event;
   SCM c;
+  int processed_events = 0;
 
   if(SDL_WaitEvent(NULL)) {
     while(getting_events(&event)) {
+      if(++processed_events > 8) { // take a breath
+	return SCM_UNSPECIFIED;
+      }
       if(input_mode == DIRECT_MODE) {
 	(*event_handler[event.type])(&event);
       } else if(input_mode == TYPING_MODE) {
