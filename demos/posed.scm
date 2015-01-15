@@ -36,7 +36,7 @@ exit
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
 
 (define-rig-for the-simulation 
-  'legs (with-input-from-file "art/rigs/legs.rig" read))
+  'rob (with-input-from-file "art/rigs/rob.rig" read))
 
 (define view (make <3d-editor>
 	       #:x  0 #:y  0 
@@ -47,32 +47,14 @@ exit
 
 ;;(load "posed-trash.scm")
 
-(define the-number-of-joints 4)
+(define the-number-of-joints 6)
 
-(keydn "["
-  (lambda () 
-    (if the-number-of-joints
-	(set! the-number-of-joints 
-	  (let ((n (- the-number-of-joints 1)))
-	    (if (negative? n)
-		#f
-		n))))
-    (<< the-number-of-joints)))
-
-(keydn "]" 
-  (lambda () 
-    (set! the-number-of-joints
-      (if the-number-of-joints
-	  (+ the-number-of-joints 1)
-	  0))
-    (<< the-number-of-joints)))
-
-(define the-legs (make-rig the-simulation 'legs #:position #f32(0 0 0)
+(define the-rig (make-rig the-simulation 'rob #:position #f32(0 0 0)
 			  #:orientation '(0.707 . #f32(-0.707 0 0))))
 
 (define rig-angles
   (let ((rig-angles (make-hash-table))
-	(('pose . parameters) (null-pose #;of the-legs)))
+	(('pose . parameters) (null-pose #;of the-rig)))
     (for (name . angle) in parameters
       (hash-set! rig-angles name angle))
     rig-angles))
@@ -84,7 +66,7 @@ exit
 (define (current-configuration)
   `(pose ,@(map (lambda (joint)
 		  `(,(joint-name joint) . ,(joint-property joint 'angle)))
-		(rig-joints the-legs))))
+		(rig-joints the-rig))))
 
 (define ((rig-joints-name&properties-getter . properties) rig)
   "the properties are obtained directly from ODE simulator"
@@ -141,9 +123,9 @@ exit
 	   (for body in mobile-bodies
 	     (rotate-body! body #;by angle* #;around axis #;at pivot))))))))
 
-(set-pose! the-legs (current-configuration))
+(set-pose! the-rig (current-configuration))
 
-(include "temporary-poses.scm")
+;;l (include "temporary-poses.scm")
 
 (set! #[view 'left-click]
       (lambda (x y)
@@ -201,7 +183,7 @@ exit
     (assert (and (apply eq? 'hinge (map joint-type joint-sequence))
 		 (= global-body-position (apply system-equation angles))))
     (if (every finite? angles)
-	(set-pose! #;of the-legs #;to new-pose #:keeping fixed)
+	(set-pose! #;of the-rig #;to new-pose #:keeping fixed)
 	#;else
 	(pretty-print `(inverse-kinematics-singularity: ,angles)))))
 
@@ -221,7 +203,7 @@ exit
 	(key-bindings
 	 (keydn 'esc
 	   (lambda ()
-	     (set-pose! #;of the-legs #;to pose #:keeping fixed)
+	     (set-pose! #;of the-rig #;to pose #:keeping fixed)
 	     (set-key-bindings! old-bindings)))
 	 (keydn 'mouse-left
 	   (lambda (x y)
@@ -231,6 +213,14 @@ exit
 	    (with-context-for-joint/body-relation
 	     (apply-inverse-kinematics!
 	      #;of final-body #;to (screen->3d view x y zs)))))))))))
+
+(keydn 'c
+  (lambda _
+    (with-context-for-joint/body-relation
+     (for body in (map #[_ 'body] #[view 'selected])
+       (for joint in (joints-attached-to body)
+	 (set-pose! #;of the-rig #;to `(pose (,(joint-name joint) . 0.0))
+			 #:keeping (first (two-bodies-attached-by joint))))))))
 
 (keydn 'k (ik-mode view))
 
@@ -287,20 +277,11 @@ exit
 
 (keydn 'h (rotate-around-joint-mode view))
 
-(keydn 'c (gimme (current-pose)))
+(keydn 'b (gimme (joint-angles the-rig)))
 
-(keydn 'b (gimme (joint-angles the-legs)))
+(keydn 'x (gimme (joint-axes the-rig)))
 
-(keydn 'x (gimme (joint-axes the-legs)))
-
-(keydn 'z (gimme (joint-anchors the-legs)))
-
-
-(keydn 'v (lambda ()
-	    (set-pose! #;of the-legs #;to 
-			    (if (modifier-pressed? 'shift)
-				(current-configuration)
-				(current-pose)))))
+(keydn 'z (gimme (joint-anchors the-rig)))
 
 
 (add-timer! 
