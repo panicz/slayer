@@ -19,12 +19,12 @@
 ;(set-simulation-property! *sim* 'cfm 1.0)
 
 (define-rig-for *sim* 'ground (with-input-from-file "art/rigs/ground.rig" read))
-(make-rig *sim* 'ground #:position #f32(-2 -2 -2))
+(make-rig *sim* 'ground)
 
 (when (and (defined? '$1) (file-exists? $1))
   (define-rig-for *sim* 'object (with-input-from-file $1 read))
-  (make-rig *sim* 'object #:position #f32(0 0 0)
-	    #:orientation '(0.707 . #f32(-0.707 0 0))))
+  (make-rig *sim* 'object ))
+
 
 (define *sim-stage* (make <physics-stage> #:simulation *sim*))
 
