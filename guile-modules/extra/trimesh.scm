@@ -5,6 +5,7 @@
   #:export (
 	    3d->trimesh
 	    trimesh->3d
+	    *trimesh-cache*
 	    ))
 
 (define-syntax-rule (temporarily assertions ...)
@@ -44,6 +45,8 @@
     (else
      (error "malformed faces specification"))))
 
+(define *trimesh-cache* #[])
+
 (define (3d->trimesh mesh)
   (let ((('mesh . details) mesh))
     (temporarily
@@ -52,15 +55,19 @@
 		     1)
 		  (= (count (matches? ('with-transforms . _)) details)
 		     0))))
-    (let (((vertices) (assoc-ref mesh 'vertices))
-	  (faces (assoc-ref mesh 'faces)))
+    (let* (((vertices) (assoc-ref mesh 'vertices))
+	   (faces (assoc-ref mesh 'faces))
+	   (trimesh-list (append-map triangles faces))
+	   (trimesh (list->typed-array 'u32 2 trimesh-list))
+	   (result `(,vertices . ,trimesh)))
+      (format #t "~s triangles\n" (length trimesh-list))
       (unless (and (matches? (_ 3) (array-dimensions vertices))
 		   (eq? (array-type vertices) 'f32))
 	(error "the vertex array should have 3 columns of f32 elements"))
-      `(,vertices
-	. ,(list->typed-array 'u32 2 (append-map triangles faces))))))
+      (set! #[*trimesh-cache* trimesh] mesh)
+      result)))
 
 (define (trimesh->3d (vertices . indices))
   `(mesh (vertices ,vertices)
-	 (color #f32(1 1 1 1))
-	 (indices ,indices)))
+	 (color #f32(1 1 1 0.5))
+	 (indices (triangles ,indices))))
