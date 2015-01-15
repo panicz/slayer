@@ -135,7 +135,7 @@
 	 
 	 `(mesh
 	   (vertices ,(list->typed-array 'f32 2 (vector->list v)))
-	   (color #f32(1 1 1))
+	   (color #f32(1 1 1 0.5))
 	   (faces (quads ,(list->uniform-array new-faces)))))))))
 
 (define* (generate-hemisphere #:key(radius 1.0)(slices 20)(stacks 8))
@@ -183,7 +183,7 @@
 			     'f32 2 (append
 				     vertices 
 				     '((0.0 0.0 1.0)))))
-		  (color #f32(1 1 1))
+		  (color #f32(1 1 1 0.5))
 		  (faces
 		   (quad-strip ,(list->uniform-array faces))
 		   (triangle-fan
@@ -207,7 +207,7 @@
 	   (,-x  ,y ,-z)
 	   (,-x ,-y  ,z)
 	   (,-x ,-y ,-z))))
-      (color #f32(1 1 1))
+      (color #f32(1 1 1 0.5))
       (faces
        (quads 
 	#2u8((0 1 3 2)
@@ -245,7 +245,7 @@
 	     (normals ,(list->typed-array 
 			'f32 2 
 			(map normalized (array->list new-vertices))))
-	     (color #f32(1 1 1 1))
+	     (color #f32(1 1 1 0.5))
 	     (faces (quad-strip ,quad-strip)
 		    (triangle-fan ,triangle-fan)
 		    (quad-strip 
@@ -281,5 +281,5 @@
 	  `(mesh
 	    (vertices ,(list->typed-array 
 			'f32 2 (append bottom top)))
-	    (color #f32(1 1 1))
+	    (color #f32(1 1 1 0.5))
 	    (faces (quads ,(list->uniform-array faces)))))))))
