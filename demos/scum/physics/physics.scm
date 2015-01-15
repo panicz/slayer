@@ -56,6 +56,7 @@
   (set-simulation-rig-maker! 
    simulation rig-name
    (lambda (sim position orientation) 
+     (WARN "define-rig-for: position and orientation not supported")
      (match rig-def
        (; STRUCTURE
 	('rig ('bodies body-spec ...)
@@ -69,22 +70,16 @@
 		      (actual (lambda (value)
 				(match value
 				  (('load-mesh name)
+				   (format #t "~a: " name)
 				   (3d->trimesh (with-input-from-file
 						    name read)))
 				  (else
 				   value)))))
-		  (set-body-property! body property (actual value))))
-	      (set-body-property! body 'position
-				  (+ position 
-				     (rotate (body-property body 'position)
-					     #;by orientation)))
-	      (set-body-property! body 'quaternion
-				  (* orientation 
-				     (body-property body 'quaternion)))))
+		  (set-body-property! body property (actual value))))))
 	  (for (name (type props ...)) in joint-defs
 	    (let ((joint (make-joint rig type name))
-		  (literal (rec (literal x)
-				(match x
+		  (literal (rec (literal value)
+				(match value
 				  ((? symbol? body-name)
 				   (body-named body-name rig))
 				  (('? property-name body-name)
@@ -94,19 +89,7 @@
 				   else)))))
 	      (for (property value) in (map-n 2 list props)
 		(let ((property (keyword->symbol property)))
-		  (cond ((in? property '(axis axis-1 axis-2))
-			 (let ((new-value (rotate (literal value)
-						  #;by orientation)))
-			   (set-joint-property! joint property new-value)))
-			
-			((in? property '(anchor anchor-1 anchor-2))
-			 (let ((new-value (+ position
-					     (rotate (literal value)
-						     #;by orientation))))
-			   (set-joint-property! joint property new-value)))
-
-			(else (set-joint-property! joint property
-						   (literal value))))))))
+		  (set-joint-property! joint property (literal value))))))
 	  #;return rig))))))
 
 (define* (make-rig simulation name #:key (position #f32(0 0 0))
