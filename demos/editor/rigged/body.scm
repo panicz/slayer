@@ -79,7 +79,7 @@
       (match (with-input-from-file (second value) read)
 	(('mesh . properties)
 	 (set! #[self 'trimesh-file] value)
-	 (set! #[self 'trimesh] `(mesh (color #f32(1 1 1 1)) . ,properties)))))
+	 (set! #[self 'trimesh] `(mesh (color #f32(1 1 1 0.5)) . ,properties)))))
 
      ((in? property (map first #[self 'dimensions]))
       (set! #[self : 'dimensions : property] value))

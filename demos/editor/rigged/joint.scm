@@ -84,9 +84,10 @@
 		   (stop-cfm . 0.2)))
 
   (default-specific-parameters #:allocation #:class
-    #:init-value '((ball-socket (anchor . #f32(0 0 0)))
-		   (hinge (anchor . #f32(0 0 0))
+    #:init-value '((hinge (anchor . #f32(0 0 0))
 			  (axis . #f32(0 0 1)))
+		   (ball-socket (anchor . #f32(0 0 0)))
+		   
 		   (slider (axis . #f32(1 0 0)))
 		   (universal (anchor . #f32(0 0 0))
 			      (axis-1 . #f32(1 0 0))
