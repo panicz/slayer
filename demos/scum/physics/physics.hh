@@ -43,7 +43,7 @@ struct hash_pair_scm_int : unary_function<pair<SCM, int>, size_t> {
   }
 };
 
-#define MAX_CONTACTS 32
+#define MAX_CONTACTS 18
 
 enum {
   SIM = 0,
@@ -104,7 +104,6 @@ typedef struct sim_t {
   dSpaceID space;
   std::list<rig_t *> rigs;
   dJointGroupID contact_group;
-  std::list<dJointID> contacts;
   dReal dt;
   int step;
   general_scm_map_t rig_defs;

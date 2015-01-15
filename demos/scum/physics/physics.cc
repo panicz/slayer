@@ -31,6 +31,7 @@ static char const *joint_type_name[] = {
   "linear-motor", "plane-2d", "PR", "PU", "piston"
 };
 
+
 static void 
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
   if(dGeomGetBody(a) 
@@ -40,7 +41,8 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
   }
   sim_t *sim = (sim_t *) s;
   dContact c[MAX_CONTACTS];
-  int i, n = dCollide(a, b, MAX_CONTACTS, &c[0].geom, sizeof(dContact));
+  int i, n = dCollide(a, b, MAX_CONTACTS | CONTACTS_UNIMPORTANT,
+		      &c[0].geom, sizeof(dContact));
   for(i = 0; i < n; ++i) {
     c[i].surface.mode = dContactSlip1 | dContactSlip2 |
       dContactSoftERP | dContactSoftCFM | dContactApprox1;
@@ -52,7 +54,6 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
 
     dJointID r = dJointCreateContact(sim->world, sim->contact_group, &c[i]);
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
-    sim->contacts.push_back(r);
 
     /*
     OUT("Contact %i penetration depth between %p (%s) and %p (%s) is %f", 

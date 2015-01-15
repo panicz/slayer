@@ -1,7 +1,7 @@
 CC = gcc
 CXX = g++ -std=c++0x
-CFLAGS = `pkg-config --cflags guile-2.0 ode` -I. -I../../../src -Wall -O3
-LIBODE = `pkg-config --libs ode`
+CFLAGS = `pkg-config --cflags guile-2.0`  -I. -I../../../src -Wall -O3
+LIBODE = `pkg-config --libs guile-2.0` -lode
 
 .PHONY:	clean
 all: physics.so
