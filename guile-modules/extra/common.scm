@@ -13,6 +13,7 @@
   #:use-module (ice-9 optargs)
   #:use-module (ice-9 expect)
   #:use-module (system base compile)
+  #:use-module (system vm frame)
   #:use-module ((rnrs) :version (6) 
 		:select (make-bytevector 
 			 utf8->string string->utf8 
@@ -133,7 +134,7 @@
 		   transform! increase! decrease! multiply!
 		   push! pop!
 		   symbol-match
-		   n-lambda
+		   n-lambda trace
 		   !# check <<<
 		   )
   #:replace (compose 
@@ -2319,21 +2320,24 @@
     (display ": ")
     (display messages) ... (newline)))
 
+(define-syntax-rule (trace)
+  (let* ((stack (make-stack #t))
+	 (restricted '(eval for-each make-stack dynamic-wind catch-closure
+			    catch slot-ref)))
+    (filter-map (lambda (n)
+		  (and-let* ((frame (stack-ref stack n))
+			     (proc (frame-procedure frame))
+			     (name (procedure-name proc))
+			     ((not (in? name restricted))))
+		    name))
+		(iota (stack-length stack)))))
+
 (define-syntax check
   (syntax-rules ()
     ((_ condition expression)
      (let ((value expression))
        (unless (condition expression)
-	 (let* ((stack (make-stack #t))
-		(restricted '(eval for-each make-stack dynamic-wind catch-closure
-				   catch slot-ref))
-		(trace (filter-map (lambda (n)
-				     (and-let* ((frame (stack-ref stack n))
-						(proc (frame-procedure frame))
-						(name (procedure-name proc))
-						((not (in? name restricted))))
-				       name))
-				   (iota (stack-length stack))))
+	 (let* ((trace (trace))
 		(location (current-source-location))
 		(file (assoc-ref location 'file))
 		(line (assoc-ref location 'line)))
