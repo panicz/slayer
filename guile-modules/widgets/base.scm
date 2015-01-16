@@ -200,6 +200,9 @@
 (define-method (draw (w <widget>))
   (for-each draw (reverse #[ w 'children ])))
 
+(define-method (draw (none <boolean>))
+  (noop))
+
 (define-method (add-child! (child <widget>) #;to (parent <widget>))
   (set! #[ parent 'children ] (cons child #[ parent 'children ]))
   (set! #[ parent 'w ] (max #[ parent 'w ] (+ #[ child 'x ] #[ child 'w ])))
@@ -260,14 +263,15 @@
 (define (drag-over x y xrel yrel)
   (let* ((widgets-below (all-widgets-under `(,x ,y) #;on *stage*))
 	 (non-active-widgets-below 
-	  (filter (lambda (x) (not (in? *active-widget* `(,x ,@(ancestors x)))))
+	  (filter (lambda (x) (or (eq? *active-widget* *stage*)
+			     (not (in? *active-widget* `(,x ,@(ancestors x))))))
 		  widgets-below)))
     (unless (null? non-active-widgets-below)
       (let ((dragover-widget (apply argmax widget-depth 
 				    non-active-widgets-below)))
 	(unless (equal? dragover-widget *nearby-widget*)
-	  (if *nearby-widget* 
-	      (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
+	  (when *nearby-widget*
+	    (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
 	  (set! *nearby-widget* dragover-widget)
 	  (#[ *nearby-widget* 'drag-over ] x y xrel yrel))))
     (unless (null? widgets-below)
