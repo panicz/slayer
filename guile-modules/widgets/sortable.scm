@@ -13,13 +13,17 @@
 (define-class <sortable-container> (<widget>)
   (children #:init-value '())
   (margin #:init-value 1 #:init-keyword #:margin)
+  (min-w #:init-value 0 #:init-keyword #:min-w)
+  (min-h #:init-value 0 #:init-keyword #:min-h)
   (w #:allocation #:virtual
      #:slot-ref (lambda (self)
-		  (apply max 0 (map #[_ 'w] #[self 'children])))
+		  (max #[self 'min-w]
+		       (apply max 0 (map #[_ 'w] #[self 'children]))))
      #:slot-set! noop)
   (h #:allocation #:virtual
      #:slot-ref (lambda (self)
-		  (fold + 0 (map #[_ 'h] #[self 'children])))
+		  (max #[self 'min-h]
+		       (fold + 0 (map #[_ 'h] #[self 'children]))))
      #:slot-set! noop))
 
 (define ((target-getter property) self)
@@ -48,8 +52,8 @@
 		     (if (is-a? #[self 'parent] <sortable-container>)
 			 #[self : 'parent : 'x]
 			 0)))
-     #:slot-set! (lambda (self value)
-		   (set! #[self 'dx] ((pick 1) - value #[self 'x]))))
+     #:slot-set! noop #;(lambda (self value)
+		   (set! #[self 'dx] value)))
   (y #:allocation #:virtual
      #:slot-ref 
      (lambda (self)
@@ -63,9 +67,9 @@
 		  (if (eq? some self)
 		      vertical-position
 		      (next siblings (+ vertical-position #[some 'h] margin)))))
-	      #;else 0)))
-     #:slot-set! (lambda (self value)
-		   (set! #[self 'dy] ((pick 1) - value #[self 'y])))))
+	      #;else
+	      0)))
+     #:slot-set! noop))
 
 (define-method (reset! (self <sortable-box>))
   (set! #[self 'original-index] #f)
@@ -104,8 +108,8 @@
 	 (placeholder (make <sortable-placeholder>
 			#:w #[self 'w] #:h #[self 'h]
 			#:parent parent #:at n)))
-    (set! #[self 'dx] (+ #[self : 'parent : 'x] #[self 'x]))
-    (set! #[self 'dy] (+ #[self : 'parent : 'y] #[self 'y]))
+    (set! #[self 'dx] (+ #[self 'x] #[parent 'x]))
+    (set! #[self 'dy] (+ #[self 'y] #[parent 'y]))
     (set! #[parent 'children]
       (alter #;element-number n #;in siblings #;with placeholder))
     (set! #[self 'original-parent] parent)
@@ -167,8 +171,8 @@
     (set! #[self 'drag-over] (box-drag-over self))
 
     (set! #[self 'drag] (lambda (x y xrel yrel)
-			  (increase! #[ self 'x] xrel)
-			  (increase! #[ self 'y] yrel)))
+			  (increase! #[ self 'dx ] xrel)
+			  (increase! #[ self 'dy ] yrel)))
     ))
 
 (define-method (add-child! (child <widget>) #;to  (parent <sortable-container>))
