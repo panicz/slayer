@@ -6,20 +6,30 @@ exit
 			   "./scum")
 			 %load-path))
 
-(use-modules (extra common)
-	     (extra math)
-	     (extra slayer)
-	     (extra ref)
-	     (extra 3d)
-	     (oop goops)
-	     (widgets base)
-	     (widgets physics)
-	     (widgets 3d)
-	     (editor relations)
-	     (editor modes)
-	     (editor poses)
-	     (extra scmutils)
-	     (scum physics))
+(use-modules 
+ (slayer)
+ (slayer image)
+ (slayer font)
+ (slayer 3d)
+ (extra common)
+ (extra math)
+ (extra slayer)
+ (extra ref)
+ (extra 3d)
+ (oop goops)
+ (widgets base)
+ (widgets physics)
+ (widgets 3d)
+ (widgets image-clipper)
+ (widgets text-area)
+ (widgets sortable)
+ (widgets tab)
+ (widgets sprite)
+ (editor relations)
+ (editor modes)
+ (editor poses)
+ (extra scmutils)
+ (scum physics))
 
 (define-syntax-rule (with-context-for-joint/body-relation action . *)
   (specify ((joint-property-getter joint-property)
@@ -124,8 +134,6 @@ exit
 	     (rotate-body! body #;by angle* #;around axis #;at pivot))))))))
 
 (set-pose! the-rig (current-configuration))
-
-;;l (include "temporary-poses.scm")
 
 (set! #[view 'left-click]
       (lambda (x y)
@@ -272,17 +280,7 @@ exit
      (else
       (display "exactly two objects need to be selected\n")))))
 
-(define-syntax-rule (gimme shit)
-  (lambda () (pretty-print shit #:width 160)))
-
 (keydn 'h (rotate-around-joint-mode view))
-
-(keydn 'b (gimme (joint-angles the-rig)))
-
-(keydn 'x (gimme (joint-axes the-rig)))
-
-(keydn 'z (gimme (joint-anchors the-rig)))
-
 
 (add-timer! 
  25 
@@ -292,3 +290,150 @@ exit
    )))
 
 (load "config.scm")
+
+(define editor (make <tab-widget>))
+
+(add-child! editor #;to *stage*)
+
+(define-class <pose> ()
+  (name #:init-keyword #:name)
+  (configuration #:init-thunk
+		 (lambda ()
+		   (let ((('pose . configuration) (current-configuration)))
+		     configuration))))
+
+(define pose (make <pose> #:name 'unnamed-pose))
+
+(define-class <sequence> ()
+  (name #:init-keyword #:name))
+
+(define sequence (make <sequence> #:name 'unnamed-sequence))
+
+(define poses-widget (make <sortable-container> #:min-h 100))
+
+(define sequence-widget (make <sortable-container> #:min-h 150))
+
+(define sequences-widget (make <sortable-container> #:min-h 100))
+
+(define-class <pose-entry> (<sprite>)
+  (configuration #:init-value #f #:init-keyword #:configuration)
+  (name #:init-keyword #:name))
+
+(define-method (initialize (self <pose-entry>) args)
+  (next-method)
+  (set! #[self 'image] (render-text 
+			(string-append "   " (->string #[self 'name]) "   ")
+			*default-font*
+			#x000000 #xffffff)))
+(define-method (draw (i <pose-entry>))
+  (specify ((first identity)
+	    (rest #[_ 'parent])
+	    (empty? (?not #[_ 'parent])))
+    (let ((x (apply + (map* #[_ 'x] i)))
+	  (y (apply + (map* #[_ 'y] i))))
+      (draw-image! #[ i 'image ] x y))))
+
+(define pose-editor
+  ((layout)
+   (property-editor 
+    pose 
+    ("name: " #[pose 'name]))
+   ((layout #:lay-out lay-out-horizontally)
+    (label "           ")
+    (button #:text "  [ save ]  "
+	    #:action
+	    (lambda (x y)
+	      (add-child! (make <pose-entry> #:name #[pose 'name])
+			  #;to poses-widget))
+#|
+	      (<< #[poses-widget 'children]))
+
+	    (lambda (x y)
+	      (or (and-let* ((existing (find (lambda (entry)
+					       (equal? #[entry 'name] 
+						       #[pose 'name]))
+					     #[poses-widget 'children])))
+		    (set! #[existing 'configuration] #[pose 'configuration])
+		    #t)
+		  ))
+|#
+	    )
+    (label "          "))
+   ((layout #:lay-out lay-out-horizontally)
+    (button #:text "  [ <<< ]  "
+	    #:action (lambda (x y)
+		       (<< "previous-pose")))
+    (label "           ")
+    (button #:text "  [ >>> ]  "
+	    #:action (lambda (x y)
+		       (<< "next-pose"))))
+   (label "                                 ")))
+
+(let ((chest (body-named 'chest #;from the-rig)))
+  (for (name . value) in #[pose 'configuration]
+    (add-child! 
+     (make <numeric-input> #:w 200 #:h 12 
+	   #:label (let* ((name-string (->string name))
+			  ((prefix parts ...) (string-split name-string #\-))
+			  (name (string-join
+				 `(,(match prefix
+				      ("left" "L")
+				      ("right" "R")
+				      (_ prefix)) 
+				   ,@(map (lambda (part)
+					    (if (< (string-length part) 4)
+						part
+						(substring part 0 4)))
+					  parts))
+					       "-"))
+			  (n (string-length name)))
+		     (string-append name (make-string 
+					  (max 0 (- 12 n)) #\space)))
+	   #:target pose
+	   #:accessor 
+	   (make-procedure-with-setter
+	    (lambda (pose) (assoc-ref (current-configuration) name))
+	    (lambda (pose value)
+	      (let ((('pose . configuration) (current-configuration)))
+		(set-pose! #;of the-rig
+				#;to `(pose ,@(map (lambda ((joint . angle))
+						     (if (eq? joint name)
+							 `(,joint . ,value)
+							 `(,joint . ,angle)))
+						   configuration))
+				     #:keeping chest)))))
+     #;to pose-editor)))
+
+
+(define sequence-editor
+  ((layout)
+   (property-editor 
+    sequence
+    ("name: " #[sequence 'name]))
+   ((layout #:lay-out lay-out-horizontally)
+    (label "         ")
+    (button #:text "  [ save ]  "
+	    #:action (lambda (x y)
+		       (<< "saving " #[sequence 'name])))
+    (label "         "))
+
+   (label "         --- poses ---        ")
+   poses-widget
+   (label "   --- current sequence ---   ")
+   sequence-widget
+   ((layout #:lay-out lay-out-horizontally)
+    (label "         ")
+    (button #:text "  [ play ]  "
+	    #:action (lambda (x y)
+		       (<< "playing " #[sequence 'name])))
+    (label "         "))
+
+   (label "       --- sequences ---      ")
+   sequences-widget
+   ))
+
+(add-tab! pose-editor #;under-name "[ pose ]" #;to editor)
+(add-tab! sequence-editor #;under-name "[ sequence ]" #;to editor)
+(add-tab! ((layout)) #;under-name " [hide] " #;to editor)
+
+(load "control.scm")
