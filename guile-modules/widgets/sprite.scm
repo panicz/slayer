@@ -2,6 +2,7 @@
   #:use-module (oop goops)
   #:use-module (extra ref)
   #:use-module (extra common)
+  #:use-module (extra slayer)
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (slayer font)
@@ -12,9 +13,10 @@
 	    layout
 	    lay-out-horizontally
 	    lay-out-vertically
-	    make-button
+	    make-button button
 	    make-container
-	    make-sprite)
+	    make-sprite
+	    label)
   #:re-export (add-child! draw))
 
 (define-class <sprite> (<widget>)
@@ -46,22 +48,29 @@
       (draw-image! #[ i 'image ] x y))))
 
 (define* (make-button #:key (text "button") (x 0) (y 0) (w #f) (h #f))
-  (let ((normal (render-text text *default-font* #xffffff #xff0000))
-	(over (render-text text *default-font* #xffffff #x00ff00))
-	(clicked (render-text text *default-font* #xffffff #x0000ff)))
+  (let ((normal (render-text text *default-font* #xffffff #x777777))
+	(over (render-text text *default-font* #xffffff #x999999))
+	(clicked (render-text text *default-font* #xffffff #xcccccc)))
     (let ((button (make <sprite> #:image normal #:x x #:y y 
 			#:w (or w (image-width normal))
 			#:h (or h (image-height normal)))))
-      (set! #[ button 'mouse-over ] 
-	    (lambda e (set! #[ button 'image ] over )))
+      (set! #[ button 'mouse-move ] 
+	    (lambda _ (unless (eq? #[button 'image] clicked)
+		   (set! #[ button 'image ] over ))))
       (set! #[ button 'mouse-out ] 
-	    (lambda e (set! #[ button 'image ] normal )))
+	    (lambda _ (set! #[ button 'image ] normal )))
       (set! #[ button 'left-mouse-down ] 
-	    (lambda e (set! #[ button 'image ] clicked )))
-      (set! #[ button 'right-mouse-down ] #[ button 'mouse-over ])
+	    (lambda _ (set! #[ button 'image ] clicked )))
+      (set! #[ button 'left-mouse-up ]
+	    (lambda _ (set! #[ button 'image ] over )))
       (set! #[ button 'drag ] noop)
       button)))
 
+(define* (button #:key (text "button") (action (lambda (x y) (if #f #f))))
+  (let ((button (make-button #:text text)))
+    (set! #[button 'left-click] action)
+    button))
+  
 (define* (make-container #:key x y (name "menu") (content '()))
   (let ((container (make <widget>))
 	(label (make-button #:text name)))
@@ -83,7 +92,7 @@
 		     #:w (image-width image) 
 		     #:h (image-height image))))
     (set! #[ image 'drag ]
-	  (lambda (x y xrel yrel)		 
+	  (lambda (x y xrel yrel)
 	    (increase! #[ image 'x ] xrel)
 	    (increase! #[ image 'y ] yrel)))
     image))
@@ -133,3 +142,6 @@
       (for child in future-children
 	   (add-child! child #;to layout))
       layout)))
+
+(define (label text)
+  (make <sprite> #:image (render-text text *default-font* #xffffff #x555555)))
