@@ -49,8 +49,8 @@ exit
 (define the-rig (make <3d-stage>))
 
 (define-method (describe-rig (stage <3d-stage>))
-  (let-values (((bodies joints) (partition (λ(x)(is-a? x <physical-body>))
-					   #[stage 'objects])))
+  (let ((bodies joints (partition (λ(x)(is-a? x <physical-body>))
+				  #[stage 'objects])))
     `(rig
       (bodies
        ,@(map describe-body bodies))
@@ -72,7 +72,7 @@ exit
     dimension-editor))
  (define the-dimension-editor dimension-editor)
  where
- (define body (make <physical-body>))
+ (define body (make <physical-body> #:name '<<no-body-selected>>))
  (define name-editor
    (property-editor
     body
