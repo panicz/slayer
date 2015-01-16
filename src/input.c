@@ -625,47 +625,50 @@ input_init() {
   set_direct_input_mode_x();
 }
 
+static inline void
+handle_typing_mode(SDL_Event *event) {
+  SCM c;
+  switch(event->type) {
+  case SDL_KEYUP:
+    break;
+  case SDL_KEYDOWN:
+    if(isgraph(event->key.keysym.unicode)
+       || event->key.keysym.unicode  == ' ') {
+      c = scm_integer_to_char(scm_from_int16(event->key.keysym.unicode));
+      scm_write_char(c, scm_current_output_port());
+      scm_force_output(scm_current_output_port());
+    } 
+    else {
+      scm_call_1(typing_special, 
+		 scm_from_uint16((Uint16) event->key.keysym.sym));
+    }
+    break;
+  case SDL_QUIT:
+    quit_handler(event);
+    break;
+  default:
+    (*event_handler[event->type])(event);
+  }
+}
+
 SCM 
 input_handle_events() {
   SDL_Event event;
-  SCM c;
-  int processed_events = 0;
+  int starting_time = SDL_GetTicks();
 
   if(SDL_WaitEvent(NULL)) {
     while(getting_events(&event)) {
-      if(++processed_events > 8) { // take a breath
-	return SCM_UNSPECIFIED;
-      }
       if(input_mode == DIRECT_MODE) {
 	(*event_handler[event.type])(&event);
       } else if(input_mode == TYPING_MODE) {
-	switch(event.type) {
-	case SDL_KEYUP:
-	  break;
-	case SDL_KEYDOWN:
-	  if(isgraph(event.key.keysym.unicode)
-	     || event.key.keysym.unicode  == ' ') {
-	    c = scm_integer_to_char(scm_from_int16(event.key.keysym.unicode));
-	    scm_write_char(c, scm_current_output_port());
-	    scm_force_output(scm_current_output_port());
-	  } 
-	  else {
-	    scm_call_1(typing_special, 
-		       scm_from_uint16((Uint16) event.key.keysym.sym));
-	  }
-	  //putchar(event.key.keysym.unicode);
-	  //fflush(stdout);
-	  break;
-	case SDL_QUIT:
-	  quit_handler(&event);
-	  break;
-	default:
-	  (*event_handler[event.type])(&event);
-	}
+	handle_typing_mode(&event);
       } else {
 	assert(!"NAH, THAT'S IMPOSSIBLE...");
       }
+      if(SDL_GetTicks() - starting_time > MAX_PROCESS_HANDLING_TIME) {
+	break;
+      }
     }
-  }  
+  }
   return SCM_UNSPECIFIED;
 }

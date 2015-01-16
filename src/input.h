@@ -4,6 +4,9 @@
 #define SDL_NBUTTONS 12
 //#define PROVIDE_KEY_BINDINGS_ACCESSORS
 
+// in miliseconds
+#define MAX_PROCESS_HANDLING_TIME 1000
+
 enum input_modes {
   DIRECT_MODE = 0,
   TYPING_MODE = 1
