@@ -238,22 +238,24 @@
 			 (set! #[*stage* 'w] w)
 			 (set! #[*stage* 'h] h)))
 
-(define left-click-time #f)
+(define left-click-widget #f)
 
 (define (left-mouse-down x y)
   (set! *nearby-widget* #f)
   (and-let* ((w (most-nested-widget-under `(,x ,y) #;on *stage*)))
     (set! *active-widget* w))
   (when *active-widget*
+    (set! left-click-widget *active-widget*)
     (#[*active-widget* 'left-mouse-down ] x y))
-  (drag-over x y 0 0)
-  (set! left-click-time (current-microtime)))
+  (drag-over x y 0 0))
 
 (define (left-mouse-up x y)
   (when *active-widget* 
     (#[*active-widget* 'left-mouse-up] x y)
-    (if left-click-time
-	(#[*active-widget* 'left-click] x y)))
+    (when (and (eq? left-click-widget *active-widget*)
+	       (in? *active-widget* (all-widgets-under `(,x ,y) #;on *stage*)))
+      (#[*active-widget* 'left-click] x y)))
+  (set! left-click-widget #f)
   (set! *active-widget* *stage*))
 
 (define (right-mouse-down x y)
@@ -277,8 +279,7 @@
     (unless (null? widgets-below)
       (let ((mousemove-widget (apply argmax widget-depth widgets-below)))
 	(#[mousemove-widget 'mouse-move] x y xrel yrel)))
-    (#[ *active-widget* 'drag ] x y xrel yrel)
-    (set! left-click-time #f)))
+    (#[ *active-widget* 'drag ] x y xrel yrel)))
 
 (keydn 'mouse-left left-mouse-down)
 (keyup 'mouse-left left-mouse-up)
