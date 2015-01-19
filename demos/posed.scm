@@ -324,32 +324,69 @@ exit
     #:min-w 120 #:min-h 100
     #:blocked? #t))
 
+(define (load-moveset! moveset)
+  (let ((('moveset ('poses . poses)
+		   ('sequences . sequences)) moveset))
+    (set! #[poses-widget 'children] '())
+    (set! #[sequences-widget 'children] '())
+    (for (name . configuration) in poses
+      (add-child! (make <pose-entry> #:name name
+			#:configuration configuration)
+		  #;to poses-widget))
+    (for (name . poses) in sequences
+      (add-child! (make <sequence-entry> #:name name
+			#:sequence poses)
+		  #;to sequences-widget))))
+
+(define (current-moveset)
+  `(moveset 
+    (poses ,@(map (lambda (pose-entry)
+		    `(,#[pose-entry 'name] ,@#[pose-entry 'configuration]))
+		  (map #[_ 'target] 
+		       #[poses-widget 'children])))
+    (sequences ,@(map (lambda (sequence-entry)
+			`(,#[sequence-entry 'name]
+			  ,@#[sequence-entry 'sequence]))
+		      (map #[_ 'target]
+			   #[sequences-widget 'children])))))
+
 (define-class <named-entry> (<sprite>)
   (name #:init-keyword #:name))
 
 (define-method (initialize (self <named-entry>) args)
-  (next-method)
-  (set! #[self 'activate]
-    (lambda (x y)
-      (<< #[self 'name])))
-
+  (next-method)  
   (set! #[self 'image] (render-text 
 			(string-append "   " (->string #[self 'name]) "   ")
 			*default-font*
 			#x000000 #xffffff)))
 
 (define-class <pose-entry> (<named-entry>)
-  (configuration #:init-value #f #:init-keyword #:configuration))
+  (configuration #:init-value '() #:init-keyword #:configuration))
+
+(define-method (initialize (self <pose-entry>) args)
+  (next-method)  
+  (set! #[self 'activate]
+    (lambda (x y)
+      (let ((chest (body-named 'chest #;from the-rig)))
+	(set-pose! #;of the-rig #;to `(pose ,@#[self 'configuration])
+			#:keeping chest)))))
 
 (define-class <sequence-entry> (<named-entry>)
-  (sequence #:init-value #f #:init-keyword #:sequence))
+  (sequence #:init-value '() #:init-keyword #:sequence))
+
+
+(define-method (initialize (self <sequence-entry>) args)
+  (next-method)  
+  (set! #[self 'activate]
+    (lambda (x y)
+      ;; load given sequence
+      (<< #[self 'name]))))
 
 (define file-menu 
   ((layout)
    (label "         --- file options ---       ")
    (label "       --- camera settings ---      ")
-   (label "         --- quick help ---         ")
-))
+   (label "         --- quick help ---         ")))
 
 (define pose-editor
   ((layout)
@@ -360,13 +397,14 @@ exit
     (label "           ")
     (button #:text "  [ save ]  "
 	    #:action
-	    (lambda (x y) (add/overwrite! 
-		      (make <pose-entry> #:name #[pose 'name]
-			    #:configuration #[pose 'configuration])
-		      #;to poses-widget
-			   #;overwriting-if
-			   (lambda (entry) (equal? #[entry 'name]
-					      #[pose 'name])))))
+	    (lambda (x y)
+	      (let ((('pose . configuration) (current-configuration)))
+		(add/overwrite! (make <pose-entry> #:name #[pose 'name]
+				      #:configuration configuration)
+				#;to poses-widget
+				     #;overwriting-if
+				     (lambda (entry) (equal? #[entry 'name]
+							#[pose 'name]))))))
     (label "          "))
    ((layout #:lay-out lay-out-horizontally)
     (button #:text "  [ <<< ]  "
@@ -423,7 +461,9 @@ exit
     (button #:text "  [ save ]  "
 	    #:action (lambda (x y)
 		       (add/overwrite! 
-			(make <sequence-entry> #:name #[sequence 'name])
+			(make <sequence-entry> #:name #[sequence 'name]
+			      #:sequence (map #[_ : 'target : 'name]
+					      #[sequence-widget 'children]))
 			#;to sequences-widget
 			     #;overwriting-if
 			     (lambda (entry) (equal? #[entry 'name]
@@ -451,3 +491,9 @@ exit
 (add-tab! ((layout)) #;under-name "[hide]" #;to editor)
 
 (load "control.scm")
+
+(keydn '/ (lambda () (with-output-file "current.moves" 
+		  (pretty-print (current-moveset)))))
+
+(when (and (defined? '$1) (string-match "\\.moves$" $1))
+  (load-moveset! (with-input-from-file $1 read)))
