@@ -286,8 +286,7 @@ exit
  25 
  (lambda()
    (unless pause
-     (make-simulation-step! the-simulation)
-   )))
+     (make-simulation-step! the-simulation))))
 
 (load "config.scm")
 
@@ -314,21 +313,36 @@ exit
 (define sequence-widget (make <sortable-container> #:min-w 120 #:min-h 150))
 
 (set! #[sequence-widget 'accepts-widget?]
-  (lambda (box) 
-    (in? #[box 'original-parent] `(,poses-widget ,sequence-widget))))
+  (lambda (box placeholder) 
+    (and (is-a? #[box 'target] <pose-entry>)
+	 (let ((parent #[box 'original-parent]))
+	   (or (eq? parent poses-widget)
+	       (and placeholder (eq? parent sequence-widget)))))))
 
-(define sequences-widget (make <sortable-container> #:min-w 120 #:min-h 100))
+(define sequences-widget 
+  (make <sortable-container> 
+    #:min-w 120 #:min-h 100
+    #:blocked? #t))
 
-(define-class <pose-entry> (<sprite>)
-  (configuration #:init-value #f #:init-keyword #:configuration)
+(define-class <named-entry> (<sprite>)
   (name #:init-keyword #:name))
 
-(define-method (initialize (self <pose-entry>) args)
+(define-method (initialize (self <named-entry>) args)
   (next-method)
+  (set! #[self 'activate]
+    (lambda (x y)
+      (<< #[self 'name])))
+
   (set! #[self 'image] (render-text 
 			(string-append "   " (->string #[self 'name]) "   ")
 			*default-font*
 			#x000000 #xffffff)))
+
+(define-class <pose-entry> (<named-entry>)
+  (configuration #:init-value #f #:init-keyword #:configuration))
+
+(define-class <sequence-entry> (<named-entry>)
+  (sequence #:init-value #f #:init-keyword #:sequence))
 
 (define file-menu 
   ((layout)
@@ -409,7 +423,7 @@ exit
     (button #:text "  [ save ]  "
 	    #:action (lambda (x y)
 		       (add/overwrite! 
-			(make <pose-entry> #:name #[sequence 'name])
+			(make <sequence-entry> #:name #[sequence 'name])
 			#;to sequences-widget
 			     #;overwriting-if
 			     (lambda (entry) (equal? #[entry 'name]

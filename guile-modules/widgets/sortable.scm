@@ -16,6 +16,7 @@
 (define-class <sortable-container> (<widget>)
   (instances #:allocation #:class #:init-value '())
   (accepts-widget? #:init-value noop)
+  (blocked? #:init-value #f #:init-keyword #:blocked?)
   (children #:init-value '())
   (margin #:init-value 1 #:init-keyword #:margin)
   (min-w #:init-value 0 #:init-keyword #:min-w)
@@ -32,8 +33,9 @@
      #:slot-set! noop))
 
 (define ((sortable-container-drag-over self) x y dx dy)
-  (when (and (is-a? *active-widget* <sortable-box>)
-	     (#[self 'accepts-widget?] *active-widget*)
+  (when (and (not #[self 'blocked?])
+	     (is-a? *active-widget* <sortable-box>)
+	     (#[self 'accepts-widget?] *active-widget* #;in #f)
 	     (not (exists x in #[self 'children]
 		    (is-a? x <sortable-placeholder>))))
     (let ((placeholder (make <sortable-placeholder>
@@ -51,7 +53,7 @@
 
 (define-method (initialize (self <widget-distributor>) args)
   (next-method)
-  (set! #[self 'accepts-widget?] (lambda (box) #f))
+  (set! #[self 'accepts-widget?] (lambda (box #;in placeholder) #f))
   (set! #[self 'drag-over] noop))
 
 (define ((target-getter property) self)
@@ -80,8 +82,7 @@
 		     (if (is-a? #[self 'parent] <sortable-container>)
 			 #[self : 'parent : 'x]
 			 0)))
-     #:slot-set! noop #;(lambda (self value)
-		   (set! #[self 'dx] value)))
+     #:slot-set! noop)
   (y #:allocation #:virtual
      #:slot-ref 
      (lambda (self)
@@ -94,7 +95,8 @@
 			   (vertical-position 0))
 		  (if (eq? some self)
 		      vertical-position
-		      (next siblings (+ vertical-position #[some 'h] margin)))))
+		      (next siblings (+ vertical-position #[some 'h] 
+					margin)))))
 	      #;else
 	      0)))
      #:slot-set! noop))
@@ -161,7 +163,11 @@
 
 (define ((box-left-mouse-down self) x y)
   (check (eq? self *active-widget*))
-  (take-box-from-container self #[self 'parent]))
+  (and-let* ((parent #[self 'parent])
+	     ((is-a? parent <sortable-container>))
+	     ((not #[parent 'blocked?])))
+    (take-box-from-container self parent))
+  (#[self : 'target : 'activate] x y))
 
 (define ((box-left-mouse-up self) x y)
   (assert (eq? self *active-widget*))
@@ -169,7 +175,7 @@
    ((and-let* (((is-a? *nearby-widget* <sortable-placeholder>))
 	       (parent #[*nearby-widget* 'parent])
 	       ((is-a? parent <sortable-container>))
-	       ((#[parent 'accepts-widget?] self)))
+	       ((#[parent 'accepts-widget?] self #;in *nearby-widget*)))
       parent)
     => (lambda (parent)
 	 (let ((n (order #;of *nearby-widget* 
@@ -180,7 +186,7 @@
 				     #;with self))
 	   (set! #[*nearby-widget* 'parent] #f))))
    ((and-let* ((original-parent #[self 'original-parent])
-	       ((#[original-parent 'accepts-widget?] self)))
+	       ((#[original-parent 'accepts-widget?] self #;in #f)))
       original-parent)
     ;; putting back the piece
     => (lambda (original-parent)
@@ -194,10 +200,11 @@
 	   (set! #[grandpa 'children] (delete self #[grandpa 'children]))
 	   (set! #[self 'parent] original-parent)
 	   (set! #[original-parent 'children] `(,@younger ,self ,@older)))))
-   (else
+   ((not (is-a? #[self 'parent] <sortable-container>))
     ;; remove from the stage
     (let ((parent #[self 'parent]))
       (set! #[parent 'children] (delete self #[parent 'children])))))
+  
   (and-let* ((container #[self 'original-parent]))
     (for container in #[container 'instances]
       (set! #[container 'children]
@@ -207,19 +214,19 @@
 
 (define ((box-drag-over self) x y dx dy)
   (check (eq? self *nearby-widget*))
-  (when (is-a? *active-widget* <sortable-box>)
-    (and-let* ((parent #[*nearby-widget* 'parent])
-	       ((is-a? parent <sortable-container>))
-	       ((#[parent 'accepts-widget?] *active-widget*))
-	       (placeholder (make <sortable-placeholder>
-			      #:w #[self 'w]
-			      #:h #[self 'h]
-			      #:parent parent)))
-      (let* ((n (order #;of *nearby-widget* #;in #[parent 'children]))
+  (and-let* (((is-a? *active-widget* <sortable-box>))
+	     (parent #[self 'parent])
+	     ((is-a? parent <sortable-container>))
+	     ((#[parent 'accepts-widget?] *active-widget* #;in self))
+	     (placeholder (make <sortable-placeholder>
+			    #:w #[self 'w]
+			    #:h #[self 'h]
+			    #:parent parent))
+	     (n (order #;of self #;in #[parent 'children]))
 	     (skim (remove (lambda (child) (is-a? child <sortable-placeholder>))
 			   #;from #[parent 'children]))
 	     (earlier later (split-at skim (min (length skim) n))))
-	(set! #[parent 'children] `(,@earlier ,placeholder ,@later))))))
+    (set! #[parent 'children] `(,@earlier ,placeholder ,@later))))
 
 (define-method (initialize (self <sortable-box>) args)
   (next-method)
@@ -236,9 +243,13 @@
 
     (set! #[self 'drag-over] (box-drag-over self))
 
-    (set! #[self 'drag] (lambda (x y xrel yrel)
-			  (increase! #[ self 'dx ] xrel)
-			  (increase! #[ self 'dy ] yrel)))
+    (set! #[self 'drag] 
+      (lambda (x y xrel yrel)
+	(and-let* ((parent (or #[self 'original-parent] #[self 'parent]))
+		   ((is-a? parent <sortable-container>))
+		   ((not #[parent 'blocked?])))
+	  (increase! #[ self 'dx ] xrel)
+	  (increase! #[ self 'dy ] yrel))))
     ))
 
 (define-method (add-child! (child <widget>) #;to  (parent <sortable-container>))
