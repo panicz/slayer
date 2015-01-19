@@ -1,4 +1,8 @@
 
+(let ((camera #[view 'camera]))
+  (set! #[camera 'position] #f32(0 -6 -0.7))
+  (set! #[camera 'orientation] (normalized '(1.0 . #f32(1 0 0)))))
+
 (key 'q (lambda () (relative-twist! #[view 'camera] #f32(0 0 0.02))))
 (key 'e (lambda () (relative-twist! #[view 'camera] #f32(0 0 -0.02))))
 (key 'w (lambda () (relative-move! #[view 'camera] #f32(0 0 -0.07))))
@@ -17,10 +21,10 @@
 
 (let ((down '(1.0 . #f32(0 0 0)))
       (up '(0.0 . #f32(0 -1 0)))
-      (right '(0.5 . #f32(0.5 0.5 0.5)))
-      (left '(-0.5 . #f32(-0.5 0.5 0.5)))
-      (ahead '(0.707 . #f32(0.707 0 0)))
-      (back '(0.707 . #f32(-0.707 0 0)))
+      (left (normalized '(1.0 . #f32(1 1 1))))
+      (right (normalized '(-1.0 . #f32(-1 1 1))))
+      (ahead (normalized '(1.0 . #f32(1 0 0))))
+      (back (normalized '(1.0 . #f32(-1 0 0))))
       (camera #[view 'camera]))
   (let-syntax ((look (syntax-rules ()
 		       ((_ direction)
