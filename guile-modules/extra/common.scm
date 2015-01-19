@@ -525,7 +525,7 @@
 
 ;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
 ;; "define-macro", and as such doesn't seem to be referentially transparent,
-;; so here's "my own" version
+;; so here's "my own" version. In addition, it supports multiple values.
 (define-syntax and-let*
   (syntax-rules ()
     ((_)
@@ -543,7 +543,13 @@
 	body ...)
      (and condition
 	  (and-let* (rest ...)
-	    body ...)))))
+	    body ...)))
+    ((_ ((values ... expression) rest ...) body ...)
+     (call-with-values (lambda () expression) 
+       (lambda (values ...)
+	 (and values ...
+	      (and-let* (rest ...)
+		body ...)))))))
 
 (define (demand to-do-something-with . args)
   (call/cc (lambda(go-on)
