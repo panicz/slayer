@@ -85,7 +85,7 @@
 		     (map #[_ 'w] buttons-before))) 
 	,@buttons-before)))
   (set! #[manager 'tab-views] `(,child ,@#[manager 'tab-views]))
-  (set! #[child 'y] (+ #[child 'y] 
+  (set! #[child 'y] (+ #[child 'y] 1
 		       (apply max (map #[_ 'h] #[manager 'tab-buttons]))))
   (set! #[child 'parent] manager)
   (set! #[manager 'current-view] child))
