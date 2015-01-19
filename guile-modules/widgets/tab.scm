@@ -30,7 +30,7 @@
   (let ((label (string-append " " #[self 'label] " ")))
     (set! #[self '%image] (render-text label *default-font* #x000000 #xffffff))
     (set! #[self '%image/pressed]
-      (render-text label *default-font* #xdd0000 #xffffff)))
+      (render-text label *default-font* #xffffff #xff7700)))
   (let* (((w h) (image-size #[self '%image])))
     (set! #[self 'w] w)
     (set! #[self 'h] h))
