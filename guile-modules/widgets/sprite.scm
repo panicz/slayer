@@ -123,10 +123,10 @@
   (lay-out #:init-value noop #:init-keyword #:lay-out))
 
 (define-method (lay-out-vertically (child <widget>) #;on (layout <layout>))
-  (set! #[child 'y] (+ #;[layout 'y] #[layout 'h])))
+  (set! #[child 'y] (+ #;[layout 'y] 1 #[layout 'h])))
 
 (define-method (lay-out-horizontally (child <widget>) #;on (layout <layout>))
-  (set! #[child 'x] (+ #;[layout 'x] #[layout 'w])))
+  (set! #[child 'x] (+ #;[layout 'x] 1 #[layout 'w])))
 
 (define-method (initialize (self <layout>) args)
   (next-method)
