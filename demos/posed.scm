@@ -309,11 +309,15 @@ exit
 
 (define sequence (make <sequence> #:name 'unnamed-sequence))
 
-(define poses-widget (make <sortable-container> #:min-h 100))
+(define poses-widget (make <widget-distributor> #:min-w 120 #:min-h 100))
 
-(define sequence-widget (make <sortable-container> #:min-h 150))
+(define sequence-widget (make <sortable-container> #:min-w 120 #:min-h 150))
 
-(define sequences-widget (make <sortable-container> #:min-h 100))
+(set! #[sequence-widget 'accepts-widget?]
+  (lambda (box) 
+    (in? #[box 'original-parent] `(,poses-widget ,sequence-widget))))
+
+(define sequences-widget (make <sortable-container> #:min-w 120 #:min-h 100))
 
 (define-class <pose-entry> (<sprite>)
   (configuration #:init-value #f #:init-keyword #:configuration)
@@ -325,13 +329,13 @@ exit
 			(string-append "   " (->string #[self 'name]) "   ")
 			*default-font*
 			#x000000 #xffffff)))
-(define-method (draw (i <pose-entry>))
-  (specify ((first identity)
-	    (rest #[_ 'parent])
-	    (empty? (?not #[_ 'parent])))
-    (let ((x (apply + (map* #[_ 'x] i)))
-	  (y (apply + (map* #[_ 'y] i))))
-      (draw-image! #[ i 'image ] x y))))
+
+(define file-menu 
+  ((layout)
+   (label "         --- file options ---       ")
+   (label "       --- camera settings ---      ")
+   (label "         --- quick help ---         ")
+))
 
 (define pose-editor
   ((layout)
@@ -342,22 +346,13 @@ exit
     (label "           ")
     (button #:text "  [ save ]  "
 	    #:action
-	    (lambda (x y)
-	      (add-child! (make <pose-entry> #:name #[pose 'name])
-			  #;to poses-widget))
-#|
-	      (<< #[poses-widget 'children]))
-
-	    (lambda (x y)
-	      (or (and-let* ((existing (find (lambda (entry)
-					       (equal? #[entry 'name] 
-						       #[pose 'name]))
-					     #[poses-widget 'children])))
-		    (set! #[existing 'configuration] #[pose 'configuration])
-		    #t)
-		  ))
-|#
-	    )
+	    (lambda (x y) (add/overwrite! 
+		      (make <pose-entry> #:name #[pose 'name]
+			    #:configuration #[pose 'configuration])
+		      #;to poses-widget
+			   #;overwriting-if
+			   (lambda (entry) (equal? #[entry 'name]
+					      #[pose 'name])))))
     (label "          "))
    ((layout #:lay-out lay-out-horizontally)
     (button #:text "  [ <<< ]  "
@@ -404,7 +399,6 @@ exit
 				     #:keeping chest)))))
      #;to pose-editor)))
 
-
 (define sequence-editor
   ((layout)
    (property-editor 
@@ -414,7 +408,12 @@ exit
     (label "         ")
     (button #:text "  [ save ]  "
 	    #:action (lambda (x y)
-		       (<< "saving " #[sequence 'name])))
+		       (add/overwrite! 
+			(make <pose-entry> #:name #[sequence 'name])
+			#;to sequences-widget
+			     #;overwriting-if
+			     (lambda (entry) (equal? #[entry 'name]
+						#[sequence 'name])))))
     (label "         "))
 
    (label "         --- poses ---        ")
@@ -432,8 +431,9 @@ exit
    sequences-widget
    ))
 
-(add-tab! pose-editor #;under-name "[ pose ]" #;to editor)
-(add-tab! sequence-editor #;under-name "[ sequence ]" #;to editor)
-(add-tab! ((layout)) #;under-name " [hide] " #;to editor)
+(add-tab! file-menu #;under-name "[file]" #;to editor)
+(add-tab! pose-editor #;under-name "[pose]" #;to editor)
+(add-tab! sequence-editor #;under-name "[sequence]" #;to editor)
+(add-tab! ((layout)) #;under-name "[hide]" #;to editor)
 
 (load "control.scm")
