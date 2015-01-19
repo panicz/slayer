@@ -252,6 +252,6 @@ export_symbols(void *unused) {
 void
 init_lights() {
   init_light_properties();
-  glEnable(GL_LIGHTING);
+  //  glEnable(GL_LIGHTING);
   scm_c_define_module("slayer 3d", export_symbols, NULL);
 }
