@@ -294,8 +294,16 @@ exit
 
 (load "control.scm")
 
-(keydn '/ (lambda () (with-output-file "current.moves" 
+(keydn '/ (lambda () (with-output-file "default.moves" 
 		  (pretty-print (current-moveset)))))
 
-(when (and (defined? '$1) (string-match "\\.moves$" $1))
-  (load-moveset! (with-input-from-file $1 read)))
+(and-let* ((moveset (if (defined? '$1) $1 "default.moves"))
+	   ((file-exists? moveset)))
+  (load-moveset! (with-input-from-file moveset read)))
+
+(set-exit-procedure!
+ (lambda (outfile)
+   (if (file-exists? "default.moves")
+       (copy-file "default.moves" (next-available-file-name "default.moves")))
+   (with-output-file "default.moves" 
+     (pretty-print (current-moveset)))))

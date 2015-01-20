@@ -57,7 +57,7 @@
   (set! #[self 'drag-over] noop))
 
 (define ((target-getter property) self)
-  #[self : 'target : property])
+  (or #[self : 'target : property] 0))
 
 (define ((target-setter property) self value)
   (set! #[self : 'target : property] value))
@@ -126,7 +126,7 @@
 (define-method (initialize (self <sortable-placeholder>) args)
   (next-method)
   (set! #[self 'image] (rectangle #[self 'w] #[self 'h]
-				  #xff4422)))
+				  #xffcc22)))
 
 (define-method (draw (self <sortable-box>))
   (draw #[self 'target]))
@@ -138,7 +138,7 @@
   (assert (eq? container #[box 'parent]))
   (let* ((siblings (filter (lambda (x) (is-a? x <sortable-box>))
 			   #[container 'children]))
-	 (n (order #;of box #;in siblings))
+	 (n (or (order #;of box #;in siblings) 0))
 	 (placeholder (make <sortable-placeholder>
 			#:w #[box 'w] #:h #[box 'h]
 			#:parent container #:at n)))
@@ -216,6 +216,8 @@
   (check (eq? self *nearby-widget*))
   (and-let* (((is-a? *active-widget* <sortable-box>))
 	     (parent #[self 'parent])
+	     ((or (not (is-a? #[*active-widget* 'parent] <sortable-container>))
+		  (not #[*active-widget* : 'parent : 'blocked?])))
 	     ((is-a? parent <sortable-container>))
 	     ((#[parent 'accepts-widget?] *active-widget* #;in self))
 	     (placeholder (make <sortable-placeholder>

@@ -58,43 +58,96 @@
 		      (map #[_ 'target]
 			   #[sequences-widget 'children])))))
 
-(define-class <named-entry> (<sprite>)
-  (name #:init-keyword #:name))
+(define-class <selectable-named-entry> (<sprite>)
+  (name #:init-keyword #:name)
+  (selected? #:allocation #:each-subclass #:init-value (lambda (self) #f))
+  (%image/selected #:init-value #f)
+  (image
+   #:allocation #:virtual
+   #:slot-ref 
+   (lambda (self) 
+     (if (#[self 'selected?] self)
+	 #[self '%image/selected]
+	 #[self '%image]))
+   #:slot-set! noop))
 
-(define-method (initialize (self <named-entry>) args)
-  (next-method)  
-  (set! #[self 'image] (render-text 
-			(string-append "   " (->string #[self 'name]) "   ")
-			*default-font*
-			#x000000 #xffffff)))
+(define-method (initialize (self <selectable-named-entry>) args)
+  (next-method) 
+  (let* ((text (string-append "   " (->string #[self 'name]) "   "))
+	 (image (render-text text *default-font* #x000000 #xffffff))
+	 ((w h) (image-size image)))
+    (set! #[self '%image] image)
+    (set! #[self 'w] w)
+    (set! #[self 'h] h)
+    (set! #[self '%image/selected]
+      (render-text text *default-font* #xffffff #xff7700))))
 
-(define-class <pose-entry> (<named-entry>)
+(define-class <pose-entry> (<selectable-named-entry>)
   (configuration #:init-value '() #:init-keyword #:configuration))
 
 (define-method (initialize (self <pose-entry>) args)
-  (next-method)  
+  (next-method)
+  (set! #[self 'selected?]
+    (lambda (self)
+      (equal? #[self 'name] #[pose 'name])))
   (set! #[self 'activate]
     (lambda (x y)
       (let ((chest (body-named 'chest #;from the-rig)))
+	(set! #[pose 'name] #[self 'name])
 	(set-pose! #;of the-rig #;to `(pose ,@#[self 'configuration])
 			#:keeping chest)))))
 
-(define-class <sequence-entry> (<named-entry>)
+(define-class <sequence-entry> (<selectable-named-entry>)
   (sequence #:init-value '() #:init-keyword #:sequence))
 
+(define (pose-configuration pose-name)
+  (and-let* ((pose-entry (find (lambda (pose-entry)
+				 (equal? #[pose-entry 'name] pose-name))
+			       (map #[_ 'target] 
+				    #[poses-widget 'children]))))
+    #[pose-entry 'configuration]))
+
+(define (set-sequence! sequence-name poses-names)
+  (set! #[sequence 'name] sequence-name)
+  (for child in #[sequence-widget 'children]
+    (set! #[child 'target] #f))
+  (set! #[sequence-widget 'children] '())
+  (for name in (reverse poses-names)
+    (and-let* ((configuration (pose-configuration name)))
+      (add-child! (make <pose-entry> #:name name
+			#:configuration configuration)
+		  #;to sequence-widget))))
 
 (define-method (initialize (self <sequence-entry>) args)
   (next-method)  
+  (set! #[self 'selected?]
+    (lambda (self)
+      (equal? #[self 'name] #[sequence 'name])))
   (set! #[self 'activate]
     (lambda (x y)
-      ;; load given sequence
-      (<< #[self 'name]))))
+      (set-sequence! #[self 'name] #[self 'sequence]))))
 
 (define file-menu 
   ((layout)
    (label "         --- file options ---       ")
    (label "       --- camera settings ---      ")
    (label "         --- quick help ---         ")))
+
+(define (shift-pose! #;by k)
+  (and-let* ((poses (map #[_ : 'target : 'name]
+			 #[poses-widget 'children]))
+	     ((not (null? poses)))
+	     (n (length #;of poses))
+	     (i (or (order #;of #[pose 'name] #;in poses
+				#:identified-using equal?)
+		    0))
+	     (i' (modulo (+ i k) n))
+	     (pose-name #[poses i'])
+	     (configuration (pose-configuration pose-name))
+	     (chest (body-named 'chest #;from the-rig)))
+    (set! #[pose 'name] pose-name)
+    (set-pose! #;of the-rig #;to `(pose ,@configuration)
+		    #:keeping chest)))
 
 (define pose-editor
   ((layout)
@@ -116,12 +169,13 @@
     (label "          "))
    ((layout #:lay-out lay-out-horizontally)
     (button #:text "  [ <<< ]  "
-	    #:action (lambda (x y)
-		       (<< "previous-pose")))
+	    #:action 
+	    (lambda (x y)
+	      (shift-pose! #;by -1)))
     (label "           ")
     (button #:text "  [ >>> ]  "
 	    #:action (lambda (x y)
-		       (<< "next-pose"))))
+		       (shift-pose! #;by +1))))
    (label "                                 ")))
 
 (let ((chest (body-named 'chest #;from the-rig)))
