@@ -100,7 +100,7 @@
 			      (* 0.5 kd rate)) axis))
 	))))
 
-(define drive! (pd-drive 7<z0.0 20.0))
+(define drive! (pd-drive 50.0 20.0))
 
 (define (control!)
   (for (rig => behaviors) in rig-behaviors
