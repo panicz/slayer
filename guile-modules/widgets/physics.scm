@@ -51,7 +51,7 @@
 				 . ,data) ...))))))))))
 
     ((plane)
-     (square-grid #:size 10.0 #:density 50))
+     (square-grid #:size 100.0 #:density 50))
     ((trimesh)
      (let (((vertices . indices) (body-property body 'mesh)))
        (or #[*trimesh-cache* vertices]
