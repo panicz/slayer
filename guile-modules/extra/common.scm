@@ -2002,7 +2002,8 @@
        bindings))
 
 (e.g.
- (replace-alist-bindings '((a . 1)(b . 2)(c . 3)) #;with '((a . 4)(c . 0)))
+ (replace-alist-bindings '((a . 1)(b . 2)(c . 3))
+			 #;with '((a . 4)(c . 0)(d . 7)))
  same-set?
  '((a . 4)(b . 2)(c . 0)))
 
@@ -2255,7 +2256,10 @@
       (call-with-values 
 	  (lambda () (apply fn args)) 
 	chains)))
-  (impose-arity (arity (last fns)) (reduce make-chain values fns)))
+  (impose-arity (if (null? fns) 
+		    '(0 0 #t)
+		    (arity (last fns)))
+		(reduce make-chain values fns)))
 
 (e.g.
  ((compose 1+ 1+ 1+) 0)
