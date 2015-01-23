@@ -11,11 +11,11 @@
 	     (extra math)
 	     (extra slayer)
 	     (scum physics)
-	     (editor poses))
-
-(load "control.scm")
+	     (editor poses)
+	     (editor control))
 
 (define the-simulation (primitive-make-simulation))
+
 (define-rig-for the-simulation
   'legs (with-input-from-file "art/rigs/legs.rig" read))
 
@@ -41,8 +41,6 @@
 (include "config.scm")
 
 (include "temporary-poses.scm")
-
-(set! #[rig-poses the-legs] (tail stand))
 
 (keydn 'return (lambda ()
 		 (reset-behaviors! #;of the-legs)
