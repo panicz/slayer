@@ -28,6 +28,7 @@ exit
  (editor relations)
  (editor modes)
  (editor poses)
+ (editor control)
  (extra scmutils)
  (scum physics))
 
@@ -41,12 +42,15 @@ exit
 
 (define the-simulation (primitive-make-simulation))
 
-(set-simulation-property! the-simulation 'gravity #f32(0 0 0))
+(set-simulation-property! the-simulation 'gravity #f32(0 0 -0.2))
 
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
 
 (define-rig-for the-simulation 
   'rob (with-input-from-file "art/rigs/rob.rig" read))
+
+(define-rig-for the-simulation
+  'ground (with-input-from-file "art/rigs/ground.rig" read))
 
 (define view (make <3d-editor>
 	       #:x  0 #:y  0 
@@ -59,8 +63,10 @@ exit
 
 (define the-number-of-joints 6)
 
-(define the-rig (make-rig the-simulation 'rob #:position #f32(0 0 0)
-			  #:orientation '(0.707 . #f32(-0.707 0 0))))
+(define the-rig (make-rig #;in the-simulation 'rob #:position #f32(0 0 0)
+			       #:orientation '(0.707 . #f32(-0.707 0 0))))
+
+(define the-ground (make-rig #;in the-simulation 'ground))
 
 (define rig-angles
   (let ((rig-angles (make-hash-table))
@@ -286,13 +292,12 @@ exit
  25 
  (lambda()
    (unless pause
-     (make-simulation-step! the-simulation))))
+     (make-simulation-step! the-simulation)
+     (control!))))
 
 (load "config.scm")
 
 (load "editor/posed/widgets.scm")
-
-(load "control.scm")
 
 (keydn '/ (lambda () (with-output-file "default.moves" 
 		  (pretty-print (current-moveset)))))

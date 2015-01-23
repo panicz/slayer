@@ -12,7 +12,8 @@
 (define pose (make <pose> #:name 'unnamed-pose))
 
 (define-class <sequence> ()
-  (name #:init-keyword #:name))
+  (name #:init-keyword #:name)
+  (poses #:init-value #:poses))
 
 (define sequence (make <sequence> #:name 'unnamed-sequence))
 
@@ -109,6 +110,7 @@
 
 (define (set-sequence! sequence-name poses-names)
   (set! #[sequence 'name] sequence-name)
+  (set! #[sequence 'poses] poses-names)
   (for child in #[sequence-widget 'children]
     (set! #[child 'target] #f))
   (set! #[sequence-widget 'children] '())
@@ -117,6 +119,13 @@
       (add-child! (make <pose-entry> #:name name
 			#:configuration configuration)
 		  #;to sequence-widget))))
+
+(define (play-sequence! pose-names)
+  (when pause
+    (set! pause #f))
+  (let ((sequence (map (lambda (name) `(pose ,@(pose-configuration name))) 
+		       pose-names)))
+    (initiate-sequence! sequence the-rig)))
 
 (define-method (initialize (self <sequence-entry>) args)
   (next-method)  
@@ -240,7 +249,8 @@
     (label "         ")
     (button #:text "  [ play ]  "
 	    #:action (lambda (x y)
-		       (<< "playing " #[sequence 'name])))
+		       (play-sequence! #[sequence 'poses])
+		       (<< "playing " #[sequence 'name] #[sequence 'poses])))
     (label "         "))
 
    (label "       --- sequences ---      ")
