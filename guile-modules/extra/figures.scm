@@ -87,7 +87,7 @@
 	    (append-map (lambda(x)`((,x ,height-start 0)(,x ,height-end 0))) ver)
 	    (append-map (lambda(y)`((,width-start ,y 0)(,width-end ,y 0))) hor)
 	    )))
-	(color #f32(0 0.5 0))
+	(color #f32(0.3 0.3 0.3))
 	(faces (lines ,(list->uniform-array 
 			(iota (* 2 (+ width-points height-points))))))))))
 
