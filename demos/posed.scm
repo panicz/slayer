@@ -69,19 +69,13 @@ exit
 		  properties)))
        (rig-joints rig)))
 
-(define joint-angles (rig-joints-name&properties-getter 'angle))
-
-(define joint-axes (rig-joints-name&properties-getter 'axis))
-
-(define joint-anchors (rig-joints-name&properties-getter 'anchor))
-
-(set-pose! the-rig (pose the-rig))
+(set-pose! the-rig (pose #;of the-rig))
 
 (set! #[view 'left-click]
-      (lambda (x y)
-	(let ((object (object-at-position x y view)))
-	  (when object
-	    (select-object! object #;from view)))))
+  (lambda (x y)
+    (let ((object (object-at-position x y view)))
+      (when object
+	(select-object! object #;from view)))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
@@ -117,16 +111,31 @@ exit
 
 (load "editor/posed/widgets.scm")
 
-(keydn '/ (lambda () (with-output-file "default.moves" 
-		  (pretty-print (current-moveset)))))
+(define moveset-file (if (defined? '$1) $1 "default.moves"))
 
-(and-let* ((moveset (if (defined? '$1) $1 "default.moves"))
-	   ((file-exists? moveset)))
-  (load-moveset! (with-input-from-file moveset read)))
+(when (file-exists? moveset-file)
+  (load-moveset! (with-input-from-file moveset-file read)))
+
+(define (same-movesets? moveset-a moveset-b)
+  (let ((('moveset ('poses . poses-a)
+		   ('sequences . sequences-a)) moveset-a)
+	(('moveset ('poses . poses-b)
+		   ('sequences . sequences-b)) moveset-b))
+    (and (equivalent-set? (lambda ((name-a . configuration-a)
+			      (name-b . configuration-b))
+			    (and (eq? name-a name-b)
+				 (same-set? configuration-a
+					    configuration-b)))
+			  poses-a poses-b)
+	 (same-set? sequences-a sequences-b))))
 
 (set-exit-procedure!
  (lambda (outfile)
-   (if (file-exists? "default.moves")
-       (copy-file "default.moves" (next-available-file-name "default.moves")))
-   (with-output-file "default.moves" 
-     (pretty-print (current-moveset)))))
+   (let ((previous-moveset (with-input-from-file moveset-file read))
+	 (current-moveset (current-moveset)))
+     (unless (same-movesets? previous-moveset current-moveset)
+       (let ((backup (next-available-file-name moveset-file)))
+	 (when (file-exists? moveset-file)
+	   (copy-file moveset-file backup))
+	 (with-output-file moveset-file 
+	   (pretty-print current-moveset)))))))
