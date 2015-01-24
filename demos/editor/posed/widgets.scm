@@ -1,3 +1,6 @@
+;; this file is not a module as it is meant to be included from
+;; slayer application (demos/posed.scm)
+
 (define editor (make <tab-widget>))
 
 (add-child! editor #;to *stage*)
@@ -6,10 +9,10 @@
   (name #:init-keyword #:name)
   (configuration #:init-thunk
 		 (lambda ()
-		   (let ((('pose . configuration) (current-configuration)))
+		   (let ((('pose . configuration) (pose #;of the-rig)))
 		     configuration))))
 
-(define pose (make <pose> #:name 'unnamed-pose))
+(define the-pose (make <pose> #:name 'unnamed-pose))
 
 (define-class <sequence> ()
   (name #:init-keyword #:name)
@@ -90,11 +93,11 @@
   (next-method)
   (set! #[self 'selected?]
     (lambda (self)
-      (equal? #[self 'name] #[pose 'name])))
+      (equal? #[self 'name] #[the-pose 'name])))
   (set! #[self 'activate]
     (lambda (x y)
       (let ((chest (body-named 'chest #;from the-rig)))
-	(set! #[pose 'name] #[self 'name])
+	(set! #[the-pose 'name] #[self 'name])
 	(set-pose! #;of the-rig #;to `(pose ,@#[self 'configuration])
 			#:keeping chest)))))
 
@@ -147,34 +150,34 @@
 			 #[poses-widget 'children]))
 	     ((not (null? poses)))
 	     (n (length #;of poses))
-	     (i (or (order #;of #[pose 'name] #;in poses
+	     (i (or (order #;of #[the-pose 'name] #;in poses
 				#:identified-using equal?)
 		    0))
 	     (i' (modulo (+ i k) n))
 	     (pose-name #[poses i'])
 	     (configuration (pose-configuration pose-name))
 	     (chest (body-named 'chest #;from the-rig)))
-    (set! #[pose 'name] pose-name)
+    (set! #[the-pose 'name] pose-name)
     (set-pose! #;of the-rig #;to `(pose ,@configuration)
 		    #:keeping chest)))
 
 (define pose-editor
   ((layout)
    (property-editor 
-    pose 
-    ("name: " #[pose 'name]))
+    the-pose 
+    ("name: " #[the-pose 'name]))
    ((layout #:lay-out lay-out-horizontally)
     (label "           ")
     (button #:text "  [ save ]  "
 	    #:action
 	    (lambda (x y)
-	      (let ((('pose . configuration) (current-configuration)))
+	      (let ((('pose . configuration) (pose #;of the-rig)))
 		(add/overwrite! (make <pose-entry> #:name #[pose 'name]
 				      #:configuration configuration)
 				#;to poses-widget
 				     #;overwriting-if
 				     (lambda (entry) (equal? #[entry 'name]
-							#[pose 'name]))))))
+							#[the-pose 'name]))))))
     (label "          "))
    ((layout #:lay-out lay-out-horizontally)
     (button #:text "  [ <<< ]  "
@@ -188,7 +191,7 @@
    (label "                                 ")))
 
 (let ((chest (body-named 'chest #;from the-rig)))
-  (for (name . value) in #[pose 'configuration]
+  (for (name . value) in #[the-pose 'configuration]
     (add-child! 
      (make <numeric-input> #:w 200 #:h 12 
 	   #:label (let* ((name-string (->string name))
@@ -207,12 +210,12 @@
 			  (n (string-length name)))
 		     (string-append name (make-string 
 					  (max 0 (- 12 n)) #\space)))
-	   #:target pose
+	   #:target the-pose
 	   #:accessor 
 	   (make-procedure-with-setter
-	    (lambda (pose) (assoc-ref (current-configuration) name))
-	    (lambda (pose value)
-	      (let ((('pose . configuration) (current-configuration)))
+	    (lambda (a-pose) (assoc-ref (pose #;of the-rig) name))
+	    (lambda (a-pose value)
+	      (let ((('pose . configuration) (pose #;of the-rig)))
 		(set-pose! #;of the-rig
 				#;to `(pose ,@(map (lambda ((joint . angle))
 						     (if (eq? joint name)
