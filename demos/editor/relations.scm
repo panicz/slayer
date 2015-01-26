@@ -11,6 +11,7 @@
 	    body-attached-by
 	    joints-attached-to
 	    body-sequences
+	    bodies-attached-to
 	    body-island-leaves
 	    shortest-joint-sequence-from+furthest-end
 	    shortest-joint-sequence
@@ -117,8 +118,9 @@
 
 (define (shortest-joint-sequence #;from start #;to end)
   (let ((bodies (apply argmin length (body-sequences #;from start #;to end))))
-    (map joint-connecting-bodies 
-	 (drop-right bodies 1) (drop bodies 1))))
+    (let (((starting-bodies ... _) bodies)
+	  ((_ ending-bodies ...) bodies))
+      (map joint-connecting-bodies starting-bodies ending-bodies))))
 
 (define (shortest-joint-sequence-from+furthest-end #;to body)
   (let* ((island (bodies-linked-to body))
