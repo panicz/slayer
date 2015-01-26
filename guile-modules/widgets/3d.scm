@@ -70,10 +70,17 @@
 		#;(for object in #[view : 'stage : 'objects]
 		     (setup-lights! #[object '%lights])))
    #:slot-set! noop)
+ 
   (stage #:init-form (make <3d-stage>) #:init-keyword #:stage))
 
 (define-method (initialize (self <3d-view>) args)
   (next-method)
+  (set! #[self 'mouse-move] 
+    (lambda (x y dx dy)
+      (if (and left-click-widget 
+	       (eq? self left-click-widget)
+	       (not (zero? (+ (abs dx) (abs dy)))))
+	  (set! left-click-widget #f))))
   (set! #[self '%horizontal-frame] (rectangle #[self 'w] 1 #xff0000))
   (set! #[self '%vertical-frame] (rectangle 1 #[self 'h] #xff0000)))
 
@@ -84,7 +91,7 @@
        #;by-doing (push! lights l)))
       #[view 'lit-objects!]
       ;; lights need to be set up before the scene is rendered,
-     ;; but they can be positioned in the same place as the vertices,
+      ;; but they can be positioned in the same place as the vertices,
       ;; so we need to extract the lights (along with any matrix
       ;; transformations) from the model definition first
       #[view 'draw-objects!]
@@ -199,8 +206,11 @@
        (format #t "ambiguous display-index candidates\n")))))
 
 (define-method (select-object! (object <3d>) #;from (view <3d-editor>))
-  (if (not (in? object #[view 'selected]))
-      (push! #[view 'selected] object)))
+  (if (modifier-pressed? 'shift)
+      (if (in? object #[view 'selected])
+	  (unselect-object! view object)
+	  (push! #[view 'selected] object))
+      (set! #[view 'selected] `(,object))))
 
 (define-method (unselect-object! (view <3d-editor>) (object <3d>))
   (set! #[view 'selected] (delete object #[view 'selected])))
