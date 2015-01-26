@@ -53,28 +53,22 @@ exit
 
 (add-child! view #;to *stage*)
 
-;;(load "posed-trash.scm")
-
-(define the-rig (make-rig #;in the-simulation 'rob #:position #f32(0 0 0)
-			       #:orientation '(0.707 . #f32(-0.707 0 0))))
+(define the-rig (make-rig #;in the-simulation 'rob))
 
 (define the-ground (make-rig #;in the-simulation 'ground))
 
-(define ((rig-joints-name&properties-getter . properties) rig)
-  "the properties are obtained directly from ODE simulator"
-  (map (lambda (joint) 
-	 `(,(joint-name joint)
-	   ,@(map (lambda (property) 
-		    (joint-property joint property))
-		  properties)))
-       (rig-joints rig)))
+(define restricted-rigs `(,the-ground))
+
+(define (selectable? object)
+  (and (is-a? object <physical-object>)
+       (not (in? #[object 'rig] restricted-rigs))))
 
 (set-pose! the-rig (pose #;of the-rig))
 
 (set! #[view 'left-click]
   (lambda (x y)
     (let ((object (object-at-position x y view)))
-      (when object
+      (when (and object (selectable? object))
 	(select-object! object #;from view)))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
@@ -108,6 +102,12 @@ exit
      (control!))))
 
 (load "config.scm")
+
+;; override the default config
+(let ((turn-camera! #[view 'drag]))
+  (set! #[view 'drag]
+    (lambda (x y dx dy)
+      (turn-camera! x y dx dy))))
 
 (load "editor/posed/widgets.scm")
 
