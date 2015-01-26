@@ -61,6 +61,7 @@
     (else (error "Unknown body type of " body))))
 
 (define-class <physical-object> (<3d-model>)
+  (rig #:init-keyword #:rig)
   (position
    #:allocation #:virtual
    #:slot-ref
@@ -84,6 +85,7 @@
   (next-method))
 
 (define-class <physical-joint> (<3d-model>)
+  (rig #:init-keyword #:rig)
   (position
    #:allocation #:virtual
    #:slot-ref
@@ -165,7 +167,8 @@
 		     (set! #[self : '%body=>object : body]
 			   (make <physical-object> 
 			     #:body body
-			     #:mesh (new-mesh-for-body body))))
+			     #:mesh (new-mesh-for-body body)
+			     #:rig rig)))
 		   (TODO check if the mesh hasn't changed and if it did,
 			 modify accordingly! -- or just tie the specific 
 			 parameters to certain locations to make sure that 
@@ -179,7 +182,8 @@
 		     (set! #[self : '%joint=>object : joint]
 			   (make <physical-joint>
 			     #:joint joint
-			     #:mesh (new-mesh-for-joint joint))))
+			     #:mesh (new-mesh-for-joint joint)
+			     #:rig rig)))
 		   (let* ((object #[self : '%joint=>object : joint])
 			  (mesh #[object 'mesh])
 			  (the (lambda(prop)(joint-property joint prop))))
