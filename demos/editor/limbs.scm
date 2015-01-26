@@ -1,0 +1,31 @@
+(define-module (editor limbs)
+  #:use-module (scum physics)
+  #:use-module (editor relations)
+  #:use-module (extra math)
+  #:use-module (extra common))
+
+(define (tip? limb)
+  (= 1 (length (joints-attached-to limb))))
+
+(define (link? limb)
+  (= 2 (length (joints-attached-to limb))))
+
+(without-default (joint-property-getter)
+  (define (copula? limb)
+    (and-let* (((first-joint second-joint) (joints-attached-to limb)))
+      (< (square ((specific joint-property-getter) first-joint 'anchor)
+		 ((specific joint-property-getter) second-joint 'anchor))
+	 #[TOLERANCE]))))
+
+(define (hub? limb)
+  (< 2 (length (joints-attached-to limb))))
+
+(define (limb-type limb)
+  (cond ((tip? limb)
+	 'tip)
+	((copula? limb)
+	 'copula)
+	((link? limb)
+	 'link)
+	((hub? limb)
+	 'hub)))
