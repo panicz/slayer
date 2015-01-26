@@ -527,29 +527,38 @@
 ;; "define-macro", and as such doesn't seem to be referentially transparent,
 ;; so here's "my own" version. In addition, it supports multiple values.
 (define-syntax and-let*
-  (syntax-rules ()
-    ((_)
-     #t)
-    ((_ ())
-     #t)
-    ((_ () body ...)
-     (let () body ...))
-    ((_ ((value binding) rest ...) body ...)
-     (let ((value binding))
-       (and value
+  (lambda (stx)
+    (syntax-case stx ()
+      ((_)
+       #'#t)
+      ((_ ())
+       #'#t)
+      ((_ () body ...)
+       #'(let () body ...))
+      ((_ ((value binding) rest ...) body ...)
+       (identifier? #'value)
+       #'(let ((value binding))
+	   (and value
+		(and-let* (rest ...)
+		  body ...))))
+      ((_ ((value binding) rest ...) body ...)
+       #'(match binding
+	   (value
 	    (and-let* (rest ...)
-	      body ...))))
-    ((_ ((condition) rest ...)
-	body ...)
-     (and condition
-	  (and-let* (rest ...)
-	    body ...)))
-    ((_ ((values ... expression) rest ...) body ...)
-     (call-with-values (lambda () expression) 
-       (lambda (values ...)
-	 (and values ...
+	      body ...))
+	   (_ #f)))
+      ((_ ((condition) rest ...)
+	  body ...)
+       #'(and condition
 	      (and-let* (rest ...)
-		body ...)))))))
+		body ...)))
+      ((_ ((values ... expression) rest ...) body ...)
+       (every identifier? #'(values ...))
+       #'(call-with-values (lambda () expression)
+	   (lambda (values ...)
+	     (and values ...
+		  (and-let* (rest ...)
+		    body ...))))))))
 
 (define (demand to-do-something-with . args)
   (call/cc (lambda(go-on)
