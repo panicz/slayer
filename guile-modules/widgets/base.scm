@@ -13,6 +13,8 @@
 	    remove-child!
 	    ancestors
 
+	    left-click-widget
+
 	    <widget>
 	    <extended-widget>
 	    <stage>
