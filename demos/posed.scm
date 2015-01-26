@@ -29,6 +29,8 @@ exit
  (editor modes)
  (editor poses)
  (editor control)
+ (editor limbs)
+ (editor movesets)
  (extra scmutils)
  (scum physics))
 
@@ -67,9 +69,13 @@ exit
 
 (set! #[view 'left-click]
   (lambda (x y)
-    (let ((object (object-at-position x y view)))
-      (when (and object (selectable? object))
-	(select-object! object #;from view)))))
+    (and-let* ((object (object-at-position x y #;in view))
+	       ((selectable? object)))
+      (with-context-for-joint/body-relation
+       (if (part-of-limb? #[object 'body])
+	   (format #t "grabbed a limb\n")
+	   (format #t "grabbed a corpus\n")))
+      (select-object! object #;from view))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
@@ -104,10 +110,24 @@ exit
 (load "config.scm")
 
 ;; override the default config
-(let ((turn-camera! #[view 'drag]))
+
+(let ((turn-camera! #[view 'drag])
+      (dragged #f))
   (set! #[view 'drag]
     (lambda (x y dx dy)
-      (turn-camera! x y dx dy))))
+      (if dragged
+	  (noop)
+	  (turn-camera! x y dx dy))))
+
+  (set! #[view 'left-mouse-down]
+    (lambda (x y)
+      (and-let* ((object (object-at-position x y #;in view))
+		 ((in? object #[view 'selected])))
+	(set! dragged #[view 'selected]))))
+
+  (set! #[view 'left-mouse-up]
+    (lambda (x y)
+      (set! dragged #f))))
 
 (load "editor/posed/widgets.scm")
 
@@ -115,19 +135,6 @@ exit
 
 (when (file-exists? moveset-file)
   (load-moveset! (with-input-from-file moveset-file read)))
-
-(define (same-movesets? moveset-a moveset-b)
-  (let ((('moveset ('poses . poses-a)
-		   ('sequences . sequences-a)) moveset-a)
-	(('moveset ('poses . poses-b)
-		   ('sequences . sequences-b)) moveset-b))
-    (and (equivalent-set? (lambda ((name-a . configuration-a)
-			      (name-b . configuration-b))
-			    (and (eq? name-a name-b)
-				 (same-set? configuration-a
-					    configuration-b)))
-			  poses-a poses-b)
-	 (same-set? sequences-a sequences-b))))
 
 (set-exit-procedure!
  (lambda (outfile)
