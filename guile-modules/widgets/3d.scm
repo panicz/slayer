@@ -260,15 +260,16 @@
 	    
 	(mousemove 
 	 (lambda (x y xrel yrel)
+	   (let ((displacement (screen->3d view x y zs)))
 	   (for (object position) in (zip #[view 'selected]
 					  original-positions)
 	     (set! #[object 'position] 
 	       (lock ((if (modifier-pressed? 'ctrl)
 			  snap
 			  identity)
-		      (+ (screen->3d view x y zs) 
-			 (- position (first original-positions))))
-		     #;on axis-mapping)))))
+		      (+ (- position (first original-positions))
+			 displacement ))
+		     #;on axis-mapping))))))
 	)))))
 
 (define* ((rotate-mode view #:key 
