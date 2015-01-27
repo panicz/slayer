@@ -2,6 +2,10 @@ static body_maker_map_t body_maker;
 static body_property_setter_map_t body_property_setter;
 static body_property_getter_map_t body_property_getter;
 
+static float
+(*body_body_distance[dGeomNumClasses][dGeomNumClasses])(body_t *, body_t *);
+
+
 #define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, init, ...) \
   static body_t *							\
   make_##shape(rig_t *rig) {						\
@@ -764,6 +768,148 @@ body_p(SCM smob) {
     : SCM_BOOL_F;
 }
 
+//
+
+#define DISTANCE_FUNCTION(X, Y)					\
+  static inline dReal X##_##Y##_distance(body_t *X, body_t *Y); \
+  static dReal							\
+  Y##_##X##_distance(body_t *Y, body_t *X) {			\
+    return X##_##Y##_distance(X, Y);				\
+  }								\
+  static inline dReal						\
+  X##_##Y##_distance(body_t *X, body_t *Y)
+
+DISTANCE_FUNCTION(sphere, plane) {
+  dVector4 p;
+  dGeomPlaneGetParams(plane->geom, p);
+  // according to the manual, ODE represents planes in the form
+  // a*x + b*y + c*z = d; equivalently, it could be written as
+  // a*x + b*y + c*z - d = 0, where a, b, c, d are (presumably)
+  // p[0], p[1], p[2] and p[3], respectively.
+  // The distance between the plane (a,b,c,-d) and a point (x,y,z)
+  // can therefore be expressed as (ax+by+cz-d)/sqrt(aa+bb+cc)
+
+  dReal r = dGeomSphereGetRadius(sphere->geom);
+  dReal const *v = dBodyGetPosition(sphere->body);
+
+  return ((p[0]*v[0]+p[1]*v[1]+p[2]*v[2]-p[3])
+	  / sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2])) - r;
+}
+
+
+DISTANCE_FUNCTION(trimesh, plane) {
+  dVector4 p;
+  dGeomPlaneGetParams(plane->geom, p);
+  v3f N(p[0], p[1], p[2]);
+  float d = p[3];
+  assert(abs(N.norm() - 1.0) < tolerance);
+  
+  SCM vertices = trimesh->data.trimesh.vertices;
+  
+  dReal const *position = dBodyGetPosition(trimesh->body);
+  v3f r(position[0], position[1], position[2]);
+  dReal const *rotation = dBodyGetRotation(trimesh->body);
+  m3x3f M(rotation[0], rotation[1], rotation[2],
+	  rotation[4], rotation[5], rotation[6],
+	  rotation[8], rotation[9], rotation[10]);
+
+  scm_t_array_handle H;
+  scm_array_get_handle(vertices, &H);
+  size_t i, number_of_vertices = scm_array_handle_nelems(&H) / 3;
+
+  dReal distance = INFINITY;
+
+#define MIN_DISTANCE_CASE(type, bits)					\
+  CASE(scm_is_typed_array(vertices, s_f##bits)) {			\
+    const v3##type *v =							\
+      (const v3##type *) scm_array_handle_f##bits##_elements(&H);	\
+    for(i = 0; i < number_of_vertices; ++i) {				\
+      distance = MIN(distance, (M*v[i] + r)*N - d);			\
+    }									\
+  }
+
+  BEGIN_CASES
+    MIN_DISTANCE_CASE(f, 32)
+    MIN_DISTANCE_CASE(d, 64)
+  END_CASES
+
+#undef MIN_DISTANCE_CASE
+
+  scm_array_handle_release(&H);
+
+  return distance;
+}
+
+DISTANCE_FUNCTION(box, plane) {
+  dVector4 p;
+  dGeomPlaneGetParams(plane->geom, p);
+  v3f N(p[0], p[1], p[2]);
+  float d = p[3];
+  assert(abs(N.norm() - 1.0) < tolerance);
+
+  dVector3 l;
+  dGeomBoxGetLengths(box->geom, l);
+
+  dReal const *position = dBodyGetPosition(box->body);
+  v3f r(position[0], position[1], position[2]);
+  dReal const *rotation = dBodyGetRotation(box->body);
+  m3x3f M(rotation[0], rotation[1], rotation[2],
+	  rotation[4], rotation[5], rotation[6],
+	  rotation[8], rotation[9], rotation[10]);
+  v3f v[8] = {
+    r + M*v3f(-l[0]/2, -l[1]/2, -l[2]/2),
+    r + M*v3f(-l[0]/2, -l[1]/2, +l[2]/2),
+    r + M*v3f(-l[0]/2, +l[1]/2, -l[2]/2),
+    r + M*v3f(-l[0]/2, +l[1]/2, +l[2]/2),
+    r + M*v3f(+l[0]/2, -l[1]/2, -l[2]/2),
+    r + M*v3f(+l[0]/2, -l[1]/2, +l[2]/2),
+    r + M*v3f(+l[0]/2, +l[1]/2, -l[2]/2),
+    r + M*v3f(+l[0]/2, +l[1]/2, +l[2]/2)
+  };
+  dReal distance = INFINITY;
+  for(int i = 0; i < NELEMS(v); ++i) {
+    distance = MIN(v[i]*N - d, distance);
+  }
+  return distance;
+}
+
+#undef DISTANCE_FUNCTION
+
+static SCM
+body_distance(SCM x_body_1, SCM x_body_2) {
+  BODY_CONDITIONAL_ASSIGN(x_body_1, body1, SCM_BOOL_F);
+  BODY_CONDITIONAL_ASSIGN(x_body_2, body2, SCM_BOOL_F);
+  int t1 = dGeomGetClass(body1->geom);
+  int t2 = dGeomGetClass(body2->geom);
+  return scm_from_double(body_body_distance[t1][t2](body1, body2));
+}
+
+static dReal
+distance_not_supported(body_t *b1, body_t *b2) {
+  WARN("distance between %s and %s not supported (yet?), yielding infinity",
+       class_name[dGeomGetClass(b1->geom)],
+       class_name[dGeomGetClass(b2->geom)]);
+  return INFINITY;
+}
+
+static void
+init_body_distance() {
+  for(int i = 0; i < dGeomNumClasses; ++i) {
+    for(int j = 0; j < dGeomNumClasses; ++j) {
+      body_body_distance[i][j] = distance_not_supported;
+    }
+  }
+  body_body_distance[dSphereClass][dPlaneClass] = sphere_plane_distance;
+  body_body_distance[dPlaneClass][dSphereClass] = plane_sphere_distance;
+
+  body_body_distance[dTriMeshClass][dPlaneClass] = trimesh_plane_distance;
+  body_body_distance[dPlaneClass][dTriMeshClass] = plane_trimesh_distance;
+
+  body_body_distance[dBoxClass][dPlaneClass] = box_plane_distance;
+  body_body_distance[dPlaneClass][dBoxClass] = plane_box_distance;
+}
+
+
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_BODY_PROCEDURES						\
@@ -787,9 +933,11 @@ body_p(SCM smob) {
 	      body_add_local_force_at_relative_position_x);		\
   EXPORT_PROC("body-add-torque!", 2, 0, 0, body_add_torque_x);		\
   EXPORT_PROC("body?", 1, 0, 0, body_p)					\
+  EXPORT_PROC("body-distance", 2, 0, 0, body_distance)			\
   EXPORT_PROC("body-add-local-torque!", 2, 0, 0,			\
 	      body_add_local_torque_x)
 
 #define INIT_BODY_MODULE			\
+  init_body_distance();				\
   init_body_maker();				\
   init_body_property_accessors()
