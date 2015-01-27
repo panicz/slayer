@@ -28,6 +28,9 @@
 #define DO(arg_name) true
 #define AS(arg_name, value) value
 
+#define BEGIN_CASES if(0) {}
+#define CASE else if
+#define END_CASES else { WARN("unsupported case"); }
 
 #if !HAVE_ASPRINTF
 int asprintf(char **strp, const char *fmt, ...);
@@ -144,6 +147,8 @@ DEF_MINMAX(float, f);
 
 #undef DEF_MINMAX
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 //do { } while(0)
 
