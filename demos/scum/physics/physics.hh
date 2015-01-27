@@ -197,7 +197,7 @@ DEF_TYPE_TO_SMOB(JOINT, joint); // joint_to_smob
 DEF_SCM_FROM_DVECTOR(3);
 DEF_SCM_FROM_DVECTOR(4);
 
-#undef SCM_FROM_DVECTOR
+#undef DEF_SCM_FROM_DVECTOR
 
 #define DEF_SCM_TO_DVECTOR(n)					\
   static inline void						\
@@ -234,7 +234,7 @@ DEF_SCM_FROM_DVECTOR(4);
 
 DEF_SCM_TO_DVECTOR(3);
 DEF_SCM_TO_DVECTOR(4);
-#undef SCM_TO_DVECTOR
+#undef DEF_SCM_TO_DVECTOR
 
 /*
   ODE's matrices are such that:
@@ -279,7 +279,7 @@ DEF_SCM_FROM_DMATRIX(4);
 
 #undef DEF_SCM_FROM_DMATRIX
 
-#define DEF_SCM_TO_DMATRIX(n) \
+#define DEF_SCM_TO_DMATRIX(n)					\
   static inline void						\
   scm_to_dMatrix##n(SCM M, dMatrix##n *m) {			\
     scm_t_array_handle h;					\
