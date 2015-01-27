@@ -8,6 +8,7 @@
   #:use-module (scum physics)
   #:use-module (editor relations)
   #:use-module (editor poses)
+  #:use-module (editor limbs)
   #:use-module (widgets 3d)
   #:use-module (oop goops)
   #:use-module (widgets physics)
@@ -20,6 +21,8 @@
 	     set-pose!
 	     pose
 
+
+	     apply-inverse-kinematics!
 	     rotate-around-joint-mode
 	     ik-mode
 
@@ -171,21 +174,15 @@
 		 (array? jacobian+) (in? (array-type jacobian+) '(f32 f64))))
     result))
 
-(define the-number-of-joints 6)
+(define* (apply-inverse-kinematics! #;of body #;to position)
+  (let* ((body-sequence (reverse (apply argmin length
+					(body-sequences #:from body
+							#:until hub?))))
+	 ((fixed . _) body-sequence)
+						      
+	 (joint-sequence (joint-sequence<-body-sequence body-sequence))
 
-(define* (apply-inverse-kinematics! #;of selected-body #;to rig #;into position
-					 #:optional #;anchored-at (fixed #f))
-  (let* ((joint-sequence+ fixed
-			  (if fixed 
-			      (values (shortest-joint-sequence
-				       #;from fixed #;to selected-body)
-				      fixed)
-			      (shortest-joint-sequence-from+furthest-end
-			       #;to selected-body)))
-	 (joint-sequence (if the-number-of-joints
-			     (take-right joint-sequence+ the-number-of-joints)
-			     joint-sequence+))
-	 (global-position (body-property selected-body 'position))
+	 (global-position (body-property body 'position))
 
 	 (((anchors+ axes+ angles+) ...)
 	  `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
@@ -212,7 +209,7 @@
     (assert (and (apply eq? 'hinge (map joint-type joint-sequence))
 		 (= global-body-position (apply system-equation angles))))
     (if (every finite? angles)
-	(set-pose! #;of rig #;to new-pose #:keeping fixed)
+	(set-pose! #;of (body-rig body) #;to new-pose #:keeping fixed)
 	#;else
 	(display `(inverse-kinematics-singularity: ,angles)))))
 
@@ -240,9 +237,8 @@
 	 (mousemove
 	  (lambda (x y xrel yrel)
 	    (with-context-for-joint/body-relation
-	     (apply-inverse-kinematics!
-	      #;of final-body #;to rig 
-		   #;into (screen->3d view x y zs)))))))))))
+	     (apply-inverse-kinematics! 
+	      #;of final-body #;to (screen->3d view x y zs)))))))))))
 
 (define-method (select-body! body #;from (view <3d-view>))
   (let ((object (find (lambda (x)

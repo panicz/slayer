@@ -39,6 +39,8 @@ exit
 (define the-simulation (primitive-make-simulation))
 
 (set-simulation-property! the-simulation 'gravity #f32(0 0 -0.2))
+(set-simulation-property! the-simulation 'erp 0.7)
+;;(set-simulation-property! the-simulation 'cfm 0.3)
 
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
 
@@ -71,10 +73,6 @@ exit
   (lambda (x y)
     (and-let* ((object (object-at-position x y #;in view))
 	       ((selectable? object)))
-      (with-context-for-joint/body-relation
-       (if (part-of-limb? #[object 'body])
-	   (format #t "grabbed a limb\n")
-	   (format #t "grabbed a corpus\n")))
       (select-object! object #;from view))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
@@ -109,25 +107,85 @@ exit
 
 (load "config.scm")
 
-;; override the default config
+;; override the default config (this may get confusing one day)
 
 (let ((turn-camera! #[view 'drag])
-      (dragged #f))
-  (set! #[view 'drag]
-    (lambda (x y dx dy)
-      (if dragged
-	  (noop)
-	  (turn-camera! x y dx dy))))
+      (walls (filter-map (lambda (rig) (and-let* (((wall) (rig-bodies rig))
+					     ('plane (body-type wall)))
+				    wall))
+			 (simulation-rigs the-simulation)))
+      (dragged-bodies '())
+      (original-positions '())
+      (tips '())
+      (original-position #f)
+      (dragging-corpus #f)
+      (dragged-limb #f)
+      (z 0.0))
 
   (set! #[view 'left-mouse-down]
     (lambda (x y)
       (and-let* ((object (object-at-position x y #;in view))
-		 ((in? object #[view 'selected])))
-	(set! dragged #[view 'selected]))))
+		 ((in? object #[view 'selected]))
+		 (body #[object 'body])) 
+	(with-context-for-joint/body-relation
+	 (cond ((or (> (length #[view 'selected]) 1)
+		    (part-of-corpus? body))
+		(let* ((rig #[object 'rig])
+		       (bodies (rig-bodies rig))
+		       (positions (map (lambda (body)
+					 (body-property body 'position))
+				       bodies))
+		       (position (body-property body 'position))
+		       ((_ _ z/screen) (3d->screen view position)))
+		  (set! tips (filter tip? bodies))
+		  (set! z z/screen)
+		  (set! original-position position)
+		  (set! dragged-bodies bodies)
+		  (set! original-positions positions)
+		  (set! dragging-corpus #t)))
+	       (else
+		(let (((_ _ z/screen) 
+		       (3d->screen view (body-property body 'position))))
+		  (set! z z/screen)
+		  (set! dragged-limb body))))))))
+
+  (set! #[view 'drag]
+    (lambda (x y dx dy)
+      (cond (dragging-corpus
+	     (let ((displacement (screen->3d view x y z)))
+	       (for (body position) in (zip dragged-bodies original-positions)
+		 (set-body-property! body 'position
+				     (+ (- position original-position)
+					displacement))))
+	     (with-context-for-joint/body-relation
+	      (for wall in walls
+		(for tip in tips
+		  (and-let* ((distance (body-distance wall tip))
+			     (normal (body-property wall 'normal))
+			     ((negative? distance))
+			     (displacement (* distance normal))
+			     (current-position (body-property tip 'position))
+			     (desired-position (+ current-position
+						  displacement)))
+		    (format #t "fixing ~s by ~s\n" (body-name tip) displacement)
+		    (apply-inverse-kinematics! #;of tip #;to desired-position)
+		    )))))
+	    (dragged-limb
+	     (let ((current-position (body-property dragged-limb 'position))
+		   (desired-position (screen->3d view x y z)))
+	       (with-context-for-joint/body-relation
+		(apply-inverse-kinematics! #;of dragged-limb 
+						#;to desired-position))))
+	    (else
+	     (turn-camera! x y dx dy)))))
 
   (set! #[view 'left-mouse-up]
     (lambda (x y)
-      (set! dragged #f))))
+      (set! original-position #f)
+      (set! dragged-bodies '())
+      (set! original-positions '())
+      (set! dragging-corpus #f)
+      (set! dragged-limb #f))))
 
 (load "editor/posed/widgets.scm")
 

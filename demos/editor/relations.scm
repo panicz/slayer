@@ -2,6 +2,7 @@
   #:use-module (extra common)
   #:use-module (extra math)
   #:use-module (extra ref)
+  #:use-module (editor limbs)
   #:export (
 	    two-bodies-attached-by
 	    bodies-linked-to
@@ -14,10 +15,10 @@
 	    bodies-attached-to
 	    body-island-leaves
 	    shortest-joint-sequence-from+furthest-end
-	    shortest-joint-sequence
 	    body-sequence<-hinge-joint-sequence
 	    hinge-joint-sequence-directions
 	    hinge-joint-sequence-anchors+axes+angles
+	    joint-sequence<-body-sequence
 	    ))
 
 ;; Throughout this module, we understand that two bodies are ATTACHED
@@ -97,18 +98,19 @@
 				     joints)))))
    body-island))
 
-(define (body-sequences #:from start #:to end #:excluding (bodies '()))
+(define (body-sequences #:from start #:until end? #:excluding (bodies '()))
   (let ((neighbours (difference (bodies-attached-to start) `(,start) bodies)))
     (cond ((or (null? neighbours) (in? start bodies))
 	   #f)
-	  ((in? end neighbours)
-	   `((,start ,end)))
+	  ((find end? neighbours)
+	   => (lambda (end)
+		`((,start ,end))))
 	  (else
 	   (let ((subchains (concatenate
 			     (filter-map
 			      (lambda (x)
 				(body-sequences 
-				 #:from x #:to end
+				 #:from x #:until end?
 				 #:excluding `(,start ,@bodies)))
 			      neighbours))))
 	     (and (not (null? subchains))
@@ -116,17 +118,19 @@
 			 `(,start ,@subchain))
 		       subchains)))))))
 
-(define (shortest-joint-sequence #;from start #;to end)
-  (let ((bodies (apply argmin length (body-sequences #;from start #;to end))))
-    (let (((starting-bodies ... _) bodies)
-	  ((_ ending-bodies ...) bodies))
-      (map joint-connecting-bodies starting-bodies ending-bodies))))
+(define (joint-sequence<-body-sequence body-sequence)
+  (let (((starting-bodies ... _) body-sequence)
+	((_ ending-bodies ...) body-sequence))
+    (map joint-connecting-bodies starting-bodies ending-bodies)))
 
 (define (shortest-joint-sequence-from+furthest-end #;to body)
   (let* ((island (bodies-linked-to body))
 	 (ends (delete body #;from (body-island-leaves island)))
 	 (sequence-sets (map (lambda (end)
-			       (body-sequences #:from body #:to end))
+			       (body-sequences 
+				#:from body 
+				#:until (lambda (nodes)
+					  (eq? end nodes))))
 			     ends))
 	 (set-of-sequences-from-body-to-furthest-end 
 	  (apply argmax (lambda (sequences) (apply min (map length sequences)))
