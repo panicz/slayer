@@ -27,6 +27,7 @@
 	     body-type
 	     body-named
 	     body-name
+	     body-distance
 	     body?
 
 	     force!
