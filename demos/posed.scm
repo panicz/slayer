@@ -151,13 +151,14 @@ exit
 
   (set! #[view 'drag]
     (lambda (x y dx dy)
+      (with-context-for-joint/body-relation
       (cond (dragging-corpus
 	     (let ((displacement (screen->3d view x y z)))
 	       (for (body position) in (zip dragged-bodies original-positions)
 		 (set-body-property! body 'position
 				     (+ (- position original-position)
 					displacement))))
-	     (with-context-for-joint/body-relation
+
 	      (for wall in walls
 		(for tip in tips
 		  (and-let* ((distance (body-distance wall tip))
@@ -167,17 +168,17 @@ exit
 			     (current-position (body-property tip 'position))
 			     (desired-position (+ current-position
 						  displacement)))
-		    (format #t "fixing ~s by ~s\n" (body-name tip) displacement)
-		    (apply-inverse-kinematics! #;of tip #;to desired-position)
-		    )))))
+		    #;(format #t "fixing ~s by ~s\n" (body-name tip) displacement)
+		    (apply-inverse-kinematics! #;of tip #;to desired-position
+						    #;at hub?)))))
 	    (dragged-limb
 	     (let ((current-position (body-property dragged-limb 'position))
 		   (desired-position (screen->3d view x y z)))
 	       (with-context-for-joint/body-relation
-		(apply-inverse-kinematics! #;of dragged-limb 
-						#;to desired-position))))
+		(apply-inverse-kinematics! 
+		 #;of dragged-limb #;to desired-position #;at hub?))))
 	    (else
-	     (turn-camera! x y dx dy)))))
+	     (turn-camera! x y dx dy))))))
 
   (set! #[view 'left-mouse-up]
     (lambda (x y)

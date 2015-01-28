@@ -174,71 +174,86 @@
 		 (array? jacobian+) (in? (array-type jacobian+) '(f32 f64))))
     result))
 
-(define* (apply-inverse-kinematics! #;of body #;to position)
-  (let* ((body-sequence (reverse (apply argmin length
-					(body-sequences #:from body
-							#:until hub?))))
-	 ((fixed . _) body-sequence)
-						      
-	 (joint-sequence (joint-sequence<-body-sequence body-sequence))
+(publish
+ (define* (apply-inverse-kinematics! #;of body #;to desired-position #;at limb?)
+   (let* ((joint-sequence pivot (joint-sequence-to+nearest-member
+				 limb? #;from body))
+	  (global-position (body-property body 'position))
 
-	 (global-position (body-property body 'position))
+	  (((anchors+ axes+ angles+) ...)
+	   `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
+	     (,global-position #f32(0 0 0) 0.0)))
+	  ((kinematic-chain ... (local-position . _)) (kinematic-chain 
+						       anchors+ axes+ angles+))
+	  (range (let* ((((local-anchors _) ...) kinematic-chain))
+		   (apply + (map norm local-anchors))))
+	  (reachable-position (fit desired-position #;to range
+				   #;at (body-property pivot 'position)))
+	  (system-equation (position<-angles kinematic-chain local-position))
 
-	 (((anchors+ axes+ angles+) ...)
-	  `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
-	    (,global-position #f32(0 0 0) 0.0)))
+	  ((angles ... _) angles+)
 
-	 ((kinematic-chain ... (local-position . _)) (kinematic-chain 
-						      anchors+ axes+ angles+))
-	 (system-equation (position<-angles kinematic-chain local-position))
-
-	 ((angles ... _) angles+)
-
-	 ((new-angles- ... _) (desired-configuration global-position position 
+	  (perhaps-new-angles (desired-configuration global-position 
+						     reachable-position
 						     angles system-equation))
-	 ((axes- ... last-axis _) (map normalized axes+))
+	  (actual-position (apply system-equation perhaps-new-angles))
 
-	 (new-angles `(,@new-angles- 
-		       ,(apply - 0.0 (map (lambda (angle axis)
+	  (deviation (- desired-position actual-position))
+
+	  ((new-angles- ... _)  (if (> (square deviation) 0.1)
+				    (map (lambda (x) (+ x 0.0001)) angles)
+				    perhaps-new-angles))
+	  ((axes- ... last-axis _) (map normalized axes+))
+
+	  (new-angles `(,@new-angles- 
+			,(last angles)
+			#;(apply - 0.0 (map (lambda (angle axis)
 					    (* angle (* axis last-axis)))
 					  new-angles- axes-))))
-	 (new-pose `(pose ,@(map (lambda (joint new-angle)
-				   `(,(joint-name joint) . ,new-angle))
-				 joint-sequence new-angles))))
+	  (new-pose `(pose ,@(map (lambda (joint new-angle)
+				    `(,(joint-name joint) . ,new-angle))
+				  joint-sequence new-angles))))
+     (assert (and (apply eq? 'hinge (map joint-type joint-sequence))
+		  (= global-body-position (apply system-equation angles))))
+     (if (every finite? angles)
+	 (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
+	 #;else
+	 (display `(inverse-kinematics-singularity: ,angles)))))
+ where
+ (define (fit position #;to range #;at pivot)
+   (let* ((local (- position pivot))
+	  (distance (norm local))
+	  (direction (/ local distance)))
+     (+ pivot (* (min range distance) direction)))))
 
-    (assert (and (apply eq? 'hinge (map joint-type joint-sequence))
-		 (= global-body-position (apply system-equation angles))))
-    (if (every finite? angles)
-	(set-pose! #;of (body-rig body) #;to new-pose #:keeping fixed)
-	#;else
-	(display `(inverse-kinematics-singularity: ,angles)))))
 
-(define ((ik-mode view rig))
-  (with-context-for-joint/body-relation
-   (unless (null? #[view 'selected])
-     (let* ((old-bindings (current-key-bindings))
-	    (final-object (first #[view 'selected]))
-	    (final-body #[final-object 'body])
-	    (initial-position #[final-object 'position])
-	    (_ fixed (shortest-joint-sequence-from+furthest-end 
-		      #;to final-body))
-	    (pose (pose #;of rig))
-	    ((xs ys zs) (3d->screen view initial-position)))
-       (set-mouse-position! xs ys)
-       (set-key-bindings!
-	(key-bindings
-	 (keydn 'esc
-	   (lambda ()
-	     (set-pose! #;of rig #;to pose #:keeping fixed)
-	     (set-key-bindings! old-bindings)))
-	 (keydn 'mouse-left
-	   (lambda (x y)
-	     (set-key-bindings! old-bindings)))
-	 (mousemove
-	  (lambda (x y xrel yrel)
-	    (with-context-for-joint/body-relation
-	     (apply-inverse-kinematics! 
-	      #;of final-body #;to (screen->3d view x y zs)))))))))))
+ (define ((ik-mode view rig))
+   (with-context-for-joint/body-relation
+    (unless (null? #[view 'selected])
+      (let* ((old-bindings (current-key-bindings))
+	     (final-object (first #[view 'selected]))
+	     (final-body #[final-object 'body])
+	     (initial-position #[final-object 'position])
+	     (_ fixed (shortest-joint-sequence-from+furthest-end 
+		       #;to final-body))
+	     (pose (pose #;of rig))
+	     ((xs ys zs) (3d->screen view initial-position)))
+	(set-mouse-position! xs ys)
+	(set-key-bindings!
+	 (key-bindings
+	  (keydn 'esc
+	    (lambda ()
+	      (set-pose! #;of rig #;to pose #:keeping fixed)
+	      (set-key-bindings! old-bindings)))
+	  (keydn 'mouse-left
+	    (lambda (x y)
+	      (set-key-bindings! old-bindings)))
+	  (mousemove
+	   (lambda (x y xrel yrel)
+	     (with-context-for-joint/body-relation
+	      (apply-inverse-kinematics! 
+	       #;of final-body #;to (screen->3d view x y zs)
+		    #;at hub?))))))))))
 
 (define-method (select-body! body #;from (view <3d-view>))
   (let ((object (find (lambda (x)

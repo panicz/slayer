@@ -15,6 +15,7 @@
 	    bodies-attached-to
 	    body-island-leaves
 	    shortest-joint-sequence-from+furthest-end
+	    joint-sequence-to+nearest-member
 	    body-sequence<-hinge-joint-sequence
 	    hinge-joint-sequence-directions
 	    hinge-joint-sequence-anchors+axes+angles
@@ -117,6 +118,14 @@
 		  (map (lambda (subchain)
 			 `(,start ,@subchain))
 		       subchains)))))))
+
+(define (joint-sequence-to+nearest-member member? #;from body)
+  (let* ((body-sequence (reverse (apply argmin length
+					(body-sequences #:from body
+							#:until member?))))
+	 ((member . _) body-sequence)
+	 (joint-sequence (joint-sequence<-body-sequence body-sequence)))
+    (values joint-sequence member)))
 
 (define (joint-sequence<-body-sequence body-sequence)
   (let (((starting-bodies ... _) body-sequence)
