@@ -578,15 +578,16 @@
 		      (let ((M (length partial-result)))
 			(equal? (tensor-dimensions result)
 				`(,M #;rows #;by ,N #;columns))))))
-       (transpose
-	(map (lambda (i)
-	       (let ((Vi #[V i])
-		     (dVi #[dV i]))
-		 (/ (- (apply f (alter #;element-number i #;in V 
-							#;with (+ Vi dVi)))
-		       (apply f V))
-		    dVi)))
-	     (iota N)))))))
+       (let ((f/V (apply f V)))
+	 (transpose
+	  (map (lambda (i)
+		 (let ((Vi #[V i])
+		       (dVi #[dV i]))
+		   (/ (- (apply f (alter #;element-number i #;in V 
+							  #;with (+ Vi dVi)))
+			 f/V)
+		      dVi)))
+	       (iota N))))))))
 
 (define ((isotropic-jacobian-approximation #;of f) #;by delta)
   (let (((N 0 #f) (arity f)))
