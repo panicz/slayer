@@ -2,7 +2,8 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (extra common)
-  #:export (rgba highlighted subtract-image force-redisplay! key)
+  #:export (rgba highlighted subtract-image force-redisplay! key
+		 shift? ctrl? alt?)
   #:export-syntax (with-video-output-to key-bindings))
 
 (define rgba
@@ -61,3 +62,12 @@
   (keyup name 
     (lambda()
       (hash-remove! *modes* name))))
+
+(define (shift?)
+  (modifier-pressed? 'shift))
+
+(define (ctrl?)
+  (modifier-pressed? 'ctrl))
+
+(define (alt?)
+  (modifier-pressed? 'alt))
