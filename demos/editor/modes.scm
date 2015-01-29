@@ -16,7 +16,6 @@
 	     position<-angles
 	     desired-configuration
 	     global-positions
-	     tip-position
 	     kinematic-chain
 	     set-pose!
 	     pose
@@ -97,6 +96,7 @@
 		    ,local-angle))
 		rest)))))))
 
+
 (publish
  (define (global-positions kinematic-chain angles)
    (map (lambda ((anchor rotation)) 
@@ -110,43 +110,46 @@
 	      kinematic-chain angles))))
  where
  (define (anchors+orientations<-kinematic-chain chain)
-   (global<-local chain #f32(0 0 0) '(1.0 . #f32(0 0 0))))
+   (let loop ((input chain)
+	      (result '())
+	      (translation #f32(0 0 0))
+	      (rotation '(1.0 . #f32(0 0 0))))
+     (match input
+       (()
+	(reverse result))
+       (((local-anchor local-rotation) . rest)
+	(let ((new-anchor (+ translation (rotate local-anchor #;by rotation)))
+	      (new-rotation (* rotation local-rotation)))
+	  (loop rest (cons (list new-anchor new-rotation) result)
+		new-anchor new-rotation)))))))
 
- (define (global<-local kinematic-chain translation rotation)
-   (match kinematic-chain
-     (()
-      '())
-     (((local-anchor local-rotation) . rest)
-      (let ((new-anchor (+ translation (rotate local-anchor #;by rotation)))
-	    (new-rotation (* rotation local-rotation)
-			  ))
-      `((,new-anchor ,new-rotation) . ,(global<-local rest new-anchor
-						      new-rotation)))))))
-
-;; co musimy przetestować? jakie ten nasz kod czyni założenia?
-;; - mamy daną funkcję, która pobiera kąty i zwraca położenie
-;; elementu końcowego. W jakim układzie współrzędnych wyrażone
-;; jest to położenie?
-;; - skąd bierze się taka jednorodność jakobianu? czy to aby
-;; nie podejrzane?
+(define (tip-position chain angles local-position)
+  (let loop ((angles angles)
+	     (anchors+axes chain)
+	     (translation #f32(0 0 0))
+	     (rotation '(1.0 . #f32(0 0 0))))
+    (match anchors+axes
+      (()
+       (+ translation (rotate local-position #;by rotation)))
+      (((local-anchor local-axis) . remaining-anchors+axes)
+       (let* (((alpha . remaining-angles) angles)
+	      (q (rotation-quaternion #;around local-axis #;by alpha)))
+	 (loop remaining-angles 
+	       remaining-anchors+axes
+	       (+ translation (rotate local-anchor #;by rotation))
+	       (* rotation q)))))))
 
 (define (kinematic-chain anchors axes angles)
   (map (lambda ((anchor axis angle))
 	 `(,anchor ,axis))
        (kinematic-chain<-anchors+axes+angles anchors axes angles)))
 
-(define (tip-position kinematic-chain angles)
-  (last (global-positions kinematic-chain angles)))
-
 (define (position<-angles kinematic-chain local-position)
   (let ((N (length kinematic-chain)))
     (impose-arity
      `(,N 0 #f)
      (lambda angles
-       (tip-position 
-	`(,@kinematic-chain
-	  (,local-position #f32(0 0 0)))
-	`(,@angles 0.0))))))
+       (tip-position kinematic-chain angles local-position)))))
 
 (define (desired-configuration initial-position desired-position
 			       initial-configuration system-equation)
@@ -175,7 +178,9 @@
     result))
 
 (publish
- (define* (apply-inverse-kinematics! #;of body #;to desired-position #;at limb?)
+ (define* (apply-inverse-kinematics! #;of body #;to desired-position 
+					  #:optional #;at (limb? hub?)
+					  #;with (max-step 0.035))
    (let* ((joint-sequence pivot (joint-sequence-to+nearest-member
 				 limb? #;from body))
 	  (global-position (body-property body 'position))
@@ -185,47 +190,53 @@
 	     (,global-position #f32(0 0 0) 0.0)))
 	  ((kinematic-chain ... (local-position . _)) (kinematic-chain 
 						       anchors+ axes+ angles+))
-	  (range (let* ((((local-anchors _) ...) kinematic-chain))
-		   (apply + (map norm local-anchors))))
+	  (range (apply + (map (lambda ((local-anchor _)) (norm local-anchor)) 
+			       kinematic-chain)))
 	  (reachable-position (fit desired-position #;to range
 				   #;at (body-property pivot 'position)))
-	  (system-equation (position<-angles kinematic-chain local-position))
-
-	  ((angles ... _) angles+)
-
-	  (perhaps-new-angles (desired-configuration global-position 
-						     reachable-position
-						     angles system-equation))
-	  (actual-position (apply system-equation perhaps-new-angles))
-
-	  (deviation (- desired-position actual-position))
-
-	  ((new-angles- ... _)  (if (> (square deviation) 0.1)
-				    (map (lambda (x) (+ x 0.0001)) angles)
-				    perhaps-new-angles))
+	  (displacement (- reachable-position global-position))
+	  (distance (norm displacement))
+	  (direction (/ displacement distance))
 	  ((axes- ... last-axis _) (map normalized axes+))
-
-	  (new-angles `(,@new-angles- 
-			,(last angles)
-			#;(apply - 0.0 (map (lambda (angle axis)
-					    (* angle (* axis last-axis)))
-					  new-angles- axes-))))
-	  (new-pose `(pose ,@(map (lambda (joint new-angle)
-				    `(,(joint-name joint) . ,new-angle))
-				  joint-sequence new-angles))))
-     (assert (and (apply eq? 'hinge (map joint-type joint-sequence))
-		  (= global-body-position (apply system-equation angles))))
-     (if (every finite? angles)
-	 (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
-	 #;else
-	 (display `(inverse-kinematics-singularity: ,angles)))))
+	  (system-equation (position<-angles kinematic-chain local-position)))
+     (let improve ((n 0)
+		   (remaining distance)
+		   (angles (drop-right angles+ 1))
+		   (current-position global-position))
+       (if (positive? remaining)
+	   (let* ((improved-position (if (< remaining max-step)
+					 reachable-position
+					 (+ current-position 
+					    (* direction max-step))))
+		  ((new-angles- ... _) (desired-configuration current-position
+							      improved-position
+							      angles 
+							      system-equation))
+		  (new-angles `(,@new-angles- 
+				,(apply - 0.0 (map (lambda (angle axis)
+						     (* angle 
+							(* axis last-axis)))
+						   new-angles- axes-))))
+		  (new-pose `(pose ,@(map (lambda (joint new-angle)
+					    `(,(joint-name joint) . ,new-angle))
+					  joint-sequence new-angles))))
+	     (if (and (> n 0) (< remaining max-step))
+		 (format #t "remaining: ~s\n" remaining))
+		 
+	     (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
+	     (improve (1+ n) (- remaining max-step)
+		      (map (lambda (joint) (joint-property joint 'angle))
+			   joint-sequence)
+		      (body-property body 'position)))
+	   #;else (format #t "~s iterations\n" n)))))
  where
  (define (fit position #;to range #;at pivot)
    (let* ((local (- position pivot))
 	  (distance (norm local))
 	  (direction (/ local distance)))
+     (if (< range distance)
+	 (<< "out of range!"))
      (+ pivot (* (min range distance) direction)))))
-
 
  (define ((ik-mode view rig))
    (with-context-for-joint/body-relation
