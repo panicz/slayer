@@ -172,7 +172,7 @@
 	    #:action
 	    (lambda (x y)
 	      (let ((('pose . configuration) (pose #;of the-rig)))
-		(add/overwrite! (make <pose-entry> #:name #[pose 'name]
+		(add/overwrite! (make <pose-entry> #:name #[the-pose 'name]
 				      #:configuration configuration)
 				#;to poses-widget
 				     #;overwriting-if
