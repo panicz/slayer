@@ -38,7 +38,7 @@ exit
 
 (define the-simulation (primitive-make-simulation))
 
-(set-simulation-property! the-simulation 'gravity #f32(0 0 -0.2))
+(set-simulation-property! the-simulation 'gravity #f32(0 0 -0.3))
 (set-simulation-property! the-simulation 'erp 0.7)
 ;;(set-simulation-property! the-simulation 'cfm 0.3)
 
@@ -151,34 +151,32 @@ exit
 
   (set! #[view 'drag]
     (lambda (x y dx dy)
-      (with-context-for-joint/body-relation
-      (cond (dragging-corpus
-	     (let ((displacement (screen->3d view x y z)))
-	       (for (body position) in (zip dragged-bodies original-positions)
-		 (set-body-property! body 'position
-				     (+ (- position original-position)
-					displacement))))
-
-	      (for wall in walls
-		(for tip in tips
-		  (and-let* ((distance (body-distance wall tip))
-			     (normal (body-property wall 'normal))
-			     ((negative? distance))
-			     (displacement (* distance normal))
-			     (current-position (body-property tip 'position))
-			     (desired-position (+ current-position
-						  displacement)))
-		    #;(format #t "fixing ~s by ~s\n" (body-name tip) displacement)
-		    (apply-inverse-kinematics! #;of tip #;to desired-position
-						    #;at hub?)))))
-	    (dragged-limb
-	     (let ((current-position (body-property dragged-limb 'position))
-		   (desired-position (screen->3d view x y z)))
-	       (with-context-for-joint/body-relation
-		(apply-inverse-kinematics! 
-		 #;of dragged-limb #;to desired-position #;at hub?))))
-	    (else
-	     (turn-camera! x y dx dy))))))
+      (unless (= dx dy 0)
+	(with-context-for-joint/body-relation
+	 (cond (dragging-corpus
+		(let ((displacement (screen->3d view x y z)))
+		  (for (body position) in (zip dragged-bodies 
+					       original-positions)
+		    (set-body-property! body 'position
+					(+ (- position original-position)
+					   displacement))))
+		(for wall in walls
+		  (for tip in tips
+		    (and-let* ((distance (body-distance wall tip))
+			       (normal (body-property wall 'normal))
+			       ((negative? distance))
+			       (displacement (* (- distance) normal)))
+		      (for body in dragged-bodies
+			(set-body-property! body 'position
+					    (+ (body-property body 'position)
+					       displacement)))))))
+	       (dragged-limb
+		(let ((current-position (body-property dragged-limb 'position))
+		      (desired-position (screen->3d view x y z)))
+		  (apply-inverse-kinematics! 
+		   #;of dragged-limb #;to desired-position #;at hub?)))
+	       (else
+		(turn-camera! x y dx dy)))))))
 
   (set! #[view 'left-mouse-up]
     (lambda (x y)
@@ -187,6 +185,20 @@ exit
       (set! original-positions '())
       (set! dragging-corpus #f)
       (set! dragged-limb #f))))
+
+(keydn '=
+  (lambda ()
+    (with-context-for-joint/body-relation
+     (let ((displacement #f32(0 0 0.03)))
+       (for body in (rig-bodies the-rig)
+	 (set-body-property! body 'position
+			     ((if (shift?) + -) (body-property body 'position)
+			      displacement)))
+       (for ankle in '(left-ankle right-ankle)
+	 (let* ((limb (body-named ankle #;from the-rig))
+		(its-position (body-property limb 'position))
+		(new-position ((if (shift?) - +) its-position displacement)))
+       (apply-inverse-kinematics! #;of limb #;to new-position #;at hub?)))))))
 
 (load "editor/posed/widgets.scm")
 
