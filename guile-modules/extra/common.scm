@@ -108,6 +108,7 @@
 	    make-locked-mutex
 	    last-index indexed
 	    demand SPECIFIC-CONTEXT
+	    now
 	    iterations
 	    RUN-TESTS TEST-RESULTS
 	    WARN
@@ -135,7 +136,7 @@
 		   push! pop!
 		   symbol-match
 		   n-lambda trace
-		   !# check <<<
+		   !# check <<< let** measured
 		   )
   #:replace (compose 
 	     (unfold-facade . unfold)
@@ -2281,6 +2282,8 @@
  ((iterations 3 1+) 0)
  ===> 3)
 
+(define (now)
+  (get-internal-real-time))
 
 ;; (expand '(define-accessors (a (b c 2))))
 
@@ -2302,6 +2305,17 @@
 ;;      (let loop ()
 ;;        body  ... 
 ;;        (if condition (loop))))))
+
+(define-syntax-rule (measured expression)
+  (let ((starting-time (now)))
+    (let ((result (list<-values expression)))
+      (format #t "~s: ~s ns\n" 'expression (- (now) starting-time))
+      (apply values result))))
+
+(define-syntax-rule (let** ((names ... expression) ...)
+			  body ...)
+  (let*-replacement ((names ... (measured expression)) ...)
+    body ...))
 
 ;; the "!#" macro is used for debugging, and its name is intentionally
 ;; obscure, as it should not appear in the production code
