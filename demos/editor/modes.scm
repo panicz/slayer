@@ -220,15 +220,11 @@
 		  (new-pose `(pose ,@(map (lambda (joint new-angle)
 					    `(,(joint-name joint) . ,new-angle))
 					  joint-sequence new-angles))))
-	     (if (and (> n 0) (< remaining max-step))
-		 (format #t "remaining: ~s\n" remaining))
-		 
 	     (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
 	     (improve (1+ n) (- remaining max-step)
 		      (map (lambda (joint) (joint-property joint 'angle))
 			   joint-sequence)
-		      (body-property body 'position)))
-	   #;else (format #t "~s iterations\n" n)))))
+		      (body-property body 'position)))))))
  where
  (define (fit position #;to range #;at pivot)
    (let* ((local (- position pivot))
