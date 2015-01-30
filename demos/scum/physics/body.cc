@@ -522,15 +522,18 @@ init_body_property_accessors() {
     SET_BODY_ACCESSORS(i,, mass);
     SET_BODY_ACCESSORS(i,, position);
     SET_BODY_ACCESSORS(i,, velocity);
-    SET_BODY_ACCESSORS(i,, angular_velocity);
     SET_BODY_ACCESSORS(i,, force);
     SET_BODY_ACCESSORS(i,, torque);
     SET_BODY_ACCESSORS(i,, rotation);
     SET_BODY_ACCESSORS(i,, quaternion);
-    SET_BODY_ACCESSORS(i,, linear_damping);
-    SET_BODY_ACCESSORS(i,, angular_damping);
-    SET_BODY_ACCESSORS(i,, linear_damping_threshold);
-    SET_BODY_ACCESSORS(i,, angular_damping_threshold);
+
+    SET_BODY_NAMED_ACCESSORS(i,, angular_velocity, "angular-velocity");
+    SET_BODY_NAMED_ACCESSORS(i,, linear_damping, "linear-damping");
+    SET_BODY_NAMED_ACCESSORS(i,, angular_damping, "angular-damping");
+    SET_BODY_NAMED_ACCESSORS(i,, linear_damping_threshold,
+			     "linear-damping-threshold");
+    SET_BODY_NAMED_ACCESSORS(i,, angular_damping_threshold,
+			     "angular-damping-threshold");
 
     SET_BODY_NAMED_ACCESSORS(i,, mass_distribution, "mass-distribution");
   }
