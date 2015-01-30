@@ -5,6 +5,7 @@ static body_property_getter_map_t body_property_getter;
 static float
 (*body_body_distance[dGeomNumClasses][dGeomNumClasses])(body_t *, body_t *);
 
+/*************************** BODY CONSTRUCTION ***************************/
 
 #define DEF_MAKE_SOME_BODY(create_body, set_body, shape, Shape, init, ...) \
   static body_t *							\
@@ -52,6 +53,10 @@ init_body_maker() {
 
 #undef SET_BODY_MAKER
 }
+
+/********************************* GEOMS *********************************/
+
+/******************************** TRIMESH ********************************/
 
 template <typename T> SCM 
 _dTriIndex_uniform_vector_internal(SCM v);
@@ -180,6 +185,8 @@ body_trimesh_mesh_getter(body_t *body) {
   return SCM_BOOL_F;
 }
 
+/********************************* PLANE *********************************/
+
 static SCM
 body_plane_normal_getter(body_t *body) {
   dVector4 p;
@@ -270,6 +277,8 @@ body_plane_quaternion_setter(body_t *body, SCM value) {
   dGeomPlaneSetParams(body->geom, v.x, v.y, v.z, n[3]);
 }
 
+/********************************** BOX **********************************/
+
 static void
 body_box_dimensions_setter(body_t *body, SCM value) {
   dVector3 v;
@@ -311,6 +320,48 @@ DEF_BOX_DIMENSION_ACCESSORS(z, 2)
 
 #undef DEF_BOX_DIMENSION_ACCESSORS
 
+/*************************** CYLINDER/CAPSULE ****************************/
+
+#define DEF_XCYLINDER_PARAMETER_ACCESSORS(Type, name)			\
+  static void								\
+  body_##name##_height_setter(body_t *body, SCM value) {		\
+    ASSERT_SCM_TYPE(real, value, 2);					\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    dGeom##Type##SetParams(body->geom, radius, scm_to_double(value));	\
+    scm_remember_upto_here_1(value);					\
+  }									\
+									\
+  static SCM								\
+  body_##name##_height_getter(body_t *body) {				\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    return scm_from_double(height);					\
+  }									\
+									\
+  static void								\
+  body_##name##_radius_setter(body_t *body, SCM value) {		\
+    ASSERT_SCM_TYPE(real, value, 2);					\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    dGeom##Type##SetParams(body->geom, scm_to_double(value), height);	\
+    scm_remember_upto_here_1(value);					\
+  }									\
+									\
+  static SCM								\
+  body_##name##_radius_getter(body_t *body) {				\
+    dReal radius, height;						\
+    dGeom##Type##GetParams(body->geom, &radius, &height);		\
+    return scm_from_double(radius);					\
+  }
+
+DEF_XCYLINDER_PARAMETER_ACCESSORS(Cylinder, cylinder)
+DEF_XCYLINDER_PARAMETER_ACCESSORS(CCylinder, capsule)
+
+#undef DEF_XCYLINDER_PARAMETER_ACCESSORS
+
+/******************************** SPHERE *********************************/
+
 static void
 body_sphere_radius_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
@@ -323,79 +374,70 @@ body_sphere_radius_getter(body_t *body) {
   return scm_from_double(dGeomSphereGetRadius(body->geom));
 }
 
-static dVector3 null_dVector3 = {0.0, 0.0, 0.0, 0.0};
-static dQuaternion neutral_dQuaternion = {1.0, 0.0, 0.0, 0.0};
+/******************************** GENERAL ********************************/
 
-static void
-body_position_setter(body_t *body, SCM value) {
-  if(!(body->body)) {
-    WARN_UPTO(3, "function called on void body");
-    return;
-  }
-  dVector3 v;
-  scm_to_dVector3(value, &v);
-  dBodySetPosition(body->body, v[0], v[1], v[2]);
-}
+//static dVector3 null_dVector3 = {0.0, 0.0, 0.0, 0.0};
+//static dQuaternion neutral_dQuaternion = {1.0, 0.0, 0.0, 0.0};
 
-static SCM
-body_position_getter(body_t *body) {
-  if(body->body) {
-    dReal const *v = dBodyGetPosition(body->body);
-    return scm_from_dVector3(v);
+#define DEF_BODY_GETTER(property, dType, dGet, scm_from_dType)		\
+  static SCM body_##property##_getter(body_t *body) {			\
+    if(!body->body) {							\
+      WARN_UPTO(3, "function called on void body");			\
+      return SCM_UNSPECIFIED;						\
+    }									\
+    dType value = dGet(body->body);					\
+    return scm_from_dType(value);					\
   }
-  WARN_UPTO(3, "function called on void body");
-  return scm_from_dVector3(null_dVector3);
-}
 
-static void
-body_rotation_setter(body_t *body, SCM value) {
-  if(!body->body) { 
-    WARN_UPTO(3,"function called on void body");
-    return;
+#define DEF_BODY_SETTER(property, dType, dSet, scm_to_dType, name, ...) \
+  static void body_##property##_setter(body_t *body, SCM value) {	\
+    if(!body->body) {							\
+      return WARN("function called on void body");			\
+    }									\
+    dType name;								\
+    scm_to_dType(value, &name);						\
+    dSet(body->body, ## __VA_ARGS__ );					\
   }
-  dMatrix3 M;
-  scm_to_dMatrix3(value, &M);
-  dBodySetRotation(body->body, M);
-}
 
-static SCM
-body_rotation_getter(body_t *body) {
-  if(body->body) {
-    dReal const *M = dBodyGetRotation(body->body);
-    return scm_from_dMatrix3(M);
-  }
-  WARN_UPTO(3, "function called on a void body");
-  return SCM_UNSPECIFIED;
-}
+#define DEF_BODY_COMPOUND_ACCESSORS(prop, Prop, dType)			\
+  DEF_BODY_GETTER(prop, dReal const *, dBodyGet##Prop, scm_from_##dType) \
+  DEF_BODY_SETTER(prop, dType, dBodySet##Prop, scm_to_##dType, v, v)
 
-static SCM
-body_quaternion_getter(body_t *body) {
-  if(body->body) {
-    dReal const *Q = dBodyGetQuaternion(body->body);
-    return scm_from_dQuaternion(Q);
-  }
-  WARN_UPTO(3, "function called on a void body");
-  
-  return scm_from_dQuaternion(neutral_dQuaternion);
-}
+#define DEF_BODY_VECTOR3_ACCESSORS(prop, Prop)				\
+  DEF_BODY_GETTER(prop, dReal const *, dBodyGet##Prop, scm_from_dVector3) \
+  DEF_BODY_SETTER(prop, dVector3, dBodySet##Prop, scm_to_dVector3, v,	\
+		  v[0], v[1], v[2])
 
-static void
-body_quaternion_setter(body_t *body, SCM value) {
-  if(!body->body) { 
-    WARN_UPTO(3, "function called on void body");
-    return;
-  }
-  dQuaternion Q;
-  scm_to_dQuaternion(value, &Q);
-  dBodySetQuaternion(body->body, Q);
-}
+#define DEF_BODY_SCALAR_ACCESSORS(prop, Prop)				\
+  DEF_BODY_GETTER(prop, dReal, dBodyGet##Prop, scm_from_dReal)		\
+  DEF_BODY_SETTER(prop, dReal, dBodySet##Prop, scm_to_dReal, s, s)
+
+DEF_BODY_VECTOR3_ACCESSORS(position, Position)
+DEF_BODY_VECTOR3_ACCESSORS(velocity, LinearVel)
+DEF_BODY_VECTOR3_ACCESSORS(angular_velocity, AngularVel)
+DEF_BODY_VECTOR3_ACCESSORS(force, Force)
+DEF_BODY_VECTOR3_ACCESSORS(torque, Torque)
+
+DEF_BODY_SCALAR_ACCESSORS(linear_damping, LinearDamping)
+DEF_BODY_SCALAR_ACCESSORS(angular_damping, AngularDamping)
+DEF_BODY_SCALAR_ACCESSORS(linear_damping_threshold, LinearDampingThreshold)
+DEF_BODY_SCALAR_ACCESSORS(angular_damping_threshold, AngularDampingThreshold)
+
+
+DEF_BODY_COMPOUND_ACCESSORS(rotation, Rotation, dMatrix3)
+DEF_BODY_COMPOUND_ACCESSORS(quaternion, Quaternion, dQuaternion)
+
+#undef DEF_BODY_SCALAR_ACCESSORS
+#undef DEF_BODY_VECTOR3_ACCESSORS
+#undef DEF_BODY_COMPOUND_ACCESSORS
+#undef DEF_BODY_SETTER
+#undef DEF_BODY_GETTER
 
 static void
 body_mass_setter(body_t *body, SCM value) {
   ASSERT_SCM_TYPE(real, value, 2);
   if(!(body->body)) {
-    WARN_UPTO(3, "function called on void body");
-    return;
+    return WARN("function called on void body");
   }
   dMass m;
   dBodyGetMass(body->body, &m);
@@ -452,44 +494,6 @@ body_mass_distribution_getter(body_t *body) {
   return scm_cons(scm_from_dVector3(m.c), scm_from_dMatrix3(m.I));
 }
 
-#define DEF_XCYLINDER_PARAMETER_ACCESSORS(Type, name)			\
-  static void								\
-  body_##name##_height_setter(body_t *body, SCM value) {		\
-    ASSERT_SCM_TYPE(real, value, 2);					\
-    dReal radius, height;						\
-    dGeom##Type##GetParams(body->geom, &radius, &height);		\
-    dGeom##Type##SetParams(body->geom, radius, scm_to_double(value));	\
-    scm_remember_upto_here_1(value);					\
-  }									\
-									\
-  static SCM								\
-  body_##name##_height_getter(body_t *body) {				\
-    dReal radius, height;						\
-    dGeom##Type##GetParams(body->geom, &radius, &height);		\
-    return scm_from_double(height);					\
-  }									\
-									\
-  static void								\
-  body_##name##_radius_setter(body_t *body, SCM value) {		\
-    ASSERT_SCM_TYPE(real, value, 2);					\
-    dReal radius, height;						\
-    dGeom##Type##GetParams(body->geom, &radius, &height);		\
-    dGeom##Type##SetParams(body->geom, scm_to_double(value), height);	\
-    scm_remember_upto_here_1(value);					\
-  }									\
-									\
-  static SCM								\
-  body_##name##_radius_getter(body_t *body) {				\
-    dReal radius, height;						\
-    dGeom##Type##GetParams(body->geom, &radius, &height);		\
-    return scm_from_double(radius);					\
-  }
-
-DEF_XCYLINDER_PARAMETER_ACCESSORS(Cylinder, cylinder)
-DEF_XCYLINDER_PARAMETER_ACCESSORS(CCylinder, capsule)
-
-#undef DEF_XCYLINDER_PARAMETER_ACCESSORS
-
 static void
 init_body_property_accessors() {
   pair<SCM, int> index;
@@ -517,8 +521,17 @@ init_body_property_accessors() {
   for(int i = 0; i < dFirstSpaceClass; ++i) {
     SET_BODY_ACCESSORS(i,, mass);
     SET_BODY_ACCESSORS(i,, position);
+    SET_BODY_ACCESSORS(i,, velocity);
+    SET_BODY_ACCESSORS(i,, angular_velocity);
+    SET_BODY_ACCESSORS(i,, force);
+    SET_BODY_ACCESSORS(i,, torque);
     SET_BODY_ACCESSORS(i,, rotation);
     SET_BODY_ACCESSORS(i,, quaternion);
+    SET_BODY_ACCESSORS(i,, linear_damping);
+    SET_BODY_ACCESSORS(i,, angular_damping);
+    SET_BODY_ACCESSORS(i,, linear_damping_threshold);
+    SET_BODY_ACCESSORS(i,, angular_damping_threshold);
+
     SET_BODY_NAMED_ACCESSORS(i,, mass_distribution, "mass-distribution");
   }
 
@@ -768,7 +781,7 @@ body_p(SCM smob) {
     : SCM_BOOL_F;
 }
 
-//
+/******************************** DISTANCE *******************************/
 
 #define DISTANCE_FUNCTION(X, Y)					\
   static inline dReal X##_##Y##_distance(body_t *X, body_t *Y); \
@@ -795,7 +808,6 @@ DISTANCE_FUNCTION(sphere, plane) {
   return ((p[0]*v[0]+p[1]*v[1]+p[2]*v[2]-p[3])
 	  / sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2])) - r;
 }
-
 
 DISTANCE_FUNCTION(trimesh, plane) {
   dVector4 p;
@@ -909,6 +921,7 @@ init_body_distance() {
   body_body_distance[dPlaneClass][dBoxClass] = plane_box_distance;
 }
 
+/******************************** EXPORT *********************************/
 
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
