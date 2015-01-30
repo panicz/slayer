@@ -5,6 +5,7 @@
   #:export (
 	    3d->trimesh
 	    trimesh->3d
+	    load-trimesh
 	    *trimesh-cache*
 	    ))
 
@@ -47,6 +48,14 @@
 
 (define *trimesh-cache* #[])
 
+(define loaded-meshes #[])
+
+(define (load-trimesh filename)
+  (or #[loaded-meshes filename]
+      (let ((mesh (3d->trimesh (with-input-from-file filename read))))
+	(set! #[loaded-meshes filename] mesh)
+	mesh)))
+
 (define (3d->trimesh mesh)
   (let ((('mesh . details) mesh))
     (temporarily
@@ -60,7 +69,7 @@
 	   (trimesh-list (append-map triangles faces))
 	   (trimesh (list->typed-array 'u32 2 trimesh-list))
 	   (result `(,vertices . ,trimesh)))
-      (format #t "~s triangles\n" (length trimesh-list))
+      ;;(format #t "~s triangles\n" (length trimesh-list))
       (unless (and (matches? (_ 3) (array-dimensions vertices))
 		   (eq? (array-type vertices) 'f32))
 	(error "the vertex array should have 3 columns of f32 elements"))
