@@ -16,7 +16,7 @@
 
 (define-class <sequence> ()
   (name #:init-keyword #:name)
-  (poses #:init-value #:poses))
+  (poses #:init-keyword #:poses #:init-value '()))
 
 (define sequence (make <sequence> #:name 'unnamed-sequence))
 
@@ -252,8 +252,9 @@
     (label "         ")
     (button #:text "  [ play ]  "
 	    #:action (lambda (x y)
+		       (<< "playing " #[sequence 'name] #[sequence 'poses])
 		       (play-sequence! #[sequence 'poses])
-		       (<< "playing " #[sequence 'name] #[sequence 'poses])))
+		       ))
     (label "         "))
 
    (label "       --- sequences ---      ")
