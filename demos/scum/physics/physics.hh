@@ -85,7 +85,7 @@ typedef struct body_t {
 
 typedef unordered_map<SCM, int, hash<SCM>, scm_eq> symbol_index_map_t;
 
-typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> general_scm_map_t;
+//typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> general_scm_map_t;
 
 typedef struct rig_t {
   SCM self_smob;
@@ -96,6 +96,7 @@ typedef struct rig_t {
   vector<joint_t *> joints;
   dSpaceID space;
   dJointGroupID group;
+  SCM name;
 } rig_t;
 
 typedef struct sim_t {
@@ -106,7 +107,6 @@ typedef struct sim_t {
   dJointGroupID contact_group;
   dReal dt;
   int step;
-  general_scm_map_t rig_defs;
 } sim_t;
 
 typedef unordered_map <SCM, body_t *(*)(rig_t *), hash<SCM>, scm_eq>
@@ -141,10 +141,10 @@ typedef unordered_map<SCM, SCM (*)(sim_t *), hash<SCM>, scm_eq>
   }									\
   c_type c_var = (c_type) SCM_SMOB_DATA(scm_var)
 
-#define SIM_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)		\
+#define SIM_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
   MDEF_CONDITIONAL_ASSIGN(SIM, ode_tag, scm_var, sim_t *, c_var, d_val)
 
-#define RIG_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)		\
+#define RIG_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\
   MDEF_CONDITIONAL_ASSIGN(RIG, ode_tag, scm_var, rig_t *, c_var, d_val)
 
 #define BODY_CONDITIONAL_ASSIGN(scm_var, c_var, d_val)			\

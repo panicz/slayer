@@ -16,13 +16,11 @@
 
 (define the-simulation (primitive-make-simulation))
 
-(define-rig-for the-simulation
-  'legs (with-input-from-file "art/rigs/legs.rig" read))
+(define-rig legs (with-input-from-file "art/rigs/legs.rig" read))
 
-(define-rig-for the-simulation 'ground 
-  (with-input-from-file "art/rigs/ground.rig" read))
+(define-rig ground (with-input-from-file "art/rigs/ground.rig" read))
 
-(define the-ground (make-rig the-simulation 'ground #:position #f32(0 0 0.05)))
+(define the-ground (make-rig the-simulation 'ground))
 
 (define the-legs (make-rig #;in the-simulation #;instantiating 'legs))
 

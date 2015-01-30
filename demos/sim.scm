@@ -18,13 +18,12 @@
 ;(set-simulation-property! *sim* 'erp 0.8)
 ;(set-simulation-property! *sim* 'cfm 1.0)
 
-(define-rig-for *sim* 'ground (with-input-from-file "art/rigs/ground.rig" read))
+(define-rig ground (with-input-from-file "art/rigs/ground.rig" read))
 (make-rig *sim* 'ground)
 
 (when (and (defined? '$1) (file-exists? $1))
-  (define-rig-for *sim* 'object (with-input-from-file $1 read))
-  (make-rig *sim* 'object ))
-
+  (define-rig object (with-input-from-file $1 read))
+  (make-rig *sim* 'object))
 
 (define *sim-stage* (make <physics-stage> #:simulation *sim*))
 

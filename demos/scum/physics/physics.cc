@@ -114,9 +114,17 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
 	    (int) sim->rigs.size());
   }
   else if(type == RIG) {
+    static char *noname = (char *) "???";
     rig_t *rig = (rig_t *) SCM_SMOB_DATA(ode);
-    DISPLAY(port, "#<rig %p (%d bodies) (%d joints)>", (void *) rig, 
-	    (int) rig->bodies.size(), (int) rig->joints.size());
+    char *name = as_c_string(rig->name);
+    if(!name) {
+      name = noname;
+    }
+    DISPLAY(port, "#<rig %p %s (%d bodies) (%d joints)>", (void *) rig,
+	    name, (int) rig->bodies.size(), (int) rig->joints.size());
+    if(name != noname) {
+      free(name);
+    }
   }
   else if(type == BODY) {
     body_t *body = (body_t *) SCM_SMOB_DATA(ode);

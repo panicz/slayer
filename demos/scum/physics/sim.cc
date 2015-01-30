@@ -47,36 +47,6 @@ current_simulation_step(SCM x_sim) {
   return scm_from_int(sim->step);
 }
 
-static SCM
-set_simulation_rig_maker_x(SCM x_sim, SCM s_rig_name, SCM f_rig_maker) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
-  ASSERT_SCM_TYPE(symbol, s_rig_name, 2);
-  ASSERT_SCM_TYPE(procedure, f_rig_maker, 3);
-  general_scm_map_t::iterator rig_def = sim->rig_defs.find(s_rig_name);
-  if(rig_def == sim->rig_defs.end()) {
-    scm_gc_protect_object(s_rig_name);
-  }
-  else {
-    scm_gc_unprotect_object(rig_def->second);
-  }
-  sim->rig_defs[s_rig_name] = gc_protected(f_rig_maker);
-  return SCM_UNSPECIFIED;
-}
-
-static SCM
-simulation_rig_maker(SCM x_sim, SCM s_rig_name) {
-  SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
-  ASSERT_SCM_TYPE(symbol, s_rig_name, 2);
-  general_scm_map_t::iterator rig_def = sim->rig_defs.find(s_rig_name);
-  if(rig_def == sim->rig_defs.end()) {
-    char *name = as_c_string(s_rig_name);
-    WARN("undefined rig: %s", name);
-    free(name);
-    return SCM_BOOL_F;
-  }
-  return rig_def->second;
-}
-
 static void
 simulation_gravity_setter(sim_t *sim, SCM value) {
   dVector3 v;
@@ -251,8 +221,6 @@ simulation_p(SCM smob) {
   EXPORT_PROC("simulation?", 1, 0, 0, simulation_p)			\
   EXPORT_PROC("make-simulation-step!",1,0,0,make_simulation_step);	\
   EXPORT_PROC("current-simulation-step",1,0,0,current_simulation_step);	\
-  EXPORT_PROC("set-simulation-rig-maker!",3,0,0,set_simulation_rig_maker_x); \
-  EXPORT_PROC("simulation-rig-maker",2,0,0,simulation_rig_maker);	\
   EXPORT_PROC("simulation-rigs",1,0,0,simulation_rigs);			\
   EXPORT_PROC("simulation-property",2,0,0,simulation_property);		\
   EXPORT_PROC("set-simulation-property!",3,0,0,set_simulation_property_x)

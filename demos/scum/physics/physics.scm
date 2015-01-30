@@ -1,8 +1,9 @@
 (define-module (scum physics)
   #:use-module (extra common)
+  #:use-module (extra ref)
   #:use-module (extra math)
   #:use-module (extra trimesh)
-  #:export (define-rig-for make-rig
+  #:export (define-rig make-rig
 	     primitive-make-simulation
 	     make-simulation-step!
 	     current-simulation-step
@@ -41,64 +42,48 @@
 	     joint-named
 	     joint-name
 	     joint?
-	     )
-  #:export-syntax (define-rigs-for))
+	     ))
 
 (load-extension "physics" "init")
 
-(define-syntax define-rigs-for
-  (syntax-rules ()
-    ((define-rigs-for sim (rig1-name rig1-def) (rig2-name rig2-def)...)
-     (begin (define-rig-for sim (quote rig1-name) rig1-def)
-	    (define-rig-for sim (quote rig2-name) rig2-def)
-	    ...))))
+(define rig-definitions #[])
 
-(define (define-rig-for simulation rig-name rig-def)
-  (set-simulation-rig-maker! 
-   simulation rig-name
-   (lambda (sim position orientation) 
-     (WARN "define-rig-for: position and orientation not supported")
-     (match rig-def
-       (; STRUCTURE
-	('rig ('bodies body-spec ...)
-	      ('joints joint-defs ...))
-	;; ACTION
-	(let ((rig (primitive-make-rig sim)))
-	  (for (name (type props ...)) in body-spec
-	    (let ((body (make-body rig type name)))
-	      (for (property value) in (map-n 2 list props)
-		(let ((property (keyword->symbol property))
-		      (actual (lambda (value)
-				(match value
-				  (('load-mesh name)
-				   (format #t "~a: " name)
-				   (3d->trimesh (with-input-from-file
-						    name read)))
-				  (else
-				   value)))))
-		  (set-body-property! body property (actual value))))))
-	  (for (name (type props ...)) in joint-defs
-	    (let ((joint (make-joint rig type name))
-		  (literal (rec (literal value)
-				(match value
-				  ((? symbol? body-name)
-				   (body-named body-name rig))
-				  (('? property-name body-name)
-				   (body-property (body-named body-name rig)
-						  property-name))
-				  (else 
-				   else)))))
-	      (for (property value) in (map-n 2 list props)
-		(let ((property (keyword->symbol property)))
-		  (set-joint-property! joint property (literal value))))))
-	  #;return rig))))))
+(define-syntax-rule (define-rig rig-name rig-definition)
+  (let ((('rig . definition) rig-definition))
+    (set! #[rig-definitions 'rig-name] definition)))
 
-(define* (make-rig simulation name #:key (position #f32(0 0 0))
-		   (orientation '(1 . #f32(0 0 0))))
-  (let ((rig-maker (simulation-rig-maker simulation name)))
-    (if (procedure? rig-maker)
-	(rig-maker simulation position orientation)
-	(throw 'undefined-rig simulation name))))
+(define* (make-rig simulation rig-name)
+  (let* (((('bodies body-spec ...)
+	   ('joints joint-defs ...)) #[rig-definitions rig-name])
+	 (rig (primitive-make-rig simulation rig-name)))
+    (for (name (type props ...)) in body-spec
+      (let ((body (make-body rig type name)))
+	(for (property value) in (map-n 2 list props)
+	  (let ((property (keyword->symbol property))
+		(actual (lambda (value)
+			  (match value
+			    (('load-mesh name)
+			     (format #t "~a: " name)
+			     (3d->trimesh (with-input-from-file
+					      name read)))
+			    (else
+			     value)))))
+	    (set-body-property! body property (actual value))))))
+    (for (name (type props ...)) in joint-defs
+      (let ((joint (make-joint rig type name))
+	    (literal (rec (literal value)
+			  (match value
+			    ((? symbol? body-name)
+			     (body-named body-name rig))
+			    (('? property-name body-name)
+			     (body-property (body-named body-name rig)
+					    property-name))
+			    (else 
+			     else)))))
+	(for (property value) in (map-n 2 list props)
+	  (let ((property (keyword->symbol property)))
+	    (set-joint-property! joint property (literal value))))))
+    #;return rig))
 
 (define* (force! body force #:key (local #f) (at #f) (relative #f))
   (if local
@@ -127,3 +112,11 @@
 
 (define (simulation-joints sim)
   (append-map rig-joints (simulation-rigs sim)))
+
+(define (reset-rig! rig)
+  (for body in (rig-bodies rig)
+    ...))
+
+(define (reset-simulation! sim)
+  (for rig in (simulation-rigs sim)
+    (reset-rig! rig)))

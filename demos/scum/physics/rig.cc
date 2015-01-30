@@ -1,11 +1,12 @@
 static SCM
-primitive_make_rig(SCM x_sim) {
+primitive_make_rig(SCM x_sim, SCM rig_name) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
   rig_t *rig = new rig_t;
   rig->space = dSimpleSpaceCreate(sim->space);
   rig->parent = sim;
   sim->rigs.push_back(rig);
   rig->group = dJointGroupCreate(0);
+  rig->name = gc_protected(rig_name);
   rig->self_smob = gc_protected(rig_to_smob(rig));
   scm_remember_upto_here_1(x_sim);
   return rig->self_smob;
@@ -29,6 +30,11 @@ DEF_RIG_GETTER(joint, joints); // rig_joints
 
 #undef DEF_RIG_GETTER
 
+static SCM rig_name(SCM x_rig) {
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
+  return rig->name;
+}
+
 static SCM
 rig_p(SCM smob) {
   return (SCM_SMOB_PREDICATE(ode_tag, smob) && (SCM_SMOB_FLAGS(smob) != RIG))
@@ -39,8 +45,9 @@ rig_p(SCM smob) {
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_RIG_PROCEDURES						\
-  DEFINE_PROC("primitive-make-rig", 1, 0, 0, primitive_make_rig);	\
+  DEFINE_PROC("primitive-make-rig", 2, 0, 0, primitive_make_rig);	\
   EXPORT_PROC("rig?", 1, 0, 0, rig_p)					\
+  EXPORT_PROC("rig-name", 1, 0, 0, rig_name)				\
   EXPORT_PROC("rig-bodies", 1, 0, 0, rig_bodies)			\
   EXPORT_PROC("rig-joints", 1, 0, 0, rig_joints)
 

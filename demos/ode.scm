@@ -17,9 +17,8 @@ exit # this prevents from executing the rest of the file by the shell
 
 (define *sim* (primitive-make-simulation))
 
-(define-rigs-for *sim*
-  (ground (with-input-from-file "art/rigs/ground.rig" read))
-  (buggy (with-input-from-file "art/rigs/car.rig" read)))
+(define-rig ground (with-input-from-file "art/rigs/ground.rig" read))
+(define-rig buggy (with-input-from-file "art/rigs/car.rig" read))
 
 (set-simulation-property! *sim* 'gravity #f32(0 0 -0.98))
 ;(set-simulation-property! *sim* 'erp 0.8)

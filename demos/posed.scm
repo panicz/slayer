@@ -39,16 +39,15 @@ exit
 (define the-simulation (primitive-make-simulation))
 
 (set-simulation-property! the-simulation 'gravity #f32(0 0 -0.3))
-(set-simulation-property! the-simulation 'erp 0.7)
-;;(set-simulation-property! the-simulation 'cfm 0.3)
+(set-simulation-property! the-simulation 'error-reduction-parameter 0.8)
+(set-simulation-property! the-simulation 'constriant-force-mixing 0.9)
+(set-simulation-property! the-simulation 'auto-disable #t)
 
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
 
-(define-rig-for the-simulation 
-  'rob (with-input-from-file "art/rigs/rob.rig" read))
+(define-rig rob (with-input-from-file "art/rigs/rob.rig" read))
 
-(define-rig-for the-simulation
-  'ground (with-input-from-file "art/rigs/ground.rig" read))
+(define-rig ground (with-input-from-file "art/rigs/ground.rig" read))
 
 (define view (make <3d-editor>
 	       #:x  0 #:y  0 
@@ -165,7 +164,10 @@ exit
 		    (and-let* ((distance (body-distance wall tip))
 			       (normal (body-property wall 'normal))
 			       ((negative? distance))
-			       (displacement (* (- distance) normal)))
+			       ((parent) (bodies-attached-to tip))
+			       (position (body-property parent 'position))
+			       (displacement (* (- distance) normal))
+			       (desired-position (+ position displacement)))
 		      (for body in dragged-bodies
 			(set-body-property! body 'position
 					    (+ (body-property body 'position)
