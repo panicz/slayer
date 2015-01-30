@@ -202,10 +202,10 @@ init_sim_property_accessors() {
   SET_SIM_NAMED_ACCESSORS(property, # property)
 
   SET_SIM_ACCESSORS(gravity);
-  SET_SIM_ACCESSORS(erp);
-  SET_SIM_ACCESSORS(cfm);
+  SET_SIM_NAMED_ACCESSORS(erp, "error-reduction-parameter");
+  SET_SIM_NAMED_ACCESSORS(cfm, "constraint-force-mixing");
 
-  SET_SIM_NAMED_ACCESSORS(auto_disable_flag, "auto-disable-flag");
+  SET_SIM_NAMED_ACCESSORS(auto_disable_flag, "auto-disable");
 
   SET_SIM_NAMED_ACCESSORS(auto_disable_linear_threshold,
 			  "auto-disable-linear-threshold");
