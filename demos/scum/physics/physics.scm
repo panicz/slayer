@@ -15,11 +15,14 @@
 	     simulation-bodies
 	     simulation-joints
 	     simulation?
+	     reset-simulation!
 
 	     primitive-make-rig
 	     rig-bodies
 	     rig-joints
 	     rig?
+	     stop-rig!
+	     reset-rig!
 
 	     make-body
 	     set-body-property!
@@ -30,6 +33,8 @@
 	     body-name
 	     body-distance
 	     body?
+	     stop-body!
+	     reset-body!
 
 	     force!
 	     torque!
@@ -52,38 +57,52 @@
   (let ((('rig . definition) rig-definition))
     (set! #[rig-definitions 'rig-name] definition)))
 
+(define (reset-body! body)
+  (define (actual value)
+    (match value
+      (('load-mesh name)
+       (load-trimesh name))
+      (_
+       value)))
+  (let* ((rig (body-rig body))
+	 ((('bodies . bodies-spec) _) #[rig-definitions (rig-name rig)])
+	 (((type . body-spec)) #[bodies-spec (body-name body)])
+	 (properties (map-n 2 (lambda (property value)
+				      `(,(keyword->symbol property) ,value))
+				  body-spec)))
+    (for (property value) in properties
+      (set-body-property! body property (actual value)))))
+
+(define (reset-joint! joint)
+  (define (literal value)
+    (match value
+      ((? symbol? body-name)
+       (body-named body-name (joint-rig joint)))
+      (('? property-name body-name)
+       (body-property (body-named body-name (joint-rig joint))
+		      property-name))
+      (_
+       value)))
+  (let* ((rig (joint-rig joint))
+	 ((_ ('joints . joints-spec)) #[rig-definitions (rig-name rig)])
+	 (((type . joint-spec)) #[joints-spec (joint-name joint)])
+	 (properties (map-n 2 (lambda (property value)
+				      `(,(keyword->symbol property) ,value))
+			    joint-spec)))
+    (for (property value) in properties
+      (set-joint-property! joint property (literal value)))))
+
 (define* (make-rig simulation rig-name)
   (let* (((('bodies body-spec ...)
 	   ('joints joint-defs ...)) #[rig-definitions rig-name])
 	 (rig (primitive-make-rig simulation rig-name)))
-    (for (name (type props ...)) in body-spec
+    (for (name (type . _)) in body-spec
       (let ((body (make-body rig type name)))
-	(for (property value) in (map-n 2 list props)
-	  (let ((property (keyword->symbol property))
-		(actual (lambda (value)
-			  (match value
-			    (('load-mesh name)
-			     (format #t "~a: " name)
-			     (3d->trimesh (with-input-from-file
-					      name read)))
-			    (else
-			     value)))))
-	    (set-body-property! body property (actual value))))))
-    (for (name (type props ...)) in joint-defs
-      (let ((joint (make-joint rig type name))
-	    (literal (rec (literal value)
-			  (match value
-			    ((? symbol? body-name)
-			     (body-named body-name rig))
-			    (('? property-name body-name)
-			     (body-property (body-named body-name rig)
-					    property-name))
-			    (else 
-			     else)))))
-	(for (property value) in (map-n 2 list props)
-	  (let ((property (keyword->symbol property)))
-	    (set-joint-property! joint property (literal value))))))
-    #;return rig))
+	(reset-body! body)))
+    (for (name (type . _)) in joint-defs
+      (let ((joint (make-joint rig type name)))
+	(reset-joint! joint)))
+    rig))
 
 (define* (force! body force #:key (local #f) (at #f) (relative #f))
   (if local
@@ -113,9 +132,22 @@
 (define (simulation-joints sim)
   (append-map rig-joints (simulation-rigs sim)))
 
+(define (stop-body! body)
+  (set-body-property! body 'velocity #f32(0 0 0))
+  (set-body-property! body 'angular-velocity #f32(0 0 0))
+  (set-body-property! body 'force #f32(0 0 0))
+  (set-body-property! body 'torque #f32(0 0 0)))
+
 (define (reset-rig! rig)
   (for body in (rig-bodies rig)
-    ...))
+    (stop-body! body)
+    (reset-body! body))
+  (for joint in (rig-joints rig)
+    (reset-joint! joint)))
+
+(define (stop-rig! rig)
+  (for body in (rig-bodies rig)
+    (stop-body! body)))
 
 (define (reset-simulation! sim)
   (for rig in (simulation-rigs sim)

@@ -84,6 +84,8 @@ exit
 	 (set-pose! #;of the-rig #;to `(pose (,(joint-name joint) . 0.0))
 			 #:keeping (first (two-bodies-attached-by joint))))))))
 
+(keydn 'b (lambda () (reset-rig! the-rig)))
+
 (keydn 'k (ik-mode view the-rig))
 
 (keydn 'g (grab-mode view))
