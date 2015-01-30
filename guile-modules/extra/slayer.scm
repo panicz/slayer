@@ -2,9 +2,14 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (extra common)
+  #:use-module (extra ref)
   #:export (rgba highlighted subtract-image force-redisplay! key
-		 shift? ctrl? alt?)
-  #:export-syntax (with-video-output-to key-bindings))
+		 shift? ctrl? alt?
+		 keydn*)
+  #:export-syntax (with-video-output-to key-bindings)
+  #:replace (
+	     (keydn-replacement . keydn)
+	     ))
 
 (define rgba
   (case-lambda 
@@ -47,21 +52,21 @@
       bindings ...
       fresh-bindings)))
 
-(define *modes* #[])
+(define modes #[])
 
 (add-timer! 
  30 #;ms
  (lambda()
-   (for (key => proc) in *modes*
-	(proc))))
+   (for (key => proc) in modes
+     (proc))))
 
 (define (key name fun)
   (keydn name 
     (lambda()
-      (hash-set! *modes* name fun)))
+      (hash-set! modes name fun)))
   (keyup name 
     (lambda()
-      (hash-remove! *modes* name))))
+      (hash-remove! modes name))))
 
 (define (shift?)
   (modifier-pressed? 'shift))
@@ -71,3 +76,27 @@
 
 (define (alt?)
   (modifier-pressed? 'alt))
+
+(define modifiers #[])
+
+(define (keydn* (modifier target) action)
+  (let ((old-bindings (current-key-bindings)))
+    (set-key-bindings! (or #[modifiers modifier] (fresh-key-bindings)))
+    (keydn target action)
+    (keyup target noop)
+    (keyup modifier 
+      (lambda () 
+	(set-key-bindings! old-bindings)))
+    (set! #[modifiers modifier] (current-key-bindings))
+    (set-key-bindings! old-bindings)
+    (keydn modifier 
+      (lambda () 
+	(set! old-bindings (current-key-bindings))
+	(set-key-bindings! #[modifiers modifier])))))
+
+(define (keydn-replacement key action)
+  (match key
+    ((_ . _)
+     (keydn* key action))
+    (_
+     (keydn key action))))
