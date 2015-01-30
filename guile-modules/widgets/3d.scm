@@ -23,6 +23,7 @@
 	    3d->screen
 	    select-object!
 	    unselect-object!
+	    select-all!
 	    unselect-all!
 	    delete-selected-objects!
 	    grab-mode
@@ -211,6 +212,9 @@
 	  (unselect-object! view object)
 	  (push! #[view 'selected] object))
       (set! #[view 'selected] `(,object))))
+
+(define-method (select-all! #;in (view <3d-editor>))
+  (set! #[view 'selected] #[view : 'stage : 'objects]))
 
 (define-method (unselect-object! (view <3d-editor>) (object <3d>))
   (set! #[view 'selected] (delete object #[view 'selected])))
