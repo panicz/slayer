@@ -43,7 +43,7 @@ struct hash_pair_scm_int : unary_function<pair<SCM, int>, size_t> {
   }
 };
 
-#define MAX_CONTACTS 18
+#define MAX_CONTACTS 72 //18
 
 enum {
   SIM = 0,
@@ -351,6 +351,16 @@ scm_from_dQuaternion(const dQuaternion q) {
   }
   scm_array_handle_release(&h);
   return scm_cons(scm_from_double((double) q[0]), Q);
+}
+
+static inline void
+scm_to_dReal(SCM S, dReal *s) {
+  *s = scm_to_double(S);
+}
+
+static inline SCM
+scm_from_dReal(dReal d) {
+  return scm_from_double(d);
 }
 
 #if defined(dSINGLE)
