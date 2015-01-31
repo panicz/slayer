@@ -11,7 +11,7 @@
   #:use-module (extra trimesh)
   #:use-module (slayer)
   #:use-module (slayer 3d)
-  #:export (<physics-stage> <physical-object>)
+  #:export (<physics-stage> <physical-object> body-object joint-object)
   #:re-export (<3d-view> 
 	       <3d-editor> 
 	       select-object! unselect-object! unselect-all!
@@ -199,3 +199,15 @@
 	 (set! #[self '%last-synchronized-simulation-step] step))
        `(,@#[self '%permanent-objects] ,@#[self '%objects-cache])))
    #:slot-set! noop))
+
+(define (body-object body #;from view)
+  (find (lambda (object)
+	  (and (is-a? object <physical-object>)
+	       (eq? #[object 'body] body)))
+	#[view : 'stage : 'objects]))
+
+(define (joint-object joint #;from view)
+  (find (lambda (object)
+	  (and (is-a? object <physical-joint>)
+	       (eq? #[object 'joint] joint)))
+	#[view : 'stage : 'objects]))
