@@ -207,14 +207,8 @@
        (format #t "ambiguous display-index candidates\n")))))
 
 (define-method (select-object! (object <3d>) #;from (view <3d-editor>))
-  (if (modifier-pressed? 'shift)
-      (if (in? object #[view 'selected])
-	  (unselect-object! view object)
-	  (push! #[view 'selected] object))
-      (set! #[view 'selected] `(,object))))
-
-(define-method (select-all! #;in (view <3d-editor>))
-  (set! #[view 'selected] #[view : 'stage : 'objects]))
+  (unless (in? object #[view 'selected])
+    (push! #[view 'selected] object)))
 
 (define-method (unselect-object! (view <3d-editor>) (object <3d>))
   (set! #[view 'selected] (delete object #[view 'selected])))
