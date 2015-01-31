@@ -20,11 +20,9 @@
 	     set-pose!
 	     pose
 
-
 	     apply-inverse-kinematics!
 	     rotate-around-joint-mode
 	     ik-mode
-
 	    )
   #:export-syntax (
 		   with-context-for-joint/body-relation
@@ -180,7 +178,7 @@
 (publish
  (define* (apply-inverse-kinematics! #;of body #;to desired-position 
 					  #:optional #;at (limb? hub?)
-					  #;with (max-step 0.035))
+					  #;with (max-step 0.02))
    (let* ((joint-sequence pivot (joint-sequence-to+nearest-member
 				 limb? #;from body))
 	  (global-position (body-property body 'position))
@@ -199,8 +197,7 @@
 	  (direction (/ displacement distance))
 	  ((axes- ... last-axis _) (map normalized axes+))
 	  (system-equation (position<-angles kinematic-chain local-position)))
-     (let improve ((n 0)
-		   (remaining distance)
+     (let improve ((remaining distance)
 		   (angles (drop-right angles+ 1))
 		   (current-position global-position))
        (if (positive? remaining)
@@ -220,11 +217,13 @@
 		  (new-pose `(pose ,@(map (lambda (joint new-angle)
 					    `(,(joint-name joint) . ,new-angle))
 					  joint-sequence new-angles))))
-	     (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
-	     (improve (1+ n) (- remaining max-step)
-		      (map (lambda (joint) (joint-property joint 'angle))
-			   joint-sequence)
-		      (body-property body 'position)))))))
+	     (unless (exists delta in new-angles
+		       (> (abs delta) 2.0))
+	       (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
+	       (improve  (- remaining max-step)
+			 (map (lambda (joint) (joint-property joint 'angle))
+			      joint-sequence)
+			 (body-property body 'position))))))))
  where
  (define (fit position #;to range #;at pivot)
    (let* ((local (- position pivot))
@@ -271,41 +270,73 @@
 	(select-object! object #;from view)
 	(format #t "no body found in ~s\n" #[view : 'stage : 'objects]))))
 
+(define (possibly-add-neighbours-for-chest/abdomen/pelvis! #;in view)
+  (define-syntax-rule (add-neighbours! object (source targets ...) ...)
+    (let* ((body #[object 'body])
+	   (rig (body-rig body)))
+      (match* (body-name body)
+	('source
+	 (let ((targets (body-object (body-named 'targets #;from rig)
+				     #;from view))
+	       ...)
+	   (unselect-all! #;from view)
+	   (select-object! targets #;from view)
+	   ...
+	   (select-object! object #;from view)))
+	...)))
+  (match* #[view 'selected]
+    ((object)
+     (add-neighbours! object 
+		      (chest abdomen)
+		      (abdomen pelvis)
+		      (pelvis left-hip right-hip)))))
+
 (define ((rotate-around-joint-mode view))
   (with-context-for-joint/body-relation
+   (possibly-add-neighbours-for-chest/abdomen/pelvis! #;in view)
    (match (map #[_ 'body] #[view 'selected])
-     ((first second)
+     ((and (first second . rest)
+	   (? (lambda ((body . bodies))
+		(for-every x in bodies
+		  ;; chciałoby się tutaj nawrzucać nieco dodatkowych warunków
+		  ;; dotyczących tego, że osie więzów muszą być równoległe,
+		  ;; a punkty zaczepienia muszą leżeć na prostej równoległej
+		  ;; do tych osi
+		  (bodies-are-connected? x body)))))
       (let ((joint (joint-connecting-bodies first second))
+	    (held (map (lambda (body)
+			 (let* ((joint (joint-connecting-bodies first body))
+				(left right (split-bodies-at joint)))
+			   (if (in? first left)
+			       right
+			       left)))
+		       rest))
 	    (previously-selected #[view 'selected]))
 	(let* ((direction (if (eq? first (head (two-bodies-attached-by joint)))
 			      +1
 			      -1))
 	       (left right (split-bodies-at joint))
-	       (move still (cond ((in? first left)
-				  (values left right))
-				 ((in? first right)
-				  (values right left))
-				 (else
-				  (error)))))
+	       (move+ still- (if (in? first left)
+				 (values left right)
+				 (values right left)))
+	       (move still (values (apply difference move+ held)
+				   (apply union still- held))))
 	  (unselect-all! #;from view)
 	  (for body in move
 	    (select-body! body #;from view))
 	  (let ((old-pause pause)
 		(axis (joint-property joint 'axis))
 		(center (joint-property joint 'anchor)))
-	    (set! pause #t)
 	    ((rotate-mode 
 	      view
 	      #:axis (* direction axis)
 	      #:center (lambda _ center)
-	      #:always-rotate-around-center #t
 	      #:rotation-direction (- direction)
+	      #:always-rotate-around-center #t
 	      #:on-exit (lambda (angle)
-			  #;(increase! #[rig-angles (joint-name joint)] angle)
 			  (unselect-all! #;from view)
 			  (for object in (reverse previously-selected)
 			    (select-object! object #;from view))
-			  (set! pause old-pause))))
-	    ))))
-     (else
-      (display "exactly two objects need to be selected\n")))))
+			  (set! pause old-pause))))))))
+     (_
+      (display "at least two connected bodies need to be selected\n")))))
