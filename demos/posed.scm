@@ -72,7 +72,16 @@ exit
   (lambda (x y)
     (and-let* ((object (object-at-position x y #;in view))
 	       ((selectable? object)))
+      (unless (modifier-pressed? 'shift)
+	(unselect-all! #;in view))
       (select-object! object #;from view))))
+
+(keydn '(lctrl a)
+  (lambda ()
+    (unselect-all! #;in view)
+    (for object in #[view : 'stage : 'objects]
+      (if (selectable? object)
+	  (select-object! object #;from view)))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
@@ -84,7 +93,7 @@ exit
 	 (set-pose! #;of the-rig #;to `(pose (,(joint-name joint) . 0.0))
 			 #:keeping (first (two-bodies-attached-by joint))))))))
 
-(keydn 'b (lambda () (reset-rig! the-rig)))
+(keydn '(lctrl r) (lambda () (reset-rig! the-rig)))
 
 (keydn 'k (ik-mode view the-rig))
 
