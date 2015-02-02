@@ -69,7 +69,8 @@
     (set! #[self 'activate]
       (lambda (x y)
 	(set! #[pose 'name] #[self 'name])
-	(set-pose! #;of rig #;to `(pose ,@#[self 'configuration]))))))
+	(set-pose! #;of rig #;to `(pose ,@#[self 'configuration])
+			#:keeping (#[owner 'pivotal-body]))))))
 
 (define-class <sequence-entry> (<selectable-named-entry>)
   (owner #:init-keyword #:owner)
@@ -88,6 +89,7 @@
 	(set-sequence! #[self 'name] #[self 'sequence] owner)))))
 
 (define-class <pose-editor-widget> (<tab-widget>)
+  (pivotal-body #:init-value noop #:init-keyword #:pivotal-body)
   (pause #:init-value #t #:init-keyword #:pause)
   (moveset
    #:allocation #:virtual
@@ -173,7 +175,8 @@
 	     (pose-name #[poses i'])
 	     (configuration (pose-configuration pose-name #;in editor)))
     (set! #[the-pose 'name] pose-name)
-    (set-pose! #;of the-rig #;to `(pose ,@configuration)))))
+    (set-pose! #;of the-rig #;to `(pose ,@configuration)
+		    #:keeping (#[editor 'pivotal-body])))))
 
 (define (abbreviate name)
   (let* ((name-string (->string name))
@@ -307,7 +310,8 @@
 					       (if (eq? joint name)
 						   `(,joint . ,value)
 						   `(,joint . ,angle)))
-					     configuration)))))))
+					     configuration))
+			       #:keeping (#[self 'pivotal-body]))))))
 	 #;to pose-editor))
       (add-tab! file-menu #;under-name "[file]" #;to self)
       (add-tab! pose-editor #;under-name "[pose]" #;to self)

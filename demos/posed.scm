@@ -100,7 +100,14 @@ exit
 
 (keydn 'g (grab-mode view))
 
-(define editor (make <pose-editor-widget> #:rig the-rig))
+(define editor (make <pose-editor-widget> #:rig the-rig
+		     #:pivotal-body
+		     (lambda ()
+		       (match (map #[_ 'body] #[view 'selected])
+			 ((body . _)
+			  body)
+			 (_
+			  (body-named 'chest #;from the-rig))))))
 
 (add-child! editor #;to *stage*)
 
