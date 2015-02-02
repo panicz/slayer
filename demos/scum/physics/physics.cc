@@ -36,12 +36,13 @@ static void
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
   if(dGeomGetBody(a) 
      && dGeomGetBody(b)
-     && dAreConnected(dGeomGetBody(a), dGeomGetBody(b))) { 
+     && dAreConnectedExcluding(dGeomGetBody(a), dGeomGetBody(b), 
+			       dJointTypeContact)) { 
     return; 
-    }
+  }
   sim_t *sim = (sim_t *) s;
   dContact c[MAX_CONTACTS];
-  int i, n = dCollide(a, b, MAX_CONTACTS | CONTACTS_UNIMPORTANT,
+  int i, n = dCollide(a, b, MAX_CONTACTS ,//| CONTACTS_UNIMPORTANT,
 		      &c[0].geom, sizeof(dContact));
   for(i = 0; i < n; ++i) {
     c[i].surface.mode = dContactSlip1 | dContactSlip2 |
