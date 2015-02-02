@@ -18,7 +18,7 @@
 	     global-positions
 	     kinematic-chain
 	     set-pose!
-	     pose
+	     apply-stops!
 
 	     apply-inverse-kinematics!
 	     rotate-around-joint-mode
@@ -45,11 +45,6 @@
 			(* (rotation-quaternion #;around axis #;by angle)
 			   orientation))))
 
-(define (pose #;of rig)
-  `(pose ,@(map (lambda (joint)
-		  `(,(joint-name joint) . ,(joint-property joint 'angle)))
-		(rig-joints rig))))
-
 (define* (set-pose! #;of rig #;to pose #:key (keeping #f))
   (assert (and (pose? pose)
 	       (if keeping (body? keeping))))
@@ -75,6 +70,10 @@
 	   (assert (eq? (joint-type joint) 'hinge))
 	   (for body in mobile-bodies
 	     (rotate-body! body #;by angle* #;around axis #;at pivot))))))))
+
+(define* (apply-stops! #;to rig #:key (keeping #f))
+  (let ((pose (clamped-pose #;of rig)))
+    (set-pose! #;of rig #;to pose #:keeping keeping)))
 
 (publish
  (define (kinematic-chain<-anchors+axes+angles anchors axes angles)

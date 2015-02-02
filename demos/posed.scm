@@ -20,11 +20,6 @@ exit
  (widgets base)
  (widgets physics)
  (widgets 3d)
- (widgets image-clipper)
- (widgets text-area)
- (widgets sortable)
- (widgets tab)
- (widgets sprite)
  (editor relations)
  (editor modes)
  (editor poses)
@@ -69,13 +64,18 @@ exit
 
 (set-pose! the-rig (pose #;of the-rig))
 
+(attach-pid-muscles-to-all-joints! #;in the-rig
+					#;with-parameters 20.0 0.3 -10.0)
+
 (set! #[view 'left-click]
   (lambda (x y)
     (and-let* ((object (object-at-position x y #;in view))
 	       ((selectable? object)))
       (unless (modifier-pressed? 'shift)
 	(unselect-all! #;in view))
-      (select-object! object #;from view))))
+      (if (in? object #[view 'selected])
+	  (unselect-object! view object)
+	  (select-object! object #;from view)))))
 
 (keydn '(lctrl a)
   (lambda ()
@@ -96,10 +96,6 @@ exit
 
 (keydn '(lctrl r) (lambda () (reset-rig! the-rig)))
 
-(keydn 'k (ik-mode view the-rig))
-
-(keydn 'g (grab-mode view))
-
 (define editor (make <pose-editor-widget> #:rig the-rig
 		     #:pivotal-body
 		     (lambda ()
@@ -110,6 +106,14 @@ exit
 			  (body-named 'chest #;from the-rig))))))
 
 (add-child! editor #;to *stage*)
+
+(keydn '(lctrl o)
+  (lambda ()
+    (<< "adjust rotation of the tip of the limb to the origin")))
+
+(keydn '(lctrl p)
+  (lambda ()
+    (apply-stops! #;to the-rig #:keeping (#[editor 'pivotal-body]))))
 
 (keydn 'p 
   (lambda () 
@@ -222,6 +226,37 @@ exit
 		(its-position (body-property limb 'position))
 		(new-position ((if (shift?) - +) its-position displacement)))
        (apply-inverse-kinematics! #;of limb #;to new-position #;at hub?)))))))
+
+(define-class <mass-center> (<3d-object>)
+  (target #:init-keyword #:of)
+  (mesh #:allocation #:class
+	 #:init-value
+	 '(mesh (vertices #2f32((0 0 -1000) (0 0 1000)))
+		(color #f32(1 0 0))
+		(faces (lines #u8(0 1)))))
+  (position 
+   #:allocation #:virtual
+   #:slot-ref
+   (lambda (self)
+     (let* ((target #[self 'target])
+	    (bodies (rig-bodies target))
+	    (((positions . masses) ...)
+	     (map (lambda (body) 
+		    `(,(body-property body 'position)
+		      . ,(body-property body 'mass)))
+		  bodies))
+	    (result (/ (fold + #f32(0 0 0) (map * positions masses))
+		       (fold + 0.0 masses))))
+       result))
+   #:slot-set! noop))
+
+(let ((center (make <mass-center> #:of the-rig)))
+  (keydn 'm
+    (lambda ()
+      (if (in? center #[physical-objects '%permanent-objects])
+	  (set! #[physical-objects '%permanent-objects]
+	    (delete center #[physical-objects '%permanent-objects]))
+	  (push! #[physical-objects '%permanent-objects] center)))))
 
 (define moveset-file (if (defined? '$1) $1 "default.moves"))
 

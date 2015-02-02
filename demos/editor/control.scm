@@ -11,6 +11,9 @@
 	    rig-poses
 	    specify-pose!
 	    freeze!
+
+	    attach-muscles-to-rig!
+	    attach-pid-muscles-to-all-joints!
 	    ))
 
 (define (pose-distance pose-1 pose-2)
@@ -24,13 +27,39 @@
 		       (abs (- value value-2)))))
 	       params-1))))
 
-(define (arrangement rig)
-  (let ((joints (rig-joints rig)))
-    `(pose (,(joint-name joints) . ,(joint-property joints 'angle)) ...)))
-
 (define rig-behaviors #[])
 
 (define rig-poses #[])
+
+(define rig-muscles #[])
+
+(define (attach-muscles-to-rig! rig create-muscle)
+  (let ((muscles #[]))
+    (for joint in (rig-joints rig)
+      (set! #[muscles joint] (create-muscle joint)))
+    (set! #[rig-muscles rig] muscles)))
+
+(define (attach-pid-muscles-to-all-joints! #;in rig #;with-parameters kp ki kd)
+  (attach-muscles-to-rig! 
+   rig
+   (lambda (joint)
+     (let ((the (lambda (property) (joint-property joint property)))
+	   (error-integral 0.0))
+       (lambda (desired-position)
+	 (let ((axis (the 'axis))
+	       (angle (the 'angle))
+	       (rate (the 'angle-rate))
+	       (body-1 (the 'body-1))
+	       (body-2 (the 'body-2)))
+	   (let ((error (- desired-position angle)))
+	     (increase! error-integral error)
+	     (torque! body-1 (* (+ (* 0.5 kp error)
+				   (* 0.5 ki error-integral)
+				   (* 0.5 kd rate)) axis))
+	     (torque! body-2 (* (+ (* -0.5 kp error)
+				   (* -0.5 ki error-integral)
+				   (* -0.5 kd rate)) axis))
+	     )))))))
 
 (define (specify-pose! #;of rig #;to pose)
   (let ((('pose . pose) pose))
@@ -82,12 +111,12 @@
     (specify-pose! #;of rig #;to (first #;in sequence))))
 
 (define (freeze! rig)
-  (let ((pose (arrangement #;of rig)))
+  (let ((pose (pose #;of rig)))
     (reset-behaviors! #;of rig)
     (specify-pose! #;of rig #;to pose)))
 
 (define ((pd-drive kp kd) joint desired-value)
-  (let ((the (lambda(name)(joint-property joint name))))
+  (let ((the (lambda (property) (joint-property joint property))))
     (let ((axis (the 'axis))
 	  (angle (the 'angle))
 	  (rate (the 'angle-rate))
@@ -100,17 +129,33 @@
 			      (* 0.5 kd rate)) axis))
 	))))
 
-(define drive! (pd-drive 50.0 20.0))
+(define ((pd-drive kp kd) joint desired-value)
+  (let ((the (lambda (property) (joint-property joint property))))
+    (let ((axis (the 'axis))
+	  (angle (the 'angle))
+	  (rate (the 'angle-rate))
+	  (body-1 (the 'body-1))
+	  (body-2 (the 'body-2)))
+      (let ((error (- desired-value angle)))
+	(torque! body-1 (* (- (* 0.5 kp error)
+			      (* 0.5 kd rate)) axis))
+	(torque! body-2 (* (+ (* -0.5 kp error) 
+			      (* 0.5 kd rate)) axis))
+	))))
 
 (define (control!)
   (for (rig => behaviors) in rig-behaviors
-    (for (pose . reaction!) in behaviors
-      (let ((d (pose-distance pose (arrangement #;of-the rig))))
-	(when (< d 0.1)
+    (for (trigger-pose . reaction!) in behaviors
+      (let ((d (pose-distance trigger-pose (pose #;of rig))))
+	(when (< d 0.2)
 	  (reaction! rig pose)))))
 
-  (for (rig => pose) in rig-poses
-    (for (joint-name . value) in pose
-      (when value
-	(drive! (joint-named joint-name #;from rig) #;to value))))
-  )
+  (for (rig => rig-pose) in rig-poses
+    (let ((muscles #[rig-muscles rig]))
+      (<< (pose-distance `(pose ,@rig-pose) (pose #;of rig)))
+      (for (joint-name . value) in rig-pose
+	(let* ((joint (joint-named joint-name #;from rig))
+	       (muscle-joint! #[muscles joint]))
+	  (when value
+	    (muscle-joint! #;to value))))
+      )))
