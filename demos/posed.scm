@@ -28,6 +28,7 @@ exit
  (editor relations)
  (editor modes)
  (editor poses)
+ (editor posed widgets)
  (editor control)
  (editor limbs)
  (editor movesets)
@@ -99,19 +100,21 @@ exit
 
 (keydn 'g (grab-mode view))
 
-(define pause #t)
+(define editor (make <pose-editor-widget> #:rig the-rig))
+
+(add-child! editor #;to *stage*)
 
 (keydn 'p 
   (lambda () 
-    (set! pause (not pause))
-    (format #t "pause ~a\n" (if pause 'on 'off))))
+    (set! #[editor 'pause] (not #[editor 'pause]))
+    (format #t "pause ~a\n" (if #[editor 'pause] 'on 'off))))
 
 (keydn 'h (rotate-around-joint-mode view))
 
 (add-timer! 
  25 
  (lambda()
-   (unless pause
+   (unless #[editor 'pause]
      (make-simulation-step! the-simulation)
      (control!))))
 
@@ -213,17 +216,15 @@ exit
 		(new-position ((if (shift?) - +) its-position displacement)))
        (apply-inverse-kinematics! #;of limb #;to new-position #;at hub?)))))))
 
-(load "editor/posed/widgets.scm")
-
 (define moveset-file (if (defined? '$1) $1 "default.moves"))
 
 (when (file-exists? moveset-file)
-  (load-moveset! (with-input-from-file moveset-file read)))
+  (set! #[editor 'moveset] (with-input-from-file moveset-file read)))
 
 (set-exit-procedure!
  (lambda (outfile)
    (let ((previous-moveset (with-input-from-file moveset-file read))
-	 (current-moveset (current-moveset)))
+	 (current-moveset #[editor 'moveset]))
      (unless (same-movesets? previous-moveset current-moveset)
        (let ((backup (next-available-file-name moveset-file)))
 	 (when (file-exists? moveset-file)
