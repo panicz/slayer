@@ -291,17 +291,16 @@
 		      (pelvis left-hip right-hip)))))
 
 (define ((rotate-around-joint-mode view))
+  (define ((restore! previously-selected) . _)
+    (unselect-all! #;from view)
+    (for object in (reverse previously-selected)
+      (select-object! object #;from view)))
   (with-context-for-joint/body-relation
    (possibly-add-neighbours-for-chest/abdomen/pelvis! #;in view)
    (match (map #[_ 'body] #[view 'selected])
-     ((and (first second . rest)
-	   (? (lambda ((body . bodies))
-		(for-every x in bodies
-		  ;; chciałoby się tutaj nawrzucać nieco dodatkowych warunków
-		  ;; dotyczących tego, że osie więzów muszą być równoległe,
-		  ;; a punkty zaczepienia muszą leżeć na prostej równoległej
-		  ;; do tych osi
-		  (bodies-are-connected? x body)))))
+     ((and (first second . rest) (? (lambda ((body . bodies))
+				      (for-every x in bodies
+					(bodies-are-connected? x body)))))
       (let ((joint (joint-connecting-bodies first second))
 	    (held (map (lambda (body)
 			 (let* ((joint (joint-connecting-bodies first body))
@@ -311,10 +310,7 @@
 			       left)))
 		       rest))
 	    (previously-selected #[view 'selected]))
-	(let* ((direction (if (eq? first (head (two-bodies-attached-by joint)))
-			      +1
-			      -1))
-	       (left right (split-bodies-at joint))
+	(let* ((left right (split-bodies-at joint))
 	       (move+ still- (if (in? first left)
 				 (values left right)
 				 (values right left)))
@@ -323,19 +319,32 @@
 	  (unselect-all! #;from view)
 	  (for body in move
 	    (select-body! body #;from view))
-	  (let ((old-pause pause)
-		(axis (joint-property joint 'axis))
+	  (let ((axis (joint-property joint 'axis))
 		(center (joint-property joint 'anchor)))
 	    ((rotate-mode 
 	      view
-	      #:axis (* direction axis)
+	      #:axis axis
 	      #:center (lambda _ center)
-	      #:rotation-direction (- direction)
 	      #:always-rotate-around-center #t
-	      #:on-exit (lambda (angle)
-			  (unselect-all! #;from view)
-			  (for object in (reverse previously-selected)
-			    (select-object! object #;from view))
-			  (set! pause old-pause))))))))
+	      #:on-exit (restore! previously-selected)))))))
+     ((and (first . rest) bodies
+	   (? (lambda ((first . rest))
+		(and (let ((rig (body-rig first)))
+		       (for-every x in rest
+			 (eq? (body-rig x) rig)))
+		     (exists x in rest
+		       (not (bodies-are-connected? first x)))))))
+      (let* ((previously-selected #[view 'selected])
+	     (rig (body-rig first))
+	     (bodies (rig-bodies rig))
+	     (center (mass-center rig)))
+	(unselect-all! #;from view)
+	(for body in bodies
+	  (select-body! body #;in view))
+	((rotate-mode 
+	  view 
+	  #:center (lambda _ center)
+	  #:always-rotate-around-center #t
+	  #:on-exit (restore! previously-selected)))))
      (_
       (display "at least two connected bodies need to be selected\n")))))
