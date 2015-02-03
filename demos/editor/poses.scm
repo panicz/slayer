@@ -7,6 +7,7 @@
 	    pose
 	    clamped-pose
 	    mirror-pose
+	    left->right-pose
 	    ))
 
 (define (null-pose #;for rig)
@@ -47,3 +48,17 @@
 			  (else
 			   `(,name . ,value))))
 		  configuration))))
+
+(define (left->right-pose original-pose)
+  (let ((('pose . configuration) original-pose))
+    `(pose ,@(append-map 
+	      (lambda ((name . value))
+		(cond ((symbol-match "^left-(.*)$" name)
+		       => (lambda ((suffix))
+			    `((,(symbol-append 'right- suffix) . ,value)
+			      (,name . ,value))))
+		      ((symbol-match "^right-" name)
+		       '())
+		      (else
+		       `((,name . ,value)))))
+	      configuration))))

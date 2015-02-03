@@ -265,7 +265,13 @@
 			      #;to (mirror-pose (pose #;of the-rig))
 				   #:keeping (#[self 'pivotal-body]))))
 	   (label " ")
-	   (button #:text " [ left->right ] "))))
+	   (button 
+	    #:text " [ left->right ] "
+	    #:action
+	    (lambda (x y)
+	      (set-pose! #;of the-rig
+			      #;to (left->right-pose (pose #;of the-rig))
+				   #:keeping (#[self 'pivotal-body])))))))
 	  (sequence-editor
 	   ((layout)
 	    (property-editor 
