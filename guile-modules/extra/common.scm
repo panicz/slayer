@@ -724,26 +724,25 @@
 ;; definition. 
 
 (define-syntax-rule (define-curried-syntax (name args ...) body . *)
-  (letrec-syntax ((define-curried-syntax~
-		    (syntax-rules ()
-		      ((_ ~name () ((~pattern 
-				     ~template) 
-				    (... 
-				     ...)))
-		       (define-syntax ~name
-			 (syntax-rules ()
-			   (~pattern
-			    ~template)
-			   (... 
-			    ...))))
-		      ((_ ~name (~args (... ...) ~last) 
-			  ((~pattern ~template) (... ...)))
-		       (define-curried-syntax~ ~name (~args (... ...))
-			 ((     ~pattern             ~template     ) 
-			  (        ...                  ...        )
-			  ((~name ~args (... ...)) (lambda (~last)
-						     (~name ~args (... ...)
-							    ~last)))))))))
+  (letrec-syntax 
+      ((define-curried-syntax~
+	 (syntax-rules ()
+	   ((_ ~name () ((~pattern 
+			  ~template) 
+			 (... 
+			  ...)))
+	    (define-syntax ~name
+	      (syntax-rules ()
+		(~pattern
+		 ~template)
+		(... 
+		 ...))))
+	   ((_ ~name (~args (... ...) ~last) ((~pattern ~template) (... ...)))
+	    (define-curried-syntax~ ~name (~args (... ...))
+	      ((     ~pattern             ~template     )
+	       (        ...                  ...        )
+	       ((~name ~args (... ...)) (lambda (~last)
+					  (~name ~args (... ...) ~last)))))))))
     (define-curried-syntax~ name (args ...) (((name args ...)
 					    (begin body . *))))))
 
@@ -766,10 +765,6 @@
   (match x 
     (pattern #t)
     (else #f)))
-
-(define-curried-syntax (symbol-match pattern symbol)
-  (assert (and (symbol? symbol) (string? pattern)))
-  (string-match pattern (symbol->string symbol)))
 
 ;; match* is like match, but if there's no matching pattern, it
 ;; doesn't raise an error
@@ -804,17 +799,25 @@
 		       (+ offset (- replacement-length match-length)))))))))
 
 (define-curried-syntax (string-matches pattern string)
-  (let ((matches (string-match-all pattern string)))
-    (and (not (null? matches))
-	 (append-map (lambda (ms)
-		       (let ((count (match:count ms)))
-			 (map (lambda (n) (match:substring ms n))
-			      (if (= count 1) '(0) (iota (1- count) 1)))))
-		     matches))))
+  (and-let* ((matches (string-match-all pattern string))
+	     ((not (null? matches)))
+	     (result (append-map 
+		      (lambda (ms)
+			(let ((count (match:count ms)))
+			  (filter-map (lambda (n) (match:substring ms n))
+				      (if (= count 1) '(0) (iota (1- count) 1)))))
+		      matches))
+	     ((not (null? result))))
+    result))
+
+(define-curried-syntax (symbol-match pattern symbol)
+  (assert (and (symbol? symbol) (string? pattern)))
+  (and-let* ((matches (string-matches pattern (symbol->string symbol))))
+    (map string->symbol matches)))
 
 ;; string-matches returns a list of all expressions that match a given
 ;; pattern (as a raw text, contrary to the match struct from "string-match"
-;; and "string-match-all"
+;; and "string-match-all")
 
 (e.g.
  (string-matches "[0-9]" "1a 2b 3c 4d")
