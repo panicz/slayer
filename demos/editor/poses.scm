@@ -5,7 +5,9 @@
   #:export (null-pose 
 	    combine-poses
 	    pose
-	    clamped-pose))
+	    clamped-pose
+	    mirror-pose
+	    ))
 
 (define (null-pose #;for rig)
   `(pose ,@(map (lambda (joint) 
@@ -30,3 +32,18 @@
 			(lo (joint-property joint 'lo-stop)))
 		    `(,name . ,((clamp lo hi) angle))))
 		(rig-joints rig))))
+
+(define (mirror-pose original-pose)
+  (let ((('pose . configuration) original-pose))
+    `(pose ,@(map (lambda ((name . value))
+		    (cond ((symbol-match "^left-(.*)$" name)
+			   => (lambda ((suffix))
+				`(,(symbol-append 'right- suffix) . ,value)))
+			  ((symbol-match "^right-(.*)$" name)
+			   => (lambda ((suffix))
+				`(,(symbol-append 'left- suffix) . ,value)))
+			  ((symbol-match "turn$" name)
+			   `(,name . ,(- value)))
+			  (else
+			   `(,name . ,value))))
+		  configuration))))

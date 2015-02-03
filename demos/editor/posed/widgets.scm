@@ -255,7 +255,17 @@
 	   (label "           ")
 	   (button #:text "  [ >>> ]  "
 		   #:action (lambda (x y)(shift-pose! #;by +1 #;in self))))
-	  (label "                                 ")))
+	  ((layout #:lay-out lay-out-horizontally)
+	   (label " ")
+	   (button 
+	    #:text "  [ mirror ]  "
+	    #:action 
+	    (lambda (x y)
+	      (set-pose! #;of the-rig
+			      #;to (mirror-pose (pose #;of the-rig))
+				   #:keeping (#[self 'pivotal-body]))))
+	   (label " ")
+	   (button #:text " [ left->right ] "))))
 	  (sequence-editor
 	   ((layout)
 	    (property-editor 
