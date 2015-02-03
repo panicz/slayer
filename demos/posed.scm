@@ -237,17 +237,7 @@ exit
   (position 
    #:allocation #:virtual
    #:slot-ref
-   (lambda (self)
-     (let* ((target #[self 'target])
-	    (bodies (rig-bodies target))
-	    (((positions . masses) ...)
-	     (map (lambda (body) 
-		    `(,(body-property body 'position)
-		      . ,(body-property body 'mass)))
-		  bodies))
-	    (result (/ (fold + #f32(0 0 0) (map * positions masses))
-		       (fold + 0.0 masses))))
-       result))
+   (lambda (self) (mass-center #[self 'target]))
    #:slot-set! noop))
 
 (let ((center (make <mass-center> #:of the-rig)))
