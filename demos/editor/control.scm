@@ -43,23 +43,14 @@
   (attach-muscles-to-rig! 
    rig
    (lambda (joint)
-     (let ((the (lambda (property) (joint-property joint property)))
-	   (error-integral 0.0))
+     (let ((error-integral 0.0))
        (lambda (desired-position)
-	 (let ((axis (the 'axis))
-	       (angle (the 'angle))
-	       (rate (the 'angle-rate))
-	       (body-1 (the 'body-1))
-	       (body-2 (the 'body-2)))
-	   (let ((error (- desired-position angle)))
-	     (increase! error-integral error)
-	     (torque! body-1 (* (+ (* 0.5 kp error)
-				   (* 0.5 ki error-integral)
-				   (* 0.5 kd rate)) axis))
-	     (torque! body-2 (* (+ (* -0.5 kp error)
-				   (* -0.5 ki error-integral)
-				   (* -0.5 kd rate)) axis))
-	     )))))))
+	 (let* ((angle (joint-property joint 'angle))
+		(rate (joint-property joint 'angle-rate))
+		(error (- desired-position angle)))
+	   (increase! error-integral error)
+	   (force-hinge! 
+	    joint (+ (* kp error) (* ki error-integral) (* kd rate)))))))))
 
 (define (specify-pose! #;of rig #;to pose)
   (let ((('pose . pose) pose))
@@ -97,18 +88,20 @@
 	(delete-first `(,pose . ,reaction) #;from #[rig-behaviors rig])))
 
 (define (initiate-sequence! sequence rig)
-  (letrec ((next-pose! (lambda _
-			 (<< "next-pose!")
-			 (match* sequence
-			   ((current . rest)
-			    (unregister-behavior! rig current next-pose!)
-			    (set! sequence rest)
-			    (match* rest
-			      ((next . _)
-			       (register-behavior! rig next next-pose!)
-			       (specify-pose! #;of rig #;to next))))))))
-    (register-behavior! rig (first #;in sequence) next-pose!)
-    (specify-pose! #;of rig #;to (first #;in sequence))))
+  (if (null? sequence)
+      (display "sequence must be non-empty\n")
+      (letrec ((next-pose! (lambda _
+			     (<< "next-pose!")
+			     (match* sequence
+			       ((current . rest)
+				(unregister-behavior! rig current next-pose!)
+				(set! sequence rest)
+				(match* rest
+				  ((next . _)
+				   (register-behavior! rig next next-pose!)
+				   (specify-pose! #;of rig #;to next))))))))
+	(register-behavior! rig (first #;in sequence) next-pose!)
+	(specify-pose! #;of rig #;to (first #;in sequence)))))
 
 (define (freeze! rig)
   (let ((pose (pose #;of rig)))
