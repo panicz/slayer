@@ -47,6 +47,8 @@
 	     joint-named
 	     joint-name
 	     joint?
+
+	     force-hinge!
 	     ))
 
 (load-extension "physics" "init")
@@ -125,6 +127,13 @@
   (if local 
       (body-add-local-torque! body torque)
       (body-add-torque! body torque)))
+
+(define (force-hinge! joint value)
+  (assert (and (eq? (joint-type joint) 'hinge)
+	       (real? torque)))
+  (let ((axis (joint-property joint 'axis)))
+    (torque! (joint-property joint 'body-1) (* (* +0.5 value) axis))
+    (torque! (joint-property joint 'body-2) (* (* -0.5 value) axis))))
 
 (define (simulation-bodies sim)
   (append-map rig-bodies (simulation-rigs sim)))
