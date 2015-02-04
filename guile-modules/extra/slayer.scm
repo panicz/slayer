@@ -4,8 +4,7 @@
   #:use-module (extra common)
   #:use-module (extra ref)
   #:export (rgba highlighted subtract-image force-redisplay! key
-		 shift? ctrl? alt?
-		 keydn*)
+		 shift? ctrl? alt?)
   #:export-syntax (with-video-output-to key-bindings)
   #:replace (
 	     (keydn-replacement . keydn)
@@ -79,20 +78,30 @@
 
 (define modifiers #[])
 
+(define (expand-modifier modifier)
+  (let ((substitutions '((ctrl lctrl rctrl)
+			 (alt lalt ralt)
+			 (shift lshift rshift)
+			 (meta lmeta rmeta)
+			 (super lsuper rsuper))))
+    (or (assoc-ref substitutions modifier)
+	(list modifier))))
+
 (define (keydn* (modifier target) action)
   (let ((old-bindings (current-key-bindings)))
-    (set-key-bindings! (or #[modifiers modifier] (fresh-key-bindings)))
-    (keydn target action)
-    (keyup target noop)
-    (keyup modifier 
-      (lambda () 
-	(set-key-bindings! old-bindings)))
-    (set! #[modifiers modifier] (current-key-bindings))
-    (set-key-bindings! old-bindings)
-    (keydn modifier 
-      (lambda () 
-	(set! old-bindings (current-key-bindings))
-	(set-key-bindings! #[modifiers modifier])))))
+    (for modifier in (expand-modifier modifier)
+      (set-key-bindings! (or #[modifiers modifier] (fresh-key-bindings)))
+      (keydn target action)
+      (keyup target noop)
+      (keyup modifier 
+	(lambda () 
+	  (set-key-bindings! old-bindings)))
+      (set! #[modifiers modifier] (current-key-bindings))
+      (set-key-bindings! old-bindings)
+      (keydn modifier 
+	(lambda () 
+	  (set! old-bindings (current-key-bindings))
+	  (set-key-bindings! #[modifiers modifier]))))))
 
 (define (keydn-replacement key action)
   (match key
