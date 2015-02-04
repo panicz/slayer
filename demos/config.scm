@@ -24,7 +24,7 @@
       (left (normalized '(1.0 . #f32(1 1 1))))
       (right (normalized '(-1.0 . #f32(-1 1 1))))
       (ahead (normalized '(1.0 . #f32(1 0 0))))
-      (back (normalized '(1.0 . #f32(-1 0 0))))
+      (back (normalized '(0.0 . #f32(0 1 1))))
       (camera #[view 'camera]))
   (let-syntax ((look (syntax-rules ()
 		       ((_ direction)
