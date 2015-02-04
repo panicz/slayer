@@ -84,6 +84,10 @@
 (define-method (initialize (self <physical-object>) args)
   (next-method))
 
+(define-method (select-object! (object <physical-object>) #;in (view <3d-view>))
+  (next-method)
+  (format #t "~s\n" (body-name #[object 'body])))
+
 (define-class <physical-joint> (<3d-model>)
   (rig #:init-keyword #:rig)
   (position
