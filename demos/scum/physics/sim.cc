@@ -48,6 +48,16 @@ current_simulation_step(SCM x_sim) {
 }
 
 static void
+simulation_delta_setter(sim_t *sim, SCM value) {
+  sim->dt = scm_to_double(value);
+}
+
+static SCM
+simulation_delta_getter(sim_t *sim) {
+  return scm_from_double(sim->dt);
+}
+
+static void
 simulation_gravity_setter(sim_t *sim, SCM value) {
   dVector3 v;
   scm_to_dVector3(value, &v);
@@ -172,6 +182,8 @@ init_sim_property_accessors() {
   SET_SIM_NAMED_ACCESSORS(property, # property)
 
   SET_SIM_ACCESSORS(gravity);
+  SET_SIM_ACCESSORS(delta);
+
   SET_SIM_NAMED_ACCESSORS(erp, "error-reduction-parameter");
   SET_SIM_NAMED_ACCESSORS(cfm, "constraint-force-mixing");
 
