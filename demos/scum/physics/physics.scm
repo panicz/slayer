@@ -23,6 +23,8 @@
 	     rig?
 	     stop-rig!
 	     reset-rig!
+	     rig-state
+	     set-rig-state!
 
 	     make-body
 	     set-body-property!
@@ -35,6 +37,8 @@
 	     body?
 	     stop-body!
 	     reset-body!
+	     body-state
+	     set-body-state!
 
 	     force!
 	     torque!
@@ -47,6 +51,8 @@
 	     joint-named
 	     joint-name
 	     joint?
+	     joint-state
+	     set-joint-state!
 
 	     force-hinge!
 	     ))
@@ -161,3 +167,37 @@
 (define (reset-simulation! sim)
   (for rig in (simulation-rigs sim)
     (reset-rig! rig)))
+
+(define (rig-state rig)
+  `(rig-state (bodies ,@(map (lambda (body)
+			       `(,(body-name body) . ,(body-state body)))
+			     (rig-bodies rig)))
+	      (joints ,@(map (lambda (joint)
+			       `(,(joint-name joint) . ,(joint-state joint)))
+			     (rig-joints rig)))))
+
+(define (set-rig-state! rig state)
+  (let ((('rig-state ('bodies . bodies-states)
+		     ('joints . joints-states)) state))
+    (for (body-name . state) in bodies-states
+      (set-body-state! body state))
+    (for (joint-name . state) in joints-states
+      (set-joint-state! joint state))))
+
+(define (body-state body)
+  (map (lambda (property)
+	 `(,property . ,(body-property body property)))
+       '(position quaternion)))
+
+(define (set-body-state! body state)
+  (for (property . value) in state
+    (set-body-property! body property value)))
+
+(define (joint-state joint)
+  (map (lambda (property)
+	 `(,property . ,(joint-property joint property)))
+       '(anchor axis)))
+
+(define (set-joint-state! joint state)
+  (for (property . value) in state
+    (set-joint-property! joint property value)))
