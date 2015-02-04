@@ -24,6 +24,7 @@ exit
  (editor modes)
  (editor poses)
  (editor posed widgets)
+ (editor posed undo)
  (editor control)
  (editor limbs)
  (editor movesets)
@@ -77,7 +78,7 @@ exit
 	  (unselect-object! view object)
 	  (select-object! object #;from view)))))
 
-(keydn '(lctrl a)
+(keydn '(ctrl a)
   (lambda ()
     (unselect-all! #;in view)
     (for object in #[view : 'stage : 'objects]
@@ -86,15 +87,22 @@ exit
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
+(keydn '(ctrl z)
+  (lambda () (restore-previous-rig-state! the-rig)))
+
 (keydn 'c
   (lambda _
     (with-context-for-joint/body-relation
+     (save-rig-state! the-rig)
      (for body in (map #[_ 'body] #[view 'selected])
        (for joint in (joints-attached-to body)
 	 (set-pose! #;of the-rig #;to `(pose (,(joint-name joint) . 0.0))
 			 #:keeping (first (two-bodies-attached-by joint))))))))
 
-(keydn '(lctrl r) (lambda () (reset-rig! the-rig)))
+(keydn '(ctrl r)
+  (lambda () 
+    (save-rig-state! #;of the-rig)
+    (reset-rig! the-rig)))
 
 (define editor (make <pose-editor-widget> #:rig the-rig
 		     #:pivotal-body
@@ -113,6 +121,7 @@ exit
 
 (keydn '(lctrl p)
   (lambda ()
+    (save-rig-state! #;of the-rig)
     (apply-stops! #;to the-rig #:keeping (#[editor 'pivotal-body]))))
 
 (keydn 'p 
@@ -152,6 +161,7 @@ exit
 		 ((in? object #[view 'selected]))
 		 (body #[object 'body])) 
 	(with-context-for-joint/body-relation
+	 (save-rig-state! the-rig)
 	 (cond ((or (> (length #[view 'selected]) 1)
 		    (part-of-corpus? body))
 		(let* ((rig #[object 'rig])
@@ -225,10 +235,13 @@ exit
 	 (let* ((limb (body-named ankle #;from the-rig))
 		(its-position (body-property limb 'position))
 		(new-position ((if (shift?) - +) its-position displacement)))
-       (apply-inverse-kinematics! #;of limb #;to new-position #;at hub?)))))))
+	   (save-rig-state! #;of the-rig)
+	   (apply-inverse-kinematics! #;of limb 
+					   #;to new-position #;at hub?)))))))
 
 (keydn 'l
   (lambda ()
+    (save-rig-state! the-rig)
     (for body in (map #[_ 'body] #[view 'selected])
       (and-let* ((name (body-name body))
 		 ((side) (symbol-match "^(.*)-foot$" name))

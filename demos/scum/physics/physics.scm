@@ -180,9 +180,9 @@
   (let ((('rig-state ('bodies . bodies-states)
 		     ('joints . joints-states)) state))
     (for (body-name . state) in bodies-states
-      (set-body-state! body state))
+      (set-body-state! (body-named body-name #;from rig) state))
     (for (joint-name . state) in joints-states
-      (set-joint-state! joint state))))
+      (set-joint-state! (joint-named joint-name #;from rig) state))))
 
 (define (body-state body)
   (map (lambda (property)
