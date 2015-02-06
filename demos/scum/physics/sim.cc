@@ -48,12 +48,12 @@ current_simulation_step(SCM x_sim) {
 }
 
 static void
-simulation_delta_setter(sim_t *sim, SCM value) {
+simulation_time_step_setter(sim_t *sim, SCM value) {
   sim->dt = scm_to_double(value);
 }
 
 static SCM
-simulation_delta_getter(sim_t *sim) {
+simulation_time_step_getter(sim_t *sim) {
   return scm_from_double(sim->dt);
 }
 
@@ -182,7 +182,7 @@ init_sim_property_accessors() {
   SET_SIM_NAMED_ACCESSORS(property, # property)
 
   SET_SIM_ACCESSORS(gravity);
-  SET_SIM_ACCESSORS(delta);
+  SET_SIM_NAMED_ACCESSORS(time_step, "time-step");
 
   SET_SIM_NAMED_ACCESSORS(erp, "error-reduction-parameter");
   SET_SIM_NAMED_ACCESSORS(cfm, "constraint-force-mixing");
