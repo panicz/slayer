@@ -42,6 +42,12 @@ rig_p(SCM smob) {
     : SCM_BOOL_F;
 }
 
+static SCM
+rig_simulation(SCM x_rig) {
+  RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
+  return rig->parent->self_smob;
+}
+
 // to understand what's goint on here, see the definition of `export-symbols'
 // function in `physics.cc' file
 #define EXPORT_RIG_PROCEDURES						\
@@ -49,6 +55,7 @@ rig_p(SCM smob) {
   EXPORT_PROC("rig?", 1, 0, 0, rig_p)					\
   EXPORT_PROC("rig-name", 1, 0, 0, rig_name)				\
   EXPORT_PROC("rig-bodies", 1, 0, 0, rig_bodies)			\
-  EXPORT_PROC("rig-joints", 1, 0, 0, rig_joints)
+  EXPORT_PROC("rig-joints", 1, 0, 0, rig_joints)			\
+  EXPORT_PROC("rig-simulation", 1, 0, 0, rig_simulation)
 
 #define INIT_RIG_MODULE do {} while(0)

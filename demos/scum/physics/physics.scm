@@ -21,6 +21,7 @@
 	     rig-bodies
 	     rig-joints
 	     rig?
+	     rig-simulation
 	     stop-rig!
 	     reset-rig!
 	     rig-state
@@ -201,3 +202,9 @@
 (define (set-joint-state! joint state)
   (for (property . value) in state
     (set-joint-property! joint property value)))
+
+(define (joint-simulation joint)
+  (rig-simulation (joint-rig joint)))
+
+(define (body-simulation body)
+  (rig-simulation (body-rig body)))
