@@ -10,6 +10,7 @@
   #:use-module (widgets sortable)
   #:use-module (widgets text-area)
   #:use-module (editor poses)
+  #:use-module (editor posed undo)
   #:use-module (editor modes)
   #:use-module (editor control)
   #:use-module (oop goops)
@@ -261,6 +262,7 @@
 	    #:text "  [ mirror ]  "
 	    #:action 
 	    (lambda (x y)
+	      (save-rig-state! the-rig)
 	      (set-pose! #;of the-rig
 			      #;to (mirror-pose (pose #;of the-rig))
 				   #:keeping (#[self 'pivotal-body]))))
@@ -269,6 +271,7 @@
 	    #:text " [ left->right ] "
 	    #:action
 	    (lambda (x y)
+	      (save-rig-state! the-rig)
 	      (set-pose! #;of the-rig
 			      #;to (left->right-pose (pose #;of the-rig))
 				   #:keeping (#[self 'pivotal-body])))))))
