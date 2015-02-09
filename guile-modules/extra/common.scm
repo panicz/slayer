@@ -87,7 +87,8 @@
 	    alist->hash-map assoc? assoc->hash assoc->hash/deep
 	    last-sexp-starting-position
 	    properize flatten last-tail
-	    cart cart-pow all-tuples all-pairs all-triples combinations
+	    cart cart-pow all-tuples all-pairs all-triples combinations 
+	    permutations insertions
 	    take-at-most drop-at-most rotate-left rotate-right sublist
 	    remove-keyword-args keyword-ref
 	    delete-first alter pick
@@ -1434,16 +1435,17 @@
 	 object)))
 
 (define (<< . messages)
-  (if #t
-      (with-output-to-port (current-output-port) ;(current-error-port)
-	(lambda ()
-	  (for message in messages
-	       (cond
-		((hash-table? message)
-		 (pretty-print (->strings message)))
-		(else
-		 (pretty-print message))))
-	  (flush-all-ports)))))
+  (with-output-to-port (current-output-port) ;(current-error-port)
+    (lambda ()
+      (for message in messages
+	(cond
+	 ((hash-table? message)
+	  (display (->strings message)))
+	 (else
+	  (display message)
+	  (display " "))))
+      (newline)
+      (flush-all-ports))))
 
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
@@ -1735,6 +1737,24 @@
  (combinations #;from-set '(a b) #;of-length 3)
  same-set?
  '((a a a) (b a a) (a b a) (b b a) (a a b) (b a b) (a b b) (b b b)))
+
+(define (permutations l)
+  (match l
+    (()
+     '(()))
+    ((head . tail)
+     (append-map (lambda (sub)
+		   (insertions head sub))
+		 (permutations tail)))))
+
+(define (insertions x l)
+  (match l
+    (()
+     `((,x)))
+    ((head . tail)
+     `((,x ,head . ,tail) . ,(map (lambda (y)
+				    `(,head . ,y))
+				  (insertions x tail))))))
 
 (define (interlaces . sequences)
   (define (interlaces2 a b)
