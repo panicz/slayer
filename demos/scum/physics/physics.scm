@@ -26,6 +26,7 @@
 	     reset-rig!
 	     rig-state
 	     set-rig-state!
+	     rig-mass-center
 
 	     make-body
 	     set-body-property!
@@ -40,6 +41,8 @@
 	     reset-body!
 	     body-state
 	     set-body-state!
+
+	     bodies-mass-center
 
 	     force!
 	     torque!
@@ -138,9 +141,11 @@
 (define (force-hinge! joint value)
   (assert (and (eq? (joint-type joint) 'hinge)
 	       (real? torque)))
-  (let ((axis (joint-property joint 'axis)))
-    (torque! (joint-property joint 'body-1) (* (* +0.5 value) axis))
-    (torque! (joint-property joint 'body-2) (* (* -0.5 value) axis))))
+  (and-let* ((axis (joint-property joint 'axis))
+	     (body-1 (joint-property joint 'body-1))
+	     (body-2 (joint-property joint 'body-2)))
+    (torque! body-1 (* (* +0.5 value) axis))
+    (torque! body-2 (* (* -0.5 value) axis))))
 
 (define (simulation-bodies sim)
   (append-map rig-bodies (simulation-rigs sim)))
@@ -176,6 +181,18 @@
 	      (joints ,@(map (lambda (joint)
 			       `(,(joint-name joint) . ,(joint-state joint)))
 			     (rig-joints rig)))))
+
+(define (rig-mass-center rig)
+  (bodies-mass-center (rig-bodies rig)))
+
+(define (bodies-mass-center bodies)
+  (let ((((positions . masses) ...)
+	 (map (lambda (body) 
+		`(,(body-property body 'position)
+		  . ,(body-property body 'mass)))
+	      bodies)))
+    (/ (fold + #f32(0 0 0) (map * positions masses))
+       (fold + 0.0 masses))))
 
 (define (set-rig-state! rig state)
   (let ((('rig-state ('bodies . bodies-states)

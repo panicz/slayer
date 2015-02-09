@@ -8,7 +8,6 @@
 	    clamped-pose
 	    mirror-pose
 	    left->right-pose
-	    mass-center
 	    ))
 
 (define (null-pose #;for rig)
@@ -63,12 +62,3 @@
 		      (else
 		       `((,name . ,value)))))
 	      configuration))))
-
-(define (mass-center #;of rig)
-  (let* ((bodies (rig-bodies rig))
-	 (((positions . masses) ...) (map (lambda (body) 
-					    `(,(body-property body 'position)
-					      . ,(body-property body 'mass)))
-					  bodies)))
-    (/ (fold + #f32(0 0 0) (map * positions masses))
-       (fold + 0.0 masses))))

@@ -66,7 +66,7 @@ exit
 (set-pose! the-rig (pose #;of the-rig))
 
 (attach-pid-muscles-to-all-joints! #;in the-rig
-					#;with-parameters 20.0 0.3 -10.0)
+					#;with-parameters 70.0 0.3 -20.0)
 
 (set! #[view 'left-click]
   (lambda (x y)
@@ -274,7 +274,7 @@ exit
   (position 
    #:allocation #:virtual
    #:slot-ref
-   (lambda (self) (mass-center #[self 'target]))
+   (lambda (self) (rig-mass-center #[self 'target]))
    #:slot-set! noop))
 
 (let ((center (make <mass-center> #:of the-rig)))

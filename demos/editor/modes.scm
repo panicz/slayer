@@ -337,7 +337,7 @@
       (let* ((previously-selected #[view 'selected])
 	     (rig (body-rig first))
 	     (bodies (rig-bodies rig))
-	     (center (mass-center rig)))
+	     (center (rig-mass-center rig)))
 	(unselect-all! #;from view)
 	(for body in bodies
 	  (select-body! body #;in view))
