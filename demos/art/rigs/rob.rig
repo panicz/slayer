@@ -324,7 +324,7 @@
 			      #:lo-stop 0.0 #:hi-stop 2.0))
   (left-shoulder-lead (hinge #:body-1 left-shoulder #:body-2 left-arm
 			     #:anchor (? position left-shoulder)
-			     #:axis #f32(1 0 0)
+			     #:axis #f32(-1 0 0)
 			     #:lo-stop -1.5 #:hi-stop 1.5))
   
   (right-hip-bend (hinge #:body-1 pelvis #:body-2 right-hip
@@ -332,7 +332,7 @@
 			#:lo-stop -1.6 #:hi-stop 1.6))
 
   (right-hip-turn (hinge #:body-1 right-hip #:body-2 right-tigh
-			#:anchor (? position right-hip) #:axis #f32(0 1 0)
+			#:anchor (? position right-hip) #:axis #f32(0 -1 0)
 			#:lo-stop -0.5  #:hi-stop 1.5))
 
   (right-knee-bend (hinge #:body-1 right-tigh #:body-2 right-knee
@@ -352,11 +352,11 @@
 			   #:lo-stop -0.2 #:hi-stop 0.2))
 
   (right-wrist-bend (hinge #:body-1 right-forearm #:body-2 right-wrist
-			  #:anchor (? position right-wrist) #:axis #f32(-1 0 0)
+			  #:anchor (? position right-wrist) #:axis #f32(1 0 0)
 			  #:lo-stop -0.2 #:hi-stop 0.2))
 
   (right-wrist-turn (hinge #:body-1 right-wrist #:body-2 right-palm
-			  #:anchor (? position right-wrist) #:axis #f32(0 1 0)
+			  #:anchor (? position right-wrist) #:axis #f32(0 -1 0)
 			  #:lo-stop -1.5 #:hi-stop 1.5))
 
   (right-elbow-bend (hinge #:body-1 right-arm #:body-2 right-elbow
@@ -364,7 +364,7 @@
 			  #:lo-stop 0.0 #:hi-stop 3.0))
 
   (right-elbow-twist (hinge #:body-1 right-elbow #:body-2 right-forearm
-			   #:anchor (? position right-elbow) #:axis #f32(0 0 1)
+			   #:anchor (? position right-elbow) #:axis #f32(0 0 -1)
 			   #:lo-stop -0.7 #:hi-stop 0.7))
   (right-shoulder-raise (hinge #:body-1 chest #:body-2 right-shoulder
 			      #:anchor (? position right-shoulder) 
