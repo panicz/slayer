@@ -10,20 +10,15 @@
 (define history #[])
 
 (define (save-rig-state! rig)
-  (let ((pose (pose #;of rig))
-	(state (rig-state rig)))
+  (let ((state (rig-state rig)))
     (match* #[history rig]
-      ((or #f () (and ((_ . _) . _)
-		      (? (lambda (((pp . ps) . _)) 
-			   (not (and (equal? pp pose)
-				     (equal? ps state)))))))
+      ((or #f () (and (_ . _) (? (lambda (prev) (not (equal? prev state))))))
        (set! #[history rig]
-	 `((,pose . ,state) ,@(or #[history rig] '())))))))
+	 `(,state ,@(or #[history rig] '())))))))
 
 (define (restore-previous-rig-state! rig)
   (match #[history rig]
-    (((pose . state) . older)
-     (set-pose! #;of rig #;to pose)
+    ((state . older)
      (set-rig-state! #;of rig #;to state)
      (set! #[history rig] older))
     (_
