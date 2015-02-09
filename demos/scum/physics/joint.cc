@@ -195,6 +195,12 @@ DEF_JOINT_REAL_GETTER(universal_angle2, UniversalAngle2);
 DEF_JOINT_REAL_GETTER(hinge_angle, HingeAngle);
 DEF_JOINT_REAL_GETTER(hinge_angle_rate, HingeAngleRate);
 
+static void
+joint_hinge_angle_rate_setter(joint_t *joint, SCM value) {
+  dJointSetHingeParam(joint->joint, dParamVel, (dReal) scm_to_double(value));
+}
+
+
 DEF_JOINT_REAL_GETTER(hinge2_angle1, Hinge2Angle1);
 //DEF_JOINT_REAL_GETTER(hinge2_angle2, Hinge2Angle2);
 //DEF_JOINT_REAL_GETTER(hinge2_angle_rate1, Hinge2AngleRate1);
@@ -276,7 +282,7 @@ init_joint_property_accessors() {
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, anchor);
   SET_JOINT_ACCESSORS(dJointTypeHinge, hinge_, axis);
   SET_JOINT_GETTER(dJointTypeHinge, hinge_, angle);
-  SET_JOINT_NAMED_GETTER(dJointTypeHinge, hinge_, angle_rate, "angle-rate");
+  SET_JOINT_NAMED_ACCESSORS(dJointTypeHinge, hinge_, angle_rate, "angle-rate");
 
   // SLIDER
   SET_JOINT_ACCESSORS(dJointTypeSlider, slider_, axis);
