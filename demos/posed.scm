@@ -35,11 +35,6 @@ exit
 
 (define the-simulation (primitive-make-simulation))
 
-(set-simulation-property! the-simulation 'gravity #f32(0 0 -0.3))
-(set-simulation-property! the-simulation 'error-reduction-parameter 0.8)
-(set-simulation-property! the-simulation 'constraint-force-mixing 0.001)
-(set-simulation-property! the-simulation 'auto-disable #t)
-
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
 
 (define-rig rob (with-input-from-file "art/rigs/rob.rig" read))
@@ -104,6 +99,16 @@ exit
     (save-rig-state! #;of the-rig)
     (reset-rig! the-rig)))
 
+
+;; making these available for evaluations (cf "evaluation.ss")
+
+(define erp 'error-reduction-parameter)
+(define cfm 'constraint-force-mixing)
+
+(define (sim-set! property value)
+  (set-simulation-property! the-simulation property value)
+  (simulation-property the-simulation property))
+
 (define editor (make <pose-editor-widget> #:rig the-rig
 		     #:pivotal-body
 		     (lambda ()
@@ -126,13 +131,15 @@ exit
 
 (keydn 'p 
   (lambda () 
+    (if #[editor 'pause]
+	(save-rig-state! #;of the-rig))
     (set! #[editor 'pause] (not #[editor 'pause]))
     (format #t "pause ~a\n" (if #[editor 'pause] 'on 'off))))
 
 (keydn 'h (rotate-around-joint-mode view))
 
 (add-timer! 
- 25 
+ 10 
  (lambda()
    (unless #[editor 'pause]
      (make-simulation-step! the-simulation)
@@ -223,6 +230,8 @@ exit
       (set! dragging-corpus #f)
       (set! dragged-limb #f))))
 
+(keydn '/ (lambda () (pretty-print (pose #;of the-rig))))
+
 (keydn '=
   (lambda ()
     (with-context-for-joint/body-relation
@@ -290,13 +299,13 @@ exit
 (when (file-exists? moveset-file)
   (set! #[editor 'moveset] (with-input-from-file moveset-file read)))
 
-(set-exit-procedure!
- (lambda (outfile)
-   (let ((previous-moveset (with-input-from-file moveset-file read))
-	 (current-moveset #[editor 'moveset]))
-     (unless (same-movesets? previous-moveset current-moveset)
-       (let ((backup (next-available-file-name moveset-file)))
-	 (when (file-exists? moveset-file)
-	   (copy-file moveset-file backup))
-	 (with-output-file moveset-file 
-	   (pretty-print current-moveset)))))))
+(set! #[*stage* 'on-exit]
+  (lambda (self)
+    (let ((previous-moveset (with-input-from-file moveset-file read))
+	  (current-moveset #[editor 'moveset]))
+      (unless (same-movesets? previous-moveset current-moveset)
+	(let ((backup (next-available-file-name moveset-file)))
+	  (when (file-exists? moveset-file)
+	    (copy-file moveset-file backup))
+	  (with-output-file moveset-file 
+	    (pretty-print current-moveset)))))))
