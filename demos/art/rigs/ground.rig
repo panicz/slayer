@@ -1,5 +1,5 @@
 (rig
  (bodies
-  (ground (plane #:normal #(0 0 1) #:displacement -4.00)))
+  (ground (plane #:normal #(0 0 1) #:displacement -4.16)))
  (joints))
   
