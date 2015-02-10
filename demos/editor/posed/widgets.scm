@@ -227,7 +227,7 @@
 	   ((layout)
 	    (label "         --- file options ---        ")
 	    (label " --- evaluations (f1 after sexp) --- ")
-	    (make <text-area> #:w 220 #:h 128 #:text-color #x000000
+	    (make <text-area> #:w 220 #:h 200 #:text-color #x000000
 		  #:background-color #xffffff
 		  #:text ""
 		  #:on-create 
