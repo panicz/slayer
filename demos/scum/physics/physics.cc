@@ -44,25 +44,37 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
   dContact c[MAX_CONTACTS];
   int i, n = dCollide(a, b, MAX_CONTACTS ,//| CONTACTS_UNIMPORTANT,
 		      &c[0].geom, sizeof(dContact));
+#if 0
+  float max_penetration_depth = 0;
+#endif
   for(i = 0; i < n; ++i) {
-    c[i].surface.mode = dContactSlip1 | dContactSlip2 |
-      dContactSoftERP | dContactSoftCFM | dContactApprox1 | dContactBounce;
-    c[i].surface.mu = dInfinity;
-    c[i].surface.slip1 = 0.1;
-    c[i].surface.slip2 = 0.1;
-    c[i].surface.soft_erp = 0.8;
-    c[i].surface.soft_cfm = 1.0;
-    c[i].surface.bounce = 0;
-
+    c[i].surface = sim->default_contact_parameters;
+#if 0
+    if(c[i].geom.depth > max_penetration_depth) {
+      max_penetration_depth = c[i].geom.depth;
+    }
+#endif
     dJointID r = dJointCreateContact(sim->world, sim->contact_group, &c[i]);
     dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
-
-    /*
-    OUT("Contact %i penetration depth between %p (%s) and %p (%s) is %f", 
-	i, a, class_name[dGeomGetClass(a)], b, class_name[dGeomGetClass(b)], 
-	c[i].geom.depth);
-    */
   }
+
+#if 0
+  if(n) {
+    auto dGeom_body1 = sim->dGeom_body.find(a);
+    auto dGeom_body2 = sim->dGeom_body.find(b);
+
+    static const char *unknown = "unknown";
+
+    const char *name1 = ((dGeom_body1 == sim->dGeom_body.end())
+			 ? unknown : sim->body_name[dGeom_body1->second]);
+    const char *name2 = ((dGeom_body2 == sim->dGeom_body.end())
+			 ? unknown : sim->body_name[dGeom_body2->second]);
+
+    OUT("%i contacts between %p (%s) and %p (%s), max penetration depth %f", 
+	n, a, name1, b, name2, max_penetration_depth);
+  }
+#endif
+
 }
 
 #include "body.cc"

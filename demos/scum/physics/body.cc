@@ -13,7 +13,7 @@ static float
     body_t *body = new body_t;						\
     body->body = create_body(rig->parent->world);			\
     body->geom = dCreate##Shape(rig->space, ## __VA_ARGS__ );		\
-    WARN(# shape ": %p", body->geom);					\
+    DONT(WARN(# shape ": %p", body->geom));				\
     set_body(body->geom, body->body);					\
     body->id = rig->bodies.size();					\
     rig->bodies.push_back(body);					\
@@ -571,6 +571,11 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
   rig->id[gc_protected(s_name)] = body->id;
 
   body->self_smob = gc_protected(body_to_smob(body));
+
+  body->parent->parent->dGeom_body[body->geom] = body;
+  body->parent->parent->dBody_body[body->body] = body;
+  body->parent->parent->body_name[body] = as_c_string(s_name);
+
   scm_remember_upto_here_1(x_rig);
   scm_remember_upto_here_2(s_type, s_name);
   return body->self_smob;

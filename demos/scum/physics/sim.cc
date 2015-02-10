@@ -10,6 +10,18 @@ primitive_make_simulation() {
   sim->dt = 0.05;
   sim->step = 0;
   sim->self_smob = gc_protected(sim_to_smob(sim));
+  struct dSurfaceParameters c;
+  c.mode = dContactSlip1 | dContactSlip2 | dContactSoftERP 
+    | dContactSoftCFM | dContactApprox1 | dContactBounce;
+  c.mu = dInfinity;
+  c.mu2 = dInfinity;
+  c.bounce = 0;
+  c.soft_erp = 0.8;
+  c.soft_cfm = 1.0;
+  c.slip1 = 0.1;
+  c.slip2 = 0.1;
+  sim->default_contact_parameters = c;
+
   return sim->self_smob;
 }
 
@@ -51,6 +63,23 @@ static void
 simulation_time_step_setter(sim_t *sim, SCM value) {
   sim->dt = scm_to_double(value);
 }
+
+#define DEF_SIMULATION_CONTACT_ACCESSORS(param)				\
+  static void simulation_contact_##param##_setter(sim_t *sim, SCM v) {	\
+    sim->default_contact_parameters.param = scm_to_double(v);		\
+  }									\
+  static SCM simulation_contact_##param##_getter(sim_t *sim) {		\
+    return scm_from_double(sim->default_contact_parameters.param);	\
+  }
+
+DEF_SIMULATION_CONTACT_ACCESSORS(mu)
+DEF_SIMULATION_CONTACT_ACCESSORS(bounce)
+DEF_SIMULATION_CONTACT_ACCESSORS(slip1)
+DEF_SIMULATION_CONTACT_ACCESSORS(slip2)
+DEF_SIMULATION_CONTACT_ACCESSORS(soft_erp)
+DEF_SIMULATION_CONTACT_ACCESSORS(soft_cfm)
+
+#undef DEF_SIMULATION_CONTACT_ACCESSORS
 
 static SCM
 simulation_time_step_getter(sim_t *sim) {
@@ -186,6 +215,13 @@ init_sim_property_accessors() {
 
   SET_SIM_NAMED_ACCESSORS(erp, "error-reduction-parameter");
   SET_SIM_NAMED_ACCESSORS(cfm, "constraint-force-mixing");
+
+  SET_SIM_NAMED_ACCESSORS(contact_soft_cfm, "contact-cfm");
+  SET_SIM_NAMED_ACCESSORS(contact_soft_erp, "contact-erp");
+  SET_SIM_NAMED_ACCESSORS(contact_mu, "contact-mu");
+  SET_SIM_NAMED_ACCESSORS(contact_slip1, "contact-slip-1");
+  SET_SIM_NAMED_ACCESSORS(contact_slip2, "contact-slip-2");
+  SET_SIM_NAMED_ACCESSORS(contact_bounce, "contact-bounce");
 
   SET_SIM_NAMED_ACCESSORS(auto_disable_flag, "auto-disable");
 

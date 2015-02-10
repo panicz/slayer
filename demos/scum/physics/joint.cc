@@ -64,6 +64,8 @@ make_joint(SCM x_rig, SCM s_type, SCM s_name) {
   if(s_name != SCM_UNDEFINED) {
     rig->joint_id[gc_protected(s_name)] = joint->id;
   }
+  joint->parent->parent->joint_name[joint] = as_c_string(s_name);
+
   joint->self_smob = gc_protected(joint_to_smob(joint));
   return joint->self_smob;
 }

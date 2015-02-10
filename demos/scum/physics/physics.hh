@@ -85,6 +85,11 @@ typedef struct body_t {
 
 typedef unordered_map<SCM, int, hash<SCM>, scm_eq> symbol_index_map_t;
 
+typedef unordered_map<dGeomID, body_t *, hash<dGeomID> > dGeom_body_map_t;
+typedef unordered_map<dBodyID, body_t *, hash<dBodyID> > dBody_body_map_t;
+typedef unordered_map<body_t *, const char *, hash<body_t *> > body_name_map_t;
+typedef unordered_map<joint_t *, const char *, hash<joint_t *> > joint_name_map_t;
+
 //typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> general_scm_map_t;
 
 typedef struct rig_t {
@@ -105,8 +110,13 @@ typedef struct sim_t {
   dSpaceID space;
   std::list<rig_t *> rigs;
   dJointGroupID contact_group;
+  dGeom_body_map_t dGeom_body;
+  dBody_body_map_t dBody_body;
+  body_name_map_t body_name;
+  joint_name_map_t joint_name;
   dReal dt;
   int step;
+  struct dSurfaceParameters default_contact_parameters;
 } sim_t;
 
 typedef unordered_map <SCM, body_t *(*)(rig_t *), hash<SCM>, scm_eq>
