@@ -225,9 +225,32 @@
 	(poses-widget #[self 'poses-widget]))
     (let ((file-menu 
 	   ((layout)
-	    (label "         --- file options ---       ")
-	    (label "       --- camera settings ---      ")
-	    (label "         --- quick help ---         ")))
+	    (label "         --- file options ---        ")
+	    (label " --- evaluations (f1 after sexp) --- ")
+	    (make <text-area> #:w 220 #:h 128 #:text-color #x000000
+		  #:background-color #xffffff
+		  #:text ""
+		  #:on-create 
+		  (lambda (self)
+		    (when (file-exists? "evaluation.ss")
+		      (let ((text (with-input-from-file "evaluation.ss"
+				    (lambda () (read-delimited "")))))
+			(set! #[self 'text] text)
+			(catch #t
+			  (lambda ()
+			    (let ((s-expressions (with-input-from-string text
+						   read-s-expressions)))
+			      (for sexp in s-expressions
+				(eval sexp (current-module)))))
+			  (lambda args
+			    (format *stderr* "evaluation failed: ~s\n" args)))
+			)))
+		  #:on-exit
+		  (lambda (self)
+		    (with-output-file "evaluation.ss"
+		      (display #[self 'text]))))
+	    (label "       --- camera settings ---       ")
+	    (label "         --- quick help ---          ")))
 	  (pose-editor
 	   ((layout)
 	    (property-editor 
