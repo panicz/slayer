@@ -62,8 +62,8 @@
 	       utf8->string string->utf8 
 	       bytevector-fill!
 	       native-endianness endianness
-	       ;; ice-9 format, ice-9 pretty-print
-	       pretty-print format
+	       ;; ice-9 format, ice-9 pretty-print, ice-9 rdelim
+	       pretty-print format read-line read-delimited
 	       )
   #:export (
 	    and-let* unknot listify stringify every. any.
@@ -102,7 +102,7 @@
 	    u8->list u8->bitvector bytevector->list bytevector->bitvector
 	    unpack pack extend
 	    current-working-directory list-directory change-directory
-	    with-changed-working-directory read-file
+	    with-changed-working-directory read-file read-s-expressions
 	    shell next-available-file-name
 	    << die first-available-input-port
 	    real->integer
@@ -2144,14 +2144,17 @@
 (define-syntax-rule (with-output-string action . *)
   (with-output-to-string (lambda () action . *)))
 
-(define (read-file filename)
-  (with-input-from-file filename
+(define* (read-s-expressions #:optional (port (current-input-port)))
+  (with-input-from-port port
     (lambda ()
-      (let loop ((datum (read)) 
+      (let loop ((datum (read))
 		 (content '()))
 	(if (eof-object? datum)
 	    (reverse content)
 	    (loop (read) (cons datum content)))))))
+
+(define (read-file filename)
+  (read-s-expressions (open-input-file filename)))
 
 (define current-working-directory getcwd)
 
