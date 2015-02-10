@@ -41,6 +41,16 @@
   ;; the original text is stored
   (%original-row #:init-value 0)
   (%original-column #:init-value 0)
+  (text 
+   #:init-keyword #:text
+   #:allocation #:virtual
+   #:slot-ref 
+   (lambda (self)
+     (string-join (vector->list #[self 'lines]) "\n"))
+   #:slot-set! 
+   (lambda (self text)
+     (set! #[self 'lines]
+       (list->vector (string-split text #\newline)))))
 
   (valid-lines #:init-value (lambda(lines) #t) #:init-keyword #:validate-lines)
   (on-confirm-change #:init-value noop #:init-keyword #:on-confirm-change)
@@ -297,8 +307,7 @@
 
 (define-method (initialize (t <text-area>) args)
   (next-method)
-  (let-keywords args #t ((text "hellow!")
-			 (type #:text-area))
+  (let-keywords args #t ((type #:text-area))
     (let ((put-string (lambda(s)
 			(set! #[t '%cropped-image] #f)
 			(set! #[t '%%image] #f)
@@ -315,7 +324,7 @@
       (set! #[t '%cursor] (rectangle 2 #[t 'char-height]
 				     #x20eeaa22))
       (set! #[t '%space] (render-text "_" #[t 'font]))
-      (set! #[t 'lines] (list->vector (string-split text #\newline)))
+
       (set! #[t 'port] (make-soft-port
 			(vector
 			 (lambda(c) 
@@ -338,11 +347,10 @@
 	(set-key! "down" (lambda(t)(move-cursor! t 0 1)))
 	(set-key! "end" move-cursor-to-the-end-of-line!)
 	(set-key! "home" move-cursor-to-the-beginning-of-line!)
-	(set-key! 
-	 "f1" 
-	 (lambda(t)
-	   (call-with-new-thread 
-	    (lambda()(display (eval-string (last-sexp t)) *stdout*)))))
+	(set-key! "f1" 
+		  (lambda(t)
+		    (call-with-new-thread 
+		     (lambda()(display (eval-string (last-sexp t)) *stdout*)))))
 	(set-key! "f2" (lambda(t)(display (last-sexp t) *stdout*)))
 	(set-key! "backspace" delete-previous-char!)
 	(set-key! "delete" delete-next-char!)
@@ -357,8 +365,7 @@
 				      (restore-original-text! t))))))
 	  (else
 	   (set-key! "esc" leave-typing-mode!)
-	   (set-key! "return" break-line!)
-	   ))
+	   (set-key! "return" break-line!)))
 	))))
 
 (define-class <parameter-editor> (<text-area>)
