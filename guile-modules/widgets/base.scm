@@ -12,6 +12,7 @@
 	    add-child!
 	    remove-child!
 	    ancestors
+	    exit
 
 	    left-click-widget
 
@@ -136,6 +137,12 @@
   (move                                 ; new-x, new-y, issued before
    #:init-value noop                    ; the position is changed
    #:init-keyword #:move)
+  (on-create
+   #:init-value noop
+   #:init-keyword #:on-create)
+  (on-exit
+   #:init-value noop
+   #:init-keyword #:on-exit)
   (%x #:init-value 0 #:init-keyword #:x) (%y #:init-value 0 #:init-keyword #:y)
   (%w #:init-value 0 #:init-keyword #:w) (%h #:init-value 0 #:init-keyword #:h)
   (x #:allocation #:virtual
@@ -162,6 +169,10 @@
 		   (unless (= #[self '%h] h)
 		     (#[self 'resize] #[self '%w] h)
 		     (set! #[self '%h] h)))))
+
+(define-method (initialize (self <widget>) args)
+  (next-method)
+  (#[self 'on-create] self))
 
 (define-class <stage> (<widget>)
   (children #:init-value '()))
@@ -235,6 +246,15 @@
 	(apply argmax widget-depth candidates))))
 
 (set-display-procedure! (lambda()(draw *stage*)))
+
+(define-generic exit)
+
+(define-method (exit (self <widget>))
+  (for child in #[self 'children]
+    (exit child))
+  (#[self 'on-exit] self))
+
+(set-exit-procedure! (lambda (_) (exit *stage*)))
 
 (set-resize-procedure! (lambda (w h)
 			 (set! #[*stage* 'w] w)
