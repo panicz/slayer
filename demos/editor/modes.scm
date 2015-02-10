@@ -178,25 +178,27 @@
  (define* (apply-inverse-kinematics! #;of body #;to desired-position 
 					  #:optional #;at (limb? hub?)
 					  #;with (max-step 0.02))
-   (let* ((joint-sequence pivot (joint-sequence-to+nearest-member
-				 limb? #;from body))
-	  (global-position (body-property body 'position))
-
-	  (((anchors+ axes+ angles+) ...)
-	   `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
-	     (,global-position #f32(0 0 0) 0.0)))
-	  ((kinematic-chain ... (local-position . _)) (kinematic-chain 
-						       anchors+ axes+ angles+))
-	  (range (apply + (map (lambda ((local-anchor _)) (norm local-anchor)) 
-			       kinematic-chain)))
-	  (reachable-position (fit desired-position #;to range
-				   #;at (body-property pivot 'position)))
-	  (displacement (- reachable-position global-position))
-	  (distance (norm displacement))
-	  (direction (/ displacement distance))
-	  ((axes- ... last-axis _) (map normalized axes+))
-	  (system-equation (position<-angles kinematic-chain local-position)))
-     (let improve ((remaining distance)
+   (and-let* ((joint-sequence pivot (joint-sequence-to+nearest-member
+				     limb? #;from body))
+	      ((> (length joint-sequence) 1))
+	      (global-position (body-property body 'position))
+	      (((anchors+ axes+ angles+) ...)
+	       `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
+		 (,global-position #f32(0 0 0) 0.0)))
+	      ((kinematic-chain ... (local-position . _)) 
+	       (kinematic-chain anchors+ axes+ angles+))
+	      (range (apply + (map (lambda ((local-anchor _)) (norm local-anchor))
+				   kinematic-chain)))
+	      (reachable-position (fit desired-position #;to range
+				       #;at (body-property pivot 'position)))
+	      (displacement (- reachable-position global-position))
+	      (distance (norm displacement))
+	      (direction (/ displacement distance))
+	      ((axes- ... last-axis _) (map normalized axes+))
+	      (system-equation (position<-angles kinematic-chain 
+						 local-position)))
+     (let improve ((improvement 0)
+		   (remaining distance)
 		   (angles (drop-right angles+ 1))
 		   (current-position global-position))
        (if (positive? remaining)
@@ -216,21 +218,20 @@
 		  (new-pose `(pose ,@(map (lambda (joint new-angle)
 					    `(,(joint-name joint) . ,new-angle))
 					  joint-sequence new-angles))))
-	     (unless (exists delta in new-angles
-		       (> (abs delta) 2.0))
+	     (unless (or (> improvement 5) (exists delta in new-angles
+					     (> (abs delta) 1.5)))
 	       (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
-	       (improve  (- remaining max-step)
-			 (map (lambda (joint) (joint-property joint 'angle))
-			      joint-sequence)
-			 (body-property body 'position))))))))
+	       (improve (+ improvement 1) (- remaining max-step)
+			(map (lambda (joint) (joint-property joint 'angle))
+			     joint-sequence)
+			(body-property body 'position))))))))
  where
  (define (fit position #;to range #;at pivot)
    (let* ((local (- position pivot))
 	  (distance (norm local))
 	  (direction (/ local distance)))
-     (if (< range distance)
-	 (<< "out of range!"))
-     (+ pivot (* (min range distance) direction)))))
+     (and (>= range distance)
+	  (+ pivot (* (min range distance) direction))))))
 
  (define ((ik-mode view rig))
    (with-context-for-joint/body-relation
