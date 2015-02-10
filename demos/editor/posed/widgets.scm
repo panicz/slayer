@@ -257,9 +257,12 @@
 	     the-pose 
 	     ("name: " #[the-pose 'name]))
 	    ((layout #:lay-out lay-out-horizontally)
-	     (label "           ")
+	     (label " ")
+	     (button #:text " [ <<< ] "
+		     #:action (lambda (x y)(shift-pose! #;by -1 #;in self)))
+	     (label " ")
 	     (button
-	      #:text "  [ save ]  "
+	      #:text " [ save ] "
 	      #:action
 	      (lambda (x y)
 		(let ((('pose . configuration) (pose #;of the-rig)))
@@ -272,32 +275,38 @@
 				       (lambda (entry) 
 					 (equal? #[entry 'name]
 						 #[the-pose 'name]))))))
-	     (label "          "))
-	  ((layout #:lay-out lay-out-horizontally)
-	   (button #:text "  [ <<< ]  "
-		   #:action (lambda (x y)(shift-pose! #;by -1 #;in self)))
-	   (label "           ")
-	   (button #:text "  [ >>> ]  "
-		   #:action (lambda (x y)(shift-pose! #;by +1 #;in self))))
-	  ((layout #:lay-out lay-out-horizontally)
-	   (label " ")
-	   (button 
-	    #:text "  [ mirror ]  "
-	    #:action 
-	    (lambda (x y)
-	      (save-rig-state! the-rig)
-	      (set-pose! #;of the-rig
-			      #;to (mirror-pose (pose #;of the-rig))
+	     (label " ")
+	     (button #:text " [ >>> ] "
+		     #:action (lambda (x y)(shift-pose! #;by +1 #;in self)))
+	     (label " "))
+	    ((layout #:lay-out lay-out-horizontally)
+	     (button 
+	      #:text "  [ mirror ]  "
+	      #:action 
+	      (lambda (x y)
+		(save-rig-state! the-rig)
+		(set-pose! #;of the-rig
+				#;to (mirror-pose (pose #;of the-rig))
+				     #:keeping (#[self 'pivotal-body]))))
+	     (label " ")
+	     (button 
+	      #:text " [ left->right ] "
+	      #:action
+	      (lambda (x y)
+		(save-rig-state! the-rig)
+		(set-pose! #;of the-rig
+				#;to (left->right-pose (pose #;of the-rig))
+				     #:keeping (#[self 'pivotal-body])))))
+	    ((layout #:lay-out lay-out-horizontally)
+	     (label "       ")
+	     (button 
+	      #:text "  [ apply-stops ]  "
+	      #:action 
+	      (lambda (x y)
+		(save-rig-state! the-rig)
+		(apply-stops! #;to the-rig 
 				   #:keeping (#[self 'pivotal-body]))))
-	   (label " ")
-	   (button 
-	    #:text " [ left->right ] "
-	    #:action
-	    (lambda (x y)
-	      (save-rig-state! the-rig)
-	      (set-pose! #;of the-rig
-			      #;to (left->right-pose (pose #;of the-rig))
-				   #:keeping (#[self 'pivotal-body])))))))
+	     (label "       "))))
 	  (sequence-editor
 	   ((layout)
 	    (property-editor 
