@@ -36,7 +36,7 @@
 
     (('quads indices)
      (append-map (lambda ((a b c d))
-		   `((,a ,b ,c) (,c ,d ,a)))
+		   `((,a ,b ,c) (,c ,a ,d)))
 		 (map-n 4 list (flatten (array->list indices)))))
 
     ((type . _)
