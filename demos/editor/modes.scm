@@ -9,6 +9,7 @@
   #:use-module (editor relations)
   #:use-module (editor poses)
   #:use-module (editor limbs)
+  #:use-module (editor control)
   #:use-module (widgets 3d)
   #:use-module (oop goops)
   #:use-module (widgets physics)
@@ -46,6 +47,10 @@
 			   orientation))))
 
 (define* (set-pose! #;of rig #;to pose #:key (keeping #f))
+  (setup-pose! #;of rig #;to pose #:keeping keeping)
+  (specify-pose! #;of rig #;to pose))
+
+(define* (setup-pose! #;of rig #;to pose #:key (keeping #f))
   (assert (and (pose? pose)
 	       (if keeping (body? keeping))))
   (with-context-for-joint/body-relation
