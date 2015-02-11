@@ -88,8 +88,8 @@
 	(list modifier))))
 
 (define (keydn* (modifier target) action)
-  (let ((old-bindings (current-key-bindings)))
-    (for modifier in (expand-modifier modifier)
+  (for modifier in (expand-modifier modifier)
+    (let ((old-bindings (current-key-bindings)))
       (set-key-bindings! (or #[modifiers modifier] (fresh-key-bindings)))
       (keydn target action)
       (keyup target noop)
