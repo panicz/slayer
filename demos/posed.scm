@@ -60,8 +60,27 @@ exit
 
 (set-pose! the-rig (pose #;of the-rig))
 
-(attach-pid-muscles-to-all-joints! #;in the-rig
-					#;with-parameters 70.0 0.3 -20.0)
+(define max-force 10.0)
+
+(define max-velocity 3.0)
+
+(keydn '=
+  (lambda ()
+    (if (shift?)
+	(set! max-velocity (+ max-velocity 0.1))
+	(set! max-force (+ max-force 10.0)))))
+
+(keydn '-
+  (lambda ()
+    (if (shift?)
+	(set! max-velocity (max 0.0 (- max-velocity 0.1)))
+	(set! max-force (max 0.0 (- max-force 10.0))))))
+
+
+(attach-velocity-muscles-to-all-joints! #;in the-rig
+					     #;with-parameters 
+					     (lambda () max-force)
+					     (lambda () max-velocity))
 
 (set! #[view 'left-click]
   (lambda (x y)
@@ -120,11 +139,7 @@ exit
 
 (add-child! editor #;to *stage*)
 
-(keydn '(lctrl o)
-  (lambda ()
-    (<< "adjust rotation of the tip of the limb to the origin")))
-
-(keydn '(lctrl p)
+(keydn '(ctrl p)
   (lambda ()
     (save-rig-state! #;of the-rig)
     (apply-stops! #;to the-rig #:keeping (#[editor 'pivotal-body]))))
@@ -170,7 +185,8 @@ exit
 	(with-context-for-joint/body-relation
 	 (save-rig-state! the-rig)
 	 (cond ((or (> (length #[view 'selected]) 1)
-		    (part-of-corpus? body))
+		    (part-of-corpus? body)
+		    (any part-of-corpus? (bodies-attached-to body)))
 		(let* ((rig #[object 'rig])
 		       (bodies (rig-bodies rig))
 		       (positions (map (lambda (body)
@@ -231,22 +247,6 @@ exit
       (set! dragged-limb #f))))
 
 (keydn '/ (lambda () (pretty-print (pose #;of the-rig))))
-
-(keydn '=
-  (lambda ()
-    (with-context-for-joint/body-relation
-     (let ((displacement #f32(0 0 0.03)))
-       (for body in (rig-bodies the-rig)
-	 (set-body-property! body 'position
-			     ((if (shift?) + -) (body-property body 'position)
-			      displacement)))
-       (for ankle in '(left-ankle right-ankle)
-	 (let* ((limb (body-named ankle #;from the-rig))
-		(its-position (body-property limb 'position))
-		(new-position ((if (shift?) - +) its-position displacement)))
-	   (save-rig-state! #;of the-rig)
-	   (apply-inverse-kinematics! #;of limb 
-					   #;to new-position #;at hub?)))))))
 
 (keydn 'l
   (lambda ()
