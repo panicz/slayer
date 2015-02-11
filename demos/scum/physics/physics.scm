@@ -59,6 +59,7 @@
 	     set-joint-state!
 
 	     force-hinge!
+	     
 	     ))
 
 (load-extension "physics" "init")
@@ -82,6 +83,8 @@
 	 (properties (map-n 2 (lambda (property value)
 				      `(,(keyword->symbol property) ,value))
 				  body-spec)))
+    (set-body-property! body 'velocity #f32(0 0 0))
+    (set-body-property! body 'angular-velocity #f32(0 0 0))
     (for (property value) in properties
       (set-body-property! body property (actual value)))))
 
@@ -199,13 +202,13 @@
 		     ('joints . joints-states)) state))
     (for (body-name . state) in bodies-states
       (set-body-state! (body-named body-name #;from rig) state))
-    (for (joint-name . state) in joints-states
+    #;(for (joint-name . state) in joints-states
       (set-joint-state! (joint-named joint-name #;from rig) state))))
 
 (define (body-state body)
   (map (lambda (property)
 	 `(,property . ,(body-property body property)))
-       '(position quaternion)))
+       '(position quaternion velocity angular-velocity force torque)))
 
 (define (set-body-state! body state)
   (for (property . value) in state
