@@ -26,23 +26,27 @@
       (ahead (normalized '(1.0 . #f32(1 0 0))))
       (back (normalized '(0.0 . #f32(0 1 1))))
       (camera #[view 'camera]))
-  (let-syntax ((look (syntax-rules ()
-		       ((_ direction)
-			(begin 
-			  (format #t "looking ~s\n" 'direction) 
-			  (set! #[camera 'orientation] direction))))))
-    (keydn 1
-      (lambda _  (if (modifier-pressed? 'shift) 
-		(look back)
-		(look ahead))))
-    (keydn 2
-      (lambda _ (if (modifier-pressed? 'shift) 
-	       (look left)
-	       (look right))))
-    (keydn 3
-      (lambda _ (if (modifier-pressed? 'shift) 
-	       (look down)
-	       (look up))))))
+  (define (look #;towards direction #;from position)
+    (set! #[camera 'position] position)
+    (set! #[camera 'orientation] direction))
+  (keydn 1
+    (lambda _  
+      (let ((center (rig-mass-center the-rig)))
+	(if (modifier-pressed? 'shift) 
+	    (look back #;from (+ center #f32(0 7 0)))
+	    (look ahead #;from (- center #f32(0 7 0)))))))
+  (keydn 2
+    (lambda _
+      (let ((center (rig-mass-center the-rig)))
+	(if (modifier-pressed? 'shift) 
+	    (look right #;from (- center #f32(7 0 0)))
+	    (look left #;from (+ center #f32(7 0 0)))))))
+  (keydn 3
+    (lambda _ 
+      (let ((center (rig-mass-center the-rig)))
+	(if (modifier-pressed? 'shift) 
+	    (look up #;from (- center #f32(0 0 7)))
+	    (look down #;from (+ center #f32(0 0 7))))))))
 
 (keydn 0 (lambda _ (<< #[view : 'camera : 'orientation])))
 (keydn 9 (lambda _ (<< #[view : 'camera : 'position])))
