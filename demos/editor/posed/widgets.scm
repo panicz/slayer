@@ -204,7 +204,7 @@
   (let* ((the-pose #[self 'pose])
 	 (('pose . configuration) (pose #;of #[self 'rig])))
     (set! #[the-pose 'configuration] configuration))
-  (let ((poses-widget (make <widget-distributor> #:min-w 120 #:min-h 100))
+  (let ((poses-widget (make <widget-distributor> #:min-w 120 #:min-h 150))
 	(sequence-widget (make <sortable-container> #:min-w 120 #:min-h 150))
 	(sequences-widget (make <sortable-container> #:min-w 120 #:min-h 100
 				#:blocked? #t)))
@@ -308,7 +308,7 @@
 				   #:keeping (#[self 'pivotal-body]))))
 	     (label "       "))))
 	  (sequence-editor
-	   ((layout)
+	   ((layout #:lay-out lay-out-vertically)
 	    (property-editor 
 	     sequence
 	     ("name: " #[sequence 'name]))
