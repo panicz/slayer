@@ -206,8 +206,7 @@
     (set! #[the-pose 'configuration] configuration))
   (let ((poses-widget (make <widget-distributor> #:min-w 120 #:min-h 150))
 	(sequence-widget (make <sortable-container> #:min-w 120 #:min-h 150))
-	(sequences-widget (make <sortable-container> #:min-w 120 #:min-h 100
-				#:blocked? #t)))
+	(sequences-widget (make <sortable-container> #:min-w 120 #:min-h 100)))
     (set! #[self 'poses-widget] poses-widget)
     (set! #[self 'sequence-widget] sequence-widget)
     (set! #[sequence-widget 'accepts-widget?]
@@ -216,7 +215,10 @@
 	     (let ((parent #[box 'original-parent]))
 	       (or (eq? parent poses-widget)
 		   (and placeholder (eq? parent sequence-widget)))))))
-    (set! #[self 'sequences-widget] sequences-widget))
+    (set! #[self 'sequences-widget] sequences-widget)
+    (set! #[sequences-widget 'accepts-widget?]
+      (lambda (box placeholder)
+	(and (is-a? #[box 'target] <sequence-entry>) placeholder))))
   (let ((the-pose #[self 'pose])
 	(the-rig #[self 'rig])
 	(sequence #[self 'sequence])
@@ -364,6 +366,22 @@
 					     configuration))
 			       #:keeping (#[self 'pivotal-body]))))))
 	 #;to pose-editor))
+      (add-child! 
+       ((layout #:lay-out lay-out-vertically)
+	(label "")
+	(button 
+	 #:text "  [ delete pose ]  "
+	 #:action 
+	 (lambda (x y)
+	   (save-rig-state! the-rig)
+	   (let ((name #[the-pose 'name]))
+	     (set! #[poses-widget 'children]
+	       (remove (lambda (proxy)
+			 (equal? #[proxy : 'target : 'name] name))
+		       #[poses-widget 'children])))
+	   (shift-pose! #;by +1 #;in self))))
+       #;to pose-editor)
+
       (add-tab! file-menu #;under-name "[file]" #;to self)
       (add-tab! pose-editor #;under-name "[pose]" #;to self)
       (add-tab! sequence-editor #;under-name "[sequence]" #;to self)
