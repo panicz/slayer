@@ -1,6 +1,16 @@
 SLAYER NEWS
 ===========
 
+- 1.1.0
+
+	With this edition, the support for Windows was dropped, because
+	it turned out to be difficult to maintain, since the code started
+	to use some more advanced OpenGL features.
+	The most important change in the framework itself is that it
+	now allows rendering to textures through "call-with-video-output-to",
+	and that it tries to allocate all images in hardware. Besides,
+	the low-level support for storing and setting key bindings was added.
+
 - 1.0.0
 
 	This is the first release of slayer. It comes bundled with
