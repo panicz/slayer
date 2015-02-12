@@ -233,7 +233,7 @@ typing
 If you manage to build it successfully, then, back in the ``demos'' dir,
 you can try it out by typing:
 
-@code{$ ./slayer -e3d ode.scm}
+@code{$ ./posed.scm}
 
 Note however, that the @code{(scum physics)} module isn't bundled with the
 tarball and needs to be obtained from the mercurial repository:
