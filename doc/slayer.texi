@@ -268,7 +268,7 @@ directly from SLAYER, divided into three groups:
 @section Input handling and screen management
 @menu
 * Key names::
-* Implementing persistent input::
+* Additional functions::
 @end menu
 
 Once SLAYER is up and running, it has one window where everything is
@@ -579,45 +579,34 @@ be generated (in direct mode).
 @item "euro"                 @tab                     @tab euro
 @end multitable
 
-@node Implementing persistent input
-@subsection Implementing persistent input
-The @code{keydn} and @code{keyup} procedures register event handlers that are
-called whenever a certain key is pressed or released. It can sometimes be
-desired, however, to call a certain procedure ``persistently'', i.e. as long
-as a given key is pressed.
+@node Additional functions
+@subsection Additional functions
+Beyond the core functionality described above, SLAYER provides a set of
+convinient functions written in Guile Scheme. They're contained in the
+@code{(extra slayer)} module.
 
-SLAYER itself doesn't provide such procedures, because they frequently depend
-on a specific application. However, this document provides a general solution
-that can be taylored to one's needs. 
+@deffn {Procedure} key name fun
+Call @var{fun} every 30 milliseconds as long as the key named @var{name}
+is pressed.
+@end deffn
 
-@pindex Persistent input
-@lisp
-(use-modules (slayer))
+@deffn {Procedure} keydn (modifier target) action
+This version of @var{keydn} extends the core binding. It allows to bind
+actions not only to keys, but also to their simple combinations, like
+@code{(ctrl z)}.
+@end deffn
 
-;; we need to keep track on which keys are pressed, in the *modes* hash table.
-;; its keys are the names of pressed keys, and values -- the procedures that
-;; are meant to be called "persistently"
+@deffn {Procedure} shift?
+A shorthand for @code{(modifier-pressed? 'shift)}
+@end deffn
 
-(define *modes* (make-hash-table))
+@deffn {Procedure} alt?
+A shorthand for @code{(modifier-pressed? 'alt)}
+@end deffn
 
-;; we also need to be able to define a procedure to be called as long as the
-;; key is pressed
-
-(define (key name proc)
-  (keydn name (lambda()(hash-set! *modes* name proc)))
-  (keyup name (lambda()(hash-remove! *modes* name))))
-
-;; lastly, we shall invoke procedures corresponding to the pressed keys with
-;; a certain period, say, 30 miliseconds:
-
-(add-timer! 30 (hash-for-each (lambda(key thunk)(thunk)) *modes*))
-
-;; now we can bind keys to persistent procedures:
-(key 'return 
-     (lambda ()
-        (display (string-append "this message will be printed"
-                                " for as long as 'return is pressed\n"))))
-@end lisp
+@deffn {Procedure} ctrl?
+A shorthand for @code{(modifier-pressed? 'ctrl)}
+@end deffn
 
 @node Working with external data
 @section Loading and processing fonts, images and sounds
@@ -692,6 +681,37 @@ more intensive.
 Return a 32-bit integer value (as elements of the array returned by
 @code{image->array} are) that represents color with @var{red}, @var{green},
 @var{blue} and @var{alpha} components.
+@end deffn
+
+@deffn {Procedure} image? x
+Returns @code{#t} if @var{x} is an image, and @code{#f} otherwise. An
+image can be passed to functions like @code{crop-image}. An image can either
+be @code{surface?}, @code{texture?} or @code{screen?}.
+@end deffn
+
+@deffn {Procedure} texture? image
+Returns @code{#t} when the given @var{image} is internally represented as
+an OpenGL texture, and @code{#f} otherwise.
+@end deffn
+
+@deffn {Procedure} surface? image
+Returns @code{#t} when the given @var{image} is internally represented as
+an SDL surface, and @code{#f} otherwise.
+@end deffn
+
+@deffn {Procedure} screen? image
+Returns @code{#t} when the given @var{image} is the screen, @code{#f}
+otherwise.
+@end deffn
+
+@deffn {Procedure} make-texture w h
+Return a newly allocated @var{w} by @var{h} texture.
+@end deffn
+
+@deffn {Procedure} call-with-video-output-to image thunk
+Call @var{thunk} and capture the video output to given @var{image}. In other
+words, it allows rendering to texture. The @var{image} must either be
+a @code{texture?} or the @code{screen?}.
 @end deffn
 
 @node Rendering and displaying text
@@ -846,6 +866,21 @@ Sets the projection matrix to calculate ortographic projection. If @var{near}
 and @var{far} not given, they default to @code{-1.0} and @code{1.0}, respectively.
 @end deffn
 
+@deffn {Procedure} world->screen/coordinates x y z modelview projection viewport
+Given real numbers @var{x}, @var{y} and @var{z}, @var{modelview} and
+@var{projection} matrices (represented as 2D uniform f32/f64 arrays) and
+a @var{viewport} list of form @code{(x y w h)}, return the corresponding list
+@code{(x' y' z')} of point @code{(x y z)} expressed in screen coordinates
+(where @code{z'} is the depth buffer value)
+@end deffn
+
+@deffn {Procedure} screen->world/coordinates x y z modelview projection viewport
+Given real numbers @var{x}, @var{y} and @var{z}, @var{modelview} and
+@var{projection} matrices (represented as 2D uniform f32/f64 arrays) and
+a @var{viewport} list of form @code{(x y w h)}, return a uniform vector
+@code{#f64(x' y' z')} of point @code{(x y z)} expressed world coordinates.
+@end deffn
+
 @deffn {Procedure} set-vertex-array! array
 Sets current vertex pointer to the two dimensional uniform @var{array} of 
 vertices to use it with the @code{draw-faces!} procedure. The first dimension
@@ -899,6 +934,29 @@ Forget a pointer to the array specified in @var{type}, so that
 Sets the current display color to @var{color}, which can either be a uniform
 vector containing three or four elements, or an integer, interpreted as in
 the @code{rectangle} function from @code{(slayer image)}.
+@end deffn
+
+@deffn {Procedure} z-index x y
+Returns the z-index of the point at screen coordinates @code{(x y)}
+@end deffn
+
+@deffn {Procedure} set-display-index! value
+Set the display index to @var{value}. Henceforth, all the objects drawn
+to 3d scene will be drawn with that index. The index can be the acquired
+using the @code{display-index} procedure. It is useful if one wishes to
+decide which object was drawn on the screen to e.g. select it using the
+mouse pointer. The @var{value} must be an integer in range between 0
+and @code{(max-display-index)} (which is currently 254)
+@end deffn
+
+@deffn {Procedure} display-index x y
+Returns the display index of object at position @code{(x y)}, or @code{#f}
+if there's no object
+@end deffn
+
+@deffn {Procedure} max-display-index
+Returns the maximum value that can be used as display index in the
+@code{set-display-index!} procedure (currently it's 254).
 @end deffn
 
 @deffn {Procedure} make-light- 
