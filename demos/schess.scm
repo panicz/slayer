@@ -25,7 +25,7 @@ exit
 		      (lambda (w h . _)
 			(set-screen-size! w h))))
  where
- (define rule-book (if (defined? '$1) $1 "chess.ss"))
+ (define rule-book (if (defined? '$1) $1 "schess/rules/chess.ss"))
  (define empty-field (load-image "art/chess/b.png"))
  (define empty-field* (load-image "art/chess/w.png")))
 

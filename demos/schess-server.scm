@@ -29,6 +29,7 @@
 ;; 6. drugi gracz pyta o dostępne ruchy i wybiera ...
 
 (define (main (program-name args ...))
-  (let ((server (make <board-network-server> #:rule-book "chess.ss")))
+  (let ((server (make <board-network-server> 
+		  #:rule-book "schess/rules/chess.ss")))
     (start-gameplay server)
     (handle-clients! server)))
