@@ -92,6 +92,8 @@
 (define-class <pose-editor-widget> (<tab-widget>)
   (pivotal-body #:init-value noop #:init-keyword #:pivotal-body)
   (pause #:init-value #t #:init-keyword #:pause)
+  (evaluations-file #:init-value "posed/evaluation.ss" 
+		    #:init-keyword #:evaluations-file)
   (moveset
    #:allocation #:virtual
    #:slot-ref
@@ -221,6 +223,7 @@
 	(and (is-a? #[box 'target] <sequence-entry>) placeholder))))
   (let ((the-pose #[self 'pose])
 	(the-rig #[self 'rig])
+	(evaluations-file #[self 'evaluations-file])
 	(sequence #[self 'sequence])
 	(sequence-widget #[self 'sequence-widget])
 	(sequences-widget #[self 'sequences-widget])
@@ -234,8 +237,8 @@
 		  #:text ""
 		  #:on-create 
 		  (lambda (self)
-		    (when (file-exists? "evaluation.ss")
-		      (let ((text (with-input-from-file "evaluation.ss"
+		    (when (file-exists? evaluations-file)
+		      (let ((text (with-input-from-file evaluations-file
 				    (lambda () (read-delimited "")))))
 			(set! #[self 'text] text)
 			(catch #t
@@ -249,7 +252,7 @@
 			)))
 		  #:on-exit
 		  (lambda (self)
-		    (with-output-file "evaluation.ss"
+		    (with-output-file evaluations-file
 		      (display #[self 'text]))))
 	    (label "       --- camera settings ---       ")
 	    (label "         --- quick help ---          ")))
