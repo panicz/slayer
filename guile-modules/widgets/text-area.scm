@@ -334,10 +334,20 @@
 			 #f
 			 #f) "w"))
       (set! #[t 'left-click] 
-	    (lambda _ 
-	      (enter-typing-mode! t)
-	      (if (eq? type #:field)
-		  (set-port-column! #[t 'port] 0))))
+	(lambda (x y)
+	  (let* ((port #[t 'port])
+		 (lines #[t 'lines])
+		 (line (1- (min (quotient (- y #[t 'y] (- #[t 'top]))
+					  #[t 'char-height])
+				(vector-length lines))))
+		 (column (min (quotient (- x #[t 'x] (- #[t 'left]))
+					#[t 'char-width])
+			      (string-length #[lines line]))))
+	    (enter-typing-mode! t)
+	    (set-port-column! port column)
+	    (set-port-line! port line)
+	    (if (eq? type #:field)
+		(set-port-column! port 0)))))
       (let* ((set-key! (lambda (key action)
 			 (set! #[#[t 'special-keys] #[*scancodes* key]]
 			       (lambda()(action t))))))
@@ -350,7 +360,11 @@
 	(set-key! "f1" 
 		  (lambda(t)
 		    (call-with-new-thread 
-		     (lambda()(display (eval-string (last-sexp t)) *stdout*)))))
+		     (lambda ()
+		       (display (let ((result (eval-string (last-sexp t))))
+				  (if (unspecified? result) "" result))
+				*stdout*)
+		       (newline *stdout*)))))
 	(set-key! "f2" (lambda(t)(display (last-sexp t) *stdout*)))
 	(set-key! "backspace" delete-previous-char!)
 	(set-key! "delete" delete-next-char!)
@@ -365,7 +379,15 @@
 				      (restore-original-text! t))))))
 	  (else
 	   (set-key! "esc" leave-typing-mode!)
-	   (set-key! "return" break-line!)))
+	   (set-key! "return" (lambda (t) (if (ctrl?)
+					 (begin (call-with-new-thread 
+						 (lambda ()
+						   (display (let ((result (eval-string (last-sexp t))))
+							      (if (unspecified? result) "" result))
+							    *stdout*)
+						   (newline *stdout*)))
+						(leave-typing-mode! t))
+					 (break-line! t))))))
 	))))
 
 (define-class <parameter-editor> (<text-area>)
@@ -388,7 +410,6 @@
 		      #f)))
    #:slot-set! (lambda (self value)
 		 (set! #[self '%%%image] value)))
-
   (%cropped-image
    #:allocation #:virtual
    #:slot-ref (lambda (self) #f)
