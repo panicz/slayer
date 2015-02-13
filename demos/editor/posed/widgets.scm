@@ -13,6 +13,7 @@
   #:use-module (editor posed undo)
   #:use-module (editor modes)
   #:use-module (editor control)
+  #:use-module (editor camera)
   #:use-module (oop goops)
   #:export (<pose-editor-widget>))
 
@@ -94,6 +95,7 @@
   (pause #:init-value #t #:init-keyword #:pause)
   (evaluations-file #:init-value "posed/evaluation.ss" 
 		    #:init-keyword #:evaluations-file)
+  (3d-view #:init-keyword #:3d-view)
   (moveset
    #:allocation #:virtual
    #:slot-ref
@@ -255,6 +257,31 @@
 		    (with-output-file evaluations-file
 		      (display #[self 'text]))))
 	    (label "       --- camera settings ---       ")
+	    ((layout #:lay-out lay-out-horizontally)
+	     (button #:text " [ ahead (1) ] " #:action
+		     (look ahead #;at the-rig #;using 
+			   #[self : '3d-view : 'camera]))
+	     (label " ")
+	     (button #:text " [ back (shift+1) ] " #:action 
+		     (look back #;at the-rig #;using 
+			   #[self : '3d-view : 'camera])))
+	    ((layout #:lay-out lay-out-horizontally)
+	     (button #:text " [ left (2) ] " #:action
+		     (look left #;at the-rig #;using 
+			   #[self : '3d-view : 'camera]))
+	     (label "  ")
+	     (button #:text " [ right (shift+2) ]" #:action
+		     (look right #;at the-rig #;using 
+			   #[self : '3d-view : 'camera])))
+	    ((layout #:lay-out lay-out-horizontally)
+	     (button #:text " [ up (3) ] " #:action
+		     (look up #;at the-rig #;using 
+			   #[self : '3d-view : 'camera]))
+	     (label "    ")
+	     (button #:text " [ down (shift+3) ] " #:action
+		     (look down #;at the-rig #;using 
+			   #[self : '3d-view : 'camera])))
+	    
 	    (label "         --- quick help ---          ")))
 	  (pose-editor
 	   ((layout)

@@ -28,6 +28,7 @@ exit
  (editor control)
  (editor limbs)
  (editor movesets)
+ (editor camera)
  (extra scmutils)
  (scum physics))
 
@@ -129,6 +130,7 @@ exit
   (simulation-property the-simulation property))
 
 (define editor (make <pose-editor-widget> #:rig the-rig
+		     #:3d-view view
 		     #:evaluations-file "posed/evaluation.ss"
 		     #:pivotal-body
 		     (lambda ()
@@ -178,38 +180,23 @@ exit
 (key 'left (lambda () (relative-turn! #[view 'camera] 2 0)))
 (key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
-(let ((down '(1.0 . #f32(0 0 0)))
-      (up '(0.0 . #f32(0 -1 0)))
-      (left (normalized '(1.0 . #f32(1 1 1))))
-      (right (normalized '(-1.0 . #f32(-1 1 1))))
-      (ahead (normalized '(1.0 . #f32(1 0 0))))
-      (back (normalized '(0.0 . #f32(0 1 1))))
-      (camera #[view 'camera]))
-  (define (look #;towards direction #;from position)
-    (set! #[camera 'position] position)
-    (set! #[camera 'orientation] direction))
-  (keydn 1
-    (lambda _  
-      (let ((center (rig-mass-center the-rig)))
-	(if (modifier-pressed? 'shift) 
-	    (look back #;from (+ center #f32(0 7 0)))
-	    (look ahead #;from (- center #f32(0 7 0)))))))
-  (keydn 2
-    (lambda _
-      (let ((center (rig-mass-center the-rig)))
-	(if (modifier-pressed? 'shift) 
-	    (look right #;from (- center #f32(7 0 0)))
-	    (look left #;from (+ center #f32(7 0 0)))))))
-  (keydn 3
-    (lambda _ 
-      (let ((center (rig-mass-center the-rig)))
-	(if (modifier-pressed? 'shift) 
-	    (look up #;from (- center #f32(0 0 7)))
-	    (look down #;from (+ center #f32(0 0 7))))))))
+(keydn 1
+  (lambda _ 
+    ((look (if (shift?) back ahead) 
+	   #;relative-to the-rig #;using #[view 'camera]))))
+
+(keydn 2
+  (lambda _ 
+    ((look (if (shift?) right left)
+	   #;relative-to the-rig #;using #[view 'camera]))))
+
+(keydn 3
+  (lambda _ 
+    ((look (if (shift?) up down)
+	   #;relative-to the-rig #;using #[view 'camera]))))
 
 (keydn 0 (lambda _ (<< #[view : 'camera : 'orientation])))
 (keydn 9 (lambda _ (<< #[view : 'camera : 'position])))
-
 
 (let ((turn-camera! (lambda (x y dx dy)
 		      (relative-turn! #[view 'camera] (- dx) (- dy))))
