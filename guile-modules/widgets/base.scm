@@ -86,6 +86,8 @@
   (right-mouse-down-hook #:init-thunk (hook 'x 'y))
   (right-mouse-up-hook #:init-thunk (hook 'x 'y))
   (right-click-hook #:init-thunk (hook 'x 'y))
+  (mouse-wheel-up-hook #:init-thunk (hook 'x 'y))
+  (mouse-wheel-down-hook #:init-thunk (hook 'x 'y))
 
   (left-mouse-down 
    #:allocation #:virtual
@@ -113,6 +115,17 @@
    #:allocation #:virtual
    #:slot-ref (hook-caller 'right-click-hook)
    #:slot-set! (hook-adder 'right-click-hook))
+
+  (mouse-wheel-up
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'mouse-wheel-up-hook)
+   #:slot-set! (hook-adder 'mouse-wheel-up-hook))
+
+  (mouse-wheel-down
+   #:allocation #:virtual
+   #:slot-ref (hook-caller 'mouse-wheel-down-hook)
+   #:slot-set! (hook-adder 'mouse-wheel-down-hook))
+
 #|
   (left-mouse-down #:init-value noop #:init-keyword #:left-mouse-down)
   (left-mouse-up #:init-value noop #:init-keyword #:left-mouse-up)
@@ -284,6 +297,14 @@
   (and-let* ((w (most-nested-widget-under `(,x ,y) #;on *stage*)))
     (#[ w 'right-mouse-down ] x y)))
 
+(define (mouse-wheel-down x y)
+  (and-let* ((w (most-nested-widget-under `(,x ,y) #;on *stage*)))
+    (#[ w 'mouse-wheel-down ] x y)))
+
+(define (mouse-wheel-up x y)
+  (and-let* ((w (most-nested-widget-under `(,x ,y) #;on *stage*)))
+    (#[ w 'mouse-wheel-up ] x y)))
+
 (define (drag-over x y xrel yrel)
   (let* ((widgets-below (all-widgets-under `(,x ,y) #;on *stage*))
 	 (non-active-widgets-below 
@@ -306,6 +327,10 @@
 (keydn 'mouse-left left-mouse-down)
 (keyup 'mouse-left left-mouse-up)
 (keydn 'mouse-right right-mouse-down)
+
+(keydn 'mwheelup mouse-wheel-up)
+(keydn 'mwheeldown mouse-wheel-down)
+
 (mousemove drag-over)
 
 (define-class <container-widget> (<widget>)
