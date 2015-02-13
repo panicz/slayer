@@ -519,17 +519,20 @@
 		       "^\\s*[+-]?[0-9]*\\.?[0-9]+\\s*$"
 		       #[lines 0])))))
 
-#|
 (define-method (initialize (self <numeric-parameter-editor>) args)
   (next-method)
   (let-keywords args #t ((accessor noop))
-    (set! #[self 'value-getter]
-	  accessor)
-    (set! #[self 'value-setter]
-	  (lambda (target value)
-	    (let ((value (read-string value)))
-	      (set! (accessor target) value))))))
-|#
+    (set! #[self 'mouse-wheel-down]
+      (lambda (x y)
+	(let ((target #[self 'target])
+	      (value (read-string #[self 'value])))
+	  (set! (accessor target) (- value (if (shift?) 0.001 0.01))))))
+    (set! #[self 'mouse-wheel-up]
+      (lambda (x y)
+	(let ((target #[self 'target])
+	      (value (read-string #[self 'value])))
+	  (set! (accessor target) (+ value (if (shift?) 0.001 0.01))))))))
+
 
 (define-class <numeric-input> (<input>)
   (default-editor-class #:allocation #:each-subclass 
