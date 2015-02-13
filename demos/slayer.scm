@@ -43,6 +43,7 @@
 
 (add-child! view #;to *stage*)
 
+#|
 (let ((image (make-texture 640 480) #;(rectangle 640 480 0)))
   (keydn 'o (lambda ()
 	      (call-with-video-output-to
@@ -51,6 +52,7 @@
 		 (wipe-screen!)
 		 (draw view)))))
   (add-child! (make-sprite image #;x 300 #;y 200) #;to *stage*))
+|#
 
 (add-object! 3d-object #;to world)
 
