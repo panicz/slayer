@@ -85,7 +85,7 @@
 ;;		    'generic-environment
 ;;		    (access generic-environment scmutils-base-environment))
 
-(load "simplify/load.scm" )
+;(load "simplify/load.scm" )
 
 ;(define symbolic-environment
 ;  (access symbolic-environment scmutils-base-environment))
@@ -95,7 +95,7 @@
 (define symbolic-operators
   (hash-fold (lambda (key value prior) (cons key prior)) '() symbolic-operator-table))
 
-(load "display/load.scm" )
+;(load "display/load.scm" )
 
 ;(load "enclose/load.scm" )
 (define (lambda->numerical-procedure lexp)
@@ -105,10 +105,9 @@
 
 ;(load "poly/load.scm" )
 
-
 ;(start-preserving-case!)
 
-(load "kernel/litfun.scm" )
+;(load "kernel/litfun.scm" )
 
 ;(load "units/load.scm" )      
 

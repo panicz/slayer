@@ -24,18 +24,18 @@
 ;|#
 
 
-(load "memoize.scm" )
+;(load "memoize.scm" )
 (load "canonicalizer.scm" )
 
 ;;;(environment-assign!  '*auditing-memoizers* #f)
 
 (load "logic-utils.scm" )
-(load "list-utils.scm" )
-(load "table.scm" )
-(load "sets.scm" )
-(load "permute.scm" )
+;(load "list-utils.scm" )
+;(load "table.scm" )
+;(load "sets.scm" )
+;(load "permute.scm" )
 ;(load "line-prefix.scm" )
 ;(load "hashcons.scm" )
-(load "eq-properties.scm" )
+;(load "eq-properties.scm" )
 
-(load "gjs-cselim.scm" )
+;(load "gjs-cselim.scm" )
