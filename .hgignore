@@ -23,6 +23,7 @@ config.h
 src/slayer
 tools/grup
 src/scum/physics/physics.so
+doc/videotutorial
 doc/version.texi
 doc/slayer.info
 doc/stamp-vti
