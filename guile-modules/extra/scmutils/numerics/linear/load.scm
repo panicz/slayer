@@ -23,12 +23,12 @@
 ;
 ;|#
 
-(load "singular.scm" )
+;(load "singular.scm" )
 
-(load "full-pivot.scm" )
-(load "gauss-jordan.scm" )
-(load "lu.scm" )
+;(load "full-pivot.scm" )
+;(load "gauss-jordan.scm" )
+;(load "lu.scm" )
 (load "svd.scm" )
-(load "vandermonde.scm" )
+;(load "vandermonde.scm" )
 
-(load "eigen.scm" )
+;(load "eigen.scm" )

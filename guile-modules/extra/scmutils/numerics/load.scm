@@ -24,19 +24,19 @@
 ;|#
 
 
-(load "quadrature/load.scm" )
+;(load "quadrature/load.scm" )
 
-(load "optimize/load.scm" )
+;(load "optimize/load.scm" )
 
 (load "linear/load.scm" )
 
-(load "ode/load.scm" )
+;(load "ode/load.scm" )
 
-(load "statistics/load.scm" )
+;(load "statistics/load.scm" )
 
-(load "functions/load.scm" )
+;(load "functions/load.scm" )
 
-(load "roots/load.scm" )
+;(load "roots/load.scm" )
 
-(load "signals/cph-dsp/load.scm" )
+;(load "signals/cph-dsp/load.scm" )
 

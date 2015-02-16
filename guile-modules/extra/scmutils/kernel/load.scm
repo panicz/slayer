@@ -67,20 +67,20 @@
 ;;;(define (diff-memoize f) (hash-memoize f))
 
 (load "matrices.scm")
-(load "quaternion.scm")
-(load "pseries.scm" )	; requires streams
-(load "modarith.scm")
+;(load "quaternion.scm")
+;(load "pseries.scm" )	; requires streams
+;(load "modarith.scm")
 
-(load "diff.scm"    )
-(load "deriv.scm"   )
-(load "operator.scm")
-(load "function.scm")
+;(load "diff.scm"    )
+;(load "deriv.scm"   )
+;(load "operator.scm")
+;(load "function.scm")
 
-(load "numbers.scm" )
+;(load "numbers.scm" )
 ;;; The following two need to be loaded after NUMBERS, 
 ;;;  because they use MAKE-NUMERICAL-COMBINATION.
-(load "vectors.scm" )
-(load "structs.scm" )
+;(load "vectors.scm" )
+;(load "structs.scm" )
 
 ;;; Literal-construction.
 (load "numsymb.scm" )
@@ -93,9 +93,9 @@
 (load "genenv.scm"  )		
 ; not currently replacing + with g:+ etc
 ; but here are some symbols not used in standard scheme:
-(define D g:derivative)
-(define partial g:partial)
-(define partial-derivative g:partial-derivative)
-(define ref g:ref)
+;(define D g:derivative)
+;(define partial g:partial)
+;(define partial-derivative g:partial-derivative)
+;(define ref g:ref)
 
 ;(load "custom-repl.scm")	; uses environments

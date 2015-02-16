@@ -1,0 +1,11 @@
+The files contained in this directory were derived from
+http://www.cs.rochester.edu/~gildea/guile-scmutils/
+a port of the original scmutils package from MIT/GNU Scheme
+to Guile made by Daniel Gildea.
+The description how to obtain the original scmutils, created
+by Gerald Sussman et al. can be found here:
+http://groups.csail.mit.edu/mac/users/gjs/6946/linux-install.htm
+
+The part of scmutils redistributed with SLAYER forms a _very_
+small subset of the original package (mainly the code to
+perform singular value decomposition)
