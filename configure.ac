@@ -198,7 +198,8 @@ fi
 
 AC_SUBST([guilesitedir])
 
-AC_CONFIG_FILES([Makefile src/Makefile guile-modules/Makefile doc/Makefile tools/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile guile-modules/Makefile doc/Makefile \
+		 tools/Makefile guile-modules/extra/scmutils/Makefile])
 
 AC_OUTPUT
 
