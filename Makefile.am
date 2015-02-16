@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = color-tests
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS = src doc tools guile-modules 
+SUBDIRS = src doc tools guile-modules guile-modules/extra/scmutils
 EXTRA_DIST = demos
 TESTS = test-suite/schess/elements.sh test-suite/tools/ply23d.sh \
 	test-suite/tools/ply23d-unit.sh
