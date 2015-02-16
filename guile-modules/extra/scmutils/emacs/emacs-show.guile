@@ -1,1 +1,0 @@
-(set! internal-show-expression emacs-show-expression)

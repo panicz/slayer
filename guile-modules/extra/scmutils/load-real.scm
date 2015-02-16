@@ -23,6 +23,11 @@
 ;
 ;|#
 
+;; This file was obtained from the Guile Scmutils package
+;; http://www.cs.rochester.edu/~gildea/guile-scmutils/
+;; and cut down by Maciek Godek, so it might be lacking some
+;; essential features
+
 ;;;; Scmutils top-level loader
 
 ;(ge user-initial-environment)
@@ -98,20 +103,15 @@
 
 (load "numerics/load.scm")
 
-(load "poly/load.scm" )
+;(load "poly/load.scm" )
 
 
 ;(start-preserving-case!)
 
 (load "kernel/litfun.scm" )
 
-(load "units/load.scm" )      
+;(load "units/load.scm" )      
 
-(load "mechanics/load.scm")
+;(load "mechanics/load.scm")
 
-(load "calculus/load.scm")
-
-
-
-
-
+;(load "calculus/load.scm")
