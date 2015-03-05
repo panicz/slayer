@@ -91,7 +91,7 @@
 	    permutations insertions
 	    take-at-most drop-at-most rotate-left rotate-right sublist
 	    remove-keyword-args keyword-ref
-	    delete-first alter pick
+	    delete-first alter pick skip
 	    array-size
 	    random-array
 	    read-string write-string display-string ->string ->string*
@@ -2071,6 +2071,14 @@
      (if (= first element)
 	 rest
 	 `(,first . ,(delete-first element rest =))))))
+
+(define (skip #;element-number n #;in list)
+  (match-let (((head . tail) list))
+    (if (= n 0)
+	tail
+	`(,head . ,(skip #;element-number (- n 1) #;in tail)))))
+
+(e.g. (skip #;element-number 1 #;in '(a b c)) ===> (a c))
 
 (define (alter #;element-number n #;in list #;with replacement)
   (match-let (((head . tail) list))
