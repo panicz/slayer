@@ -76,7 +76,7 @@
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
 	    rest element head tail length+last-tail
-	    tree-find tree-map map* depth find-map copy map/values order
+	    tree-find tree-map map* depth copy scan map/values order
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
 	    list->uniform-vector list->uniform-array
@@ -1184,17 +1184,22 @@
       (1+ (apply max (map depth x)))
       0))
 
-(define (tree-find pred tree)
-  (and (not (null? tree))
-       (or (find pred tree)
-	   (tree-find pred (concatenate (filter list? tree))))))
-
 (define (tree-map proc tree)
   (map (lambda (item)
 	 (if (pair? item)
 	     (tree-map proc item)
 	     (proc item)))
        tree))
+
+(define (tree-find predicate? tree)
+  `(,@(if (predicate? tree)
+	  `(,tree)
+	  '())
+    ,@(match tree
+	((head . tail)
+	 `(,@(tree-find predicate? head) ,@(tree-find predicate? tail)))
+	(_
+	 '()))))
 
 (define* (order #;of element #;in list #:key (identified-using eq?))
   (list-index (lambda (x) (identified-using element x)) list))
@@ -1213,22 +1218,27 @@
   (let loop ((ls ls)
 	     (result '()))
     (if (null? (car ls))
-	(unzip (length ls) (reverse result))
+	(if (null? result)
+	    '()
+	    (unzip (length (car result)) (reverse result)))
 	(loop (map cdr ls)
-	      (cons (call-with-values (lambda () (apply f (map car ls))) list)
-		    result)))))
+	      `(,(call-with-values (lambda () (apply f (map car ls))) list)
+		,@result)))))
 
 (e.g.
  (map/values values '(1 2 3) '(a b c))
  ===> (1 2 3) (a b c))
 
-(define (find-map proc l)
+(define (scan op e l)
   (match l
     (()
-     #f)
-    ((head . tail)
-     (or (and-let* ((mapped (proc head))) mapped)
-	 (find-map proc tail)))))
+     '())
+    ((h . t)
+     (let ((e* (op e h)))
+       `(,e* . ,(scan op e* t))))))
+
+(e.g.
+ (scan * 1 '(1 2 3 4 5 6)) ===> (1 2 6 24 120 720))
 
 ;; equivalence classes with partial order preserved
 (define (equivalence-classes equivalent? set)
