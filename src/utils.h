@@ -127,9 +127,11 @@ unsigned int now() {
 
 #define DEPRECATED(msg) WARN_ONCE("This function is deprecated. " msg)
 
+#define PERROR(msg) perror( __FILE__ "(" TOSTRING(__LINE__) "): " msg)
+
 #define TRY(f)								\
   if((f) == -1) {							\
-    perror(__FILE__ ", " TOSTRING(__LINE__)  " [" #f "]");		\
+    PERROR("[" #f "]");							\
   }
 
 #define DEF_MINMAX(type, suffix)		\
