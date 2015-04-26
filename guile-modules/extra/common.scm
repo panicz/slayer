@@ -72,7 +72,7 @@
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
 	    equivalent-set? equiv?
-	    map-n for-each-n unfold-n unzip chunk-list count
+	    map-n for-each-n unfold-n unzip chunk-list
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
 	    rest element head tail length+last-tail
@@ -1819,17 +1819,6 @@
       (cons (apply fn (append-map (lambda(l)(take l n)) (cons l lists)))
 	    (apply map-n n fn (map (lambda(l)(drop l n)) (cons l lists))))))
 
-(define (count pred? l)
-  (let loop ((n 0)
-	     (l l))
-    (match l
-      (()
-       n)
-      ((head . tail)
-       (if (pred? head)
-	   (loop (1+ n) tail)
-	   (loop n tail))))))
-
 (define* (sublist sequence #:optional 
 	      #;from (first 0) #;to (last (- (length sequence) 1)))
   (if (< last first)
@@ -2163,13 +2152,11 @@
   (with-output-to-string (lambda () action . *)))
 
 (define* (read-s-expressions #:optional (port (current-input-port)))
-  (with-input-from-port port
-    (lambda ()
-      (let loop ((datum (read))
-		 (content '()))
-	(if (eof-object? datum)
-	    (reverse content)
-	    (loop (read) (cons datum content)))))))
+  (let loop ((content '()))
+    (let ((datum (read port)))
+      (if (eof-object? datum)
+	  (reverse content)
+	  (loop (cons datum content))))))
 
 (define (read-file filename)
   (read-s-expressions (open-input-file filename)))
