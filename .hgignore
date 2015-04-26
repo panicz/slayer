@@ -45,3 +45,4 @@ ignore*
 demos/the-rig.*
 TAGS
 *.orig
+default.moves.*
