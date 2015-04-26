@@ -62,6 +62,7 @@ struct joint_t;
 
 typedef struct joint_t {
   SCM self_smob;
+  SCM name;
   rig_t *parent;
   dJointID joint;
   int id;
@@ -71,6 +72,7 @@ typedef struct joint_t {
 
 typedef struct body_t {
   SCM self_smob;
+  SCM name;
   rig_t *parent;
   int id;
   dBodyID body;
@@ -87,6 +89,7 @@ typedef unordered_map<SCM, int, hash<SCM>, scm_eq> symbol_index_map_t;
 
 typedef unordered_map<dGeomID, body_t *, hash<dGeomID> > dGeom_body_map_t;
 typedef unordered_map<dBodyID, body_t *, hash<dBodyID> > dBody_body_map_t;
+
 typedef unordered_map<body_t *, const char *, hash<body_t *> > body_name_map_t;
 typedef unordered_map<joint_t *, const char *, hash<joint_t *> > joint_name_map_t;
 
@@ -94,14 +97,12 @@ typedef unordered_map<joint_t *, const char *, hash<joint_t *> > joint_name_map_
 
 typedef struct rig_t {
   SCM self_smob;
+  SCM name;
   sim_t *parent;
-  symbol_index_map_t id;
   vector<body_t *> bodies;
-  symbol_index_map_t joint_id;
   vector<joint_t *> joints;
   dSpaceID space;
   dJointGroupID group;
-  SCM name;
 } rig_t;
 
 typedef struct sim_t {

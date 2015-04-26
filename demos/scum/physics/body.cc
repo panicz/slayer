@@ -568,9 +568,8 @@ make_body(SCM x_rig, SCM s_type, SCM s_name) {
     dBodySetData(body->body, (void *) body);
   }
 
-  rig->id[gc_protected(s_name)] = body->id;
-
   body->self_smob = gc_protected(body_to_smob(body));
+  body->name = gc_protected(s_name);
 
   body->parent->parent->dGeom_body[body->geom] = body;
   body->parent->parent->dBody_body[body->body] = body;
@@ -586,30 +585,27 @@ body_named(SCM s_name, SCM x_rig) {
   ASSERT_SCM_TYPE(symbol, s_name, 1);
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
 
-  symbol_index_map_t::iterator id = rig->id.find(s_name);
+  for(size_t i = 0; i < rig->bodies.size(); ++i) {
+    if(scm_is_eq(rig->bodies[i]->name, s_name)) {
+      return rig->bodies[i]->self_smob;
+    }
+  }
 
-  if(id == rig->id.end()) {
-    char *name = as_c_string(s_name);
+  char *name = as_c_string(s_name);
+  if(name) {
     WARN("no body named '%s' found in rig %p", name, rig);
     free(name);
-    return SCM_BOOL_F;
   }
-  return rig->bodies[id->second]->self_smob;
+  else {
+    WARN("unable to convert body name symbol to string");
+  }
+  return SCM_BOOL_F;
 }
 
 static SCM
 body_name(SCM x_body) {
   BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_BOOL_F);
-  symbol_index_map_t::iterator it;
-  it = find_if(body->parent->id.begin(), 
-	       body->parent->id.end(),
-	       [&](const symbol_index_map_t::value_type& the) -> bool { 
-		 return the.second == body->id;
-	       });
-  if(it == body->parent->id.end()) {
-    return SCM_BOOL_F;
-  }
-  return it->first;
+  return body->name;
 }
 
 static SCM

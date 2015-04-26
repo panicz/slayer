@@ -61,9 +61,10 @@ make_joint(SCM x_rig, SCM s_type, SCM s_name) {
   joint->id = rig->joints.size();
   rig->joints.push_back(joint);
 
-  if(s_name != SCM_UNDEFINED) {
-    rig->joint_id[gc_protected(s_name)] = joint->id;
-  }
+  joint->name = (s_name == SCM_UNDEFINED) 
+    ? SCM_UNDEFINED 
+    : gc_protected(s_name);
+
   joint->parent->parent->joint_name[joint] = as_c_string(s_name);
 
   joint->self_smob = gc_protected(joint_to_smob(joint));
@@ -75,30 +76,27 @@ joint_named(SCM s_name, SCM x_rig) {
   ASSERT_SCM_TYPE(symbol, s_name, 1);
   RIG_CONDITIONAL_ASSIGN(x_rig, rig, SCM_BOOL_F);
 
-  symbol_index_map_t::iterator id = rig->joint_id.find(s_name);
+  for(size_t i = 0; i < rig->joints.size(); ++i) {
+    if(scm_is_eq(rig->joints[i]->name, s_name)) {
+      return rig->joints[i]->self_smob;
+    }
+  }
 
-  if(id == rig->id.end()) {
-    char *name = as_c_string(s_name);
+  char *name = as_c_string(s_name);
+  if(name) {
     WARN("no joint named '%s' found in rig %p", name, rig);
     free(name);
-    return SCM_BOOL_F;
   }
-  return rig->joints[id->second]->self_smob;
+  else {
+    WARN("unable to convert joint name symbol to string");
+  }
+  return SCM_BOOL_F;
 }
 
 static SCM
 joint_name(SCM x_joint) {
   JOINT_CONDITIONAL_ASSIGN(x_joint, joint, SCM_BOOL_F);
-  symbol_index_map_t::iterator it;
-  it = find_if(joint->parent->joint_id.begin(), 
-	       joint->parent->joint_id.end(),
-	       [&](const symbol_index_map_t::value_type& the) -> bool { 
-		 return the.second == joint->id;
-	       });
-  if(it == joint->parent->joint_id.end()) {
-    return SCM_BOOL_F;
-  }
-  return it->first;
+  return joint->name;
 }
 
 static void
