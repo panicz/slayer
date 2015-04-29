@@ -44,6 +44,8 @@ typedef void (*generic_function_pointer_t)();
 
 typedef void *pointer;
 
+#ifndef __cplusplus
+
 struct list {
   void *data;
   struct list *next;
@@ -68,6 +70,8 @@ list_ref(struct list* l, bool (*condition)(struct list *)) {
 }
 
 #define LIST_PUSH(list, item) list = cons(item, list)
+
+#endif
 
 static inline
 unsigned int now() {
@@ -154,5 +158,6 @@ DEF_MINMAX(float, f);
 
 //do { } while(0)
 
+#define SWAP(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
 
 #endif /* UTILS_H */
