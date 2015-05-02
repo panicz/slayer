@@ -40,15 +40,33 @@ simulation_rigs(SCM x_sim) {
 static SCM
 make_simulation_step(SCM x_sim) {
   SIM_CONDITIONAL_ASSIGN(x_sim, sim, SCM_BOOL_F);
+
+  unordered_set<vector<dContact> *> deleted;
+  for(body_contacts_map_t::iterator contacts = sim->body_contacts.begin();
+      contacts != sim->body_contacts.end();
+      ++contacts) {
+    list<vector<dContact> *> *contacts_list = contacts->second;
+    for(list<vector<dContact> *>::iterator contact = contacts_list->begin();
+	contact != contacts_list->end();
+	contact = contacts_list->erase(contact)) {
+      if(deleted.find(*contact) == deleted.end()) {
+	deleted.insert(*contact);
+	delete (*contact);
+      }
+    }
+  }
+  deleted.clear();
+
+  dJointGroupEmpty(sim->contact_group);
+
   dSpaceCollide(sim->space, sim, &on_potential_collision);
 
-  std::list<rig_t *>::iterator rig;
+  list<rig_t *>::iterator rig;
   for(rig = sim->rigs.begin(); rig != sim->rigs.end(); ++rig) {
     dSpaceCollide((*rig)->space, sim, &on_potential_collision);
   }
   dWorldQuickStep(sim->world, sim->dt);
-  dJointGroupEmpty(sim->contact_group);
-
+  
   sim->step++;
   return SCM_UNSPECIFIED;
 }

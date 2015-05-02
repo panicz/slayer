@@ -7,6 +7,7 @@
 #include <functional>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <type_traits>
 #include <tuple>
 #include <cmath>
@@ -43,7 +44,7 @@ struct hash_pair_scm_int : unary_function<pair<SCM, int>, size_t> {
   }
 };
 
-#define MAX_CONTACTS 72 //18
+#define MAX_CONTACTS 12
 
 enum {
   SIM = 0,
@@ -63,7 +64,7 @@ struct joint_t;
 typedef struct joint_t {
   SCM self_smob;
   SCM name;
-  rig_t *parent;
+  struct rig_t *parent;
   dJointID joint;
   int id;
   int body1_id;
@@ -73,7 +74,7 @@ typedef struct joint_t {
 typedef struct body_t {
   SCM self_smob;
   SCM name;
-  rig_t *parent;
+  struct rig_t *parent;
   int id;
   dBodyID body;
   dGeomID geom;
@@ -93,12 +94,14 @@ typedef unordered_map<dBodyID, body_t *, hash<dBodyID> > dBody_body_map_t;
 typedef unordered_map<body_t *, const char *, hash<body_t *> > body_name_map_t;
 typedef unordered_map<joint_t *, const char *, hash<joint_t *> > joint_name_map_t;
 
+typedef unordered_map<body_t *, list<vector<dContact> *> *> body_contacts_map_t;
+
 //typedef unordered_map <SCM, SCM, hash<SCM>, scm_eq> general_scm_map_t;
 
 typedef struct rig_t {
   SCM self_smob;
   SCM name;
-  sim_t *parent;
+  struct sim_t *parent;
   vector<body_t *> bodies;
   vector<joint_t *> joints;
   dSpaceID space;
@@ -109,12 +112,13 @@ typedef struct sim_t {
   SCM self_smob;
   dWorldID world;
   dSpaceID space;
-  std::list<rig_t *> rigs;
+  list<rig_t *> rigs;
   dJointGroupID contact_group;
   dGeom_body_map_t dGeom_body;
   dBody_body_map_t dBody_body;
   body_name_map_t body_name;
   joint_name_map_t joint_name;
+  body_contacts_map_t body_contacts;
   dReal dt;
   int step;
   struct dSurfaceParameters default_contact_parameters;

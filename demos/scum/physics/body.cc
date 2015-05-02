@@ -17,6 +17,7 @@ static float
     set_body(body->geom, body->body);					\
     body->id = rig->bodies.size();					\
     rig->bodies.push_back(body);					\
+    rig->parent->body_contacts[body] = new list<vector<dContact> *>;	\
     init;								\
     return body;							\
   }
@@ -900,6 +901,69 @@ body_distance(SCM x_body_1, SCM x_body_2) {
   return scm_from_double(body_body_distance[t1][t2](body1, body2));
 }
 
+/*
+(body-contacts b1) -> ((b2 (pos1 norm1 depth1) (pos2 norm2 depth2) ...) ...)
+
+struct dContact {
+  dSurfaceParameters surface;
+  dContactGeom geom;
+  dVector3 fdir1;
+};
+
+struct dContactGeom {
+  dVector3 pos;       // contact position
+  dVector3 normal;    // normal vector
+  dReal depth;        // penetration depth
+  dGeomID g1,g2;      // the colliding geoms
+};
+
+ */
+
+
+static SCM
+body_contacts(SCM x_body) {
+  BODY_CONDITIONAL_ASSIGN(x_body, body, SCM_EOL);
+  sim_t *sim = body->parent->parent;
+  list<vector<dContact> *> *contacts = sim->body_contacts[body];
+  SCM result = SCM_EOL;
+  //int iterations = 0;
+  for(auto set = contacts->begin(); set != contacts->end(); ++set) {
+    //WARN("iteration %d", iterations++);
+    SCM contact_points = SCM_EOL;
+    dContact first_contact = (**set)[0];
+    bool body_is_first;
+    if(first_contact.geom.g1 == body->geom) {
+      body_is_first = true;
+    }
+    else if(first_contact.geom.g2 == body->geom) {
+      body_is_first = false;
+    }
+    else {
+      WARN("Invalid contact for body %p", body);
+      return SCM_EOL;
+    }
+    body_t *other_body = body_is_first 
+      ? sim->dGeom_body[first_contact.geom.g2]
+      : sim->dGeom_body[first_contact.geom.g1];
+    for(auto point = (*set)->begin(); point != (*set)->end(); ++point) {
+      dVector3 position;
+      
+      for(int i = 0; i < 3; ++i) {
+	position[i] = (body_is_first ? 1 : -1) * point->geom.pos[i];
+      }
+	
+      contact_points 
+	= scm_cons(scm_list_3(scm_from_dVector3(position),
+			      scm_from_dVector3(point->geom.normal),
+			      scm_from_double(point->geom.depth)),
+		   contact_points);
+    }
+    result = scm_cons(scm_cons(other_body->self_smob, contact_points), result);
+  }
+  //WARN("%d iterations", iterations);
+  return result;
+}
+
 static dReal
 distance_not_supported(body_t *b1, body_t *b2) {
   WARN("distance between %s and %s not supported (yet?), yielding infinity",
@@ -952,7 +1016,8 @@ init_body_distance() {
   EXPORT_PROC("body?", 1, 0, 0, body_p)					\
   EXPORT_PROC("body-distance", 2, 0, 0, body_distance)			\
   EXPORT_PROC("body-add-local-torque!", 2, 0, 0,			\
-	      body_add_local_torque_x)
+	      body_add_local_torque_x)					\
+  EXPORT_PROC("body-contacts", 1, 0, 0, body_contacts)
 
 #define INIT_BODY_MODULE			\
   init_body_distance();				\

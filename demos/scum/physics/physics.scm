@@ -41,6 +41,7 @@
 	     reset-body!
 	     body-state
 	     set-body-state!
+	     body-contacts
 
 	     bodies-mass-center
 

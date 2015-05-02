@@ -31,7 +31,6 @@ static char const *joint_type_name[] = {
   "linear-motor", "plane-2d", "PR", "PU", "piston"
 };
 
-
 static void 
 on_potential_collision(void *s, dGeomID a, dGeomID b) {
   if(dGeomIsSpace(a) || dGeomIsSpace(b)) {
@@ -55,35 +54,30 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
     dContact c[MAX_CONTACTS];
     int i, n = dCollide(a, b, MAX_CONTACTS ,//| CONTACTS_UNIMPORTANT,
 			&c[0].geom, sizeof(dContact));
-#if 0
-    float max_penetration_depth = 0;
-#endif
+
+    if(n <= 0) {
+      return;
+    }
+    
+    vector<dContact> *contacts = new vector<dContact>(n);
+
     for(i = 0; i < n; ++i) {
       c[i].surface = sim->default_contact_parameters;
-#if 0
-      if(c[i].geom.depth > max_penetration_depth) {
-	max_penetration_depth = c[i].geom.depth;
-      }
-#endif
+      (*contacts)[i] = c[i];
       dJointID r = dJointCreateContact(sim->world, sim->contact_group, &c[i]);
       dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     }
-#if 0
-    if(n) {
-      auto dGeom_body1 = sim->dGeom_body.find(a);
-      auto dGeom_body2 = sim->dGeom_body.find(b);
 
-      static const char *unknown = "unknown";
-
-      const char *name1 = ((dGeom_body1 == sim->dGeom_body.end())
-			   ? unknown : sim->body_name[dGeom_body1->second]);
-      const char *name2 = ((dGeom_body2 == sim->dGeom_body.end())
-			   ? unknown : sim->body_name[dGeom_body2->second]);
-
-      OUT("%i contacts between %p (%s) and %p (%s), max penetration depth %f", 
-	  n, a, name1, b, name2, max_penetration_depth);
+    dGeom_body_map_t::iterator dGeom_body1 = sim->dGeom_body.find(a);
+    if((dGeom_body1 != sim->dGeom_body.end())) {
+      dGeom_body_map_t::iterator dGeom_body2 = sim->dGeom_body.find(b);
+      if((dGeom_body2 != sim->dGeom_body.end())) {
+	body_t *body1 = dGeom_body1->second;
+	body_t *body2 = dGeom_body2->second;
+	sim->body_contacts[body1]->push_back(contacts);
+	sim->body_contacts[body2]->push_back(contacts);
+      }
     }
-#endif
   }
 }
 
@@ -127,8 +121,14 @@ mark_ode(SCM ode_smob) {
 
 static int
 print_ode(SCM ode, SCM port, scm_print_state *pstate) {
-
   scm_assert_smob_type(ode_tag, ode);
+
+  static char *noname = (char *) "???";
+  char *name = NULL;
+
+#define ASSIGN_STRING_OR_NONAME(v, s) v=as_c_string(s); if(!v) v=noname
+#define FREE_IF_NOT_NULL_OR_NONAME(v) if(v && v != noname) free(v)
+
   int type = SCM_SMOB_FLAGS(ode);
 
   if(type == SIM) {
@@ -136,19 +136,15 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
     DISPLAY(port, "#<simulation %p (dt %.2f) (%i rigs)>", (void *) sim, sim->dt,
 	    (int) sim->rigs.size());
   }
+
   else if(type == RIG) {
-    static char *noname = (char *) "???";
     rig_t *rig = (rig_t *) SCM_SMOB_DATA(ode);
-    char *name = as_c_string(rig->name);
-    if(!name) {
-      name = noname;
-    }
+    ASSIGN_STRING_OR_NONAME(name, rig->name);
     DISPLAY(port, "#<rig %p %s (%d bodies) (%d joints)>", (void *) rig,
 	    name, (int) rig->bodies.size(), (int) rig->joints.size());
-    if(name != noname) {
-      free(name);
-    }
+    FREE_IF_NOT_NULL_OR_NONAME(name);
   }
+
   else if(type == BODY) {
     body_t *body = (body_t *) SCM_SMOB_DATA(ode);
     dReal mass = INFINITY;
@@ -157,30 +153,37 @@ print_ode(SCM ode, SCM port, scm_print_state *pstate) {
       dBodyGetMass(body->body, &m);
       mass = m.mass;
     }
-    DISPLAY(port, "#<body %p %s %.2f>", (void *) body, 
-	    class_name[dGeomGetClass(body->geom)], mass);
+    ASSIGN_STRING_OR_NONAME(name, body->name);
+    DISPLAY(port, "#<body %p %s %s %.2f>", (void *) body, 
+	    class_name[dGeomGetClass(body->geom)], name, mass);
+    FREE_IF_NOT_NULL_OR_NONAME(name);
   }
+
   else if(type == JOINT) {
     joint_t *joint = (joint_t *) SCM_SMOB_DATA(ode);
-    DISPLAY(port, "#<joint %p %s>", (void *) joint, 
-	    joint_type_name[dJointGetType(joint->joint)]);
+    ASSIGN_STRING_OR_NONAME(name, joint->name);
+    DISPLAY(port, "#<joint %p %s %s>", (void *) joint, 
+	    joint_type_name[dJointGetType(joint->joint)], name);
+    FREE_IF_NOT_NULL_OR_NONAME(name);
   }
+
   else {
     DISPLAY(port, "#<ode (unknown) %p %i>", (void *) SCM_SMOB_DATA(ode), 
 	    (int) SCM_SMOB_FLAGS(ode));
   }
 
+#undef FREE_IF_NOT_NULL_OR_NONAME
+#undef ASSIGN_STRING_OR_NONAME
   scm_remember_upto_here_1(ode);
   return 1;
 }
 
-/*
 static size_t
 free_ode(SCM smob) {
-  WARN_ONCE("Attempting to release ode smob, but that just isn't implemented!");
+  WARN_ONCE("Attempting to release ode smob, "
+	    "but that just isn't implemented!");
   return 0;
 }
-*/
 
 extern "C" void 
 init() {
@@ -209,7 +212,7 @@ init() {
   export_symbols(NULL);
   
   ode_tag = scm_make_smob_type("ode", sizeof(void *));
-  //scm_set_smob_free(ode_tag, free_ode);
+  scm_set_smob_free(ode_tag, free_ode);
   scm_set_smob_print(ode_tag, print_ode);
   //scm_set_smob_mark(ode_tag, mark_ode);
   
