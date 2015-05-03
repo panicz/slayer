@@ -110,22 +110,24 @@ unsigned int now() {
 
 #define NOTE(msg, ...) WARN_ONCE("NOTE: " msg, ## __VA_ARGS__ )
 
-#ifdef __cplusplus
+// note: the "_UPTO_counter" name mustn't change, because it can be
+// used by the caller todetermine how many times the action had been
+// called prior to current invocation
+#define UPTO(n, action)	{					\
+    static int _UPTO_counter = 0;				\
+    if(_UPTO_counter < n) {					\
+      ++_UPTO_counter;						\
+      action;							\
+    }								\
+  }
+
+#define ONCE(action) UPTO(1, action)
+
+// legacy (deprecated):
 #define WARN_UPTO(n, msg, ...)						\
-  ({static int __warn_counter_##n;					\
-  if(__warn_counter_##n++ < n) {					\
-    OUT("[ %09u ] %s/%s: " msg " (warning %i of %i)",			\
-	now(), __FILE__, __FUNCTION__, ## __VA_ARGS__,			\
-	__warn_counter_##n, n);						\
-  }})
-#else
-#define WARN_UPTO(n, msg, ...)						\
-  ({ void __fn__(const char *f) {					\
-      static int c=0;							\
-      if(c++ < n) OUT("[ %09u ] %s/%s: " msg " (warning %i of %i)",	\
-		      now(), __FILE__, f, ## __VA_ARGS__, c, n);	\
-    } __fn__(__FUNCTION__); })
-#endif
+  UPTO(n, OUT("[ %09u ] %s/%s: " msg " (warning %i of %i)",		\
+	      now(), __FILE__, __FUNCTION__, ## __VA_ARGS__,		\
+	      _UPTO_counter, n))
 
 #define WARN_ONCE(msg, ...) WARN_UPTO(1, msg, ## __VA_ARGS__ )
 
@@ -133,10 +135,7 @@ unsigned int now() {
 
 #define PERROR(msg) perror( __FILE__ "(" TOSTRING(__LINE__) "): " msg)
 
-#define TRY(f)								\
-  if((f) == -1) {							\
-    PERROR("[" #f "]");							\
-  }
+#define TRY(f) if((f) == -1) { PERROR("[" #f "]"); }
 
 #define DEF_MINMAX(type, suffix)		\
   static inline					\
