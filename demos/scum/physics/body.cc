@@ -902,7 +902,7 @@ body_distance(SCM x_body_1, SCM x_body_2) {
 }
 
 /*
-(body-contacts b1) -> ((b2 (pos1 norm1 depth1) (pos2 norm2 depth2) ...) ...)
+  (body-contacts b1) -> ((b2 (pos1 norm1 depth1) (pos2 norm2 depth2) ...) ...)
 
 struct dContact {
   dSurfaceParameters surface;
@@ -917,6 +917,8 @@ struct dContactGeom {
   dGeomID g1,g2;      // the colliding geoms
 };
 
+Note: depth is negative if body->geom == geom.g2
+
  */
 
 
@@ -926,9 +928,7 @@ body_contacts(SCM x_body) {
   sim_t *sim = body->parent->parent;
   list<vector<dContact> *> *contacts = sim->body_contacts[body];
   SCM result = SCM_EOL;
-  //int iterations = 0;
   for(auto set = contacts->begin(); set != contacts->end(); ++set) {
-    //WARN("iteration %d", iterations++);
     SCM contact_points = SCM_EOL;
     dContact first_contact = (**set)[0];
     bool body_is_first;
@@ -946,21 +946,15 @@ body_contacts(SCM x_body) {
       ? sim->dGeom_body[first_contact.geom.g2]
       : sim->dGeom_body[first_contact.geom.g1];
     for(auto point = (*set)->begin(); point != (*set)->end(); ++point) {
-      dVector3 position;
-      
-      for(int i = 0; i < 3; ++i) {
-	position[i] = (body_is_first ? 1 : -1) * point->geom.pos[i];
-      }
-	
       contact_points 
-	= scm_cons(scm_list_3(scm_from_dVector3(position),
+	= scm_cons(scm_list_3(scm_from_dVector3(point->geom.pos),
 			      scm_from_dVector3(point->geom.normal),
-			      scm_from_double(point->geom.depth)),
+			      scm_from_double((body_is_first ? 1 : -1)
+					      * point->geom.depth)),
 		   contact_points);
     }
     result = scm_cons(scm_cons(other_body->self_smob, contact_points), result);
   }
-  //WARN("%d iterations", iterations);
   return result;
 }
 
