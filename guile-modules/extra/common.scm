@@ -100,7 +100,7 @@
 	    fill-template
 	    with-output-to-utf8
 	    u8->list u8->bitvector bytevector->list bytevector->bitvector
-	    unpack pack extend
+	    unpack pack extend-right extend-left
 	    current-working-directory list-directory change-directory
 	    with-changed-working-directory read-file read-s-expressions
 	    shell next-available-file-name
@@ -1848,6 +1848,9 @@
        (let-values (((this rest) (split-at rest size)))
 	 (loop `(,this ,@result) sizes rest))))))
 
+(e.g.
+ (chunk-list '(1 2 3 4 5 6) 1 2 3) ===> ((1) (2 3) (4 5 6)))
+
 (define* (unfold-facade stop? transform generate seed 
 			#:optional (tail-gen (lambda(x)'())))
   (unfold stop? transform generate seed tail-gen))
@@ -1864,13 +1867,21 @@
  (unfold-n 10 1+ 1)
  ===> (1 2 3 4 5 6 7 8 9 10))
 
-(define* (extend l #;to size #;with #:optional (fill #f))
+(define* (extend-right l #;to size #;with #:optional (fill #f))
   (let ((extension-size (- size (length l))))
-    (if (> extension-size 0)
-	`(,@l ,@(make-list extension-size fill))
-	l)))
+    (if (< extension-size 0)
+	(error "list length exceeds the desired length")
+	`(,@l ,@(make-list extension-size fill)))))
 
-(e.g. (extend '(1 2 3) 5 0) ===> (1 2 3 0 0))
+(e.g. (extend-right '(1 2 3) 5 0) ===> (1 2 3 0 0))
+
+(define* (extend-left l #;to size #;with #:optional (fill #f))
+  (let ((extension-size (- size (length l))))
+    (if (< extension-size 0)
+	(error "list length exceeds the desired length")
+	`(,@(make-list extension-size fill) ,@l))))
+
+(e.g. (extend-left '(1 2 3) 5 0) ===> (0 0 1 2 3))
 
 (define (keyword-args->hash-map kw-list)
   (let ((result (make-hash-table)))
@@ -1907,7 +1918,7 @@
 	    (size (* 8 (ceiling-quotient (length bits) 8))))
        (u8-list->bytevector
 	(map list->integer 
-	     (map-n 8 list (extend bits #;to size #;with #f))))))))
+	     (map-n 8 list (extend-right bits #;to size #;with #f))))))))
 
 (define* (last-sexp-starting-position 
 	  str #:key 
