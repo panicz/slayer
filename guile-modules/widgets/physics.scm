@@ -61,6 +61,33 @@
     (else (error "Unknown body type of " body))))
 
 (define-class <physical-object> (<3d-model>)
+  (%%mesh #:init-value '(mesh))
+  (%mesh #:allocation #:virtual
+	 #:slot-ref
+	 (lambda (self)
+	   (let ((('mesh . definition) #[self '%%mesh])
+		 (positions (concatenate
+			     (filter-map (lambda ((body (positions _ depths) ...))
+					   (and (> (first depths) 0)
+						positions))
+					 (body-contacts #[self 'body])))))
+	     (let ((contacts 
+		    (list->uniform-array 
+		     (map uniform-vector->list
+			  (map (lambda (position)
+				 (rotate (- #[self 'position] position)
+					 #;by #[self 'orientation]))
+			       positions))))
+		   (indices (list->uniform-array (iota (length positions)))))
+	       `(mesh ,@definition 
+		      ,@(if (null? positions)
+			    '()
+			    `((vertices ,contacts)
+			      (color #f32(1 1 0))
+			      (faces (points ,indices))))))))
+	#:slot-set!
+	(lambda (self value)
+	  (set! #[self '%%mesh] value)))
   (rig #:init-keyword #:rig)
   (position
    #:allocation #:virtual
