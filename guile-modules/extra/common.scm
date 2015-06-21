@@ -1559,7 +1559,8 @@
   (let ((shape (depth numbers))
 	(type 
 	 (let ((flat-list (flatten numbers)))
-	   (cond ((not (every number? flat-list))
+	   (cond ((or (null? flat-list)
+		      (not (every number? flat-list)))
 		  #t)
 		 ((not (every real? flat-list))
 		  'c32)
