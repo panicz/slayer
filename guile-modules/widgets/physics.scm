@@ -75,8 +75,8 @@
 		    (list->uniform-array 
 		     (map uniform-vector->list
 			  (map (lambda (position)
-				 (rotate (- #[self 'position] position)
-					 #;by #[self 'orientation]))
+				 (rotate (- position #[self 'position])
+					 #;by (~ #[self 'orientation])))
 			       positions))))
 		   (indices (list->uniform-array (iota (length positions)))))
 	       `(mesh ,@definition 
