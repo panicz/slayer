@@ -68,16 +68,10 @@ on_potential_collision(void *s, dGeomID a, dGeomID b) {
       dJointAttach(r, dGeomGetBody(c[i].geom.g1), dGeomGetBody(c[i].geom.g2));
     }
 
-    dGeom_body_map_t::iterator dGeom_body1 = sim->dGeom_body.find(a);
-    if((dGeom_body1 != sim->dGeom_body.end())) {
-      dGeom_body_map_t::iterator dGeom_body2 = sim->dGeom_body.find(b);
-      if((dGeom_body2 != sim->dGeom_body.end())) {
-	body_t *body1 = dGeom_body1->second;
-	body_t *body2 = dGeom_body2->second;
-	sim->body_contacts[body1]->push_back(contacts);
-	sim->body_contacts[body2]->push_back(contacts);
-      }
-    }
+    body_t *body1 = sim->dGeom_body[a];
+    body_t *body2 = sim->dGeom_body[b];
+    sim->body_contacts[body1]->push_back(contacts);
+    sim->body_contacts[body2]->push_back(contacts);
   }
 }
 
