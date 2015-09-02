@@ -28,6 +28,7 @@
 	   TOLERANCE near-zero?
 	   jacobian-approximation isotropic-jacobian-approximation
 	   pseudoinverse
+	   convex-hull/complex
 	   ))
 
 (define (tensor-dimensions tensor)
@@ -609,3 +610,45 @@
 	  (scmutils:svd-invert (scmutils:array->matrix 
 				(list->vector 
 				 (map list->vector matrix)))))))))
+
+(publish
+ (define (convex-hull/complex points)
+   (assert (every complex? points))
+   (let* ((center (apply mean points))
+	  (sorted (sort points (lambda (a b)
+				 (< (angle (- a center))
+				    (angle (- b center))))))
+	  (initial (apply argmax (lambda (z)  (magnitude (- z center))) sorted))
+	  (former (_ . latter) (break (lambda (x) (= x initial)) sorted)))
+     (let gather ((hull `(,initial))
+		  (remaining `(,@latter ,@former)))
+       (match (find-tail (lambda (candidate)
+			   (let ((edge (line #;from (first #;in hull)
+						     #;to candidate)))
+			     (every (lambda (point)
+				      (or (= point candidate)
+					  (above? point edge)))
+				    remaining)))
+			 remaining)
+	 ((next . rest)
+	  (gather `(,next . #;into ,hull) #;from rest))
+	 (_
+	  hull)))))
+ where
+ (define (line #;from a #;to b)
+   (assert (and (complex? a) (complex? b)))
+   (let* ((b-a (- b a))
+	  (direction (/ b-a (magnitude b-a)))
+	  (displacement (- a (* (dot a direction) direction))))
+     `(,direction . ,displacement)))
+ (define (above? point line)
+   (let (((direction . displacement) line))
+     (positive? (cross direction (- point displacement)))))
+ (e.g. (above? 0+i (line #;from 0 #;to 1+i)))
+ (define (cross a b)
+   (- (* (real-part a) (imag-part b))
+      (* (real-part b) (imag-part a))))
+ (define (dot a b)
+   (+ (* (real-part a) (real-part b))
+      (* (imag-part a) (imag-part b))))
+ )
