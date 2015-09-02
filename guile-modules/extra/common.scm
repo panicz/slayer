@@ -4,6 +4,7 @@
   #:use-module (srfi srfi-18)
   #:use-module (srfi srfi-31)
   #:use-module (srfi srfi-60)
+  #:use-module (ice-9 nice-9)
   #:use-module (ice-9 match)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 pretty-print)
@@ -25,7 +26,9 @@
   #:use-module ((rnrs bytevectors) :version (6))
 
   ;;  #:use-module ((rnrs) #:version (6))
-  #:re-export (;; srfi-1
+  #:re-export (;; nice-9
+	       match and-let* publish define lambda let let* let-syntax define-syntax
+	       ;; srfi-1
 	       iota circular-list every any
 	       proper-list? dotted-list? null-list? not-pair? circular-list?
 	       first second third fourth fifth sixth seventh eighth ninth tenth
@@ -66,7 +69,7 @@
 	       pretty-print format read-line read-delimited
 	       )
   #:export (
-	    and-let* unknot listify stringify every. any.
+	    unknot listify stringify every. any.
 	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
 	    make-applicable-hash-table
@@ -86,7 +89,7 @@
 	    replace-alist-bindings
 	    alist->hash-map assoc? assoc->hash assoc->hash/deep
 	    last-sexp-starting-position
-	    properize flatten last-tail
+	    proper-list flatten last-tail
 	    cart cart-pow all-tuples all-pairs all-triples combinations 
 	    permutations insertions
 	    take-at-most drop-at-most rotate-left rotate-right sublist
@@ -120,7 +123,7 @@
 		   reassurance: deprecated:
 		   upto once changed?
 		   values->list list<-values
-		   define-curried-syntax publish define-accessors
+		   define-curried-syntax define-accessors
 		   define-template define-values
 		   with-literal within-module
 		   with-output-port with-output-file with-output-string
@@ -142,13 +145,7 @@
   #:replace (compose 
 	     (unfold-facade . unfold)
 	     quasiquote
-	     (procedure-property-with-setter . procedure-property)
-	     (cdefine . define)
-	     (cdefine* . define*)
-	     (let-syntax-rules . let-syntax)
-	     (mlambda . lambda)
-	     (named-match-let-values . let)
-	     (let*-replacement . let*))
+	     (procedure-property-with-setter . procedure-property))
   )
 
 (define-syntax define-values
@@ -270,7 +267,7 @@
 (define-syntax-rule (expand expression)
   (expand-form 'expression))
 
-(define-syntax mlambda
+#;(define-syntax mlambda
   (lambda (stx)
     (define (keyword-args* args body)
       (define (keyword-args args normal keyword)
@@ -307,7 +304,7 @@
       ((_ args body ...)
        #'(match-lambda* (args body ...))))))
 
-(define-syntax cdefine
+#;(define-syntax cdefine
   (syntax-rules ()
     ((_ ((head . tail) . args) body ...)
      (cdefine (head . tail)
@@ -317,7 +314,7 @@
     ((_ . rest)
      (define . rest))))
 
-(define-syntax cdefine*
+#;(define-syntax cdefine*
   (syntax-rules ()
     ((_ ((head . tail) . rest) body body* ...)
      (cdefine* (head . tail)
@@ -334,120 +331,13 @@
 (define-syntax-rule (list<-values call)
   (values->list call))
 
-(define-syntax let-syntax-rules
-  (syntax-rules ()
-    ((_ (bindings ...) body . *)
-     (letrec-syntax ((let-syntax~
-		      (syntax-rules ()
-			((_ () ~processed-bindings ~body . ~)
-			 (let-syntax ~processed-bindings ~body . ~))
-			((_ (((~name ~pattern (... ...)) ~template)
-			     ~bindings (... ...))
-			    (~processed (... ...)) 
-			    ~body . ~)
-			 (let-syntax~
-			  (~bindings (... ...))
-			  (~processed (... ...)
-				      (~name (syntax-rules () 
-					       ((_ ~pattern (... ...))
-						~template))))
-			  ~body . ~))
-			((_ ((~name ~value) ~bindings (... ...)) 
-			    (~processed (... ...)) ~body . ~)
-			 (let-syntax~ (~bindings (... ...)) 
-				      (~processed (... ...) (~name ~value))
-				      ~body . ~)))))
-       (let-syntax~ (bindings ...) () body . *)))))
-
-(define-syntax named-match-let-values
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ ((identifier expression) ...) ;; optimization: plain "let" form
-	  body + ...)
-       (every identifier? #'(identifier ...))
-       #'(let ((identifier expression) ...)
-	   body + ...))
-
-      ((_ name ((identifier expression) ...) ;; optimization: regular named-let
-	  body + ...)
-       (and (identifier? #'name) (every identifier? #'(identifier ...)))
-       #'(let name ((identifier expression) ...)
-	   body + ...))
-
-      ((_ name ((structure expression) ...)
-	  body + ...)
-       (identifier? #'name)
-       #'(letrec ((name (mlambda (structure ...) body + ...)))
-	   (name expression ...)))
-
-      ((_ ((structure expression) ...)
-	  body + ...)
-       #'(match-let ((structure expression) ...) 
-	   body + ...))
-
-      ((_ ((structures ... expression) ...)
-	  body + ...)
-       #'(match-let (((structures ...) (list<-values expression)) ...)
-	   body + ...))
-      
-      ((_ name ((structures ... expression) ...)
-	  body + ...)
-       (identifier? #'name) 
-       #'(letrec ((loop 
-		   (mlambda ((structures ...) ...)
-			    (let-syntax-rules (((name args (... ...))
-						(loop (list<-values args)
-						      (... ...))))
-					      body + ...))))
-	   (loop (list<-values expression) ...)))
-      )))
-
-(define-syntax let*-replacement
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_ ((identifier expression) ...) ;; optimization: regular let*
-	  body + ...)
-       (every identifier? #'(identifier ...))
-       #'(let* ((identifier expression) ...)
-	   body + ...))
-      
-      ((_ ((structure expression) ...)
-	  body + ...)
-       #'(match-let* ((structure expression) ...)
-	   body + ...))
-
-      ((_ ((identifier expression) remaining-bindings ...)
-	  body + ...)
-       (identifier? #'identifier)
-       #'(let ((identifier expression))
-	   (let*-replacement (remaining-bindings ...) body + ...)))
-
-      ((_ ((structure expression) remaining-bindings ...)
-	  body + ...)
-       #'(match-let ((structure expression))
-	   (let*-replacement (remaining-bindings ...) body + ...)))
-      
-      ((_ ((structure structures ... expression) remaining-bindings ...)
-	  body + ...)
-       #'(call-with-values (lambda () expression) 
-	   (mlambda (structure structures ...)
-		    (let*-replacement (remaining-bindings ...) body + ...))))
-      
-      )))
-
 (define-syntax define-fluid
   (syntax-rules ()
     ((_ (interface . args) body ...)
-     (define-fluid interface (mlambda args body ...)))
+     (define-fluid interface (lambda args body ...)))
     ((_ name value)
      (define name (make-fluid value)))))
 
-(define-syntax rec
-  (syntax-rules ()
-    ((rec (NAME . VARIABLES) . BODY)
-     (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
-    ((rec NAME EXPRESSION)
-     (letrec ( (NAME EXPRESSION) ) NAME))))
 
 (define-syntax within-module
   (syntax-rules ()
@@ -455,6 +345,13 @@
      (begin
        (eval 'action module)
        ...))))
+
+(define-syntax rec
+  (syntax-rules ()
+    ((rec (NAME . VARIABLES) . BODY)
+     (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
+    ((rec NAME EXPRESSION)
+     (letrec ( (NAME EXPRESSION) ) NAME))))
 
 (define-syntax-rule (TODO something ...) (rec (f . x) f))
 
@@ -525,62 +422,28 @@
      (begin
        definitions ...))))
 
-;; the (srfi srfi-2) or (ice-9 and-let-star) module is implemented with
-;; "define-macro", and as such doesn't seem to be referentially transparent,
-;; so here's "my own" version. In addition, it supports multiple values.
-(define-syntax and-let*
-  (lambda (stx)
-    (syntax-case stx ()
-      ((_)
-       #'#t)
-      ((_ ())
-       #'#t)
-      ((_ () body ...)
-       #'(let () body ...))
-      ((_ ((value binding) rest ...) body ...)
-       (identifier? #'value)
-       #'(let ((value binding))
-	   (and value
-		(and-let* (rest ...)
-		  body ...))))
-      ((_ ((value binding) rest ...) body ...)
-       #'(match binding
-	   (value
-	    (and-let* (rest ...)
-	      body ...))
-	   (_ #f)))
-      ((_ ((condition) rest ...)
-	  body ...)
-       #'(and condition
-	      (and-let* (rest ...)
-		body ...)))
-      ((_ ((values ... expression) rest ...) body ...)
-       (every identifier? #'(values ...))
-       #'(call-with-values (lambda () expression)
-	   (lambda (values ...)
-	     (and values ...
-		  (and-let* (rest ...)
-		    body ...))))))))
 
 (define (demand to-do-something-with . args)
-  (call/cc (lambda(go-on)
+  (call/cc (lambda (go-on)
 	     (apply throw 'demand go-on to-do-something-with args))))
 
 (define-syntax supply
   (syntax-rules ()
-    ((_ (((to-do-something-with . args) do-what ...) ...)
-	actions ...)
+    ((_ (((<to-do-something-with> . <args>) <do-what> ...) ...) . <actions>)
      (let ((handlers (make-hash-table))
 	   (unsupported (lambda details
 			  (apply throw 'unsatisfied-demand
 				 details))))
-       (hash-set! handlers (quote to-do-something-with)
-		  (lambda args do-what ...))
+       (hash-set! handlers (quote <to-do-something-with>)
+		  (lambda <args> <do-what> ...))
        ...
        (catch 'demand
-	 (lambda () actions ...)
-	 (lambda (key go-on demand . args*)
-	   (go-on (apply (hash-ref handlers demand unsupported) args*))))))))
+	 (lambda () . <actions>)
+	 ;; this is very strange: after replacing primitive-lambda
+	 ;; with mlambda from (ice-9 nice-9) module, the expander
+	 ;; returns an error
+	 (primitive-lambda (key go-on demand . the-args)
+	   (go-on (apply (hash-ref handlers demand unsupported) the-args))))))))
 
 (e.g.
  (let ((people '()))
@@ -724,28 +587,23 @@
 ;; A more realistic example is given below, in the `matches?' macro
 ;; definition. 
 
+(define-syntax define-curried-syntax/helper
+  (syntax-rules ()
+    ((_ name () ((pattern template) ...))
+     (define-syntax name
+       (syntax-rules ()
+	 (pattern template) ...)))
+
+    ((_ name (args ... last) ((pattern template) ...))
+     (define-curried-syntax/helper name (args ...)
+       ((pattern template) ... ((name args ...) 
+				(lambda (last)
+				  (name args ... last))))))
+    ))
+
 (define-syntax-rule (define-curried-syntax (name args ...) body . *)
-  (letrec-syntax 
-      ((define-curried-syntax~
-	 (syntax-rules ()
-	   ((_ ~name () ((~pattern 
-			  ~template) 
-			 (... 
-			  ...)))
-	    (define-syntax ~name
-	      (syntax-rules ()
-		(~pattern
-		 ~template)
-		(... 
-		 ...))))
-	   ((_ ~name (~args (... ...) ~last) ((~pattern ~template) (... ...)))
-	    (define-curried-syntax~ ~name (~args (... ...))
-	      ((     ~pattern             ~template     )
-	       (        ...                  ...        )
-	       ((~name ~args (... ...)) (lambda (~last)
-					  (~name ~args (... ...) ~last)))))))))
-    (define-curried-syntax~ name (args ...) (((name args ...)
-					    (begin body . *))))))
+  (define-curried-syntax/helper name (args ...) (((name args ...)
+						  (begin body . *)))))
 
 (define-curried-syntax (string-match-all pattern string)
   (let loop ((n 0)
@@ -848,84 +706,6 @@
      (letrec ((f (lambda (args ...) body body* ...)))
        (curry f (length '(args ...)))))))
 
-;; The `publish' macro is used to provide means to separate public
-;; definitions from private ones (such that are visible only from within
-;; the public procedures and from within themselves).
-;; For example, the form
-;; 
-;; (publish
-;;   (define (f x) (+ a x))
-;;   (define (g y) (* a y))
-;;  where
-;;   (define a 5))
-;;
-;; is equivalent to
-;;
-;; (begin
-;;   (define f (and (defined? 'f) f))
-;;   (define g (and (defined? 'g) g))
-;;   (let ()
-;;     (define a 5)
-;;     (set! f (let () (define (f x) (+ a x)) f))
-;;     (set! g (let () (define (g x) (* a y)) g))))
-
-(define-syntax-rule (publish definitions ...)
-  (publisher (definitions ...) ()))
-
-(define-syntax publisher 
-  (syntax-rules (where)
-    ((_ (where private ...) (public ...))
-     (private+public (private ...) (public ...)))
-    ((_ (new defs ...) (approved ...))
-     (publisher (defs ...) 
-		(approved ... new)))))
-
-(define-syntax private+public
-  (lambda (stx)
-    (define (sorted-private/interfaces+names+bodies private specs)
-      ;; both sorting and name extraction takes place in the
-      ;; same function called from with-syntax, because that
-      ;; way we can tell the macro processor that the bindings in
-      ;; the code belong to the same scope
-      (define (interface-name interface)
-	(match interface
-	  ((head . tail)
-	   (interface-name head))
-	  ((? symbol? name)
-	   name)))
-      `(,(datum->syntax ;; this reordering is done, so that the (e.g. ...)
-	  stx ;; forms can be freely mixed with definitions
-	  (let-values (((definitions non-definitions)
-			(partition (match-lambda 
-				       (((? symbol? x) . _)
-					(string-matches "def" 
-							(symbol->string x)))
-				     (else #f))
-				   (syntax->datum private))))
-	    `(,@definitions ,@non-definitions)))
-	,(map (lambda(spec)
-		(syntax-case spec ()
-		  ((interface . body)
-		   (datum->syntax stx `(,(syntax->datum #'interface)
-					,(interface-name 
-					  (syntax->datum #'interface))
-					,(syntax->datum #'body))))))
-	      specs)))
-    (syntax-case stx ()
-      ((_ (private ...) ((define-variant . spec) ...))
-       (with-syntax ((((private ...) ((interface name body) ...))
-		      (sorted-private/interfaces+names+bodies 
-		       #'(private ...) #'(spec ...))))
-	 #'(begin
-	     (define name (and (defined? 'name) name))
-	     ...
-	     (let ()
-	       private ...
-	       (set! name
-		     (let ()
-		       (define-variant interface . body)
-		       name))
-	       ...)))))))
 
 (define-syntax publish-with-fluids          ; publish-with-fluids is like
   (lambda (stx)                             ; with-fluids, but it allows
@@ -1460,9 +1240,9 @@
 (define* (in? obj list #:key (compare equal?))
   (any (lambda(x)(compare x obj)) list))
 
-(define (properize src . dst)
+(define (proper-list src . dst)
   (cond ((pair? src)
-	 (apply properize (cdr src) (cons (car src) dst)))
+	 (apply proper-list (cdr src) (cons (car src) dst)))
 	((null? src)
 	 (reverse dst))
 	(else 
@@ -2008,9 +1788,17 @@
   (let-values (((left right) (split-at lst n)))
     `(,@right ,@left)))
 
+(e.g.
+ (rotate-left '(1 2 3 4 5 6) 2)
+ ===> (3 4 5 6 1 2))
+
 (define (rotate-right lst n)
   (let-values (((left right) (split-at lst (- (length lst) n))))
     `(,@right ,@left)))
+
+(e.g.
+ (rotate-right '(1 2 3 4 5 6) 2)
+ ===> (5 6 1 2 3 4))
 
 (define (keyword-args->alist kwlist)
   (match kwlist
@@ -2037,7 +1825,7 @@
  (map-n 2 list '(#:a 1 #:b 2 #:c 3)))
 
 (define (replace-alist-bindings bindings #;with other)
-  (map (mlambda ((key . value))
+  (map (lambda ((key . value))
 	 (match (assoc key other)
 	   ((same-key . other-value)
 	    `(,same-key . ,other-value))
@@ -2084,7 +1872,7 @@
 	 `(,first . ,(delete-first element rest =))))))
 
 (define (skip #;element-number n #;in list)
-  (match-let (((head . tail) list))
+  (let (((head . tail) list))
     (if (= n 0)
 	tail
 	`(,head . ,(skip #;element-number (- n 1) #;in tail)))))
@@ -2092,7 +1880,7 @@
 (e.g. (skip #;element-number 1 #;in '(a b c)) ===> (a c))
 
 (define (alter #;element-number n #;in list #;with replacement)
-  (match-let (((head . tail) list))
+  (let (((head . tail) list))
     (if (= n 0)
 	`(,replacement . ,tail)
 	`(,head . ,(alter #;element-number (- n 1) 
@@ -2219,10 +2007,10 @@
   (let ((env (make-hash-table)))
 	(for-each 
 	 (lambda(s)
-	   (match-let (((name . values)
-			(string-split s #\=)))
+	   (let (((name . values)
+		  (string-split s #\=)))
 	     (hash-set! env name (string-join values "="))))
-	 (environ))
+	    (environ))
 	env))
 
 ;; a tremendous macro from Stchislav Dertch.
