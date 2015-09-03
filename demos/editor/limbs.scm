@@ -40,14 +40,13 @@
 	((hub? body-part)
 	 'hub)))
 
-(define (part-of-limb? body-part #:except '())
+(define (part-of-limb? body-part . except)
   (or (tip? body-part)
-      (and-let* (((left right) (bodies-attached-to body-part))
-		 (exclusion `(,body-part ,@except)))
+      (and-let* (((left right) (bodies-attached-to body-part)))
 	(or (and (not (in? left except))
-		 (part-of-limb? left #:except exclusion))
+		 (apply part-of-limb? left body-part except))
 	    (and (not (in? right except))
-		 (part-of-limb? right #:except exclusion))))))
+		 (apply part-of-limb? right body-part except))))))
 
 (define (part-of-corpus? body-part)
   (not (part-of-limb? body-part)))

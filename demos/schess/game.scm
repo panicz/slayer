@@ -72,7 +72,7 @@
     (module-define! module 'the-game game)
     (within-module module
       (use-modules (extra common) (extra ref) (oop goops) (schess elements))
-      (define (board-state #:in-turn #f)
+      (define* (board-state #:key (in-turn #f))
 	(if (not in-turn)
 	    #[the-game 'board-state]
 	    (let* ((past-states #[the-game 'past-states])
