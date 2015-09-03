@@ -56,19 +56,19 @@
 	 (body-attached-by joint #;to body))
        (joints-attached-to body)))
 
-(define (bodies-linked-to body #:except '())
+(define (bodies-linked-to body . except)
   (let ((attached-bodies (difference (bodies-attached-to body) except)))
     (fold union attached-bodies 
 	  (map (lambda (attached-body)
-		 (bodies-linked-to attached-body #:except `(,body ,@except)))
+		 (apply bodies-linked-to attached-body body except))
 	       attached-bodies))))
 
 (define (split-bodies-at joint)
   (let (((left-body right-body) (two-bodies-attached-by joint)))
     (values
-     (union (bodies-linked-to left-body #:except `(,right-body))
+     (union (bodies-linked-to left-body #;except right-body)
 	    `(,left-body))
-     (union (bodies-linked-to right-body #:except `(,left-body))
+     (union (bodies-linked-to right-body #;except left-body)
 	    `(,right-body)))))
 
 (define (joints-connecting-bodies body-1 body-2)
@@ -99,7 +99,7 @@
 				     joints)))))
    body-island))
 
-(define (body-sequences #:from start #:until end? #:excluding (bodies '()))
+(define (body-sequences #;from start #;until end? #;excluding . bodies)
   (let ((neighbours (difference (bodies-attached-to start) `(,start) bodies)))
     (cond ((or (null? neighbours) (in? start bodies))
 	   #f)
@@ -110,9 +110,9 @@
 	   (let ((subchains (concatenate
 			     (filter-map
 			      (lambda (x)
-				(body-sequences 
-				 #:from x #:until end?
-				 #:excluding `(,start ,@bodies)))
+				(apply body-sequences 
+				       #;from x #;until end?
+					      #;excluding start #;and bodies))
 			      neighbours))))
 	     (and (not (null? subchains))
 		  (map (lambda (subchain)
@@ -121,8 +121,9 @@
 
 (define (joint-sequence-to+nearest-member member? #;from body)
   (let* ((body-sequence (reverse (apply argmin length
-					(body-sequences #:from body
-							#:until member?))))
+					(body-sequences 
+					 #;from body
+						#;until member?))))
 	 ((member . _) body-sequence)
 	 (joint-sequence (joint-sequence<-body-sequence body-sequence)))
     (values joint-sequence member)))
@@ -137,9 +138,9 @@
 	 (ends (delete body #;from (body-island-leaves island)))
 	 (sequence-sets (map (lambda (end)
 			       (body-sequences 
-				#:from body 
-				#:until (lambda (nodes)
-					  (eq? end nodes))))
+				#;from body 
+				       #;until (lambda (nodes)
+						 (eq? end nodes))))
 			     ends))
 	 (set-of-sequences-from-body-to-furthest-end 
 	  (apply argmax (lambda (sequences) (apply min (map length sequences)))
