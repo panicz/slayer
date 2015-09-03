@@ -1,7 +1,6 @@
 (define-module (ice-9 nice-9)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
-  #:use-module (srfi srfi-11)
   #:re-export (match)
   #:export ((and-let*/match . and-let*)
 	    primitive-lambda)
@@ -16,8 +15,7 @@
 ;; This module extends the syntax of a few core forms so that their
 ;; "abuses" behave meaningfully -- in particular, it allows to
 ;; destructure bindings in "lambda" and "let" forms and use curried definitions.
-;; It also provides pattern-matching version of "and-let*" and a rather
-;; useful (although entirely different in spirit) "publish" form.
+;; It also provides pattern-matching version of "and-let*".
 
 (define-syntax define-syntax/rules
   (syntax-rules ()
