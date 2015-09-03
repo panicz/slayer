@@ -27,7 +27,8 @@
 
   ;;  #:use-module ((rnrs) #:version (6))
   #:re-export (;; nice-9
-	       match and-let* publish define lambda let let* let-syntax define-syntax
+	       match 
+	       and-let* define lambda let let* let-syntax define-syntax letrec-syntax
 	       ;; srfi-1
 	       iota circular-list every any
 	       proper-list? dotted-list? null-list? not-pair? circular-list?
@@ -130,7 +131,7 @@
 		   with-input-port with-input-file with-input-string
 		   with-error-port with-error-file 
 		   with-working-directory
-		   publish-with-fluids
+		   publish publish-with-fluids
 		   define-fluid with-default without-default specify
 		   supply applicable-hash applicable-hash-with-default
 		   hash-table
@@ -264,98 +265,36 @@
 			   #:opts opts)))
     exp))
 
-(define-syntax-rule (expand expression)
+(define-syntax (expand expression)
   (expand-form 'expression))
 
-#;(define-syntax mlambda
-  (lambda (stx)
-    (define (keyword-args* args body)
-      (define (keyword-args args normal keyword)
-	(match args
-	  (()
-	   `(,normal ,keyword))
-	  (((? keyword? k) (? symbol? s) . rest)
-	   (keyword-args rest normal `((,s #f ,k) ,@keyword)))
-	  (((? keyword? k) ((and (? symbol?) 
-				 (not (or 'quote 'quasiquote)) s) val) . rest)
-	   (keyword-args rest normal `((,s ,val ,k) ,@keyword)))
-	  (((? keyword? k) val . rest)
-	   (keyword-args rest normal `((,(keyword->symbol k) ,val ,k) 
-				       ,@keyword)))
-	  (((? (?not keyword?) x) . rest)
-	   (keyword-args rest `(,@normal ,x) keyword))))
-      
-      (datum->syntax stx `(,(syntax->datum body)
-			   ,@(keyword-args (syntax->datum args) '() '()))))
-    (syntax-case stx ()
-      ((_ (first-arg ... last-arg . rest-args) body ...)
-       (and (every identifier? #'(first-arg ... last-arg))
-	    (or (identifier? #'rest-args) (null? #'rest-args)))
-       #'(lambda (first-arg ... last-arg . rest-args) body ...))
-      ((_ arg body ...)
-       (or (identifier? #'arg) (null? #'arg))
-       #'(lambda arg body ...))
-      ((_ (args ...) body ...)
-       (any keyword? (syntax->datum #'(args ...)))
-       (with-syntax ((((body ...) (args ...) (key ...))
-		      (keyword-args* #'(args ...) #'(body ...))))
-	 #'(lambda* (args ... #:key key ...)
-	     body ...)))
-      ((_ args body ...)
-       #'(match-lambda* (args body ...))))))
-
-#;(define-syntax cdefine
-  (syntax-rules ()
-    ((_ ((head . tail) . args) body ...)
-     (cdefine (head . tail)
-       (mlambda args body ...)))
-    ((_ (name . args) body ...)
-     (define name (mlambda args body ...)))
-    ((_ . rest)
-     (define . rest))))
-
-#;(define-syntax cdefine*
-  (syntax-rules ()
-    ((_ ((head . tail) . rest) body body* ...)
-     (cdefine* (head . tail)
-       (lambda* rest body body* ...)))
-    ((_ (head . rest) body body* ...)
-     (define* head
-       (lambda* rest body body* ...)))
-    ((_ . rest)
-     (define* . rest))))
-
-(define-syntax-rule (values->list call)
+(define-syntax (values->list call)
   (call-with-values (lambda () call) list))
 
-(define-syntax-rule (list<-values call)
+(define-syntax (list<-values call)
   (values->list call))
 
-(define-syntax define-fluid
-  (syntax-rules ()
-    ((_ (interface . args) body ...)
-     (define-fluid interface (lambda args body ...)))
-    ((_ name value)
-     (define name (make-fluid value)))))
+(define-syntax define-fluid ()
+  ((_ (interface . args) body ...)
+   (define-fluid interface (lambda args body ...)))
+  ((_ name value)
+   (define name (make-fluid value))))
 
+(define-syntax within-module ()
+  ((_ module action ...)
+   (begin
+     (eval 'action module)
+     ...)))
 
-(define-syntax within-module
-  (syntax-rules ()
-    ((_ module action ...)
-     (begin
-       (eval 'action module)
-       ...))))
+(define-syntax rec ()
+  ((rec (NAME . VARIABLES) . BODY)
+   (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
+  ((rec NAME EXPRESSION)
+   (letrec ( (NAME EXPRESSION) ) NAME)))
 
-(define-syntax rec
-  (syntax-rules ()
-    ((rec (NAME . VARIABLES) . BODY)
-     (letrec ( (NAME (lambda VARIABLES . BODY)) ) NAME))
-    ((rec NAME EXPRESSION)
-     (letrec ( (NAME EXPRESSION) ) NAME))))
+(define-syntax (TODO something ...) (rec (f . x) f))
 
-(define-syntax-rule (TODO something ...) (rec (f . x) f))
-
-(define-syntax-rule (assert condition ...) (if #f #f))
+(define-syntax (assert condition ...) (if #f #f))
 
 ;; (define-syntax prototype
 ;;   (syntax-rules (-> :)
@@ -375,10 +314,10 @@
 
 (define-fluid TEST-RESULTS '())
 
-(define-syntax-rule (define-type name . properties)
+(define-syntax (define-type name . properties)
   (TODO))
 
-(define-syntax-rule (prototype . args) 
+(define-syntax (prototype . args) 
   (TODO))
 
 (define-syntax e.g. 
@@ -408,42 +347,42 @@
       ((_ expression)
        #'(e.g. (not expression) eq? #f)))))
 
-(define-syntax-rule (observation: . args) (TODO))
+(define-syntax (observation: . args) (TODO))
 
-(define-syntax-rule (reassurance: . args) (TODO))
+(define-syntax (reassurance: . args) (TODO))
 
-(define-syntax-rule (suggest: . args) (if #f #f))
+(define-syntax (suggest: . args) (if #f #f))
 
-(define-syntax-rule (claim: . args) (TODO))
+(define-syntax (claim: . args) (TODO))
 
-(define-syntax deprecated:
-  (syntax-rules (--deprecated)
-    ((_ definitions ... --deprecated)
-     (begin
-       definitions ...))))
+(define-syntax deprecated: (--deprecated)
+  ((_ definitions ... --deprecated)
+   (begin
+     definitions ...)))
 
 
 (define (demand to-do-something-with . args)
   (call/cc (lambda (go-on)
 	     (apply throw 'demand go-on to-do-something-with args))))
 
-(define-syntax supply
-  (syntax-rules ()
-    ((_ (((<to-do-something-with> . <args>) <do-what> ...) ...) . <actions>)
-     (let ((handlers (make-hash-table))
-	   (unsupported (lambda details
-			  (apply throw 'unsatisfied-demand
-				 details))))
-       (hash-set! handlers (quote <to-do-something-with>)
-		  (lambda <args> <do-what> ...))
-       ...
-       (catch 'demand
-	 (lambda () . <actions>)
-	 ;; this is very strange: after replacing primitive-lambda
-	 ;; with mlambda from (ice-9 nice-9) module, the expander
-	 ;; returns an error
-	 (primitive-lambda (key go-on demand . the-args)
-	   (go-on (apply (hash-ref handlers demand unsupported) the-args))))))))
+(define-syntax (supply (((<to-do-something-with> . <args>) <do-what> ...) ...) 
+		 <actions> ...)
+  (let ((handlers (make-hash-table))
+	(unsupported (lambda details
+		       (apply throw 'unsatisfied-demand
+			      details))))
+    (hash-set! handlers (quote <to-do-something-with>)
+	       (lambda <args> <do-what> ...))
+    ...
+    (catch 'demand
+      (lambda () <actions> ...)
+      ;; the fact that we have to use "primitive-lambda" form rather
+      ;; than (ice-9 nice-9) (m)lambda stems from the fact, that there used
+      ;; to be a bug in Guile syntax expadner:
+      ;; https://lists.gnu.org/archive/html/guile-user/2015-09/msg00018.html
+      (primitive-lambda 
+       (key go-on demand . the-args)
+       (go-on (apply (hash-ref handlers demand unsupported) the-args))))))
 
 (e.g.
  (let ((people '()))
@@ -456,27 +395,25 @@
 
 (define-fluid SPECIFIC-CONTEXT (make-hash-table))
 
-(let-syntax ((specific-literal-syntax
-	      (syntax-rules ()
-		((_ binding-structure name value)
-		 (lambda (stx)
-		   (assert (appears? #'name #;in #'binding-structure))
-		   (syntax-case stx ()
-		     ((_ (binding-structure (... ...)) actions . *)
-		      (with-syntax ((specific (datum->syntax stx 'specific)))
-			#'(let-syntax 
-			      ((specific
-				(syntax-rules (name (... ...))
-				  ((_ name)
-				   (let ((default (hash-ref
-						   (fluid-ref
-						    SPECIFIC-CONTEXT)
-						   'name '())))
-				     (if (null? default)
-					 value
-					 (first default))))
-				  (... ...))))
-			    actions . *)))))))))
+(let-syntax (((specific-literal-syntax binding-structure name value)
+	      (lambda (stx)
+		(assert (appears? #'name #;in #'binding-structure))
+		(syntax-case stx ()
+		  ((_ (binding-structure (... ...)) actions . *)
+		   (with-syntax ((specific (datum->syntax stx 'specific)))
+		     #'(let-syntax 
+			   ((specific
+			     (syntax-rules (name (... ...))
+			       ((_ name)
+				(let ((default (hash-ref
+						(fluid-ref
+						 SPECIFIC-CONTEXT)
+						'name '())))
+				  (if (null? default)
+				      value
+				      (first default))))
+			       (... ...))))
+			 actions . *)))))))
   (define-syntax with-default 
     (specific-literal-syntax (name value) name value))
   (define-syntax without-default 
@@ -529,7 +466,7 @@
 
 (define-fluid LIMITED-ACTIONS-RECORD (make-hash-table))
 
-(define-syntax-rule (upto n #;times perform-action . *)
+(define-syntax (upto n #;times perform-action . *)
   (let* ((here (current-source-location))
 	 (times-performed (or (hash-ref (fluid-ref LIMITED-ACTIONS-RECORD) here)
 			      0)))
@@ -539,18 +476,18 @@
 		     (1+ times-performed))
 	  perform-action . *))))
 
-(define-syntax-rule (once perform-action . *)
+(define-syntax (once perform-action . *)
   (upto 1 #;time perform-action . *))
 
 (define-fluid VALUE-RECORD (make-hash-table))
 
-(define-syntax-rule (changed? value)
+(define-syntax (changed? value)
   (let* ((here (current-source-location))
 	 (actual-value value)
 	 (previous-value (match (hash-get-handle (fluid-ref VALUE-RECORD) here)
 			   ((key . previous-value)
 			    previous-value)
-			   (else
+			   (_
 			    (not actual-value)))))
     (if (equal? actual-value previous-value)
 	#f
@@ -587,21 +524,20 @@
 ;; A more realistic example is given below, in the `matches?' macro
 ;; definition. 
 
-(define-syntax define-curried-syntax/helper
-  (syntax-rules ()
-    ((_ name () ((pattern template) ...))
-     (define-syntax name
-       (syntax-rules ()
-	 (pattern template) ...)))
+(define-syntax define-curried-syntax/helper ()
+  ((_ name () ((pattern template) ...))
+   (define-syntax name
+     (syntax-rules ()
+       (pattern template) ...)))
 
-    ((_ name (args ... last) ((pattern template) ...))
-     (define-curried-syntax/helper name (args ...)
-       ((pattern template) ... ((name args ...) 
-				(lambda (last)
-				  (name args ... last))))))
-    ))
+  ((_ name (args ... last) ((pattern template) ...))
+   (define-curried-syntax/helper name (args ...)
+     ((pattern template) ... ((name args ...) 
+			      (lambda (last)
+				(name args ... last))))))
+  )
 
-(define-syntax-rule (define-curried-syntax (name args ...) body . *)
+(define-syntax (define-curried-syntax (name args ...) body . *)
   (define-curried-syntax/helper name (args ...) (((name args ...)
 						  (begin body . *)))))
 
@@ -627,13 +563,11 @@
 
 ;; match* is like match, but if there's no matching pattern, it
 ;; doesn't raise an error
-(define-syntax match*
-  (syntax-rules ()
-    ((_ structure (pattern action . *) ...)
-     (match structure
-       (pattern action . *)
-       ...
-       (else (if #f #f))))))
+(define-syntax (match* structure (pattern action . *) ...)
+  (match structure
+    (pattern action . *)
+    ...
+    (else (if #f #f))))
 
 (define-curried-syntax (equals? value x)
   (equal? value x))
@@ -700,12 +634,88 @@
 
 ;; tutaj trzeba dopieścić, bo curry zwraca funkcję od dowolnie
 ;; wielu argumentów, a my chcielibyśmy case-lambdę
-(define-syntax curried-lambda
-  (syntax-rules ()
-    ((_ (args ...) body body* ...)
-     (letrec ((f (lambda (args ...) body body* ...)))
-       (curry f (length '(args ...)))))))
+(define-syntax (curried-lambda (args ...) body body* ...)
+  (letrec ((f (lambda (args ...) body body* ...)))
+    (curry f (length '(args ...)))))
 
+;; The `publish' macro is used to provide means to separate public
+;; definitions from private ones (such that are visible only from within
+;; the public procedures and from within themselves).
+;; For example, the form
+;; 
+;; (publish
+;;   (define (f x) (+ a x))
+;;   (define (g y) (* a y))
+;;  where
+;;   (define a 5))
+;;
+;; is equivalent to
+;;
+;; (begin
+;;   (define f (and (defined? 'f) f))
+;;   (define g (and (defined? 'g) g))
+;;   (let ()
+;;     (define a 5)
+;;     (set! f (let () (define (f x) (+ a x)) f))
+;;     (set! g (let () (define (g x) (* a y)) g))))
+
+(define-syntax-rule (publish definitions ...)
+  (publisher (definitions ...) ()))
+
+(define-syntax publisher 
+  (syntax-rules (where)
+    ((_ (where private ...) (public ...))
+     (private+public (private ...) (public ...)))
+    ((_ (new defs ...) (approved ...))
+     (publisher (defs ...) 
+		(approved ... new)))))
+
+(define-syntax private+public
+  (lambda (stx)
+    (define (sorted-private/interfaces+names+bodies private specs)
+      ;; both sorting and name extraction takes place in the
+      ;; same function called from with-syntax, because that
+      ;; way we can tell the macro processor that the bindings in
+      ;; the code belong to the same scope
+      (define (interface-name interface)
+	(match interface
+	  ((head . tail)
+	   (interface-name head))
+	  ((? symbol? name)
+	   name)))
+      `(,(datum->syntax ;; this reordering is done, so that the (e.g. ...)
+	  stx ;; forms can be freely mixed with definitions
+	  (let-values (((definitions non-definitions)
+			(partition (match-lambda 
+				     (((? symbol? x) . _)
+				      (string-contains (symbol->string x)
+						       "def"))
+				     (_ #f))
+				   (syntax->datum private))))
+	    `(,@definitions ,@non-definitions)))
+	,(map (lambda (spec)
+		(syntax-case spec ()
+		  ((interface . body)
+		   (datum->syntax stx `(,(syntax->datum #'interface)
+					,(interface-name 
+					  (syntax->datum #'interface))
+					,(syntax->datum #'body))))))
+	      specs)))
+    (syntax-case stx ()
+      ((_ (private ...) ((define-variant . spec) ...))
+       (with-syntax ((((private ...) ((interface name body) ...))
+		      (sorted-private/interfaces+names+bodies 
+		       #'(private ...) #'(spec ...))))
+	 #'(begin
+	     (define name (and (defined? 'name) name))
+	     ...
+	     (let ()
+	       private ...
+	       (set! name
+		     (let ()
+		       (define-variant interface . body)
+		       name))
+	       ...)))))))
 
 (define-syntax publish-with-fluids          ; publish-with-fluids is like
   (lambda (stx)                             ; with-fluids, but it allows
@@ -739,13 +749,12 @@
 ;; to take `macro' keyword in place of the latter's `syntax-rules' (or its
 ;; equivalents), because unlike syntax-transformers, macros in guile are
 ;; no longer first-class objects. this is completely pointless.
-(define-syntax letrec-macros
-  (syntax-rules (macro)
-    ((_ ((name (macro args definition ...)) ...) body ...)
-     (let ()
-       (define-macro (name . args) definition ...)
-       ...
-       body ...))))
+(define-syntax letrec-macros (macro)
+  ((_ ((name (macro args definition ...)) ...) body ...)
+   (let ()
+     (define-macro (name . args) definition ...)
+     ...
+     body ...)))
 
 (define (min+max first . args)
   (assert (and (number? first)
@@ -1062,7 +1071,7 @@
 		      (< (list-index (equals? x) the-class)
 			 (list-index (equals? y) the-class)))))))))
 
-(define-syntax-rule (safely sexp)
+(define-syntax (safely sexp)
   (catch #t (lambda () (values sexp #t))
     (lambda (key . args)
       (with-output-to-port (current-output-port)
@@ -1072,33 +1081,31 @@
 	  (values (if #f #f) #f))))
     (lambda args (backtrace))))
 
-(define-syntax-rule (export-types symbol ...)
+(define-syntax (export-types symbol ...)
   `((symbol . ,symbol) ...))
 
-(define-syntax-rule (transform! fx x args ...)
+(define-syntax (transform! fx x args ...)
   (set! x (fx x args ...)))
 
-(define-syntax increase!
-  (syntax-rules ()
-    ((_ variable value)
-     (transform! + variable value))
-    ((_ variable)
-     (increase! variable 1))))
+(define-syntax increase!()
+  ((_ variable value)
+   (transform! + variable value))
+  ((_ variable)
+   (increase! variable 1)))
 
-(define-syntax decrease!
-  (syntax-rules ()
-    ((_ variable value)
-     (transform! - variable value))
-    ((_ variable)
-     (decrease! variable 1))))
+(define-syntax decrease! ()
+  ((_ variable value)
+   (transform! - variable value))
+  ((_ variable)
+   (decrease! variable 1)))
 
-(define-syntax-rule (multiply! variable value)
+(define-syntax (multiply! variable value)
   (transform! * variable value))
 
-(define-syntax-rule (push! l e) 
+(define-syntax (push! l e) 
   (set! l (cons e l)))
 
-(define-syntax-rule (pop! l)
+(define-syntax (pop! l)
   (let ((result (car l)))
     (set! l (cdr l))
     result))
@@ -1111,64 +1118,61 @@
 
 (e.g. (indexed '(a b c)) ===> ((0 a) (1 b) (2 c)))
 
-(define-syntax for
-  (syntax-rules (in .. => indexed)
-    ((_ x in (indexed list-of-values) body ...)
-     (let loop ((n 0) 
-		(l list-of-values))
-       (match l
-	 (()
-	  (if #f #f))
-	 ((first . rest)
-	  (match (list n first)
-	    (x body ...))
-	  (loop (1+ n) rest)))))
-    ((_ x in first .. last body ...)
-     ;; this form should be made obsolete in favour of the next one
-     (let ((final last))
-       (let loop ((x first))
-	 (if (<= x final)
-	     (begin
-	       body ...
-	       (loop (1+ x)))))))
-    ((_ x in (first .. last) body ...)
-     (let ((final last))
-       (let loop ((x first))
-	 (if (<= x final)
-	     (begin
-	       body ...
-	       (loop (1+ x)))))))
-     ((_ (key => value) in hash-map body ...)
-      (hash-for-each (match-lambda* ((key value) body ...) 
-		       (else (throw 'invalid-for-clause else)))
-		     hash-map))
-     ((_ x in list body ...)
-      (for-each (match-lambda (x body ...)
-		  (else (throw 'invalid-for-clause else))) list))))
+(define-syntax for (in .. => indexed)
+  ((_ x in (indexed list-of-values) body ...)
+   (let loop ((n 0) 
+	      (l list-of-values))
+     (match l
+       (()
+	(if #f #f))
+       ((first . rest)
+	(match (list n first)
+	  (x body ...))
+	(loop (1+ n) rest)))))
+  ((_ x in first .. last body ...)
+   ;; this form should be made obsolete in favour of the next one
+   (let ((final last))
+     (let loop ((x first))
+       (if (<= x final)
+	   (begin
+	     body ...
+	     (loop (1+ x)))))))
+  ((_ x in (first .. last) body ...)
+   (let ((final last))
+     (let loop ((x first))
+       (if (<= x final)
+	   (begin
+	     body ...
+	     (loop (1+ x)))))))
+  ((_ (key => value) in hash-map body ...)
+   (hash-for-each (match-lambda* ((key value) body ...) 
+		    (else (throw 'invalid-for-clause else)))
+		  hash-map))
+  ((_ x in list body ...)
+   (for-each (match-lambda (x body ...)
+	       (else (throw 'invalid-for-clause else))) list)))
 
-(define-syntax for-every 
-  (syntax-rules (in ..)
-    ((_ var in (first .. last) predicate)
-     (for-every var in (iota (- last first -1) first)
-       predicate))
-    ((_ var in set predicate)
-     (every (match-lambda (var predicate) (_ #f)) set))))
+(define-syntax for-every (in ..)
+  ((_ var in (first .. last) predicate)
+   (for-every var in (iota (- last first -1) first)
+     predicate))
+  ((_ var in set predicate)
+   (every (match-lambda (var predicate) (_ #f)) set)))
 
 (e.g.
  (for-every (x y) in '((1 6) (2 5) (3 4))
    (= (+ x y) 7)))
 
-(define-syntax exists 
-  (syntax-rules (in)
-    ((_ var in set predicate)
-     (any (match-lambda (var predicate) (_ #f)) set))))
+(define-syntax exists (in)
+  ((_ var in set predicate)
+   (any (match-lambda (var predicate) (_ #f)) set)))
 
 (define (equiv? . args)
   "logical equivalence"
   (or (every (lambda(x)x) args)
       (every not args)))
 
-(define-syntax-rule (hash-table (key value) ...)
+(define-syntax (hash-table (key value) ...)
   (let ((new-hash-table (make-hash-table)))
     (hash-set! new-hash-table key value)
     ...
@@ -1203,10 +1207,10 @@
       ((key) (hash-ref hash key default))
       ((key value) (hash-set! hash key value)))))
 
-(define-syntax-rule (applicable-hash-with-default default (key value) ...)
+(define-syntax (applicable-hash-with-default default (key value) ...)
   (make-applicable-hash-table default `(,key ,value) ...))
 
-(define-syntax-rule (applicable-hash (key value) ...)
+(define-syntax (applicable-hash (key value) ...)
   (applicable-hash-with-default #f (key value) ...))
 
 (e.g.
@@ -1924,22 +1928,20 @@
 		       (with-syntax ((with-i/o-type (with #'i/o #'type))
 				     (with-i/o-preposition-type
 				      (with #'i/o #'preposition #'type)))
-			 #'(define-syntax-rule (with-i/o-type type action . *)
+			 #'(define-syntax (with-i/o-type type action . *)
 			     (with-i/o-preposition-type
 			      type (lambda () action . *))))))))
-		(define-port-redirect-syntaxes-for-type
-		  (syntax-rules ()
-		    ((_ type ((i/o preposition) ...))
-		     (begin
-		       (define-port-redirect-syntax type (i/o preposition))
-		       ...))))
-		(define-port-redirect-syntaxes
-		  (syntax-rules ()
-		    ((_ (type ...) ((direction preposition) ...))
-		     (begin
-		       (define-port-redirect-syntaxes-for-type type
-			 ((direction preposition) ...))
-		       ...)))))
+		((define-port-redirect-syntaxes-for-type type 
+		   ((i/o preposition) ...))
+		 (begin
+		   (define-port-redirect-syntax type (i/o preposition))
+		   ...))
+		((define-port-redirect-syntaxes (type ...) 
+		   ((direction preposition) ...))
+		 (begin
+		   (define-port-redirect-syntaxes-for-type type
+		     ((direction preposition) ...))
+		   ...)))
   (define-port-redirect-syntaxes (port file)
     ((output to) (input from) (error to)))
   ;; expands to
@@ -1948,7 +1950,7 @@
   ;; ...
   (define-port-redirect-syntax string (input from)))
 
-(define-syntax-rule (with-output-string action . *)
+(define-syntax (with-output-string action . *)
   (with-output-to-string (lambda () action . *)))
 
 (define* (read-s-expressions #:optional (port (current-input-port)))
@@ -1971,7 +1973,7 @@
 		  thunk
 		  (lambda () (change-directory cwd)))))
 
-(define-syntax-rule (with-working-directory dir action . *)
+(define-syntax (with-working-directory dir action . *)
   (with-changed-working-directory dir (lambda () action . *)))
 
 (define (list-directory directory)
@@ -2082,7 +2084,7 @@
   (or (procedure-property procedure 'imposed-arity)
       (procedure-property procedure 'arity)))
 
-(define-syntax-rule (n-lambda n args body + ...)
+(define-syntax (n-lambda n args body + ...)
   (let ((the-procedure (lambda args (assert (= (length args) n)) body + ...)))
     (set-procedure-property! the-procedure 'imposed-arity `(,n 0 #f))
     the-procedure))
@@ -2137,16 +2139,11 @@
 ;;        body  ... 
 ;;        (if condition (loop))))))
 
-(define-syntax-rule (measured expression)
+(define-syntax (measured expression)
   (let ((starting-time (now)))
     (let ((result (list<-values expression)))
       (format #t "~s: ~s ns\n" 'expression (- (now) starting-time))
       (apply values result))))
-
-(define-syntax-rule (let** ((names ... expression) ...)
-			  body ...)
-  (let*-replacement ((names ... (measured expression)) ...)
-    body ...))
 
 ;; the "!#" macro is used for debugging, and its name is intentionally
 ;; obscure, as it should not appear in the production code
@@ -2157,7 +2154,7 @@
     ((_ data ...)
      `((data ',data) ...))))
 
-(define-syntax-rule (<<< messages ...)
+(define-syntax (<<< messages ...)
   (<< (!# messages ...)))
 
 (define (common-prefix a b)
@@ -2171,7 +2168,7 @@
       (else
        (reverse result)))))
 
-(define-syntax-rule (WARN messages ...)
+(define-syntax (WARN messages ...)
   (let* ((location (current-source-location))
 	 (file (assoc-ref location 'file))
 	 (line (assoc-ref location 'line)))
@@ -2184,7 +2181,7 @@
     (display ": ")
     (display messages) ... (newline)))
 
-(define-syntax-rule (trace)
+(define-syntax (trace)
   (let* ((stack (make-stack #t))
 	 (restricted '(eval for-each make-stack dynamic-wind catch-closure
 			    catch slot-ref)))
@@ -2196,17 +2193,16 @@
 		    name))
 		(iota (stack-length stack)))))
 
-(define-syntax check
-  (syntax-rules ()
-    ((_ condition expression)
-     (let ((value expression))
-       (unless (condition expression)
-	 (let* ((trace (trace))
-		(location (current-source-location))
-		(file (assoc-ref location 'file))
-		(line (assoc-ref location 'line)))
-	   (format #t "Assertion ~a failed at ~a:~a with ~a ~a\n" 
-		   '(condition expression)
-		   file line value trace)))))
-    ((_ assertion)
-     (check values assertion))))
+(define-syntax check ()
+  ((_ condition expression)
+   (let ((value expression))
+     (unless (condition expression)
+       (let* ((trace (trace))
+	      (location (current-source-location))
+	      (file (assoc-ref location 'file))
+	      (line (assoc-ref location 'line)))
+	 (format #t "Assertion ~a failed at ~a:~a with ~a ~a\n" 
+		 '(condition expression)
+		 file line value trace)))))
+  ((_ assertion)
+   (check values assertion)))

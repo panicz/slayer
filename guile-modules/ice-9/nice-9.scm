@@ -4,19 +4,27 @@
   #:use-module (srfi srfi-11)
   #:re-export (match)
   #:export ((and-let*/match . and-let*)
-	    publish
 	    primitive-lambda)
   #:replace ((cdefine . define)
 	     (mlambda . lambda)
 	     (named-match-let-values . let)
 	     (match-let*-values . let*)
-	     (let-syntax-rules . let-syntax)
-	     (define-syntax/rule . define-syntax)))
+	     (letrec-syntax/rules . letrec-syntax)
+	     (let-syntax/rules . let-syntax)
+	     (define-syntax/rules . define-syntax)))
 
-(define-syntax define-syntax/rule
+;; This module extends the syntax of a few core forms so that their
+;; "abuses" behave meaningfully -- in particular, it allows to
+;; destructure bindings in "lambda" and "let" forms and use curried definitions.
+;; It also provides pattern-matching version of "and-let*" and a rather
+;; useful (although entirely different in spirit) "publish" form.
+
+(define-syntax define-syntax/rules
   (syntax-rules ()
-    ((_ (name . pattern) . transformation)
-     (define-syntax-rule (name . pattern) . transformation))
+    ((_ (name . pattern) template)
+     (define-syntax name
+       (syntax-rules ()
+	 ((name . pattern) template))))
 
     ((_ name transformer)
      (define-syntax name transformer))
@@ -29,28 +37,33 @@
 	 ...)))
     ))
 
-(define-syntax let-syntax-rules/helper
+(define-syntax let*-syntax/rules
   (syntax-rules ()
-    ((_ () processed-bindings body . *)
-     (let-syntax processed-bindings body . *))
+    ((_ let*-syntax () processed-bindings body . *)
+     (let*-syntax processed-bindings body . *))
     
-    ((_ (((name pattern ...) template) bindings ...) (processed ...) body . *)
-     (let-syntax-rules/helper
+    ((_ let*-syntax (((name pattern ...) template) bindings ...) 
+	(processed ...) body . *)
+     (let*-syntax/rules
+      let*-syntax
       (bindings ...) 
       (processed ... (name (syntax-rules () 
 			     ((_ pattern ...) 
 			      template))))
       body . *))
 
-    ((_ ((name value) bindings ...) (processed ...) body . *)
-     (let-syntax-rules/helper 
+    ((_ let*-syntax ((name value) bindings ...) (processed ...) body . *)
+     (let*-syntax/rules
+      let*-syntax
       (bindings ...) 
       (processed ... (name value))
       body . *))
 
-    ((_ ((name keywords (pattern template) ...) bindings ...) (processed ...)
+    ((_ let*-syntax ((name keywords (pattern template) ...) bindings ...)
+	(processed ...)
 	body . *)
-     (let-syntax-rules/helper
+     (let*-syntax/rules
+      let*-syntax
       (bindings ...)
       (processed ... (name (syntax-rules keywords 
 			     (pattern 
@@ -59,10 +72,15 @@
       body . *))
     ))
 
-(define-syntax let-syntax-rules
+(define-syntax let-syntax/rules
   (syntax-rules ()
     ((_ (bindings ...) body . *)
-     (let-syntax-rules/helper (bindings ...) () body . *))))
+     (let*-syntax/rules let-syntax (bindings ...) () body . *))))
+
+(define-syntax letrec-syntax/rules
+  (syntax-rules ()
+    ((_ (bindings ...) body . *)
+     (let*-syntax/rules letrec-syntax (bindings ...) () body . *))))
 
 (define-syntax mlambda
   (lambda (stx)
@@ -177,7 +195,7 @@
       
       ((_ ((structure structures ... expression) remaining-bindings ...)
 	  body + ...)
-       #''(call-with-values (lambda () expression) 
+       #'(call-with-values (lambda () expression) 
 	   (mlambda (structure structures ...)
 		    (match-let*-values (remaining-bindings ...) body + ...))))
       )))
@@ -216,82 +234,3 @@
 		body ...)))
 
       )))
-
-;; The `publish' macro is used to provide means to separate public
-;; definitions from private ones (such that are visible only from within
-;; the public procedures and from within themselves).
-;; For example, the form
-;; 
-;; (publish
-;;   (define (f x) (+ a x))
-;;   (define (g y) (* a y))
-;;  where
-;;   (define a 5))
-;;
-;; is equivalent to
-;;
-;; (begin
-;;   (define f (and (defined? 'f) f))
-;;   (define g (and (defined? 'g) g))
-;;   (let ()
-;;     (define a 5)
-;;     (set! f (let () (define (f x) (+ a x)) f))
-;;     (set! g (let () (define (g x) (* a y)) g))))
-
-(define-syntax-rule (publish definitions ...)
-  (publisher (definitions ...) ()))
-
-(define-syntax publisher 
-  (syntax-rules (where)
-    ((_ (where private ...) (public ...))
-     (private+public (private ...) (public ...)))
-    ((_ (new defs ...) (approved ...))
-     (publisher (defs ...) 
-		(approved ... new)))))
-
-(define-syntax private+public
-  (lambda (stx)
-    (define (sorted-private/interfaces+names+bodies private specs)
-      ;; both sorting and name extraction takes place in the
-      ;; same function called from with-syntax, because that
-      ;; way we can tell the macro processor that the bindings in
-      ;; the code belong to the same scope
-      (define (interface-name interface)
-	(match interface
-	  ((head . tail)
-	   (interface-name head))
-	  ((? symbol? name)
-	   name)))
-      `(,(datum->syntax ;; this reordering is done, so that the (e.g. ...)
-	  stx ;; forms can be freely mixed with definitions
-	  (let-values (((definitions non-definitions)
-			(partition (match-lambda 
-				     (((? symbol? x) . _)
-				      (string-contains (symbol->string x)
-						       "def"))
-				     (_ #f))
-				   (syntax->datum private))))
-	    `(,@definitions ,@non-definitions)))
-	,(map (lambda (spec)
-		(syntax-case spec ()
-		  ((interface . body)
-		   (datum->syntax stx `(,(syntax->datum #'interface)
-					,(interface-name 
-					  (syntax->datum #'interface))
-					,(syntax->datum #'body))))))
-	      specs)))
-    (syntax-case stx ()
-      ((_ (private ...) ((define-variant . spec) ...))
-       (with-syntax ((((private ...) ((interface name body) ...))
-		      (sorted-private/interfaces+names+bodies 
-		       #'(private ...) #'(spec ...))))
-	 #'(begin
-	     (define name (and (defined? 'name) name))
-	     ...
-	     (let ()
-	       private ...
-	       (set! name
-		     (let ()
-		       (define-variant interface . body)
-		       name))
-	       ...)))))))
