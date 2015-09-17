@@ -231,4 +231,17 @@
 	      (and-let*/match (rest ...)
 		body ...)))
 
+      ((_ ((values ... expression) rest ...) body ...)
+       (every identifier? #'(values ...))
+       #'(call-with-values (lambda () expression)
+	   (lambda (values ...)
+	     (and values ...
+		  (and-let*/match (rest ...)
+		    body ...)))))
+
+      ((_ ((values ... expression) rest ...) body ...)
+       #'(call-with-values (lambda () expression)
+	   (mlambda (values ...)
+		    (and-let*/match (rest ...)
+		      body ...))))
       )))
