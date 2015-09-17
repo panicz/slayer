@@ -1,4 +1,5 @@
 (define-module (editor modes)
+  #:use-module (ice-9 nice-9)
   #:use-module (slayer)
   #:use-module (extra slayer)
   #:use-module (extra common)
@@ -14,7 +15,6 @@
   #:use-module (oop goops)
   #:use-module (widgets physics)
   #:export (
-	     position<-angles
 	     desired-configuration
 	     global-positions
 	     kinematic-chain
@@ -30,7 +30,7 @@
 		   ))
 
 
-(define-syntax-rule (with-context-for-joint/body-relation action . *)
+(define-syntax (with-context-for-joint/body-relation action . *)
   (specify ((joint-property-getter joint-property)
 	    (body-rig-getter body-rig)
 	    (rig-joints-getter rig-joints))
@@ -146,13 +146,6 @@
 	 `(,anchor ,axis))
        (kinematic-chain<-anchors+axes+angles anchors axes angles)))
 
-(define (position<-angles kinematic-chain local-position)
-  (let ((N (length kinematic-chain)))
-    (impose-arity
-     `(,N 0 #f)
-     (lambda angles
-       (tip-position kinematic-chain angles local-position)))))
-
 (define (desired-configuration initial-position desired-position
 			       initial-configuration system-equation)
   ;; inverse kinematics routine.
@@ -169,7 +162,7 @@
 			    #;of (compose uniform-vector->list 
 					  system-equation))
 			   #;by 0.00001)
-			  #;at initial-configuration))
+			  #;to initial-configuration))
 	 (jacobian+ (pseudoinverse #;of jacobian))
 	 (angle-increment (uniform-vector->list 
 			   (* jacobian+ position-increment)))
@@ -181,10 +174,10 @@
 
 (publish
  (define* (apply-inverse-kinematics! #;of body #;to desired-position 
-					  #:optional #;at (limb? hub?)
+					  #:optional #;at (member-type? hub?)
 					  #;with (max-step 0.02))
    (and-let* ((joint-sequence pivot (joint-sequence-to+nearest-member
-				     limb? #;from body))
+				     member-type? #;from body))
 	      ((> (length joint-sequence) 1))
 	      (global-position (body-property body 'position))
 	      (((anchors+ axes+ angles+) ...)
@@ -200,8 +193,11 @@
 	      (distance (norm displacement))
 	      (direction (/ displacement distance))
 	      ((axes- ... last-axis _) (map normalized axes+))
-	      (system-equation (position<-angles kinematic-chain 
-						 local-position)))
+	      (system-equation (impose-arity (length kinematic-chain)
+					     (lambda angles
+					       (tip-position kinematic-chain 
+							     angles 
+							     local-position)))))
      (let improve ((improvement 0)
 		   (remaining distance)
 		   (angles (drop-right angles+ 1))

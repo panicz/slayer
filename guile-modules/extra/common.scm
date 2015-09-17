@@ -2090,7 +2090,8 @@
     the-procedure))
 
 (define (impose-arity n procedure)
-  (set-procedure-property! procedure 'imposed-arity n)
+  (set-procedure-property! procedure 'imposed-arity 
+			   (if (list? n) n `(,n 0 #f)))
   procedure)
 
 (define (compose . fns)

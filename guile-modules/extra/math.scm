@@ -1,4 +1,5 @@
 (define-module (extra math)
+  :use-module (ice-9 nice-9)
   :use-module (extra common)
   :use-module (extra ref)
   :use-module (oop goops)
@@ -569,7 +570,7 @@
 (define ((jacobian-approximation #;of f) #;by dV)
   (let (((N 0 #f) (arity f)))
     (impose-arity
-     N
+     `(,N 0 #f)
      (lambda #;at V
        (assert (and (= (length dV) N) (every real? dV)
 		    (= (length V) N)  (every real? V)
