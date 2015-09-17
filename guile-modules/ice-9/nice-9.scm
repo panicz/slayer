@@ -239,9 +239,31 @@
 		  (and-let*/match (rest ...)
 		    body ...)))))
 
+      ;; this behavior can be questionable, but to increase coherence,
+      ;; every identifier bound with multiple values at the top level
+      ;; must be non-false, so while
+      ;;
+      ;;    (and-let* ((a b #f (values 1 2 #f))) #t)
+      ;;
+      ;; will succeed, 
+      ;;
+      ;;    (and-let* ((a b #f (values 1 #f #f))) #t)
+      ;;
+      ;; will fail.
+      ;; On the other hand, arguments bound as a result to pattern-matching
+      ;; can have any value, so 
+      ;;
+      ;; (and-let* (((a) (b) (values '(#f) '(#f)))) #t)
+      ;;
+      ;; will succeed.
       ((_ ((values ... expression) rest ...) body ...)
-       #'(call-with-values (lambda () expression)
-	   (mlambda (values ...)
-		    (and-let*/match (rest ...)
-		      body ...))))
+       (with-syntax (((identifiers ...) (filter identifier? #'(values ...))))
+	 #'(call-with-values (lambda () expression)
+	     (lambda args
+	       (match args
+		 ((values ...)
+		  (and identifiers ...
+		       (and-let*/match (rest ...)
+				       body ...)))
+		 (_ #f))))))
       )))
