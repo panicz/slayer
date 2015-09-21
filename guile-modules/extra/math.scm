@@ -1,5 +1,4 @@
 (define-module (extra math)
-  :use-module (ice-9 nice-9)
   :use-module (extra common)
   :use-module (extra ref)
   :use-module (oop goops)
@@ -30,6 +29,8 @@
 	   jacobian-approximation isotropic-jacobian-approximation
 	   pseudoinverse
 	   convex-hull/complex
+	   inside-hull?/complex
+	   box-center/complex
 	   ))
 
 (define (tensor-dimensions tensor)
@@ -145,11 +146,13 @@
 			       (b e)
 			       (c f)))
 
-(define (rows a) 
-  (car (array-dimensions a)))
+(define (rows a)
+  (let (((rows columns) (array-dimensions a)))
+    rows))
 
-(define (columns a) 
-  (cadr (array-dimensions a)))
+(define (columns a)
+  (let (((rows columns) (array-dimensions a)))
+    columns))
 
 (define (row a i) 
   (make-shared-array 
@@ -209,7 +212,7 @@
 	   (let ((1/norm (/ 1 norm)))
 	     (quaternion (* 1/norm re) (* 1/norm im))))))
 
-    (else #;((? number? _) ...) 
+    (_ #;((? number? _) ...) 
      ;; list of numbers
      (let ((l (norm p)))
        (if (< l #[TOLERANCE])
@@ -222,7 +225,7 @@
   (match p
     (((? real? re) . (? array? im))
      (sqrt (+ (* re re) (* im im))))
-    (else
+    (_
      (sqrt (square p)))))
 
 ;; it turned out that this procedure is implemented twice -- here
@@ -238,7 +241,7 @@
 				  (rows a) (columns b))))
     (array-index-map! 
      result 
-     (lambda(i j)(dot (column b j) (row a i))))
+     (lambda (i j) (dot (column b j) (row a i))))
     result))
 
 (define (vector->matrix v)
@@ -252,7 +255,7 @@
 (define (matrix->vector V)
   (cond ((= (columns V) 1) (column V 0))
 	((= (rows V) 1) (row V 0))
-	(#t (error "unable to convert matrix to vector" V))))
+	(else (error "unable to convert matrix to vector" V))))
 
 (define (vectors->matrix . vectors)
   (transpose 
@@ -570,7 +573,7 @@
 (define ((jacobian-approximation #;of f) #;by dV)
   (let (((N 0 #f) (arity f)))
     (impose-arity
-     `(,N 0 #f)
+     N
      (lambda #;at V
        (assert (and (= (length dV) N) (every real? dV)
 		    (= (length V) N)  (every real? V)
@@ -612,10 +615,13 @@
 				(list->vector 
 				 (map list->vector matrix)))))))))
 
+(define (fixed-point? x f)
+  (equal? x (f x)))
+
 (publish
  (define (convex-hull/complex points)
    (assert (every complex? points))
-   (let* ((center (apply mean points))
+   (let* ((center (box-center/complex points))
 	  (sorted (sort points (lambda (a b)
 				 (< (angle (- a center))
 				    (angle (- b center))))))
@@ -635,6 +641,16 @@
 	  (gather `(,next . #;into ,hull) #;from rest))
 	 (_
 	  hull)))))
+ (define (box-center/complex points)
+   (let* ((left right (apply min+max (map real-part points)))
+	  (bottom top (apply min+max (map imag-part points))))
+     (make-rectangular (* 0.5 (+ left right)) (* 0.5 (+ bottom top)))))
+ (e.g. (box-center/complex '(0 0+2i 2+2i 2)) ===> 1+i)
+ (define (inside-hull?/complex point hull)
+   (assert (fixed-point? hull convex-hull/complex))
+   (every (lambda (a b)
+	    (not (above? point (line #;from a #;to b))))
+	  hull (rotate-left hull 1)))
  where
  (define (line #;from a #;to b)
    (assert (and (complex? a) (complex? b)))
