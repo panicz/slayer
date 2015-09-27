@@ -150,25 +150,27 @@
       ;; but it's added for completeness
       ((_ ((structures ... expression) ...)
 	  body + ...)
-       #'(match-let (((structures ...) (list<-values expression)) ...)
+       #'(match-let (((structures ... . _) (list<-values expression)) ...)
 	   body + ...))
       
       ((_ name ((structures ... expression) ...)
 	  body + ...)
-       (identifier? #'name) 
+       (identifier? #'name)
        #'(letrec ((loop 
-		   (mlambda ((structures ...) ...)
-			    (let-syntax ((name (syntax-rules ()
-						 ((_ args (... ...))
-						  (loop (list<-values args)
-							(... ...))))))
-			      body + ...))))
-	   (loop (list<-values expression) ...)))
+		   (match-lambda* 
+		       (((structures ... . _) ...)
+			(let-syntax ((name (syntax-rules ()
+					     ((_ args (... ...))
+					      (loop (list<-values args)
+						    (... ...))))))
+			  body + ...)))))
+		  (loop (list<-values expression) ...)))
       )))
 
 (define-syntax match-let*-values
   (lambda (stx)
     (syntax-case stx ()
+
       ((_ ((identifier expression) ...) ;; optimization: regular let*
 	  body + ...)
        (every identifier? #'(identifier ...))
@@ -190,12 +192,21 @@
 	  body + ...)
        #'(match-let ((structure expression))
 	   (match-let*-values (remaining-bindings ...) body + ...)))
-      
+
+      ((_ ((identifier identifiers ... expression) remaining-bindings ...)
+	  body + ...)
+       (every identifier? #'(identifier identifiers ...))
+       #'(call-with-values (lambda () expression) 
+	   (lambda (identifier identifiers ... . _)
+	     (match-let*-values (remaining-bindings ...) 
+				body + ...))))
+
       ((_ ((structure structures ... expression) remaining-bindings ...)
 	  body + ...)
        #'(call-with-values (lambda () expression) 
-	   (mlambda (structure structures ...)
-		    (match-let*-values (remaining-bindings ...) body + ...))))
+	   (match-lambda* ((structure structures ... . _)
+			   (match-let*-values (remaining-bindings ...) 
+					      body + ...)))))
       )))
 
 (define-syntax and-let*/match
@@ -234,7 +245,7 @@
       ((_ ((values ... expression) rest ...) body ...)
        (every identifier? #'(values ...))
        #'(call-with-values (lambda () expression)
-	   (lambda (values ...)
+	   (lambda (values ... . _)
 	     (and values ...
 		  (and-let*/match (rest ...)
 		    body ...)))))
@@ -261,7 +272,7 @@
 	 #'(call-with-values (lambda () expression)
 	     (lambda args
 	       (match args
-		 ((values ...)
+		 ((values ... . _)
 		  (and identifiers ...
 		       (and-let*/match (rest ...)
 				       body ...)))
