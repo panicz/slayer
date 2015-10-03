@@ -94,7 +94,8 @@
        #'(lambda arg body ...))
 
       ((_ args body ...)
-       #'(match-lambda* (args body ...)))
+       #'(match-lambda* (args body ...) 
+	   (_ (error 'mlambda (current-source-location) '(args body ...)))))
       )))
 
 (define-syntax primitive-lambda
@@ -113,10 +114,20 @@
      (define . rest))
     ))
 
+
 (define-syntax list<-values
   (syntax-rules ()
     ((_ call)
      (call-with-values (lambda () call) list))))
+
+(define-syntax match-let/error
+  (syntax-rules ()
+    ((_ ((structure expression) ...)
+	body + ...)
+     ((match-lambda* ((structure ...) body + ...)
+	(_ (error 'match-let/error (current-source-location) 
+		  '((structure expression) ...))))
+      expression ...))))
 
 (define-syntax named-match-let-values
   (lambda (stx)
@@ -141,29 +152,33 @@
 
       ((_ ((structure expression) ...)
 	  body + ...)
-       #'(match-let ((structure expression) ...) 
-	   body + ...))
+       #'(match-let/error ((structure expression) ...) 
+			  body + ...))
 
       ;; it should generally be discouraged to use the plain let
       ;; with multiple values, because there's no natural way to implement
       ;; that when there's more than one (multiple-value) binding,
       ;; but it's added for completeness
-      ((_ ((structures ... expression) ...)
+      ((_ ((structure structures ... expression) ...)
 	  body + ...)
-       #'(match-let (((structures ... . _) (list<-values expression)) ...)
-	   body + ...))
+       #'(match-let/error (((structure structures ... . _) 
+			    (list<-values expression)) ...)
+			  body + ...))
       
-      ((_ name ((structures ... expression) ...)
+      ((_ name ((structure structures ... expression) ...)
 	  body + ...)
        (identifier? #'name)
        #'(letrec ((loop 
 		   (match-lambda* 
-		       (((structures ... . _) ...)
+		       (((structure structures ... . _) ...)
 			(let-syntax ((name (syntax-rules ()
 					     ((_ args (... ...))
 					      (loop (list<-values args)
 						    (... ...))))))
-			  body + ...)))))
+			  body + ...))
+		     (_ (error named-match-let-values 
+			       (current-source-location)
+			       'name)))))
 		  (loop (list<-values expression) ...)))
       )))
 
@@ -177,11 +192,6 @@
        #'(let* ((identifier expression) ...)
 	   body + ...))
       
-      ((_ ((structure expression) ...)
-	  body + ...)
-       #'(match-let* ((structure expression) ...)
-	   body + ...))
-
       ((_ ((identifier expression) remaining-bindings ...)
 	  body + ...)
        (identifier? #'identifier)
@@ -190,8 +200,9 @@
 
       ((_ ((structure expression) remaining-bindings ...)
 	  body + ...)
-       #'(match-let ((structure expression))
-	   (match-let*-values (remaining-bindings ...) body + ...)))
+       #'(match-let/error ((structure expression))
+			  (match-let*-values (remaining-bindings ...) 
+					     body + ...)))
 
       ((_ ((identifier identifiers ... expression) remaining-bindings ...)
 	  body + ...)
@@ -206,7 +217,8 @@
        #'(call-with-values (lambda () expression) 
 	   (match-lambda* ((structure structures ... . _)
 			   (match-let*-values (remaining-bindings ...) 
-					      body + ...)))))
+					      body + ...))
+	     (_ (error 'match-let*-values (current-source-location))))))
       )))
 
 (define-syntax and-let*/match
