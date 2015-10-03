@@ -559,7 +559,7 @@
 (define-curried-syntax (matches? pattern x)
   (match x 
     (pattern #t)
-    (else #f)))
+    (_ #f)))
 
 ;; match* is like match, but if there's no matching pattern, it
 ;; doesn't raise an error
@@ -744,17 +744,6 @@
 	     (with-fluids fluids
 	       (set! name (let () (define-variant interface . body) name))
 	       ...)))))))
-
-;; `letrec-macros' behaves similar to `let-syntax', but it is restricted
-;; to take `macro' keyword in place of the latter's `syntax-rules' (or its
-;; equivalents), because unlike syntax-transformers, macros in guile are
-;; no longer first-class objects. this is completely pointless.
-(define-syntax letrec-macros (macro)
-  ((_ ((name (macro args definition ...)) ...) body ...)
-   (let ()
-     (define-macro (name . args) definition ...)
-     ...
-     body ...)))
 
 (define (min+max first . args)
   (assert (and (number? first)
@@ -1087,7 +1076,7 @@
 (define-syntax (transform! fx x args ...)
   (set! x (fx x args ...)))
 
-(define-syntax increase!()
+(define-syntax increase! ()
   ((_ variable value)
    (transform! + variable value))
   ((_ variable)
@@ -1786,7 +1775,7 @@
   (take from-list (min n (length from-list))))
 
 (define (drop-at-most n from-list)
-  (drop from-list (min n (length list))))
+  (drop from-list (min n (length from-list))))
 
 (define (rotate-left lst n)
   (let-values (((left right) (split-at lst n)))
@@ -1894,9 +1883,8 @@
  (alter #;element-number 1 #;in '(ząb dupa zębowa) #;with 'zupa)
  ===> (ząb zupa zębowa))
 
-(define (pick n)
-  (lambda args
-    (list-ref args n)))
+(define ((pick n) . args)
+  (list-ref args n))
 
 (e.g. ((pick 1) 'a 'b 'c) ===> b)
 
@@ -2092,17 +2080,6 @@
   (assert (procedure? procedure))
   (or (procedure-property procedure 'imposed-arity)
       (procedure-property procedure 'arity)))
-
-#;(define (compose . fns)
-  (define (make-chain fn chains)
-    (lambda args
-      (call-with-values 
-	  (lambda () (apply fn args)) 
-	chains)))
-  (impose-arity (if (null? fns) 
-		    '(0 0 #t)
-		    (arity (last fns)))
-		(reduce make-chain values fns)))
 
 (define (clip args #;to arity)
   (match arity
