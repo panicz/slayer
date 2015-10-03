@@ -140,7 +140,7 @@
 		   transform! increase! decrease! multiply!
 		   push! pop!
 		   symbol-match
-		   n-lambda trace
+		   trace
 		   !# check <<< let** measured
 		   )
   #:replace (compose 
@@ -2079,22 +2079,21 @@
 (define procedure-property-with-setter
   (make-procedure-with-setter procedure-property set-procedure-property!))
 
+(define (impose-arity n procedure)
+  (let ((new-procedure (lambda args (apply procedure args))))
+    (set-procedure-property! new-procedure 'name
+			     (or (procedure-name procedure)
+				 'fixed-arity))
+    (set-procedure-property! new-procedure 'imposed-arity
+			     (if (list? n) n `(,n 0 #f)))
+    new-procedure))
+
 (define (arity procedure)
   (assert (procedure? procedure))
   (or (procedure-property procedure 'imposed-arity)
       (procedure-property procedure 'arity)))
 
-(define-syntax (n-lambda n args body + ...)
-  (let ((the-procedure (lambda args (assert (= (length args) n)) body + ...)))
-    (set-procedure-property! the-procedure 'imposed-arity `(,n 0 #f))
-    the-procedure))
-
-(define (impose-arity n procedure)
-  (set-procedure-property! procedure 'imposed-arity 
-			   (if (list? n) n `(,n 0 #f)))
-  procedure)
-
-(define (compose . fns)
+#;(define (compose . fns)
   (define (make-chain fn chains)
     (lambda args
       (call-with-values 
@@ -2104,6 +2103,26 @@
 		    '(0 0 #t)
 		    (arity (last fns)))
 		(reduce make-chain values fns)))
+
+(define (clip args #;to arity)
+  (match arity
+    ((min _ #f)
+     (take args min))
+    ((? number?)
+     (take args arity))
+    (_
+     args)))
+
+(define (compose . fns)
+  (define (make-chain fn chains)
+    (impose-arity
+     (arity fn)
+     (lambda args
+       (call-with-values 
+	   (lambda () (apply fn args))
+	 (lambda vals (apply chains (clip vals (arity chains))))))))
+  (let ((composer (reduce make-chain values fns)))
+    composer))
 
 (e.g.
  ((compose 1+ 1+ 1+) 0)
