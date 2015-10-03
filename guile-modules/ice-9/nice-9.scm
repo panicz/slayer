@@ -155,6 +155,20 @@
        #'(match-let/error ((structure expression) ...) 
 			  body + ...))
 
+      ((_ ((identifier identifiers ... expression)) body + ...)
+       (every identifier? #'(identifier identifiers ...))
+       #'(call-with-values (lambda () expression)
+	   (lambda (identifier identifiers ... . _)
+	     body + ...)))
+
+      ((_ ((structure structures ... expression)) body + ...)
+       #'(call-with-values (lambda () expression)
+	   (match-lambda* 
+	       ((structure structures ... . _) body + ...)
+	     (_ (error named-match-let-values 
+		       (current-source-location)
+		       'name)))))
+
       ;; it should generally be discouraged to use the plain let
       ;; with multiple values, because there's no natural way to implement
       ;; that when there's more than one (multiple-value) binding,
