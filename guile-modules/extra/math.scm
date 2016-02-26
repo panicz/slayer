@@ -31,6 +31,7 @@
 	   convex-hull/complex
 	   inside-hull?/complex
 	   box-center/complex
+	   complex->list
 	   ))
 
 (define (tensor-dimensions tensor)
@@ -618,6 +619,10 @@
 (define (fixed-point? x f)
   (equal? x (f x)))
 
+(define (complex->list c)
+  `(,(real-part c) ,(imag-part c)))
+
+;; convex-hull/complex: (complex ...) -> (complex ...)
 (publish
  (define (convex-hull/complex points)
    (assert (every complex? points))
@@ -625,7 +630,8 @@
 	  (sorted (sort points (lambda (a b)
 				 (< (angle (- a center))
 				    (angle (- b center))))))
-	  (initial (apply argmax (lambda (z)  (magnitude (- z center))) sorted))
+	  (initial (apply argmax (lambda (z) 
+				   (magnitude (- z center))) sorted))
 	  (former (_ . latter) (break (lambda (x) (= x initial)) sorted)))
      (let gather ((hull `(,initial))
 		  (remaining `(,@latter ,@former)))
