@@ -94,6 +94,7 @@
 	    cart cart-pow all-tuples all-pairs all-triples combinations 
 	    permutations insertions
 	    take-at-most drop-at-most rotate-left rotate-right sublist
+	    prefix? suffix? proper-suffix?
 	    remove-keyword-args keyword-ref
 	    delete-first alter pick skip
 	    array-size
@@ -1599,6 +1600,27 @@
       (reverse (sublist sequence #;from last #;to first))
       (take (drop sequence first) (- last first -1))))
 
+(define (suffix? x y)
+  (or (equal? x y)
+      (and (pair? y)
+	   (suffix? x (cdr y)))))
+
+(e.g. (suffix? '(c d e) '(a b c d e)))
+
+(define (proper-suffix? x y)
+  (and (not (equal? x y))
+       (suffix? x y)))
+
+(e.g. 
+ (not (proper-suffix? '(a b c) '(a b c))))
+
+(define (prefix? x y)
+  (and (list? x) (list? y)
+       (>= (length y) (length x))
+       (equal? x (take y (length x)))))
+
+(e.g. (prefix? '(a b c) '(a b c d e)))
+
 (define (for-each-n n fn lst)
   (if (<= n (length lst))
       (begin
@@ -1817,7 +1839,7 @@
  same-set?
  (map-n 2 list '(#:a 1 #:b 2 #:c 3)))
 
-(define (replace-alist-bindings bindings #;with other)
+(define (replace-alist-bindings #;from bindings #;with other)
   (map (lambda ((key . value))
 	 (match (assoc key other)
 	   ((same-key . other-value)
