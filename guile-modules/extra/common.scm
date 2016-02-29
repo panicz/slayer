@@ -35,7 +35,7 @@
 	       first second third fourth fifth sixth seventh eighth ninth tenth
 	       car+cdr take drop take-right drop-right split-at last
 	       concatenate zip unzip1 unzip2 unzip3 unzip4 unzip5
-	       fold fold-right pair-fold reduce reduce-right unfold-right
+	       fold reduce reduce-right unfold-right
 	       append-map filter-map partition remove remove! find find-tail
 	       take-while drop-while span break list-index
 	       delete delete! delete-duplicates delete-duplicates!
@@ -70,6 +70,7 @@
 	       pretty-print format read-line read-delimited
 	       )
   #:export (
+	    fold-left fold-right
 	    unknot listify stringify every. any.
 	    expand-form ?not ?and ?or in?
 	    hash-keys hash-values hash-copy hash-size merge-hashes!
@@ -164,6 +165,20 @@
 	       (lambda (temporaria ...)
 		 (set! definienda temporaria)
 		 ...))))))))
+
+(define (fold-left op e . ls)
+  (match ls
+    (((heads . tails) ...)
+     (apply fold-left op (apply op e heads) tails))
+    (_
+     e)))
+
+(define (fold-right op e . ls)
+  (match ls
+    (((heads . tails) ...)
+     (apply op (apply fold-right op e tails) heads))
+    (_
+     e)))
 
 ;; every and any that work for dotted lists:
 (define (every. pred l)
