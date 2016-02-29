@@ -4,6 +4,8 @@
   #:use-module (extra math)
   #:use-module (extra ref)
   #:use-module (editor poses)
+  #:use-module (editor limbs)
+  #:use-module (editor relations)
   #:export (
 	    control!
 	    reset-behaviors!
@@ -151,6 +153,7 @@
 	  (replace-alist-bindings (or #[rig-poses rig] (tail (null-pose rig)))
 				  #;with pose))))
 
+
 ;; wszystko fajnie, ale idealne rozwiązanie byłoby dla nas takie:
 ;; - rejestrujemy pozę + callback
 ;; - pozy zarejestrowane wcześniej mają wyższy priorytet, tzn. w razie
@@ -207,6 +210,107 @@
     (let ((error (- desired-value angle)))
       (force-hinge! joint (+ (* kp error) (* kd rate))))))
 
+
+  ;; no, i tutaj sie zaczyna! 
+  ;; plan działania jest następujący:
+
+  ;; 1. dokonujemy rzutowania punktów kontaktowych
+  ;; na płaszczyznę grawitacji. w ten sposób otrzymujemy
+  ;; figurę stabilności, oraz transformację liniową (macierz
+  ;; albo kwaternion), pozwalającą na transformację naszych
+  ;; rozważań na płaszczyznę (x, y).
+
+  ;; 2. określamy sobie kończyny podpierające i rozpisujemy
+  ;; środek masy (albo rzut środka masy) jako funkcję
+  ;; kątów kończyny podpierającej (dla każdej kończyny)
+
+  ;; 3. dla każdej z kończyn wyliczamy (z SVD) takie kąty,
+  ;; żeby rzut środka masy znalazł się w położeniu środka
+  ;; geometrycznego figury stabilności. Te nowe kąty
+  ;; wyznaczają naszą nową pozę (gdyby strategia prostej
+  ;; superpozycji nie działała, moglibyśmy spróbować
+  ;; strategii foldowania)
+
+  ;; Teraz na nowo musimy sobie przypomnieć, jak wygląda
+  ;; działanie funkcji body-contacts:
+  ;; (body-contacts b1) 
+  ;;    -> ((b2 (pos1 norm1 depth1) (pos2 norm2 depth2) ...) ...)
+  ;; 
+
+(define (contact-bodies+points rig)
+  (let* ((own-bodies (rig-bodies rig))
+	 (mass-center (rig-mass-center rig))
+	 (((support-bodies (contact-points normals depths) ...) ...)
+	  (append-map (lambda (body)
+			(filter-map (lambda ((touched-body . details))
+				      (and (not (in? own-bodies 
+						     touched-body))
+					   `(,body . ,details)))
+				    (body-contacts body)))
+		      own-bodies))
+	 (support-bodies (delete-duplicates support-bodies)))
+    (values support-bodies contact-points)))
+
+(define (stability-region contact-points to-XY-plane)
+  (convex-hull/complex
+   (map (lambda (point)
+	  (let (((x y z)
+		 (vector->list
+		  (rotate point 
+			  to-XY-plane))))
+	    (make-rectangular x y)))
+	contact-points)))
+
+#| -- under construction:
+(define (stabilize pose #;of rig)
+  (or
+   (and-let* ((simulation (rig-simulation rig))
+	      (gravity (simulation-property simulation 'gravity))
+	      (own-bodies (rig-bodies rig))
+	      (mass-center (rig-mass-center rig))
+	      (support-bodies contact-points (contact-bodies+points rig))
+	      ((not (null? support-bodies)))
+	      (to-XY-plane (rotation-quaternion #;from gravity #;to #(0 0 1)))
+	      (stability-region (stability-region contact-points to-XY-plane))
+	      (desired-center/XY (box-center/complex stability-region))
+	      (mass-center/XY (let (((x y z) (vector->list 
+					      (rotate mass-center to-XY-plane))))
+				(make-rectangular x y)))
+	      (displacement (let* (((x y) (complex->list (- desired-center/XY
+							    mass-center/XY)))
+				   (displacement/XY (list->uniform-vector 
+						     'f32 `(,x ,y ,0))))
+			      (rotate displacement/XY (~ to-XY-plane))))
+	      (joint-sequences (map (lambda (body)
+				      (joint-sequence-to-nearest-member 
+				       hub? #;from body))
+				    support-bodies))
+	      (joint-sequences (remove (lambda (sequence)
+					 (any (lambda (other-sequence)
+						(proper-suffix? sequence 
+								other-sequence))
+					      joint-sequences))
+				       joint-sequences))
+	      (functions/angles (map (lambda (sequence)
+				       (tip/angles sequence mass-center))
+				     joint-sequences))
+	      (desired-poses (map (lambda (mass-center/angles sequence)
+				    (let* ((angles (map (lambda (joint)
+							  (joint-property joint 'angle))
+							sequence))
+					   (names (map joint-name sequence))
+					   (desired (desired-configuration 
+						     mass-center 
+						     desired-mass-center
+						     angles
+						     mass-center/angles)))
+				      (assert (eq? mass-center (mass-center/angles)))
+				      (map cons names desired)))
+				  functions/angles joint-sequences)))
+     (fold-left combine-poses pose desired-poses))
+   pose))
+|#
+
 (define (control!)
   (for (rig => behaviors) in rig-behaviors
     (for (trigger-pose . reaction!) in behaviors
@@ -216,6 +320,7 @@
 
   (for (rig => rig-pose) in rig-poses
     (let ((muscles #[rig-muscles rig]))
+      ;;(rig-pose (stabilize rig-pose rig)))
       ;;(<< (pose-distance `(pose ,@rig-pose) (pose #;of rig)))
       (for (joint-name . value) in rig-pose
 	(let* ((joint (joint-named joint-name #;from rig))
@@ -223,3 +328,15 @@
 	  (when value
 	    (muscle-joint! #;to value))))
       )))
+
+
+;; plan działania: (chyba już coś takiego było robione na lenovie,
+;; ale dopóki nie odzyskam dysku twardego, będę musiał improwizować
+;; od nowa).
+;; chcemy mieć nową funkcję, "stabilize", która pobiera punkty
+;; kontaktowe i zwraca skorygowaną pozę. Może zresztą powinniśmy
+;; móc sterować w trybie stabilizacji? Nie wiadomo.
+
+;; Zasadniczo więc jesteśmy w następującej sytuacji. Albo się
+;; poruszamy (jesteśmy w trakcie wykonywania ruchu), albo stoimy
+;; w miejscu

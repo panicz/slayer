@@ -17,7 +17,6 @@
   #:export (
 	     desired-configuration
 	     global-positions
-	     kinematic-chain
 	     set-pose!
 	     apply-stops!
 
@@ -81,25 +80,6 @@
     (set-pose! #;of rig #;to pose #:keeping keeping)))
 
 (publish
- (define (kinematic-chain<-anchors+axes+angles anchors axes angles)
-   (kinematic-chain (zip anchors axes angles)))
- where
- (define (kinematic-chain global-sequence)
-   (match global-sequence
-     (()
-      '())
-     (((anchor axis angle) . rest)
-      `((,anchor ,axis ,angle)
-	,@(kinematic-chain
-	   (map (lambda ((local-anchor local-axis local-angle))
-		  `(,(rotate (- local-anchor anchor)
-			     #;by (- angle) #;around axis)
-		    ,(rotate local-axis #;by (- angle) #;around axis)
-		    ,local-angle))
-		rest)))))))
-
-
-(publish
  (define (global-positions kinematic-chain angles)
    (map (lambda ((anchor rotation)) 
 	  anchor)
@@ -124,27 +104,6 @@
 	      (new-rotation (* rotation local-rotation)))
 	  (loop rest (cons (list new-anchor new-rotation) result)
 		new-anchor new-rotation)))))))
-
-(define (tip-position chain angles local-position)
-  (let loop ((angles angles)
-	     (anchors+axes chain)
-	     (translation #f32(0 0 0))
-	     (rotation '(1.0 . #f32(0 0 0))))
-    (match anchors+axes
-      (()
-       (+ translation (rotate local-position #;by rotation)))
-      (((local-anchor local-axis) . remaining-anchors+axes)
-       (let* (((alpha . remaining-angles) angles)
-	      (q (rotation-quaternion #;around local-axis #;by alpha)))
-	 (loop remaining-angles 
-	       remaining-anchors+axes
-	       (+ translation (rotate local-anchor #;by rotation))
-	       (* rotation q)))))))
-
-(define (kinematic-chain anchors axes angles)
-  (map (lambda ((anchor axis angle))
-	 `(,anchor ,axis))
-       (kinematic-chain<-anchors+axes+angles anchors axes angles)))
 
 (define (desired-configuration initial-position desired-position
 			       initial-configuration system-equation)
@@ -172,29 +131,12 @@
 		 (array? jacobian+) (in? (array-type jacobian+) '(f32 f64))))
     result))
 
-
-(define (tip/angles joint-sequence #;to global-tip)
-  (let* ((((anchors+ axes+ angles+) ...)
-	  `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
-	    (,global-tip #f32(0 0 0) 0.0)))
-	 ((chain ... (local-tip . _)) (kinematic-chain 
-				       anchors+ axes+ angles+)))
-    (values
-     (impose-arity
-      (length chain)
-      (lambda angles
-	(tip-position chain angles local-tip)))
-     (fold + 0 (map (lambda ((local-anchor local-axis))
-		      (norm local-anchor))
-		    chain))
-     (map normalized (drop-right axes+ 1)))))
-
 (publish
  (define* (apply-inverse-kinematics! #;of body #;to desired-position 
 					  #:optional #;at (member-type? hub?)
 					  #;with (max-step 0.02))
-   (and-let* ((joint-sequence pivot (joint-sequence-to+nearest-member
-				     member-type? #;from body))
+   (and-let* ((joint-sequence pivot (joint-sequence-from+nearest-member
+				     member-type? #;to body))
 	      ((> (length joint-sequence) 1))
 	      (global-position (body-property body 'position))
 	      (system-equation 
@@ -210,21 +152,22 @@
      (let improve ((improvement 0)
 		   (remaining distance)
 		   (current-position global-position))
-       (let ((angles (map (lambda (joint) (joint-property joint 'angle)) 
+       (let ((angles (map (lambda (joint)
+			    (joint-property joint 'angle))
 			  joint-sequence)))
 	 (if (positive? remaining)
 	     (let* ((improved-position 
 		     (if (< remaining max-step)
 			 reachable-position
 			 (+ current-position (* direction max-step))))
-		    ((new-angles- ... _) 
+		    ((new-angles- ... _)
 		     (desired-configuration current-position
 					    improved-position
 					    angles 
 					    system-equation))
-		    (new-angles 
-		     `(,@new-angles- 
-		       ,(apply - 0.0 (map (lambda (angle axis)
+		    (new-angles      ; we replace the last angle, so that
+		     `(,@new-angles- ; the orientation of the last body
+		       ,(apply - 0.0 (map (lambda (angle axis) ; remains fixed
 					    (* angle (* axis last-axis)))
 					  new-angles- axes-))))
 		    (new-pose 

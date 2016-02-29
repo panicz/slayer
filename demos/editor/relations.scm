@@ -15,11 +15,15 @@
 	    bodies-attached-to
 	    body-island-leaves
 	    shortest-joint-sequence-from+furthest-end
-	    joint-sequence-to+nearest-member
+	    joint-sequence-from+nearest-member
+	    joint-sequence-to-nearest-member
 	    body-sequence<-hinge-joint-sequence
 	    hinge-joint-sequence-directions
 	    hinge-joint-sequence-anchors+axes+angles
 	    joint-sequence<-body-sequence
+	    tip-position
+	    tip/angles
+	    kinematic-chain
 	    ))
 
 ;; Throughout this module, we understand that two bodies are ATTACHED
@@ -119,7 +123,7 @@
 			 `(,start ,@subchain))
 		       subchains)))))))
 
-(define (joint-sequence-to+nearest-member member? #;from body)
+(define (joint-sequence-from+nearest-member member? #;to body)
   (let* ((body-sequence (reverse (apply argmin length
 					(body-sequences 
 					 #;from body
@@ -127,6 +131,12 @@
 	 ((member . _) body-sequence)
 	 (joint-sequence (joint-sequence<-body-sequence body-sequence)))
     (values joint-sequence member)))
+
+(define (joint-sequence-to-nearest-member member? #;from body)
+  (let* ((body-sequence (apply argmin length 
+			       (body-sequences #;from body
+						      #;until member?))))
+    (joint-sequence<-body-sequence body-sequences)))
 
 (define (joint-sequence<-body-sequence body-sequence)
   (let (((starting-bodies ... _) body-sequence)
@@ -198,3 +208,59 @@
 		 ,(* direction (the 'axis)) 
 		 ,(the 'angle))))
 	   joint-sequence directions))))
+
+(define (tip-position chain angles local-position)
+  (let loop ((angles angles)
+	     (anchors+axes chain)
+	     (translation #f32(0 0 0))
+	     (rotation '(1.0 . #f32(0 0 0))))
+    (match anchors+axes
+      (()
+       (+ translation (rotate local-position #;by rotation)))
+      (((local-anchor local-axis) . remaining-anchors+axes)
+       (let* (((alpha . remaining-angles) angles)
+	      (q (rotation-quaternion #;around local-axis #;by alpha)))
+	 (loop remaining-angles 
+	       remaining-anchors+axes
+	       (+ translation (rotate local-anchor #;by rotation))
+	       (* rotation q)))))))
+
+(define (kinematic-chain anchors axes angles)
+  (map (lambda ((anchor axis angle))
+	 `(,anchor ,axis))
+       (kinematic-chain<-anchors+axes+angles anchors axes angles)))
+
+(publish
+ (define (kinematic-chain<-anchors+axes+angles anchors axes angles)
+   (kinematic-chain (zip anchors axes angles)))
+ where
+ (define (kinematic-chain global-sequence)
+   (match global-sequence
+     (()
+      '())
+     (((anchor axis angle) . rest)
+      `((,anchor ,axis ,angle)
+	,@(kinematic-chain
+	   (map (lambda ((local-anchor local-axis local-angle))
+		  `(,(rotate (- local-anchor anchor)
+			     #;by (- angle) #;around axis)
+		    ,(rotate local-axis #;by (- angle) #;around axis)
+		    ,local-angle))
+		rest)))))))
+
+;; tip/angles: (joint ...) x vector3 -> (angles -> vector3) real 
+(define (tip/angles joint-sequence #;to global-tip)
+  (let* ((((anchors+ axes+ angles+) ...)
+	  `(,@(hinge-joint-sequence-anchors+axes+angles joint-sequence)
+	    (,global-tip #f32(0 0 0) 0.0)))
+	 ((chain ... (local-tip . _)) (kinematic-chain 
+				       anchors+ axes+ angles+)))
+    (values
+     (impose-arity
+      (length chain)
+      (lambda angles
+	(tip-position chain angles local-tip)))
+     (fold + 0 (map (lambda ((local-anchor local-axis))
+		      (norm local-anchor))
+		    chain))
+     (map normalized (drop-right axes+ 1)))))

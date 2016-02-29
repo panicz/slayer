@@ -16,9 +16,9 @@
 		(rig-joints rig))))
 
 (define (combine-poses a b)
-  (match-let ((('pose . pose-a) a)
-	      (('pose . pose-b) b))
-    `(pose ,@(replace-alist-bindings pose-a pose-b))))
+  (let ((('pose . pose-a) a)
+	(('pose . pose-b) b))
+    `(pose ,@(replace-alist-bindings #;of pose-a #;with-values-from pose-b))))
 
 (define (pose #;of rig)
   `(pose ,@(map (lambda (joint)
