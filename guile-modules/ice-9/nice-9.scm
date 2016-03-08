@@ -165,14 +165,29 @@
        #'(call-with-values (lambda () expression)
 	   (match-lambda* 
 	       ((structure structures ... . _) body + ...)
-	     (_ (error named-match-let-values 
+	     (_ (error 'named-match-let-values 
 		       (current-source-location)
 		       'name)))))
+
+      ((_ name ((identifier identifiers ... expression) body + ...))
+       (and (identifier? #'name)
+	    (every identifier? #'(identifier identifiers ...)))
+       #'(let ((name (lambda (identifier identifiers ...) body + ...)))
+	   (call-with-values (lambda () expression) name)))
+
+      ((_ name ((structure structures ... expression) body + ...))
+       (identifier? #'name)
+       #'(let ((name (match-lambda* ((structure structures ...) body + ...)
+		       (_ (error 'named-match-let-values
+				 (current-source-location)
+				 'name)))))
+	   (call-with-values (lambda () expression) name)))
 
       ;; it should generally be discouraged to use the plain let
       ;; with multiple values, because there's no natural way to implement
       ;; that when there's more than one (multiple-value) binding,
-      ;; but it's added for completeness
+      ;; but it could be added for completeness
+#|
       ((_ ((structure structures ... expression) ...)
 	  body + ...)
        #'(match-let/error (((structure structures ... . _) 
@@ -190,10 +205,11 @@
 					      (loop (list<-values args)
 						    (... ...))))))
 			  body + ...))
-		     (_ (error named-match-let-values 
+		     (_ (error 'named-match-let-values 
 			       (current-source-location)
 			       'name)))))
 		  (loop (list<-values expression) ...)))
+|#
       )))
 
 (define-syntax match-let*-values
@@ -271,10 +287,12 @@
       ((_ ((values ... expression) rest ...) body ...)
        (every identifier? #'(values ...))
        #'(call-with-values (lambda () expression)
-	   (lambda (values ... . _)
-	     (and values ...
-		  (and-let*/match (rest ...)
-		    body ...)))))
+	   (match-lambda* 
+	       ((values ... . _)
+		(and values ...
+		     (and-let*/match (rest ...)
+				     body ...)))
+	     (_ #f))))
 
       ;; this behavior can be questionable, but to increase coherence,
       ;; every identifier bound with multiple values at the top level
