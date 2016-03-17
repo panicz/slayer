@@ -2,9 +2,8 @@
 exit
 !#
 
-(set! %load-path (append '("." "./guile-modules" ".." "../guile-modules"
-			   "./scum")
-			 %load-path))
+(set! %load-path `("." "./guile-modules" ".." "../guile-modules"
+		   "./scum" ,@%load-path))
 
 (use-modules 
  (slayer)
@@ -119,7 +118,6 @@ exit
     (save-rig-state! #;of the-rig)
     (reset-rig! the-rig)))
 
-
 ;; making these available for evaluations (cf "posed/evaluation.ss")
 
 (define erp 'error-reduction-parameter)
@@ -156,13 +154,53 @@ exit
 
 (keydn 'h (rotate-around-joint-mode view))
 
-(add-timer! 
- 10 
- (lambda()
-   (unless #[editor 'pause]
-     (make-simulation-step! the-simulation)
-     (control!))))
+;; jak byśmy chcieli rysować te wszystkie dziadostwa pomocnicze
+;; w idealnym przypadku? nie wiadomo!
 
+(define desired-center
+  (make <3d-object>
+    #:mesh 
+    '(mesh (vertices #2f32((0 0.1 0) (0 -0.1 0) (0.1 0 0)
+			   (-0.1 0 0) (0 0 0.1) (0 0 -0.1)))
+	   (color #f32(0 0 1))
+	   (faces (triangles #2u8((0 2 4) (0 3 4) (0 2 5) (0 3 5)
+				  (1 2 4) (1 3 4) (1 2 5) (1 3 5)))))))
+
+(define stability-hull
+  (make <3d-object>
+    #:mesh '(mesh)))
+
+(push! #[physical-objects '%permanent-objects] desired-center)
+(push! #[physical-objects '%permanent-objects] stability-hull)
+
+(add-timer! 
+ 1000
+ (lambda()
+   (specify ((debug-stabilize
+	      (lambda (desired-mass-center stability-region contact-points to-XY-plane . _)
+		(set! #[desired-center 'position] desired-mass-center)
+		(let* ((zs (map (lambda (point)
+				  (uniform-vector-ref point 2))
+				contact-points))
+		       (z (/ (fold-left + 0.0 zs) (length zs)))
+		       (points (map (lambda (complex)
+				      (let* ((p `(,@(complex->list
+						     complex) 0))
+					     (v (list->uniform-array p))
+					     ((x y _) (uniform-vector->list
+						       (rotate v (~ to-XY-plane)))))
+					`(,x ,y ,z)))
+				    stability-region))
+		       (vertices (list->uniform-array points))
+		       (indices (list->uniform-array (iota (length points))))
+		       (mesh `(mesh (vertices ,vertices)
+				    (color #f32(1 1 0))
+				    (faces (polygon ,indices)))))
+		  (set! #[stability-hull 'mesh] mesh)))))
+     (unless #[editor 'pause]
+       (make-simulation-step! the-simulation)
+       (control!)))))
+ 
 (let ((camera #[view 'camera]))
   (set! #[camera 'position] #f32(0 -6 -0.7))
   (set! #[camera 'orientation] (normalized '(1.0 . #f32(1 0 0)))))
@@ -310,14 +348,20 @@ exit
   (target #:init-keyword #:of)
   (mesh #:allocation #:class
 	 #:init-value
-	 '(mesh (vertices #2f32((0 0 -1000) (0 0 1000)))
+	 '(mesh (vertices #2f32((0 0 -10) (0 0 0)))
 		(color #f32(1 0 0))
-		(faces (lines #u8(0 1)))))
-  (position 
+		(faces (lines #u8(0 1)))
+		(vertices #2f32((0 0.1 0) (0 -0.1 0) (0.1 0 0)
+				(-0.1 0 0) (0 0 0.1) (0 0 -0.1)))
+		(color #f32(1 0 0))
+		(faces (triangles #2u8((0 2 4) (0 3 4) (0 2 5) (0 3 5)
+				       (1 2 4) (1 3 4) (1 2 5) (1 3 5))))))
+  (position
    #:allocation #:virtual
    #:slot-ref
    (lambda (self) (rig-mass-center #[self 'target]))
    #:slot-set! noop))
+
 
 (let ((center (make <mass-center> #:of the-rig)))
   (keydn 'm
