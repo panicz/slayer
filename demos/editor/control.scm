@@ -6,6 +6,7 @@
   #:use-module (editor poses)
   #:use-module (editor limbs)
   #:use-module (editor relations)
+  #:use-module (editor modes)
   #:export (
 	    control!
 	    reset-behaviors!
@@ -242,74 +243,91 @@
 	 (mass-center (rig-mass-center rig))
 	 (((support-bodies (contact-points normals depths) ...) ...)
 	  (append-map (lambda (body)
-			(filter-map (lambda ((touched-body . details))
-				      (and (not (in? own-bodies 
-						     touched-body))
-					   `(,body . ,details)))
-				    (body-contacts body)))
-		      own-bodies))
+		 (filter-map (lambda ((touched-body . details))
+			       (and (not (in? touched-body 
+					      own-bodies))
+				    `(,body . ,details)))
+			     (body-contacts body)))
+	       own-bodies))
 	 (support-bodies (delete-duplicates support-bodies)))
-    (values support-bodies contact-points)))
+    (values 
+     support-bodies 
+     (concatenate contact-points))))
 
 (define (stability-region contact-points to-XY-plane)
-  (convex-hull/complex
-   (map (lambda (point)
-	  (let (((x y z)
-		 (vector->list
-		  (rotate point 
-			  to-XY-plane))))
-	    (make-rectangular x y)))
-	contact-points)))
+  (let* ((points/complex (map (lambda (point)
+				(let (((x y z)
+				      (uniform-vector->list
+				       (rotate point 
+					       to-XY-plane))))
+				  (make-rectangular x y)))
+			      contact-points))
+	 (convex-hull/complex points/complex))))
 
-#| -- under construction:
-(define (stabilize pose #;of rig)
-  (or
-   (and-let* ((simulation (rig-simulation rig))
-	      (gravity (simulation-property simulation 'gravity))
-	      (own-bodies (rig-bodies rig))
-	      (mass-center (rig-mass-center rig))
-	      (support-bodies contact-points (contact-bodies+points rig))
-	      ((not (null? support-bodies)))
-	      (to-XY-plane (rotation-quaternion #;from gravity #;to #(0 0 1)))
-	      (stability-region (stability-region contact-points to-XY-plane))
-	      (desired-center/XY (box-center/complex stability-region))
-	      (mass-center/XY (let (((x y z) (vector->list 
-					      (rotate mass-center to-XY-plane))))
-				(make-rectangular x y)))
-	      (displacement (let* (((x y) (complex->list (- desired-center/XY
-							    mass-center/XY)))
-				   (displacement/XY (list->uniform-vector 
-						     'f32 `(,x ,y ,0))))
-			      (rotate displacement/XY (~ to-XY-plane))))
-	      (joint-sequences (map (lambda (body)
-				      (joint-sequence-to-nearest-member 
-				       hub? #;from body))
-				    support-bodies))
-	      (joint-sequences (remove (lambda (sequence)
-					 (any (lambda (other-sequence)
-						(proper-suffix? sequence 
-								other-sequence))
-					      joint-sequences))
-				       joint-sequences))
-	      (functions/angles (map (lambda (sequence)
-				       (tip/angles sequence mass-center))
-				     joint-sequences))
-	      (desired-poses (map (lambda (mass-center/angles sequence)
-				    (let* ((angles (map (lambda (joint)
-							  (joint-property joint 'angle))
-							sequence))
-					   (names (map joint-name sequence))
-					   (desired (desired-configuration 
-						     mass-center 
-						     desired-mass-center
-						     angles
-						     mass-center/angles)))
-				      (assert (eq? mass-center (mass-center/angles)))
-				      (map cons names desired)))
-				  functions/angles joint-sequences)))
-     (fold-left combine-poses pose desired-poses))
-   pose))
-|#
+(with-default ((debug-stabilize noop))
+  (define (stabilize pose #;of rig)
+    (specify ((joint-property-getter joint-property)
+	      (body-rig-getter body-rig)
+	      (rig-joints-getter rig-joints))
+      (or
+       (and-let* ((simulation (rig-simulation rig))
+		  (gravity (simulation-property simulation 'gravity))
+		  (mass-center (rig-mass-center rig))
+		  (support-bodies contact-points (contact-bodies+points rig))
+		  ((and (>= (length support-bodies) 0) (> (length contact-points) 3)))
+		  (to-XY-plane (rotation-quaternion #;from gravity #;to #f32(0 0 1)))
+		  (stability-region (stability-region contact-points to-XY-plane))
+		  (mass-center/XY (let (((x y z) (uniform-vector->list 
+						  (rotate mass-center to-XY-plane))))
+				    (make-rectangular x y)))
+		  ;; we don't want to fix pose if we're already inside hull
+		  ((not (inside-hull?/complex mass-center/XY stability-region)))
+		  ;; i teraz tak: pożądanym punktem, zamiast środka otoczki,
+		  ;; powinien być jakiś dogodny punkt znajdujący się wewnątrz
+		  ;; otoczki. Rodzi to pytanie następujące: jak wyznaczyć najbliższy
+		  ;; punkt względem danej otoczki?
+		  (desired-center/XY (box-center/complex stability-region))
+		  (displacement (let* (((x y) (complex->list (- desired-center/XY
+								mass-center/XY)))
+				       (displacement/XY (list->uniform-vector 
+							 'f32 `(,x ,y ,0))))
+				  (rotate displacement/XY (~ to-XY-plane))))
+		  (desired-mass-center (+ mass-center displacement))
+		  (joint-sequences (map (lambda (body)
+					  (joint-sequence-to-nearest-member 
+					   hub? #;from body))
+					support-bodies))
+		  (joint-sequences (filter (lambda (sequence)
+					     (>= (length sequence) 2))
+					   joint-sequences))
+		  (joint-sequences (remove (lambda (sequence)
+					     (any (lambda (other-sequence)
+						    (proper-suffix? sequence 
+								    other-sequence))
+						  joint-sequences))
+					   joint-sequences))
+		  ((not (null? joint-sequences)))
+		  (functions/angles (map (lambda (sequence)
+					   (tip/angles sequence mass-center))
+					 joint-sequences))
+		  (desired-poses (map (lambda (mass-center/angles sequence)
+					(let* ((angles (map (lambda (joint)
+							      (joint-property joint 'angle))
+							    sequence))
+					       (names (map joint-name sequence))
+					       (desired (desired-configuration
+							 mass-center
+							 desired-mass-center
+							 angles
+							 mass-center/angles)))
+					  (assert (eq? mass-center (mass-center/angles)))
+					  `(pose . ,(map cons names desired))))
+				      functions/angles joint-sequences))
+		  (('pose . pose) (fold-left combine-poses `(pose . ,pose) desired-poses)))
+	 ((specific debug-stabilize) desired-mass-center stability-region contact-points
+	  to-XY-plane)
+	 pose)
+       pose))))
 
 (define (control!)
   (for (rig => behaviors) in rig-behaviors
@@ -319,8 +337,8 @@
 	  (reaction! rig pose)))))
 
   (for (rig => rig-pose) in rig-poses
-    (let ((muscles #[rig-muscles rig]))
-      ;;(rig-pose (stabilize rig-pose rig)))
+    (let ((muscles #[rig-muscles rig])
+	  (rig-pose (stabilize rig-pose rig)))
       ;;(<< (pose-distance `(pose ,@rig-pose) (pose #;of rig)))
       (for (joint-name . value) in rig-pose
 	(let* ((joint (joint-named joint-name #;from rig))
