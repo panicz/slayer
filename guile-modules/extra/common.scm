@@ -1007,22 +1007,6 @@
 	`(,(apply proc (map (specific first) ls))
 	  ,@(apply map* proc (map (specific rest) ls))))))
 
-(define (map/values f . ls)
-  (assert (pair? ls))
-  (let loop ((ls ls)
-	     (result '()))
-    (if (null? (car ls))
-	(if (null? result)
-	    '()
-	    (unzip (length (car result)) (reverse result)))
-	(loop (map cdr ls)
-	      `(,(call-with-values (lambda () (apply f (map car ls))) list)
-		,@result)))))
-
-(e.g.
- (map/values values '(1 2 3) '(a b c))
- ===> (1 2 3) (a b c))
-
 (define (scan op e l)
   (match l
     (()
@@ -1603,11 +1587,38 @@
 (define (?or . predicates)
   (lambda(x) (any (lambda(p)(p x)) predicates)))
 
-(define (map-n n fn l . lists) 
-  (if (any (lambda(l)(< (length l) n)) (cons l lists))
-      '()
-      (cons (apply fn (append-map (lambda(l)(take l n)) (cons l lists)))
-	    (apply map-n n fn (map (lambda(l)(drop l n)) (cons l lists))))))
+(define (map/values f . ls)
+  (assert (pair? ls))
+  (let loop ((ls ls)
+	     (result '()))
+    (if (null? (car ls))
+	(if (null? result)
+	    '()
+	    (unzip (length (car result)) (reverse result)))
+	(loop (map cdr ls)
+	      `(,(call-with-values (lambda () (apply f (map car ls))) list)
+		,@result)))))
+
+(e.g.
+ (map/values values '(1 2 3) '(a b c))
+ ===> (1 2 3) (a b c))
+
+(define (map-n n fn . lists)
+  (define (map-n* lists)
+    (if (any (lambda (l) (< (length l) n)) lists)
+	(values '() lists)
+	(let* ((heads tails (map/values (lambda (l) (split-at l n)) lists))
+	       (mapped (apply fn (concatenate heads)))
+	       (result rest (map-n* tails)))
+	  (values
+	   `(,mapped . ,result)
+	   rest))))
+  (let ((result rest (map-n* lists)))
+    (apply values result rest)))
+
+(e.g.
+ (map-n 2 + '(1 2 3 4 5))
+ ===> (3 7) (5))
 
 (define* (sublist sequence #:optional 
 	      #;from (first 0) #;to (last (- (length sequence) 1)))
