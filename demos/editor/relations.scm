@@ -24,6 +24,8 @@
 	    tip-position
 	    tip/angles
 	    kinematic-chain
+
+	    desired-configuration
 	    ))
 
 ;; Throughout this module, we understand that two bodies are ATTACHED
@@ -136,7 +138,7 @@
   (let* ((body-sequence (apply argmin length 
 			       (body-sequences #;from body
 						      #;until member?))))
-    (joint-sequence<-body-sequence body-sequences)))
+    (joint-sequence<-body-sequence body-sequence)))
 
 (define (joint-sequence<-body-sequence body-sequence)
   (let (((starting-bodies ... _) body-sequence)
@@ -264,3 +266,29 @@
 		      (norm local-anchor))
 		    chain))
      (map normalized (drop-right axes+ 1)))))
+
+(define (desired-configuration initial-position desired-position
+			       initial-configuration system-equation)
+  ;; inverse kinematics routine.
+  ;; initial and desired positions are expressed in global coordinate system.
+  ;; 
+  (assert (and (uniform-vector? initial-position)
+	       (uniform-vector? desired-position)
+	       (list? initial-configuration)
+	       (list? (desired-configuration 
+		       initial-position desired-position 
+		       initial-configuration system-equation))))
+  (let* ((position-increment (- desired-position initial-position))
+	 (jacobian (apply ((isotropic-jacobian-approximation 
+			    #;of (compose uniform-vector->list 
+					  system-equation))
+			   #;by 0.00001)
+			  #;to initial-configuration))
+	 (jacobian+ (pseudoinverse #;of jacobian))
+	 (angle-increment (uniform-vector->list 
+			   (* jacobian+ position-increment)))
+	 (result (map normalized-radians 
+		      (map + initial-configuration angle-increment))))
+    (assert (and (list? jacobian) (every list? jacobian)
+		 (array? jacobian+) (in? (array-type jacobian+) '(f32 f64))))
+    result))
