@@ -126,7 +126,8 @@
 	body + ...)
      ((match-lambda* ((structure ...) body + ...)
 	(_ (error 'match-let/error (current-source-location) 
-		  '((structure expression) ...))))
+		  '((structure expression) ...)
+		  expression ...)))
       expression ...))))
 
 (define-syntax named-match-let-values
