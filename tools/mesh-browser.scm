@@ -59,5 +59,9 @@
 (key 'left (lambda () (relative-turn! #[view 'camera] 2 0)))
 (key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
+(set! #[view 'drag] (lambda (x y dx dy)
+		      (relative-turn! #[view 'camera] (- dx) (- dy))))
+
+
 (keydn "[" (lambda () (show-mesh! (+ *mesh-index* 1))))
 (keydn "]" (lambda () (show-mesh! (- *mesh-index* 1))))
