@@ -4,7 +4,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 
 AC_CONFIG_HEADERS([config.h])
 
-AM_INIT_AUTOMAKE([-Wall -Werror])
+AM_INIT_AUTOMAKE([-Wall])
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
 

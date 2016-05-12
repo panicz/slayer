@@ -1,7 +1,7 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
 # flags set by pkg-config
-AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) -Wall -Werror \
+AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) -Wall \
 	$(AM_LDFLAGS)
 
 AM_CXXFLAGS = $(AM_CFLAGS)
