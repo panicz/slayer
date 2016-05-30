@@ -31,6 +31,7 @@
 	   convex-hull/complex
 	   inside-hull?/complex
 	   box-center/complex
+	   hull-intersection/complex
 	   complex->list
 	   ))
 
@@ -658,6 +659,15 @@
    (every (lambda (a b)
 	    (not (above? point (line #;from a #;to b))))
 	  hull (rotate-left hull 1)))
+ (define (hull-intersection/complex hull outside-point/complex)
+   (assert (not (inside-hull?/complex outside-point/complex hull)))
+   (let ((center (box-center/complex hull)))
+     (any (lambda (this next)
+	    (segment-intersection (segment #;from this #;to next)
+				  (segment #;from outside-point/complex
+						  #;to center)))
+	  hull
+	  (rotate-left hull 1))))
  where
  (define (line #;from a #;to b)
    (assert (and (complex? a) (complex? b)))
@@ -665,6 +675,19 @@
 	  (direction (/ b-a (magnitude b-a)))
 	  (displacement (- a (* (dot a direction) direction))))
      `(,direction . ,displacement)))
+ (define (segment #;from a #;to b)
+   (let ((a->b (- b a)))
+     `(,a . ,a->b)))
+ (define (segment-intersection (a . a->b) (c . c->d))
+   (and-let* ((a->b.x.c->d (cross a->b c->d))
+	      ((> (abs a->b.x.c->d) epsilon))
+	      (c-a (- c a))
+	      (ab-scale (/ (cross c-a c->d) a->b.x.c->d))
+	      (cd-scale (/ (cross c-a a->b) a->b.x.c->d))
+	      ((< 0 ab-scale 1))
+	      ((< 0 cd-scale 1)))
+     (assert (= (+ a (* ab-scale a->b)) (+ c (* cd-scale c->d))))
+     (+ a (* ab-scale a->b))))
  (define (above? point line)
    (let (((direction . displacement) line))
      (positive? (cross direction (- point displacement)))))
