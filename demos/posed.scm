@@ -174,23 +174,25 @@ exit
 (push! #[physical-objects '%permanent-objects] stability-hull)
 
 (add-timer! 
- 1000
- (lambda()
+ 100
+ (lambda ()
    (specify ((debug-stabilize
-	      (lambda (desired-mass-center stability-region contact-points to-XY-plane . _)
+	      (lambda (desired-mass-center stability-region
+				      contact-points to-XY-plane . _)
 		(set! #[desired-center 'position] desired-mass-center)
 		(let* ((zs (map (lambda (point)
 				  (uniform-vector-ref point 2))
 				contact-points))
 		       (z (/ (fold-left + 0.0 zs) (length zs)))
-		       (points (map (lambda (complex)
-				      (let* ((p `(,@(complex->list
-						     complex) 0))
-					     (v (list->uniform-array p))
-					     ((x y _) (uniform-vector->list
-						       (rotate v (~ to-XY-plane)))))
-					`(,x ,y ,z)))
-				    stability-region))
+		       (points (map
+				(lambda (complex)
+				  (let* ((p `(,@(complex->list
+						 complex) 0))
+					 (v (list->uniform-array p))
+					 ((x y _) (uniform-vector->list
+						   (rotate v (~ to-XY-plane)))))
+				    `(,x ,y ,z)))
+				stability-region))
 		       (vertices (list->uniform-array points))
 		       (indices (list->uniform-array (iota (length points))))
 		       (mesh `(mesh (vertices ,vertices)
@@ -200,7 +202,7 @@ exit
      (unless #[editor 'pause]
        (make-simulation-step! the-simulation)
        (control!)))))
- 
+
 (let ((camera #[view 'camera]))
   (set! #[camera 'position] #f32(0 -6 -0.7))
   (set! #[camera 'orientation] (normalized '(1.0 . #f32(1 0 0)))))
