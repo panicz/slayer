@@ -19,6 +19,7 @@ exit
  (widgets base)
  (widgets physics)
  (widgets 3d)
+ (editor behaviors)
  (editor relations)
  (editor modes)
  (editor poses)
@@ -60,7 +61,7 @@ exit
 
 (set-pose! the-rig (pose #;of the-rig))
 
-(define max-force 10.0)
+(define max-force 20.0)
 
 (define max-velocity 3.0)
 
@@ -238,88 +239,34 @@ exit
 (keydn 0 (lambda _ (<< #[view : 'camera : 'orientation])))
 (keydn 9 (lambda _ (<< #[view : 'camera : 'position])))
 
-(let ((turn-camera! (lambda (x y dx dy)
-		      (relative-turn! #[view 'camera] (- dx) (- dy))))
-      (walls (filter-map (lambda (rig) (and-let* (((wall) (rig-bodies rig))
-					     ('plane (body-type wall)))
-				    wall))
-			 (simulation-rigs the-simulation)))
-      (dragged-bodies '())
-      (original-positions '())
-      (tips '())
-      (original-position #f)
-      (dragging-corpus #f)
-      (dragged-limb #f)
-      (z 0.0))
 
-  (set! #[view 'left-mouse-down]
-    (lambda (x y)
-      (and-let* ((object (object-at-position x y #;in view))
-		 ((in? object #[view 'selected]))
-		 (body #[object 'body])) 
+(set! #[view 'left-mouse-down]
+      (lambda (x y)
 	(with-context-for-joint/body-relation
-	 (save-rig-state! the-rig)
-	 (cond ((or (> (length #[view 'selected]) 1)
-		    (part-of-corpus? body)
-		    (any part-of-corpus? (bodies-attached-to body)))
-		(let* ((rig #[object 'rig])
-		       (bodies (rig-bodies rig))
-		       (positions (map (lambda (body)
-					 (body-property body 'position))
-				       bodies))
-		       (position (body-property body 'position))
-		       ((_ _ z/screen) (3d->screen view position)))
-		  (set! tips (filter tip? bodies))
-		  (set! z z/screen)
-		  (set! original-position position)
-		  (set! dragged-bodies bodies)
-		  (set! original-positions positions)
-		  (set! dragging-corpus #t)))
-	       (else
-		(let (((_ _ z/screen) 
-		       (3d->screen view (body-property body 'position))))
-		  (set! z z/screen)
-		  (set! dragged-limb body))))))))
+	 (set! #[view 'dragging-behavior]
+	       (let ((object (object-at-position x y #;in view)))
+		 (cond ((or (not object)
+			    (not (in? object #[view 'selected])))
+			(make <camera-pan> #:in view #:from `(,x ,y)))
+		       
+		       ((let ((body #[object 'body]))
+			  (or (> (length #[view 'selected]) 1)
+			      (part-of-corpus? body)
+			      (any part-of-corpus? (bodies-attached-to body))))
+			(make <movement-around-physics-view>
+			  #:of object #:in view #:from `(,x ,y)))
+		       
+		       (else
+			(make <pose-modification> #:of object #:in view
+			      #:from `(,x ,y)))))))))
 
-  (set! #[view 'drag]
-    (lambda (x y dx dy)
-      (unless (= dx dy 0)
-	(with-context-for-joint/body-relation
-	 (cond (dragging-corpus
-		(let ((displacement (screen->3d view x y z)))
-		  (for (body position) in (zip dragged-bodies 
-					       original-positions)
-		    (set-body-property! body 'position
-					(+ (- position original-position)
-					   displacement))))
-		(for wall in walls
-		  (for tip in tips
-		    (and-let* ((distance (body-distance wall tip))
-			       (normal (body-property wall 'normal))
-			       ((negative? distance))
-			       ((parent) (bodies-attached-to tip))
-			       (position (body-property parent 'position))
-			       (displacement (* (- distance) normal))
-			       (desired-position (+ position displacement)))
-		      (for body in dragged-bodies
-			(set-body-property! body 'position
-					    (+ (body-property body 'position)
-					       displacement)))))))
-	       (dragged-limb
-		(let ((current-position (body-property dragged-limb 'position))
-		      (desired-position (screen->3d view x y z)))
-		  (apply-inverse-kinematics! 
-		   #;of dragged-limb #;to desired-position #;at hub?)))
-	       (else
-		(turn-camera! x y dx dy)))))))
+(set! #[view 'drag]
+      (lambda (x y dx dy)
+	(perform! #[view 'dragging-behavior] x y dx dy)))
 
-  (set! #[view 'left-mouse-up]
-    (lambda (x y)
-      (set! original-position #f)
-      (set! dragged-bodies '())
-      (set! original-positions '())
-      (set! dragging-corpus #f)
-      (set! dragged-limb #f))))
+(set! #[view 'left-mouse-up]
+      (lambda (x y)
+	(set! #[view 'dragging-behavior] #f)))
 
 (keydn 'l
   (lambda ()

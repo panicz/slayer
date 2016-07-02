@@ -1,5 +1,6 @@
 (define-module (widgets 3d)
   #:use-module (oop goops)
+  #:use-module (ice-9 nice-9)
   #:use-module (widgets base)
   #:use-module (extra common)
   #:use-module (extra math)
@@ -10,9 +11,12 @@
   #:use-module (slayer)
   #:use-module (slayer image)
   #:use-module (slayer 3d)
-  #:export (<3d-view> 
+  #:export (<3d-view>
 	    <3d-stage>
-	    <3d-editor> 
+	    <3d-editor>
+	    <physics-view-drag-behavior>
+	    <camera-pan>
+	    perform!
 	    add-object! 
 	    delete-object!
 	    object-at-position
@@ -34,11 +38,28 @@
 (define-class <3d-stage> ()
   (objects #:init-value '()))
 
+
 (define-method (add-object! (object <3d>) #;to (stage <3d-stage>))
   (push! #[stage 'objects] object))
 
 (define-method (delete-object! (object <3d>) #;from (stage <3d-stage>))
   (set! #[stage 'objects] (delete object #[stage 'objects])))
+
+(define-class <physics-view-drag-behavior> ()
+  (target #:init-keyword #:of #:init-value #f)
+  (view #:init-keyword #:in)
+  (screen-depth #:init-value 0.0 #:init-keyword #:screen-depth)
+  (walls #:init-value '()))
+
+(define-generic pefrorm!)
+
+(define-method (perform! . args)
+  (noop))
+
+(define-class <camera-pan> (<physics-view-drag-behavior>))
+
+(define-method (perform! (camera-pan <camera-pan>) x y dx dy)
+  (relative-turn! #[camera-pan : 'view : 'camera] (- dx) (- dy)))
 
 (define-class <3d-view> (<extended-widget>)
   (%horizontal-frame #:init-value #f)
@@ -47,8 +68,8 @@
   (camera #:init-thunk (lambda()(make <3d-cam>)) #:init-keyword #:camera)
   (resize
    #:allocation #:virtual
-   #:slot-ref (lambda(self)
-		(lambda(w h)
+   #:slot-ref (lambda (self)
+		(lambda (w h)
 		  (unless (= w #[self '%w])
 		    (set! #[self '%horizontal-frame]
 			  (rectangle w 1 #xff0000)))
@@ -56,7 +77,7 @@
 		    (set! #[self '%vertical-frame]
 			  (rectangle 1 h #xff0000)))
 		  (#[self '%resize] w h)))
-   #:slot-set! (lambda(self resize)
+   #:slot-set! (lambda (self resize)
 		 (set! #[self '%resize] resize)))
   (draw-objects!
    #:allocation #:virtual
@@ -71,7 +92,7 @@
 		#;(for object in #[view : 'stage : 'objects]
 		     (setup-lights! #[object '%lights])))
    #:slot-set! noop)
- 
+  (dragging-behavior #:init-value #f)
   (stage #:init-form (make <3d-stage>) #:init-keyword #:stage))
 
 (define-method (initialize (self <3d-view>) args)
