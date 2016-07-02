@@ -247,18 +247,17 @@ exit
 	       (let ((object (object-at-position x y #;in view)))
 		 (cond ((or (not object)
 			    (not (in? object #[view 'selected])))
-			(make <camera-pan> #:in view #:from `(,x ,y)))
+			(make <camera-pan> #:in view))
 		       
 		       ((let ((body #[object 'body]))
 			  (or (> (length #[view 'selected]) 1)
 			      (part-of-corpus? body)
 			      (any part-of-corpus? (bodies-attached-to body))))
 			(make <movement-around-physics-view>
-			  #:of object #:in view #:from `(,x ,y)))
+			  #:of object #:in view))
 		       
 		       (else
-			(make <pose-modification> #:of object #:in view
-			      #:from `(,x ,y)))))))))
+			(make <pose-modification> #:of object #:in view))))))))
 
 (set! #[view 'drag]
       (lambda (x y dx dy)

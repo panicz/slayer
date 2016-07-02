@@ -14,7 +14,7 @@
   #:export (<3d-view>
 	    <3d-stage>
 	    <3d-editor>
-	    <physics-view-drag-behavior>
+	    <3d-view-drag-behavior>
 	    <camera-pan>
 	    perform!
 	    add-object! 
@@ -45,7 +45,7 @@
 (define-method (delete-object! (object <3d>) #;from (stage <3d-stage>))
   (set! #[stage 'objects] (delete object #[stage 'objects])))
 
-(define-class <physics-view-drag-behavior> ()
+(define-class <3d-view-drag-behavior> ()
   (target #:init-keyword #:of #:init-value #f)
   (view #:init-keyword #:in)
   (screen-depth #:init-value 0.0 #:init-keyword #:screen-depth)
@@ -56,7 +56,7 @@
 (define-method (perform! . args)
   (noop))
 
-(define-class <camera-pan> (<physics-view-drag-behavior>))
+(define-class <camera-pan> (<3d-view-drag-behavior>))
 
 (define-method (perform! (camera-pan <camera-pan>) x y dx dy)
   (relative-turn! #[camera-pan : 'view : 'camera] (- dx) (- dy)))
