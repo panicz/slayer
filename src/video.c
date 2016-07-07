@@ -15,7 +15,7 @@ clear_screen_x() {
     SDL_GL_SwapBuffers();
     return SCM_UNSPECIFIED;
   } 
-#endif
+#endif // USE_OPENGL
   SDL_FillRect(screen, NULL, 0);
   SDL_Flip(screen);
   return SCM_UNSPECIFIED;
@@ -28,7 +28,7 @@ wipe_screen_x() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     return SCM_UNSPECIFIED;
   }
-#endif
+#endif // USE_OPENGL
   SDL_FillRect(screen, NULL, 0);
   return SCM_UNSPECIFIED;
 }
@@ -40,7 +40,7 @@ flip_screen_x() {
     SDL_GL_SwapBuffers();
     return SCM_UNSPECIFIED;
   }
-#endif
+#endif // USE_OPENGL
   SDL_Flip(screen);
   return SCM_UNSPECIFIED;
 }
@@ -80,7 +80,7 @@ set_screen_size_x(SCM W, SCM H) {
   screen = SDL_SetVideoMode(w, h, screen->format->BitsPerPixel, video_mode);
 #if HAVE_SDL_SETMOUSERANGE
   SDL_SetMouseRange((Uint16) w, (Uint16) h);
-#endif
+#endif // HAVE_SDL_SETMOUSERANGE
   return SCM_UNSPECIFIED;
 }
 
@@ -91,7 +91,7 @@ set_screen_width_x(SCM W) {
   screen = SDL_SetVideoMode(w, h, screen->format->BitsPerPixel, video_mode);
 #if HAVE_SDL_SETMOUSERANGE
   SDL_SetMouseRange((Uint16) w, (Uint16) h);
-#endif
+#endif // HAVE_SDL_SETMOUSERANGE
   return SCM_UNSPECIFIED;
   
 }
@@ -103,7 +103,7 @@ set_screen_height_x(SCM H) {
   screen = SDL_SetVideoMode(w, h, screen->format->BitsPerPixel, video_mode);
 #if HAVE_SDL_SETMOUSERANGE
   SDL_SetMouseRange((Uint16) w, (Uint16) h);
-#endif
+#endif // HAVE_SDL_SETMOUSERANGE
   return SCM_UNSPECIFIED;
 }
 
@@ -147,7 +147,7 @@ export_symbols(void *unused) {
   if(video_mode & SDL_OPENGL) {
     cond_expand_provide("slayer-3d");
   }
-#endif
+#endif // USE_OPENGL
 
 }
 
@@ -192,9 +192,9 @@ video_init(Uint16 w, Uint16 h, int mode) {
   if(mode & SDL_OPENGL) {
 #ifndef USE_OPENGL
     FATAL("slayer compiled without OpenGL support");
-#else
+#else // !USE_OPENGL
     init_3d();
-#endif
+#endif // !USE_OPENGL
   }
 
   display_procedure = noop;

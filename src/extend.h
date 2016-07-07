@@ -9,9 +9,9 @@
 
 #ifdef __cplusplus 
 # define DECLARE extern "C"
-#else
+#else // !__cplusplus
 # define DECLARE extern
-#endif
+#endif // !__cplusplus
 
 #define WRONG_TYPE_ARG(message, args)		\
   scm_error_scm(s_wrong_type_arg, scm_from_locale_string(__FUNCTION__),	\
@@ -270,7 +270,7 @@ scm_is_thunk(SCM s) {
 
 #ifndef scm_is_procedure
 # define scm_is_procedure is_scm_procedure
-#endif
+#endif // scm_is_procedure
 
 static inline int 
 stands_for_scm_procedure(SCM s) {

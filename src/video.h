@@ -37,9 +37,9 @@ DECLARE void glWindowPos2i (GLint x, GLint y);
       WARN(header "OpenGL error: %s", message);			\
     }								\
   }
-#else
+#else // !defined(USE_OPENGL) || defined(NDEBUG)
 #define CHECK_OPENGL_ERROR(message)
-#endif
+#endif // !defined(USE_OPENGL) || defined(NDEBUG)
 
 #define RECKLESSLY(operation) operation
 
@@ -47,10 +47,10 @@ DECLARE void glWindowPos2i (GLint x, GLint y);
 #define CAUTIOUSLY(operation)			\
   operation;					\
   CHECK_OPENGL_ERROR(# operation ": ")
-#else
+#else // !NDEBUG
 // THIS IS CRAZY!
 #define CAUTIOUSLY RECKLESSLY
-#endif
+#endif // !NDEBUG
 
 
 extern SDL_Surface *screen;
@@ -71,12 +71,12 @@ sdl_surface(int w, int h, int BytesPerPixel) {
   g = 0x00ff0000;
   b = 0x0000ff00;
   a = 0x000000ff;
-#else
+#else // SDL_BYTEORDER == SDL_LIL_ENDIAN
   r = 0x000000ff;
   g = 0x0000ff00;
   b = 0x00ff0000;
   a = 0xff000000;
-#endif
+#endif // SDL_BYTE_ORDER
   return SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_SRCALPHA,
 			      w, h, 8*BytesPerPixel, r, g, b, a);
 }
@@ -98,12 +98,12 @@ sdl_color(Uint32 rgba) {
   SDL_Color c;
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
   *((Uint32 *) &c) = rgba;  
-#else
+#else // SDL_BYTEORDER == SDL_LIL_ENDIAN
   c.b = 0xff & (rgba);
   c.g = 0xff & (rgba >> 8);
   c.r = 0xff & (rgba >> 16);
   c.unused = 0xff & (rgba >> 24);
-#endif
+#endif // SDL_BYTEORDER
   return c;
 }
 
@@ -112,9 +112,9 @@ rgba_color(SDL_Color c) {
   Uint32 rgba;
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
   rgba = *((Uint32 *) &c);  
-#else
+#else // SDL_BYTEORDER == SDL_LIL_ENDIAN
   rgba = c.b | (c.g << 8) | (c.r << 16) | (c.unused << 24);
-#endif
+#endif // SDL_BYTE_ORDER
   return rgba;
 }
 

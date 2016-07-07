@@ -3,7 +3,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+#endif // HAVE_CONFIG_H
 
 #define COPYRIGHT "Copyright (C) 2013 Maciek Godek <godek.maciek@gmail.com>\n" \
   "\nLicense GPLv3+: GNU GPL 3 or later <http://gnu.org/licenses/gpl.html>.\n" \
@@ -36,7 +36,7 @@ remember_to_release(void *resource, void (*release)(void *));
 #ifdef USE_SDL_MIXER
 DECLARE void audio_init();
 DECLARE void audio_finish();
-#endif
+#endif // USE_SDL_MIXER
 
 // INPUT
 DECLARE void input_init();
@@ -69,6 +69,6 @@ DECLARE void font_init();
 // 3D
 #ifdef USE_OPENGL
 DECLARE void init_3d();
-#endif
+#endif // USE_OPENGL
 
 #endif // SLAYER_H

@@ -15,7 +15,7 @@ int vasprintf(char **strp, const char *fmt, va_list ap) {
   
   return vsprintf(*strp, fmt, ap);
 }
-#endif
+#endif // !HAVE_VASPRINTF
 
 #if !HAVE_ASPRINTF
 int asprintf(char **strp, const char *fmt, ...) {
@@ -26,7 +26,7 @@ int asprintf(char **strp, const char *fmt, ...) {
   va_end(ap);
   return retval;
 }
-#endif
+#endif // !HAVE_ASPRINTF
 
 SCM 
 scm_catch_handler(void *data, SCM key, SCM args) {
@@ -119,7 +119,7 @@ finish(arg_t *arg) {
   if(arg->sound) {
     audio_finish();
   }
-#endif
+#endif // USE_SDL_MIXER
   SDL_WM_GrabInput(SDL_GRAB_OFF);
   SDL_ShowCursor(SDL_ENABLE);
   SDL_Quit();
@@ -175,15 +175,15 @@ init(arg_t *arg) {
   if(arg->video_mode & SDL_OPENGL) {
     scm_c_use_module("slayer 3d");
   }
-#endif
+#endif // USE_OPENGL
 
 #ifdef USE_SDL_MIXER
   if(arg->sound) {
     audio_init();
     scm_c_use_module("slayer audio");
   }
-#endif
-  
+#endif // USE_SDL_MIXER
+ 
   // these calls should be moved to separate libraries
   image_init();
   scm_c_use_module("slayer image");
@@ -265,18 +265,18 @@ show_usage(const char *program, const char *file_name) {
   printf(TABS "  * 3d      use OpenGL    (%s by default)\n",
 #ifdef ENABLE_DEFAULT_3D
 	 "enabled"
-#else
+#else // !ENABLE_DEFAULT_3D
 	 "disabled"
-#endif // DEFAULT 3D
+#endif // !ENABLE_DEFAULT_3D
 	 );
 #endif // USE OPENGL
 
 #ifdef USE_SDL_MIXER
   printf(TABS "  * sound   use SDL_mixer (%s by default)\n",
 	 "enabled");
-#endif  // MIXER
+#endif  // USE_SDL_MIXER
   printf("  -d EXT,  --disable EXT\tdisable extension EXT\n");
-#endif  // EXTENSIONS
+#endif  // USE_OPENGL || USE_SDL_MIXER
   printf("  -w N,        --width N\tset initial window width to N\n");
   printf("  -h N,       --height N\tset initial window height to N\n");
   printf("  -r,        --resizable\tallow user to resize the window\n");
@@ -321,7 +321,7 @@ process_command_line_options(int argc,
       else if(!strcmp(long_options[option_index].name, "nosound")) {
 	arg->sound = 0;
       }
-#endif
+#endif // USE_SDL_MIXER
       else if(!strcmp(long_options[option_index].name, "help")) {
 	show_usage(argv[0], exec_file_name);
 	exit(0);
@@ -354,7 +354,7 @@ process_command_line_options(int argc,
       else if(!strcmp(optarg, "3d")) {
 	arg->video_mode |= SDL_OPENGL;
       }
-#endif
+#endif // USE_OPENGL
       else {
 	WARN("unknown extension: %s", optarg);
       }
@@ -365,12 +365,12 @@ process_command_line_options(int argc,
       else if(!strcmp(optarg, "3d")) {
 	arg->video_mode &= ~SDL_OPENGL;
       }
-#endif
+#endif // USE_OPENGL
 #ifdef USE_SDL_MIXER
       else if(!strcmp(optarg, "sound")) {
 	arg->sound = 0;
       }
-#endif
+#endif // USE_SDL_MIXER
       else {
 	WARN("unknown extension: %s", optarg);
       }
@@ -428,7 +428,7 @@ is_absolute_path(const char *path) {
   return false;
 }
 
-#endif
+#endif // __MINGW32__
 
 char *
 base(char *filename) {
@@ -474,15 +474,15 @@ main(int argc, char *argv[]) {
 
 #ifdef ENABLE_DEFAULT_3D
   arg.video_mode |= SDL_OPENGL;
-#endif
+#endif // ENABLE_DEFAULT_3D
 
   arg = *process_command_line_options(argc, argv, &arg, filename);
 
 #ifdef NDEBUG
   putenv("GUILE_WARN_DEPRECATED=no");
-#else
+#else // !NDEBUG
   putenv("GUILE_WARN_DEPRECATED=detailed");
-#endif
+#endif // !NDEBUG
 
   putenv("LC_ALL=C.UTF8"); // discard locale
 
@@ -508,7 +508,7 @@ main(int argc, char *argv[]) {
 # if defined(XDG_CACHE_HOME) || defined(GULE_LOAD_PATH) \
   || defined(GUILE_LOAD_COMPILED_PATH)
 #  error "local variable name conflicts with global macro definition"
-# endif
+# endif // XDG_CACHE_HOME || GUILE_LOAD_PATH || GUILE_LOAD_COMPILED_PATH
 
   char *slayer_directory;
   char *XDG_CACHE_HOME, *GUILE_LOAD_PATH, *GUILE_LOAD_COMPILED_PATH;
@@ -534,10 +534,10 @@ main(int argc, char *argv[]) {
   REMEMBER_TO_FREE(GUILE_LOAD_COMPILED_PATH);
   putenv(GUILE_LOAD_COMPILED_PATH);
 
-#else
+#else // !__MINGW32__
   putenv("GUILE_LOAD_PATH=.:./scum:../guile-modules:./guile-modules");
   putenv("LTDL_LIBRARY_PATH=.:./scum");
-#endif
+#endif // !__MINGW32__
 
   if (arg.w == 0) {
     arg.w = 640;

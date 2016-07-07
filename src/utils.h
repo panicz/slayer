@@ -9,14 +9,14 @@
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+#endif // HAVE_CONFIG_H
 
 #ifdef __MINGW32__
 #include <windows.h>
 #undef OUT
 #undef near
 #undef far
-#endif
+#endif // __MINGW32__
 
 #define EXPECT __builtin_expect
 #define UNLIKELY(x) EXPECT((x), 0)
@@ -34,11 +34,11 @@
 
 #if !HAVE_ASPRINTF
 int asprintf(char **strp, const char *fmt, ...);
-#endif
+#endif // !HAVE_ASPRINTF
 
 #if !HAVE_VASPRINTF
 int vasprintf(char **strp, const char *fmt, va_list ap);
-#endif
+#endif // !HAVE_VASPRINTF
 
 typedef void (*generic_function_pointer_t)();
 
@@ -71,7 +71,7 @@ list_ref(struct list* l, bool (*condition)(struct list *)) {
 
 #define LIST_PUSH(list, item) list = cons(item, list)
 
-#endif
+#endif // __cplusplus
 
 static inline
 unsigned int now() {

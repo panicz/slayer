@@ -33,25 +33,25 @@ ifdef(`header', `
 #  ifndef HAVE_$1
 #    ifdef HAVE_$1_ARB
 #      define $2 $2ARB
-#    else 
+#    else // !HAVE_$1_ARB
 #      ifdef HAVE_$1_EXT
 #        define $2 $2EXT
-#      else
+#      else // !HAVE_$1_EXT
 #        define NO_$1
-#      endif
-#    endif 
-#  endif
+#      endif // !HAVE_$1_EXT
+#    endif // !HAVE_$1_ARB
+#  endif // HAVE_$1
 
 #  ifdef NO_$1
 DECLARE $3 (*$2)$4;
-#  else
+#  else // !NO_$1
 DECLARE $3 $2 $4;
-#  endif
+#  endif // !NO_$1
 ',
 ifdef(`init',`
 #ifdef NO_$1
 TRY_LOAD_GL_EXTENSION($3(*)$4, $2);
-#endif
+#endif // NO_$1
 ',
 ifdef(`def',`
 #ifdef NO_$1
@@ -60,7 +60,7 @@ static inline void
 no_$2() {
   WARN("$2: extension not available");
 }
-#endif
+#endif // NO_$1
 '))))
 
 define(`OPENGL_UNIT_CONSTRUCTOR_DESTRUCTOR',

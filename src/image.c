@@ -275,7 +275,7 @@ on_exit_video_context(SCM image) {
 			output_buffer.viewport.w, output_buffer.viewport.h));
   CAUTIOUSLY(glBindFramebuffer(GL_FRAMEBUFFER, 0));
 }
-#endif
+#endif // USE_OPENGL
 
 #ifdef USE_OPENGL
 #define BEGIN_VIDEO_CONTEXT(image)					\
@@ -291,10 +291,10 @@ on_exit_video_context(SCM image) {
   if(video_mode & SDL_OPENGL) {			\
     scm_dynwind_end();				\
   }
-#else
+#else // !USE_OPENGL
 #define BEGIN_VIDEO_CONTEXT(image)
 #define END_VIDEO_CONTEXT() 
-#endif
+#endif // USE_OPENGL
 
 static inline SCM
 c_call_with_video_output_to(SCM image, SCM (*proc)(void *), void *data) {
@@ -469,7 +469,7 @@ draw_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 			    image->pixels));
     CAUTIOUSLY(glEnable(GL_DEPTH_TEST));
   }
-#endif
+#endif // USE_OPENGL
   else {
     SDL_Surface *target = SURFACE(target_smob);
     SDL_Rect at = sdl_rect(x, y, -1, -1);
@@ -579,7 +579,7 @@ draw_texture(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
   leave_texture_drawing_context();
 }
 
-#endif
+#endif // USE_OPENGL
 
 static SCM 
 draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
@@ -599,7 +599,7 @@ draw_image_x(SCM image_smob, SCM X, SCM Y, SCM target_smob) {
   else if(IS_TEXTURE(image_smob)) {
     draw_texture(image_smob, x, y, target_smob);
   }
-#endif
+#endif // USE_OPENGL
   else {
     FATAL("Unknown image variant");
   }
@@ -643,7 +643,6 @@ rectangle(SCM w, SCM h, SCM color, SCM BytesPerPixel) {
   }
   return surface_smob(image, 0, 0, image->w, image->h, IMAGE_ACCESS_PROXY);
 }
-
 
 static SCM
 crop_image(SCM image_smob, SCM _x, SCM _y, SCM _w, SCM _h, SCM _access) {
@@ -802,6 +801,11 @@ array_to_image(SCM array) {
 }
 #undef NOT_SUPPORTED
 
+#ifdef ENABLE_VECTOR_GRAPHICS
+
+
+#endif // ENABLE_VIDEO_GRAPHICS
+
 static void 
 export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
@@ -841,7 +845,7 @@ image_init() {
   scm_set_smob_print(image_tag, print_image);
 #ifdef USE_OPENGL
   init_output_buffer();
-#endif
+#endif // USE_OPENGL
   init_current_video_output_fluid();
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
