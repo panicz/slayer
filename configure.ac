@@ -50,6 +50,8 @@ AC_ARG_WITH([guilesitedir],
 
 PKG_CHECK_MODULES([SDL], [sdl])
 
+PKG_CHECK_MODULES([CAIRO], [cairo], [have_cairo=yes], [have_cairo=no])
+
 AC_CHECK_LIB([SDL], [SDL_SetMouseRange],
  [AC_DEFINE([HAVE_SDL_SETMOUSERANGE], [1],
   [`SDL_SetMouseRange' is available from SDL])],
@@ -145,6 +147,16 @@ AC_ARG_ENABLE([default-3d],
      fi
      AC_DEFINE([ENABLE_DEFAULT_3D], [1],
 [Do not require -e3d option to use OpenGL for drawing])
+   fi])
+
+AC_ARG_ENABLE([vector-graphics],
+  AS_HELP_STRING([--enable-vector-graphics],
+    [Enable the vector-graphics API (requires cairo library) [default=no]]),
+  [if test "x$enable_vector_graphics" != xno; then
+     if test "x$have_cairo" != xyes; then
+       AC_MSG_FAILURE([Cairo library not available for --enable-vector-graphics])
+     fi
+     AC_DEFINE([ENABLE_VECTOR_GRAPHICS], [1], [Enable vector graphics API])
    fi])
 
 AC_ARG_WITH([sdl-mixer],
