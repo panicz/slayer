@@ -176,4 +176,6 @@ DEF_MINMAX(float, f);
 
 #define SWAP(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
 
+#define SHIFT_LEFT(x, y) ((y) < 0 ? (x) >> (-(y)) : (x) << (y))
+
 #endif /* UTILS_H */
