@@ -1,8 +1,8 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
 # flags set by pkg-config
-AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) -Wall \
-	$(AM_LDFLAGS)
+AM_CFLAGS =  $(SDL_CFLAGS) $(GUILE_CFLAGS) $(OPENGL_CFLAGS) $(CAIRO_CFLAGS) \
+	-Wall $(AM_LDFLAGS)
 
 AM_CXXFLAGS = $(AM_CFLAGS)
 
@@ -42,5 +42,9 @@ if SDL_MIXER
 slayer_SOURCES += audio.c
 endif
 
+if WITH_CAIRO
+slayer_SOURCES += drawing.c
+endif
+
 slayer_LDADD = $(SDL_LIBS) $(GUILE_LIBS) $(OPENGL_LIBS) $(SDL_MIXER_LIBS) \
-	$(SDL_IMAGE_LIBS)
+	$(SDL_IMAGE_LIBS) $(CAIRO_LIBS)

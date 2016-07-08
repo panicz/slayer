@@ -159,6 +159,8 @@ AC_ARG_ENABLE([vector-graphics],
      AC_DEFINE([ENABLE_VECTOR_GRAPHICS], [1], [Enable vector graphics API])
    fi])
 
+AM_CONDITIONAL([WITH_CAIRO], [test "x$enable_vector_graphics" != xno])
+
 AC_ARG_WITH([sdl-mixer],
   AS_HELP_STRING([--with-sdl-mixer],
     [Build with audio support through SDL_mixer]),
@@ -174,7 +176,7 @@ if test "x$with_sdl_mixer" != xno; then
      fi])
 fi
 
-AM_CONDITIONAL([SDL_MIXER], test "x$with_sdl_mixer" = xyes)
+AM_CONDITIONAL([SDL_MIXER], [test "x$with_sdl_mixer" = xyes])
 
 PKG_CHECK_MODULES([SDL_IMAGE], [SDL_image], [], 
   [AC_MSG_FAILURE([SDL_image not found (required)])])
