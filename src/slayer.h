@@ -73,7 +73,7 @@ DECLARE void init_3d(void);
 
 // VECTOR GRAPHICS
 #ifdef ENABLE_VECTOR_GRAPHICS
-DECLARE void init_drawing(void);
+DECLARE void drawing_init(void);
 #endif // ENABLE_VECTOR_GRAPHICS
 
 #endif // SLAYER_H
