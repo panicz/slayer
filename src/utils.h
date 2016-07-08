@@ -60,6 +60,13 @@ cons(void *data, struct list *next) {
 }
 
 static inline struct list *
+decap(struct list *head) {
+  struct list *next = head->next;
+  free(head);
+  return next;
+}
+
+static inline struct list *
 list_ref(struct list* l, bool (*condition)(struct list *)) {
   for( ; l; l = l->next) {
     if(condition(l)) {
@@ -72,6 +79,16 @@ list_ref(struct list* l, bool (*condition)(struct list *)) {
 #define LIST_PUSH(list, item) list = cons(item, list)
 
 #endif // __cplusplus
+
+#define DEF_MAP(type)							\
+  static inline int							\
+  map##type(type *dst, type (*f)(type), type *src, int nelems) {	\
+    int i;								\
+    for(i = 0; i < nelems; ++i) {					\
+      dst[i] = f(src[i]);						\
+    }									\
+    return nelems;							\
+  }
 
 static inline
 unsigned int now() {
