@@ -12,6 +12,34 @@
 
 #  include "3d/extensions.m4.h"
 
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+
+typedef enum COLOR_SHIFT {
+  COLOR_SHIFT_BLUE = 24,
+  COLOR_SHIFT_GREEN = 16,
+  COLOR_SHIFT_RED = 8,
+  COLOR_SHIFT_ALPHA = 0
+} COLOR_SHIFT;
+
+#else // SDL_LIL_ENDIAN
+
+typedef enum COLOR_SHIFT {
+  COLOR_SHIFT_BLUE = 0,
+  COLOR_SHIFT_GREEN = 8,
+  COLOR_SHIFT_RED = 16,
+  COLOR_SHIFT_ALPHA = 24
+} COLOR_SHIFT;
+
+#endif // SDL_BYTEORDER
+
+typedef enum COLOR_MASK {
+  COLOR_MASK_RED = (0xff << COLOR_SHIFT_RED),
+  COLOR_MASK_BLUE = (0xff << COLOR_SHIFT_BLUE),
+  COLOR_MASK_GREEN = (0xff << COLOR_SHIFT_GREEN),
+  COLOR_MASK_ALPHA = (0xff << COLOR_SHIFT_ALPHA)
+} COLOR_MASK;
+
+
 DECLARE void glWindowPos2i (GLint x, GLint y);
 
 #define WITH_VERTEX_ARRAY(size, type, stride, pointer, action)	\
@@ -52,7 +80,6 @@ DECLARE void glWindowPos2i (GLint x, GLint y);
 #define CAUTIOUSLY RECKLESSLY
 #endif // !NDEBUG
 
-
 extern SDL_Surface *screen;
 
 extern SCM current_video_output_fluid;
@@ -65,20 +92,12 @@ extern int video_mode;
 
 static inline SDL_Surface *
 sdl_surface(int w, int h, int BytesPerPixel) {
-  Uint32 r, g, b, a;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-  r = 0xff000000;
-  g = 0x00ff0000;
-  b = 0x0000ff00;
-  a = 0x000000ff;
-#else // SDL_BYTEORDER == SDL_LIL_ENDIAN
-  r = 0x000000ff;
-  g = 0x0000ff00;
-  b = 0x00ff0000;
-  a = 0xff000000;
-#endif // SDL_BYTE_ORDER
   return SDL_CreateRGBSurface(SDL_HWSURFACE | SDL_SRCALPHA,
-			      w, h, 8*BytesPerPixel, r, g, b, a);
+			      w, h, 8*BytesPerPixel,
+			      COLOR_MASK_RED,
+			      COLOR_MASK_GREEN,
+			      COLOR_MASK_BLUE,
+			      COLOR_MASK_ALPHA);
 }
 
 DECLARE void flip_surface_vertically(SDL_Surface *);
@@ -96,26 +115,19 @@ sdl_rect(Sint16 x, Sint16 y, Uint16 w, Uint16 h) {
 static inline SDL_Color 
 sdl_color(Uint32 rgba) {
   SDL_Color c;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-  *((Uint32 *) &c) = rgba;  
-#else // SDL_BYTEORDER == SDL_LIL_ENDIAN
-  c.b = 0xff & (rgba);
-  c.g = 0xff & (rgba >> 8);
-  c.r = 0xff & (rgba >> 16);
-  c.unused = 0xff & (rgba >> 24);
-#endif // SDL_BYTEORDER
+  c.b = 0xff & (rgba >> COLOR_SHIFT_BLUE);
+  c.g = 0xff & (rgba >> COLOR_SHIFT_GREEN);
+  c.r = 0xff & (rgba >> COLOR_SHIFT_RED);
+  c.unused = 0xff & (rgba >> COLOR_SHIFT_ALPHA);
   return c;
 }
 
 static inline Uint32
 rgba_color(SDL_Color c) {
-  Uint32 rgba;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-  rgba = *((Uint32 *) &c);  
-#else // SDL_BYTEORDER == SDL_LIL_ENDIAN
-  rgba = c.b | (c.g << 8) | (c.r << 16) | (c.unused << 24);
-#endif // SDL_BYTE_ORDER
-  return rgba;
+  return (c.b << COLOR_SHIFT_BLUE)
+    | (c.g << COLOR_SHIFT_GREEN)
+    | (c.r << COLOR_SHIFT_RED)
+    | (c.unused << COLOR_SHIFT_ALPHA);
 }
 
 #endif // VIDEO_H
