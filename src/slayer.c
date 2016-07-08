@@ -183,7 +183,11 @@ init(arg_t *arg) {
     scm_c_use_module("slayer audio");
   }
 #endif // USE_SDL_MIXER
- 
+
+#ifdef ENABLE_VECTOR_GRAPHICS
+  drawing_init();
+#endif // ENABLE_VECTOR_GRAPHICS
+  
   // these calls should be moved to separate libraries
   image_init();
   scm_c_use_module("slayer image");

@@ -483,7 +483,8 @@ draw_surface(SCM image_smob, Sint16 x, Sint16 y, SCM target_smob) {
 static struct { GLint x, y, w, h; } texture_drawing_context_viewport;
 
 static inline void
-enter_texture_drawing_context(Uint16 w,Uint16 h,bool mirror_x,bool mirror_y) {
+enter_texture_drawing_context(Uint16 w, Uint16 h,
+			      bool mirror_x, bool mirror_y) {
   CAUTIOUSLY(glGetIntegerv(GL_VIEWPORT, 
 			   (GLint *) &texture_drawing_context_viewport));
 
@@ -744,8 +745,9 @@ static int bytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_LAST+1];
 static inline void 
 init_bytesPerPixel() {
   unsigned int i;
-  for(i = 0; i < NELEMS(bytesPerPixel); ++i)
+  for(i = 0; i < NELEMS(bytesPerPixel); ++i) {
     bytesPerPixel[i] = NOT_SUPPORTED;
+  }
 #define SET_TYPE_SIZE(type, size) \
   bytesPerPixel[SCM_ARRAY_ELEMENT_TYPE_##type] = size
 
@@ -801,11 +803,6 @@ array_to_image(SCM array) {
 }
 #undef NOT_SUPPORTED
 
-#ifdef ENABLE_VECTOR_GRAPHICS
-
-
-#endif // ENABLE_VIDEO_GRAPHICS
-
 static void 
 export_symbols(void *unused) {
 #define EXPORT_PROCEDURE(name, required, optional, rest, proc) \
@@ -847,6 +844,7 @@ image_init() {
   init_output_buffer();
 #endif // USE_OPENGL
   init_current_video_output_fluid();
+
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
   scm_c_define_module("slayer", cond_expand_provide, "slayer-image");
