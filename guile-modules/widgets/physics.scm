@@ -11,7 +11,12 @@
   #:use-module (extra trimesh)
   #:use-module (slayer)
   #:use-module (slayer 3d)
-  #:export (<physics-stage> <physical-object> body-object joint-object)
+  #:export (<physics-stage>
+	    <physical-object>
+	    body-object
+	    joint-object
+	    <phantom-body>
+	    create-phantom!)
   #:re-export (<3d-view> 
 	       <3d-editor> 
 	       select-object! unselect-object! unselect-all!
@@ -108,8 +113,35 @@
   (step #:init-value #f #:init-keyword #:step)
   (body #:init-value #f #:init-keyword #:body))
 
+(define-method (display (self <physical-object>) port)
+  (format port "#<~a ~a>" (class-name (class-of self))
+	  (body-name #[self 'body])))
+
 (define-method (initialize (self <physical-object>) args)
   (next-method))
+
+(define-class <phantom-body> (<3d-model>)
+  (%mesh
+   #:allocation #:virtual
+   #:slot-ref (lambda (self)
+		#[self : 'target : '%mesh])
+   #:slot-set! (no-setter 'mesh))
+  (body
+   #:allocation #:virtual
+   #:slot-ref (lambda (self)
+		#[self : 'target : 'body])
+   #:slot-set! (no-setter 'body))
+  #;(rig
+   #:allocation #:virtual
+   #:slot-ref (lambda (self)
+		#[self : 'target : 'rig])
+   #:slot-set! (no-setter 'rig))
+  (target #:init-keyword #:for))
+
+(define-method (initialize (self <phantom-body>) args)
+  (next-method)
+  (set! #[self 'position] #[self : 'target : 'position])
+  (set! #[self 'orientation] #[self : 'target : 'orientation]))
 
 (define-method (select-object! (object <physical-object>) #;in (view <3d-view>))
   (next-method)
@@ -224,12 +256,12 @@
 				     `(,(the 'anchor)
 				       ,(+ (the 'anchor) (the 'axis))))))
 		     (push! objects object))))
-	 (set! #[self '%objects-cache] objects)
+ 	 (set! #[self '%objects-cache] objects)
 	 (TODO remove all objects from %body=>object whose step
 	       value hasn't been modified!)
 	 (set! #[self '%last-synchronized-simulation-step] step))
        `(,@#[self '%permanent-objects] ,@#[self '%objects-cache])))
-   #:slot-set! noop))
+   #:slot-set! (no-setter 'objects)))
 
 (define (body-object body #;from view)
   (find (lambda (object)
@@ -242,3 +274,9 @@
 	  (and (is-a? object <physical-joint>)
 	       (eq? #[object 'joint] joint)))
 	#[view : 'stage : 'objects]))
+
+(define-method (create-phantom! #;for rig #;on (stage <physics-stage>))
+  (for object in #[stage 'objects]
+    (when (and (is-a? object <physical-object>)
+	       (eq? #[object 'rig] rig))
+      (push! #[stage '%permanent-objects] (make <phantom-body> #:for object)))))

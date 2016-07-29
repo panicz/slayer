@@ -21,12 +21,32 @@
 
 	     apply-inverse-kinematics!
 	     rotate-around-joint-mode
-	     ik-mode
+
+	     current-editing-mode
+	     allowed-editing-modes
+	     set-editing-mode!
+	     next-editing-mode
 	    )
   #:export-syntax (
 		   with-context-for-joint/body-relation
 		   ))
 
+(define allowed-editing-modes '(demiurge idol))
+
+(define editing-mode (first allowed-editing-modes))
+
+(define (current-editing-mode)
+  editing-mode)
+
+(define (set-editing-mode! mode)
+  (assert (in? mode allowed-editing-modes))
+  (set! editing-mode mode))
+
+(define (next-editing-mode)
+  (let (((this next . _)
+	 (find-tail (lambda (mode) (eq? mode (current-editing-mode)))
+		    (apply circular-list allowed-editing-modes))))
+    next))
 
 (define-syntax (with-context-for-joint/body-relation action . *)
   (specify ((joint-property-getter joint-property)
@@ -160,34 +180,6 @@
 	  (direction (/ local distance)))
      (and (>= range distance)
 	  (+ pivot (* (min range distance) direction))))))
-
-(define ((ik-mode view rig))
-  (with-context-for-joint/body-relation
-   (unless (null? #[view 'selected])
-     (let* ((old-bindings (current-key-bindings))
-	    (final-object (first #[view 'selected]))
-	    (final-body #[final-object 'body])
-	    (initial-position #[final-object 'position])
-	    (_ fixed (shortest-joint-sequence-from+furthest-end 
-		      #;to final-body))
-	    (pose (pose #;of rig))
-	    ((xs ys zs) (3d->screen view initial-position)))
-       (set-mouse-position! xs ys)
-       (set-key-bindings!
-	(key-bindings
-	 (keydn 'esc
-	   (lambda ()
-	     (set-pose! #;of rig #;to pose #:keeping fixed)
-	     (set-key-bindings! old-bindings)))
-	 (keydn 'mouse-left
-	   (lambda (x y)
-	     (set-key-bindings! old-bindings)))
-	 (mousemove
-	  (lambda (x y xrel yrel)
-	    (with-context-for-joint/body-relation
-	     (apply-inverse-kinematics! 
-	      #;of final-body #;to (screen->3d view x y zs)
-		   #;at hub?))))))))))
 
 (define-method (select-body! body #;from (view <3d-view>))
   (let ((object (find (lambda (x)

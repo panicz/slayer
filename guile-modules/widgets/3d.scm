@@ -30,6 +30,7 @@
 	    select-all!
 	    unselect-all!
 	    delete-selected-objects!
+	    selectable?
 	    grab-mode
 	    rotate-mode
 	    X-SENSITIVITY
@@ -37,7 +38,6 @@
 
 (define-class <3d-stage> ()
   (objects #:init-value '()))
-
 
 (define-method (add-object! (object <3d>) #;to (stage <3d-stage>))
   (push! #[stage 'objects] object))
@@ -48,8 +48,7 @@
 (define-class <3d-view-drag-behavior> ()
   (target #:init-keyword #:of #:init-value #f)
   (view #:init-keyword #:in)
-  (screen-depth #:init-value 0.0 #:init-keyword #:screen-depth)
-  (walls #:init-value '()))
+  (screen-depth #:init-value 0.0 #:init-keyword #:screen-depth))
 
 (define-generic pefrorm!)
 
@@ -198,19 +197,28 @@
 
 (define-class <3d-editor> (<3d-view>)
   (object-groups #:init-form (make-vector (1+ (max-display-index)) '()))
+  (selectable? #:init-value (lambda (object) #t) #:init-keyword #:selectable?)
   (draw-objects!
    #:allocation #:virtual
    #:slot-ref 
    (lambda (view)
      (array-map! #[view 'object-groups] (lambda _ '()))
-     (let ((index 0))
-       (for object in #[view : 'stage : 'objects]
-	    (set-display-index! index)
-	    (draw-object! object)
-	    (when (in? object #[view 'selected])
-	      (draw-contour! object))
-	    (push! #[view : 'object-groups : index] object)
-	    (set! index (modulo (+ index 1) (max-display-index))))))
+     (let* ((index 0)
+	    (selectable non-selectable (partition #[view 'selectable?]
+						  #[view : 'stage : 'objects])))
+
+       (for object in selectable
+	 (set-display-index! index)
+	 (draw-object! object)
+	 (when (in? object #[view 'selected])
+	   (draw-contour! object))
+	 (push! #[view : 'object-groups : index] object)
+	 (set! index (modulo (+ index 1) (max-display-index))))
+
+       (set-display-index! #f)
+       (for object in non-selectable
+	 (draw-object! object))
+       ))
    #:slot-set! noop)
   (objects #:init-thunk make-hash-table)
   ;; hash whose keys are objects and values -- display indices
@@ -228,7 +236,8 @@
        (format #t "ambiguous display-index candidates\n")))))
 
 (define-method (select-object! (object <3d>) #;from (view <3d-editor>))
-  (unless (in? object #[view 'selected])
+  (unless (or (not (#[view 'selectable?] object))
+	      (in? object #[view 'selected]))
     (push! #[view 'selected] object)))
 
 (define-method (unselect-object! (view <3d-editor>) (object <3d>))

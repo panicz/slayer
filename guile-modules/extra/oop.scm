@@ -14,7 +14,6 @@
 		 <procedure>
 		 class-slots class-direct-supers class-direct-subclasses
 		 deep-clone shallow-clone
-		 
 		))
   #:use-module (extra ref)
   #:use-module (extra common)
@@ -207,7 +206,6 @@
     ;;(<< "REMEMBERING " slot-name)
     (set! #[object : '%%write-registry : slot-name] #t))
   (next-method))
-
 
 (define-method (modified? (object <register-write-access>))
   (not (hash-empty? #[object '%%write-registry])))

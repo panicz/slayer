@@ -27,6 +27,36 @@
   ;;:re-export (distance)
   )
 
+
+#|
+(define-class <exposed-object> ())
+
+(define-method (hidden-slots (object <exposed-object>))
+  '())
+
+(define-method (display (this <exposed-object>) (port <output-port>))
+  (let* ((class (class-of this))
+	 (string (string-append
+		  "#<" (symbol->string (class-name class))": "
+		  (string-join
+		   (remove
+		    string-null?
+		    (map (lambda (property)
+			   (if (symbol-match "^%" property)
+			       ""
+			       (format #f "~a: ~a" property
+				       (slot-ref this property))))
+			 (difference
+			  (map (lambda (property)
+				 (or (and-let* (((name . _) property))
+				       name)
+				     property))
+			       (class-slots class))
+			  (hidden-slots this))))
+		   ", ") ">")))
+    (display string port)))
+|#
+
 (define x-axis #f32(1 0 0))
 (define y-axis #f32(0 1 0))
 (define z-axis #f32(0 0 1))
@@ -63,9 +93,12 @@
 		 else))
 	      definition)))))
 
-(define-class <3d> ()
+(define-class <3d> () ;;(<exposed-object>)
   (position #:init-value #f32(0 0 0) #:init-keyword #:position)
   (orientation #:init-value '(1.0 . #f32(0 0 0)) #:init-keyword #:orientation))
+
+#;(define-method (hidden-slots (object <3d>))
+  `(mesh . ,(next-method)))
 
 (define-method (distance (a <3d>) (b <3d>))
   (distance #[a 'position] #[b 'position]))

@@ -42,28 +42,45 @@ exit
 
 (define-rig ground (with-input-from-file "art/rigs/ground.rig" read))
 
-(define view (make <3d-editor>
-	       #:x  0 #:y  0 
-	       #:w 640 #:h 480
-	       #:stage physical-objects))
-
-(add-child! view #;to *stage*)
-
 (define the-rig (make-rig #;in the-simulation 'rob))
 
 (define the-ground (make-rig #;in the-simulation 'ground))
 
-(define restricted-rigs `(,the-ground))
+(define non-selectable-objects `(,the-ground))
 
-(define (selectable? object)
-  (and (is-a? object <physical-object>)
-       (not (in? #[object 'rig] restricted-rigs))))
+(define view (make <3d-editor>
+	       #:x  0 #:y  0 
+	       #:w 640 #:h 480
+	       #:stage physical-objects
+	       #:selectable?
+	       (lambda (object)
+		 (and (not (in? object non-selectable-objects))
+		      (match (current-editing-mode)
+			('demiurge
+			 (and (is-a? object <physical-object>)
+			      (not (in? #[object 'rig]
+					non-selectable-objects))))
+			('idol
+			 (is-a? object <phantom-body>)))
+		   ))
+	       ))
+
+(keydn "]"
+       (lambda ()
+	 (set-editing-mode! (next-editing-mode))))
+
+(add-child! view #;to *stage*)
+
+(create-phantom! #;for the-rig #;on physical-objects)
 
 (set-pose! the-rig (pose #;of the-rig))
 
 (define max-force 20.0)
 
 (define max-velocity 3.0)
+
+(keydn '/ (lambda ()
+	    (for-each << #[physical-objects 'objects])))
 
 (keydn '=
   (lambda ()
@@ -77,7 +94,6 @@ exit
 	(set! max-velocity (max 0.0 (- max-velocity 0.1)))
 	(set! max-force (max 0.0 (- max-force 10.0))))))
 
-
 (attach-velocity-muscles-to-all-joints! #;in the-rig
 					     #;with-parameters 
 					     (lambda () max-force)
@@ -86,7 +102,7 @@ exit
 (set! #[view 'left-click]
   (lambda (x y)
     (and-let* ((object (object-at-position x y #;in view))
-	       ((selectable? object)))
+	       ((#[view 'selectable?] object)))
       (unless (modifier-pressed? 'shift)
 	(unselect-all! #;in view))
       (if (in? object #[view 'selected])
@@ -97,8 +113,8 @@ exit
   (lambda ()
     (unselect-all! #;in view)
     (for object in #[view : 'stage : 'objects]
-      (if (selectable? object)
-	  (select-object! object #;from view)))))
+      (when (#[view 'selectable?] object)
+	(select-object! object #;from view)))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
@@ -245,19 +261,20 @@ exit
 	(with-context-for-joint/body-relation
 	 (set! #[view 'dragging-behavior]
 	       (let ((object (object-at-position x y #;in view)))
-		 (cond ((or (not object)
-			    (not (in? object #[view 'selected])))
-			(make <camera-pan> #:in view))
+		 (cond
+		  ((or (not object)
+		       (not (in? object #[view 'selected])))
+		   (make <camera-pan> #:in view))
+		  
+		  ((let ((body #[object 'body]))
+		     (or (> (length #[view 'selected]) 1)
+			 (part-of-corpus? body)
+			 (any part-of-corpus? (bodies-attached-to body))))
+		   (make <ragdoll-movement-around-physics-view>
+		     #:of object #:in view))
 		       
-		       ((let ((body #[object 'body]))
-			  (or (> (length #[view 'selected]) 1)
-			      (part-of-corpus? body)
-			      (any part-of-corpus? (bodies-attached-to body))))
-			(make <movement-around-physics-view>
-			  #:of object #:in view))
-		       
-		       (else
-			(make <pose-modification> #:of object #:in view))))))))
+		  (else
+		   (make <pose-modification> #:of object #:in view))))))))
 
 (set! #[view 'drag]
       (lambda (x y dx dy)
