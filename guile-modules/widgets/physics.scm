@@ -209,9 +209,11 @@
      '(mesh (vertices #2f32((0 0 0)))
 	    (faces (points #u8(0)))))))
 
+
 (define-class <physics-stage> (<3d-stage>)
-  (%body=>object #:init-thunk make-hash-table)
-  (%joint=>object #:init-thunk make-hash-table)
+  (%body=>object #:init-thunk make-doubly-weak-hash-table)
+  (%joint=>object #:init-thunk make-doubly-weak-hash-table)
+  (%object=>phantom #:init-thunk make-doubly-weak-hash-table)
   (%permanent-objects #:init-value '())
   (%objects-cache #:init-value '())
   (%last-synchronized-simulation-step #:init-value #f)
@@ -279,4 +281,6 @@
   (for object in #[stage 'objects]
     (when (and (is-a? object <physical-object>)
 	       (eq? #[object 'rig] rig))
-      (push! #[stage '%permanent-objects] (make <phantom-body> #:for object)))))
+      (let ((phantom (make <phantom-body> #:for object)))
+	(push! #[stage '%permanent-objects] phantom)
+	(hashq-set! #[stage '%object=>phantom] object phantom)))))
