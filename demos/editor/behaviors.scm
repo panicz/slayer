@@ -21,21 +21,21 @@
   (format #t "save-state! for ~a not implemented\n"
 	  (class-name (class-of object))))
 
-(define-method (same-rig-bodies (object <physical-object>) (view <3d-view>))
+(define-method (same-rig-bodies (object <physical-object>))
   (let ((bodies (rig-bodies #[object 'rig]))
-	(body=>object #[view : 'stage : '%body=>object]))
+	(body=>object #[object 'body=>object]))
     (map (lambda (body)
-	   #[body=>object body])
+	   (hashq-ref body=>object body))
 	 bodies)))
 
-(define-method (same-rig-bodies (object <phantom-body>) (view <3d-view>))
-  (let ((bodies (rig-bodies #[object : 'target : 'rig]))
-	(body=>object #[view : 'stage : '%body=>object])
-	(object=>phantom #[view : 'stage : '%object=>phantom]))
+(define-method (same-rig-bodies (object <phantom-body>))
+  (let* ((target #[object 'target])
+	 (bodies (rig-bodies #[target 'rig]))
+	 (body=>object #[target 'body=>object])
+	 (object=>phantom #[object 'object=>phantom]))
     (map (lambda (body)
-	   (let* ((object #[body=>object body])
+	   (let* ((object (hashq-ref body=>object body))
 		  (phantom (hashq-ref object=>phantom object)))
-	     (<< object phantom)
 	     phantom))
 	 bodies)))
 
@@ -50,7 +50,7 @@
   (next-method)
   (let* ((view #[this 'view])
 	 (object #[this 'target])
-	 (bodies (same-rig-bodies object view))
+	 (bodies (same-rig-bodies object))
 	 (position #[object 'position])
 	 ((_ _ z/screen) (3d->screen view position)))
     
@@ -109,10 +109,16 @@
     (set! #[this 'dragged-limb] body)))
 
 (define-method (perform! (modification <pose-modification>) x y dx dy)
-  (with-context-for-joint/body-relation
    (let* ((view #[modification 'view])
 	  (z #[modification 'screen-depth])
 	  (dragged-limb #[modification 'dragged-limb])
 	  (desired-position (screen->3d view x y z)))
-     (apply-inverse-kinematics! 
-      #;of dragged-limb #;to desired-position #;at hub?))))
+     (match (current-editing-mode)
+       ('demiurge
+	(with-context-for-joint/body-relation
+	 (apply-inverse-kinematics! #;of dragged-limb
+					 #;to desired-position #;at hub?)))
+       (_
+	(<< `(pose modification not implemented for ,(current-editing-mode)))))))
+
+

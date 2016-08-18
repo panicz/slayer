@@ -619,11 +619,6 @@
 	     ((not (null? result))))
     result))
 
-(define-curried-syntax (symbol-match pattern symbol)
-  (assert (and (symbol? symbol) (string? pattern)))
-  (and-let* ((matches (string-matches pattern (symbol->string symbol))))
-    (map string->symbol matches)))
-
 ;; string-matches returns a list of all expressions that match a given
 ;; pattern (as a raw text, contrary to the match struct from "string-match"
 ;; and "string-match-all")
@@ -638,6 +633,11 @@
 (e.g.
  (string-matches "([0-9])([a-z])" "1a 2b 3c 4d")
  ===> ("1" "a" "2" "b" "3" "c" "4" "d"))
+
+(define-curried-syntax (symbol-match pattern symbol)
+  (assert (and (symbol? symbol) (string? pattern)))
+  (and-let* ((matches (string-matches pattern (symbol->string symbol))))
+    (map string->symbol matches)))
 
 ;; borrowed from http://community.schemewiki.org/?scheme-faq-language
  (define (curry f n) 

@@ -50,8 +50,20 @@
 
 (define-syntax (with-context-for-joint/body-relation action . *)
   (specify ((joint-property-getter joint-property)
+	    (body-property-getter body-property)
 	    (body-rig-getter body-rig)
 	    (rig-joints-getter rig-joints))
+    action . *))
+
+
+(define-syntax (with-context-for-idol action . *)
+  (specify ((joint-property-getter ref)
+	    (body-property-getter ref)
+	    (body-rig-getter (lambda (body)
+			       #[]))
+	    (rig-joints-getter (lambda (rig)
+				 (let ((joints (rig-joints rig)))
+				   <??>))))
     action . *))
 
 (define (rotate-body! body #;by angle #;around axis #;at pivot)
@@ -65,10 +77,10 @@
 			   orientation))))
 
 (define* (set-pose! #;of rig #;to pose #:key (keeping #f))
-  (setup-pose! #;of rig #;to pose #:keeping keeping)
-  (specify-pose! #;of rig #;to pose))
+  (set-actual-pose! #;of rig #;to pose #:keeping keeping)
+  (set-desired-pose! #;of rig #;to pose))
 
-(define* (setup-pose! #;of rig #;to pose #:key (keeping #f))
+(define* (set-actual-pose! #;of rig #;to pose #:key (keeping #f))
   (assert (and (pose? pose)
 	       (if keeping (body? keeping))))
   (with-context-for-joint/body-relation
@@ -124,62 +136,68 @@
 	  (loop rest (cons (list new-anchor new-rotation) result)
 		new-anchor new-rotation)))))))
 
-(publish
- (define* (apply-inverse-kinematics! #;of body #;to desired-position 
+(without-default (joint-property-getter
+		  body-property-getter)
+  (define* (apply-inverse-kinematics! #;of body #;to desired-position 
 					  #:optional #;at (member-type? hub?)
 					  #;with (max-step 0.02))
-   (and-let* ((joint-sequence pivot (joint-sequence-from+nearest-member
-				     member-type? #;to body))
-	      ((> (length joint-sequence) 1))
-	      (global-position (body-property body 'position))
-	      (system-equation 
-	       spherical-range
-	       (axes- ... last-axis) (tip/angles joint-sequence 
-						 #;to global-position))
-	      (reachable-position (fit desired-position 
-				       #;to spherical-range 
-					    #;at (body-property pivot 'position)))
-	      (displacement (- reachable-position global-position))
-	      (distance (norm displacement))
-	      (direction (/ displacement distance)))
-     (let improve ((improvement 0)
-		   (remaining distance)
-		   (current-position global-position))
-       (let ((angles (map (lambda (joint)
-			    (joint-property joint 'angle))
-			  joint-sequence)))
-	 (if (positive? remaining)
-	     (let* ((improved-position 
-		     (if (< remaining max-step)
-			 reachable-position
-			 (+ current-position (* direction max-step))))
-		    ((new-angles- ... _)
-		     (desired-configuration current-position
-					    improved-position
-					    angles 
-					    system-equation))
-		    (new-angles      ; we replace the last angle, so that
-		     `(,@new-angles- ; the orientation of the last body
-		       ,(apply - 0.0 (map (lambda (angle axis) ; remains fixed
-					    (* angle (* axis last-axis)))
-					  new-angles- axes-))))
-		    (new-pose 
-		     `(pose ,@(map (lambda (joint new-angle)
-				     `(,(joint-name joint) . ,new-angle))
-				   joint-sequence new-angles))))
-	       (unless (or (> improvement 5) (exists delta in new-angles
-					       (> (abs delta) 1.5)))
-		 (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
-		 (improve (+ improvement 1) 
-			  (- remaining max-step)
-			  (body-property body 'position)))))))))
- where
- (define (fit position #;to range #;at pivot)
-   (let* ((local (- position pivot))
-	  (distance (norm local))
-	  (direction (/ local distance)))
-     (and (>= range distance)
-	  (+ pivot (* (min range distance) direction))))))
+    (define (fit position #;to range #;at pivot)
+      (let* ((local (- position pivot))
+	     (distance (norm local))
+	     (direction (/ local distance)))
+	(and (>= range distance)
+	     (+ pivot (* (min range distance) direction)))))
+    
+    (and-let* ((joint-sequence pivot (joint-sequence-from+nearest-member
+				      member-type? #;to body))
+	       ((> (length joint-sequence) 1))
+	       (global-position ((specific body-property-getter)
+				 body 'position))
+	       (system-equation 
+		spherical-range
+		(axes- ... last-axis) (tip/angles joint-sequence 
+						  #;to global-position))
+	       (reachable-position (fit desired-position 
+					#;to spherical-range 
+					     #;at ((specific body-property-getter)
+						   pivot 'position)))
+	       (displacement (- reachable-position global-position))
+	       (distance (norm displacement))
+	       (direction (/ displacement distance)))
+      (let improve ((iteration 0)
+		    (remaining distance)
+		    (current-position global-position))
+	(let ((angles (map (lambda (joint)
+			     ((specific joint-property-getter)
+			      joint 'angle))
+			   joint-sequence)))
+	  (if (positive? remaining)
+	      (let* ((improved-position 
+		      (if (< remaining max-step)
+			  reachable-position
+			  (+ current-position (* direction max-step))))
+		     ((new-angles- ... _)
+		      (desired-configuration current-position
+					     improved-position
+					     angles 
+					     system-equation))
+		     (new-angles      ; we replace the last angle, so that
+		      `(,@new-angles- ; the orientation of the last body
+			,(apply - 0.0 (map (lambda (angle axis) ; remains fixed
+					     (* angle (* axis last-axis)))
+					   new-angles- axes-))))
+		     (new-pose 
+		      `(pose ,@(map (lambda (joint new-angle)
+				      `(,(joint-name joint) . ,new-angle))
+				    joint-sequence new-angles))))
+		(unless (or (> iteration 5) (exists delta in new-angles
+						    (> (abs delta) 1.5)))
+		  (set-pose! #;of (body-rig body) #;to new-pose #:keeping pivot)
+		  (improve (+ iteration 1) 
+			   (- remaining max-step)
+			   ((specific body-property-getter)
+			    body 'position))))))))))
+
 
 (define-method (select-body! body #;from (view <3d-view>))
   (let ((object (find (lambda (x)
