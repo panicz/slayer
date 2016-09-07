@@ -39,7 +39,6 @@ typedef enum COLOR_MASK {
   COLOR_MASK_ALPHA = (0xff << COLOR_SHIFT_ALPHA)
 } COLOR_MASK;
 
-
 DECLARE void glWindowPos2i (GLint x, GLint y);
 
 #define WITH_VERTEX_ARRAY(size, type, stride, pointer, action)	\
@@ -55,6 +54,15 @@ DECLARE void glWindowPos2i (GLint x, GLint y);
   glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 
 #endif // USE_OPENGL
+
+#define WITH_LOCKED_SURFACE(surface, action)	\
+  if(SDL_MUSTLOCK(surface)) {			\
+    TRY_SDL(SDL_LockSurface(surface));		\
+  }						\
+  action;					\
+  if(SDL_MUSTLOCK(surface)) {			\
+    SDL_UnlockSurface(surface);			\
+  }
 
 #if defined(USE_OPENGL) && !defined(NDEBUG)
 #define CHECK_OPENGL_ERROR(header)				\

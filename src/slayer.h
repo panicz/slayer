@@ -15,7 +15,7 @@
 #include "extend.h"
 
 #define TRY_SDL(f)						       \
-  if((f) == -1) {						       \
+  if((f) < 0) {							       \
     OUT("%s/%s,%d: '%s' failed: %s", __FILE__, __FUNCTION__, __LINE__, \
 	_TOSTRING(f),SDL_GetError());				       \
   }

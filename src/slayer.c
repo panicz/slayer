@@ -85,7 +85,7 @@ export_symbols(void *unused) {
 static struct list *resources = NULL;
 
 void *
-remember_to_release(void *resource, void (*release)(void *)) {
+remember_to_release(void *resource, PROC release) {
   if(resource) {
     resources = cons(cons(resource, (void *) release), resources);
   }
@@ -100,7 +100,7 @@ release_resources() {
   while(resources) {
     struct list *next = resources->next;
     void *resource = RESOURCE(resources->data);
-    void (*release)(void *) = (void(*)(void *)) RELEASE_PROC(resources->data);
+    void (*release)(void *) = (PROC) RELEASE_PROC(resources->data);
     free(resources->data);
     (*release)(resource);
     free(resources);
@@ -183,10 +183,6 @@ init(arg_t *arg) {
     scm_c_use_module("slayer audio");
   }
 #endif // USE_SDL_MIXER
-
-#ifdef ENABLE_VECTOR_GRAPHICS
-  drawing_init();
-#endif // ENABLE_VECTOR_GRAPHICS
   
   // these calls should be moved to separate libraries
   image_init();
@@ -194,6 +190,10 @@ init(arg_t *arg) {
   font_init();
   scm_c_use_module("slayer font");
 
+#ifdef ENABLE_VECTOR_GRAPHICS
+  drawing_init();
+#endif // ENABLE_VECTOR_GRAPHICS
+  
   // if the file doesn't exist, create it, filling it with the
   // basic definitions
 

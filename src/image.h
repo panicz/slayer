@@ -102,9 +102,4 @@ DECLARE SCM
 texture_smob_from_pixel_data(Uint16 w, Uint16 h, const void *pixels,
 			     bool mirror_x, bool mirror_y);
 
-#define WITH_LOCKED_SURFACE(surface, action)	\
-  SDL_LockSurface(surface);			\
-  action;					\
-  SDL_UnlockSurface(surface);
-
 #endif // _IMAGE_H

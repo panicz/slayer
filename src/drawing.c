@@ -23,16 +23,9 @@
 
 DEF_MAP(Uint32)
 
-typedef struct {
-  SDL_Surface *surface;
-  cairo_t *cairo;
-  cairo_surface_t *target;
-} drawing_context_t;
-
 struct list *drawing_contexts = NULL;
 
-#define CURRENT_DRAWING_CONTEXT	((drawing_context_t *)(drawing_contexts->data))
-#define CURRENT_CAIRO_STATE (CURRENT_DRAWING_CONTEXT->cairo)
+#define CURRENT_DRAWING_CONTEXT	((cairo_t *)(drawing_contexts->data))
 
 static inline cairo_line_join_t
 scm_to_line_join_t(SCM symbol) {
@@ -120,9 +113,68 @@ scm_from_antialias_t(cairo_antialias_t antialias) {
   }
 }
 
+static inline cairo_font_slant_t
+scm_to_font_slant_t(SCM symbol) {
+  if(scm_is_eq(symbol, s_italic)) {
+    return CAIRO_FONT_SLANT_ITALIC;
+  }
+  else if(scm_is_eq(symbol, s_oblique)) {
+    return CAIRO_FONT_SLANT_OBLIQUE;
+  }
+  else if(scm_is_eq(symbol, s_normal)) {
+    return CAIRO_FONT_SLANT_NORMAL;
+  }
+  else {
+    char *name = as_c_string(symbol);
+    WARN("Unsupported font slant value: %s", name);
+    free(name);
+    return CAIRO_FONT_SLANT_NORMAL;
+  }
+}
+
+static inline SCM
+scm_from_font_slant_t(cairo_font_slant_t slant) {
+  switch(slant) {
+  case CAIRO_FONT_SLANT_ITALIC:
+    return s_italic;
+  case CAIRO_FONT_SLANT_OBLIQUE:
+    return s_oblique;
+  case CAIRO_FONT_SLANT_NORMAL:
+  default:
+    return s_normal;
+  }
+}
+
+static inline cairo_font_weight_t
+scm_to_font_weight_t(SCM symbol) {
+  if(scm_is_eq(symbol, s_bold)) {
+    return CAIRO_FONT_WEIGHT_BOLD;
+  }
+  else if(scm_is_eq(symbol, s_normal)) {
+    return CAIRO_FONT_WEIGHT_NORMAL;
+  }
+  else {
+    char *name = as_c_string(symbol);
+    WARN("Unsupported font weight value: %s", name);
+    free(name);
+    return CAIRO_FONT_WEIGHT_NORMAL;
+  }
+}
+
+static inline SCM
+scm_from_font_weight_t(cairo_font_weight_t weight) {
+  switch(weight) {
+  case CAIRO_FONT_WEIGHT_BOLD:
+    return s_bold;
+  case CAIRO_FONT_WEIGHT_NORMAL:
+  default:
+    return s_normal;
+  }
+}
+
 #define PRECISION 16
 
-Uint32 reciprocals[256];
+static Uint32 reciprocals[256];
 
 static inline void
 reciprocals_init () {
@@ -134,105 +186,158 @@ reciprocals_init () {
 
 static inline Uint32
 unpremultiply(Uint32 pixel) {
-  SDL_Color c = sdl_color(pixel);
-  Uint32 R = reciprocals[c.unused];
-  return (Uint32)
-    ((SHIFT_LEFT(c.r * R, COLOR_SHIFT_RED - PRECISION) & COLOR_MASK_RED)
-     | (SHIFT_LEFT(c.g * R, COLOR_SHIFT_GREEN - PRECISION) & COLOR_MASK_GREEN)
-     | (SHIFT_LEFT(c.b * R, COLOR_SHIFT_BLUE - PRECISION) & COLOR_MASK_BLUE)
-     | (pixel & COLOR_MASK_ALPHA));
+  static Uint32 previous_pixel = 0;
+  static Uint32 previous_value = 0;
+  if(pixel == previous_pixel) {
+    return previous_value;
+  }
+  else {
+    SDL_Color c = sdl_color(pixel);
+    Uint32 R = reciprocals[c.unused];
+    previous_pixel = pixel;
+    return previous_value = (Uint32)
+      ((SHIFT_LEFT(c.r * R, COLOR_SHIFT_RED - PRECISION) & COLOR_MASK_RED)
+       | (SHIFT_LEFT(c.g * R, COLOR_SHIFT_GREEN - PRECISION) & COLOR_MASK_GREEN)
+       | (SHIFT_LEFT(c.b * R, COLOR_SHIFT_BLUE - PRECISION) & COLOR_MASK_BLUE)
+       | (pixel & COLOR_MASK_ALPHA));
+  }
 }
 
 static inline Uint32
 premultiply(Uint32 pixel) {
-  SDL_Color c = sdl_color(pixel);
-  return (Uint32)
-    ((SHIFT_LEFT(c.r*c.unused*257 + (1 << (PRECISION-1)),
-		 COLOR_SHIFT_RED - PRECISION)
-      & COLOR_MASK_RED)
-     | (SHIFT_LEFT(c.g*c.unused*257 + (1 << (PRECISION-1)),
-		   COLOR_SHIFT_GREEN - PRECISION)
-	& COLOR_MASK_GREEN)
-     | (SHIFT_LEFT(c.b*c.unused*257 + (1 << (PRECISION-1)),
-		   COLOR_SHIFT_BLUE - PRECISION)
-	& COLOR_MASK_BLUE)
-     | (pixel & COLOR_MASK_ALPHA));
+  static Uint32 previous_pixel = 0;
+  static Uint32 previous_value = 0;
+  if(pixel == previous_pixel) {
+    return previous_value;
+  }
+  else {
+    SDL_Color c = sdl_color(pixel);
+    previous_pixel = pixel;
+    return previous_value = (Uint32)
+      ((SHIFT_LEFT(c.r*c.unused*257 + (1 << (PRECISION-1)),
+		   COLOR_SHIFT_RED - PRECISION)
+	& COLOR_MASK_RED)
+       | (SHIFT_LEFT(c.g*c.unused*257 + (1 << (PRECISION-1)),
+		     COLOR_SHIFT_GREEN - PRECISION)
+	  & COLOR_MASK_GREEN)
+       | (SHIFT_LEFT(c.b*c.unused*257 + (1 << (PRECISION-1)),
+		     COLOR_SHIFT_BLUE - PRECISION)
+	  & COLOR_MASK_BLUE)
+       | (pixel & COLOR_MASK_ALPHA));
+  }
 }
 
 #undef PRECISION
 
-static inline drawing_context_t *
+static cairo_user_data_key_t const CAIROSDL_TARGET_KEY[1] = {{1}};
+
+cairo_t *
 create_drawing_context(SDL_Surface *surface) {
-  drawing_context_t *context = malloc(sizeof(drawing_context_t));
   SDL_PixelFormat *format = surface->format;
-  context->surface = surface;
+  cairo_surface_t *target;
+  cairo_t *cairo;
   if(format->BytesPerPixel != 4
      || format->BitsPerPixel != 32
      || format->Rmask != COLOR_MASK_RED
      || format->Gmask != COLOR_MASK_GREEN
-     || format->Bmask != COLOR_MASK_BLUE
-     || format->Amask != COLOR_MASK_ALPHA) {
+     || format->Bmask != COLOR_MASK_BLUE) {
     WARN("The format of SDL surface <%p> not supported by Cairo", surface);
-    context->target = cairo_image_surface_create((cairo_format_t) -1, 0, 0);
-    context->cairo = cairo_create(context->target);
-    return context;
-  }  
-  context->target = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-					       surface->w, surface->h);
-  WITH_LOCKED_SURFACE(surface,
-		      mapUint32((Uint32 *)
-				cairo_image_surface_get_data(context->target),
-				unpremultiply,
-				(Uint32 *) surface->pixels,
-				surface->w * surface->h));
+    target = cairo_image_surface_create((cairo_format_t) -1, 0, 0);
+  }
+  else if(format->Amask == COLOR_MASK_ALPHA) {
+    target = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+					surface->w, surface->h);
+    WITH_LOCKED_SURFACE
+      (surface,
+       mapUint32((Uint32 *)
+		 cairo_image_surface_get_data(target),
+		 unpremultiply,
+		 (Uint32 *) surface->pixels,
+		 surface->w * surface->h)
+       );
+  }
+  else {
+    target = cairo_image_surface_create_for_data(surface->pixels,
+						 CAIRO_FORMAT_RGB24,
+						 surface->w,
+						 surface->h,
+						 surface->pitch);
+  }
+  surface->refcount++;
+  cairo_surface_set_user_data(target,
+			      CAIROSDL_TARGET_KEY,
+			      surface,
+			      (PROC) SDL_FreeSurface);
 
-  context->cairo = cairo_create(context->target);
-  return context;
+  cairo = cairo_create(target);
+  cairo_surface_destroy(target);
+  return cairo;
+}
+
+static inline SDL_Surface *
+target_surface(cairo_surface_t *target) {
+  return (SDL_Surface *)
+    cairo_surface_get_user_data(target, CAIROSDL_TARGET_KEY);
 }
 
 static inline void
-destroy_drawing_context(drawing_context_t *context) {
-  cairo_destroy(context->cairo);
-  cairo_surface_destroy(context->target);
-  free(context);
+flush_drawing_context(cairo_t *cairo) {
+  cairo_surface_t *target = cairo_get_target(cairo);
+  SDL_Surface *surface = target_surface(target);
+  cairo_surface_flush(target);
+  if(surface->format->Amask == COLOR_MASK_ALPHA) {
+    WITH_LOCKED_SURFACE(surface,
+			mapUint32((Uint32 *) surface->pixels,
+				  premultiply,
+				  (Uint32 *)
+				  cairo_image_surface_get_data(target),
+				  surface->w * surface->h));
+  }
 }
 
-static inline void
-flush_drawing_context(drawing_context_t *context) {
-  WITH_LOCKED_SURFACE(context->surface,
-		      mapUint32((Uint32 *) context->surface->pixels,
-				premultiply,
-				(Uint32 *)
-				cairo_image_surface_get_data(context->target),
-				context->surface->w * context->surface->h));
+inline void
+enter_drawing_context(SDL_Surface *surface) {
+  drawing_contexts = cons(create_drawing_context(surface), drawing_contexts);
+  if(SDL_MUSTLOCK(surface)) {
+    TRY_SDL(SDL_LockSurface(surface));
+  }
 }
 
 static void
 on_enter_drawing_context(SCM image) {
-  SDL_Surface *surface = SURFACE(image);
+  enter_drawing_context(SURFACE(image));
   scm_gc_protect_object(image);
-  drawing_contexts = cons(create_drawing_context(surface), drawing_contexts);
 }
-			 	
+
+inline void
+exit_drawing_context(SDL_Surface *surface)
+{
+  if(SDL_MUSTLOCK(surface)) {
+    SDL_UnlockSurface(surface);
+  }
+
+  flush_drawing_context(CURRENT_DRAWING_CONTEXT);
+  cairo_destroy(CURRENT_DRAWING_CONTEXT);
+  drawing_contexts = decap(drawing_contexts);
+}
+
 static void
 on_exit_drawing_context(SCM image) {
-  flush_drawing_context(CURRENT_DRAWING_CONTEXT);
-  destroy_drawing_context(CURRENT_DRAWING_CONTEXT);
-  drawing_contexts = decap(drawing_contexts);  
+  exit_drawing_context(SURFACE(image));
   scm_gc_unprotect_object(image);
 }
 
 #define BEGIN_DRAWING_CONTEXT(surface)					\
   scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);				\
-  scm_dynwind_unwind_handler((void(*)(void *)) on_exit_drawing_context,	\
+  scm_dynwind_unwind_handler((PROC) on_exit_drawing_context,		\
 			     surface, SCM_F_WIND_EXPLICITLY);		\
-  scm_dynwind_rewind_handler((void(*)(void *)) on_enter_drawing_context, \
+  scm_dynwind_rewind_handler((PROC) on_enter_drawing_context,		\
 			     surface, SCM_F_WIND_EXPLICITLY)
 
 #define END_DRAWING_CONTEXT() scm_dynwind_end()
 
 static SCM
-with_output_to_surface(SCM image, SCM thunk) {
+with_drawing_output_to_surface(SCM image, SCM thunk) {
   scm_assert_smob_type(image_tag, image);
   SCM_ASSERT_TYPE(IS_SURFACE(image), image, SCM_ARG1, __FUNCTION__,
 		  "surface (not texture)");
@@ -245,16 +350,58 @@ with_output_to_surface(SCM image, SCM thunk) {
 #undef END_DRAWING_CONTEXT
 #undef BEGIN_DRAWING_CONTEXT
 
+#define BEGIN_MEASURE_CONTEXT()						\
+  scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);				\
+  scm_dynwind_unwind_handler((PROC) on_exit_measure_context,		\
+			     NULL, SCM_F_WIND_EXPLICITLY);		\
+  scm_dynwind_rewind_handler((PROC) on_enter_measure_context,		\
+			     NULL, SCM_F_WIND_EXPLICITLY)
+
+#define END_MEASURE_CONTEXT() scm_dynwind_end()
+
+
+static inline cairo_t *
+create_measure_context() {
+  cairo_surface_t *target
+    = cairo_recording_surface_create(CAIRO_CONTENT_COLOR, NULL);
+  cairo_t *cairo = cairo_create(target);
+  cairo_surface_destroy(target);
+  return cairo;
+}
+
+static void
+on_enter_measure_context() {
+  drawing_contexts = cons(create_measure_context(), drawing_contexts);  
+}
+
+static void
+on_exit_measure_context() {
+  cairo_destroy(CURRENT_DRAWING_CONTEXT);
+  drawing_contexts = decap(drawing_contexts);
+}
+
+static SCM
+measure_without_drawing(SCM thunk) {
+  double x, y, w, h;
+  BEGIN_MEASURE_CONTEXT();
+  scm_call_0(thunk);
+  cairo_recording_surface_ink_extents(cairo_get_target(CURRENT_DRAWING_CONTEXT),
+				      &x, &y, &w, &h);
+  END_MEASURE_CONTEXT();
+  return scm_list_4(scm_from_double(x), scm_from_double(y),
+		    scm_from_double(x+w), scm_from_double(y+h));
+}
+
 #define DEF_CAIRO_GETTER_SETTER(property, type)				\
   static SCM								\
   set_##property(SCM v) {						\
-    cairo_set_##property(CURRENT_CAIRO_STATE, scm_to_##type(v));	\
+    cairo_set_##property(CURRENT_DRAWING_CONTEXT, scm_to_##type(v));	\
     return SCM_UNSPECIFIED;						\
   }									\
   static SCM								\
   get_##property() {							\
     return								\
-      scm_from_##type(cairo_get_##property(CURRENT_CAIRO_STATE));	\
+      scm_from_##type(cairo_get_##property(CURRENT_DRAWING_CONTEXT));	\
   }
 
 DEF_CAIRO_GETTER_SETTER(line_width, double);
@@ -263,17 +410,19 @@ DEF_CAIRO_GETTER_SETTER(tolerance, double);
 DEF_CAIRO_GETTER_SETTER(antialias, antialias_t);
 DEF_CAIRO_GETTER_SETTER(line_join, line_join_t);
 
+#undef DEF_CAIRO_GETTER_SETTER
+
 #define DEF_CAIRO_0(name)			\
   static SCM					\
   name##_x() {					\
-    cairo_##name(CURRENT_CAIRO_STATE);		\
+    cairo_##name(CURRENT_DRAWING_CONTEXT);	\
     return SCM_UNSPECIFIED;			\
   }
 
 #define DEF_CAIRO_2DOUBLE(name)			\
   static SCM					\
   name##_x(SCM a, SCM b) {			\
-    cairo_##name(CURRENT_CAIRO_STATE,		\
+    cairo_##name(CURRENT_DRAWING_CONTEXT,	\
 		 scm_to_double(a),		\
 		 scm_to_double(b));		\
     return SCM_UNSPECIFIED;			\
@@ -282,7 +431,7 @@ DEF_CAIRO_GETTER_SETTER(line_join, line_join_t);
 #define DEF_CAIRO_3DOUBLE(name)			\
   static SCM					\
   name##_x(SCM a, SCM b, SCM c) {		\
-    cairo_##name(CURRENT_CAIRO_STATE,		\
+    cairo_##name(CURRENT_DRAWING_CONTEXT,	\
 		 scm_to_double(a),		\
 		 scm_to_double(b),		\
 		 scm_to_double(c));		\
@@ -292,7 +441,7 @@ DEF_CAIRO_GETTER_SETTER(line_join, line_join_t);
 #define DEF_CAIRO_4DOUBLE(name)			\
   static SCM					\
   name##_x(SCM a, SCM b, SCM c, SCM d) {	\
-    cairo_##name(CURRENT_CAIRO_STATE,		\
+    cairo_##name(CURRENT_DRAWING_CONTEXT,	\
 		 scm_to_double(a),		\
 		 scm_to_double(b),		\
 		 scm_to_double(c),		\
@@ -303,12 +452,68 @@ DEF_CAIRO_GETTER_SETTER(line_join, line_join_t);
 DEF_CAIRO_0(stroke);
 DEF_CAIRO_0(fill);
 DEF_CAIRO_0(paint);
+DEF_CAIRO_0(new_path);
+DEF_CAIRO_0(close_path);
 
 DEF_CAIRO_2DOUBLE(move_to);
 DEF_CAIRO_2DOUBLE(line_to);
 DEF_CAIRO_3DOUBLE(set_source_rgb);
 DEF_CAIRO_4DOUBLE(set_source_rgba);
 DEF_CAIRO_4DOUBLE(rectangle);
+
+#undef DEF_CAIRO_4DOUBLE
+#undef DEF_CAIRO_3DOUBLE
+#undef DEF_CAIRO_2DOUBLE
+#undef DEF_CAIRO_0
+
+static SCM
+path_extents() {
+  double x1, y1, x2, y2;
+  cairo_path_extents(CURRENT_DRAWING_CONTEXT, &x1, &y1, &x2, &y2);
+  return scm_list_4(scm_from_double(x1), scm_from_double(y1),
+		    scm_from_double(x2), scm_from_double(y2));
+}
+
+static SCM
+text_extents(SCM text) {
+  char *string = as_c_string(text);
+  cairo_text_extents_t e;
+  cairo_text_extents(CURRENT_DRAWING_CONTEXT, string, &e);
+  free(string);
+  return scm_list_4(scm_from_double(e.x_bearing),
+		    scm_from_double(e.y_bearing),
+		    scm_from_double(e.x_bearing+e.x_advance),
+		    scm_from_double(e.y_bearing+e.y_advance));
+}
+
+static SCM
+set_font_face_x(SCM name, SCM slant, SCM weight) {
+  char *font = as_c_string(name);
+  cairo_select_font_face(CURRENT_DRAWING_CONTEXT,
+			 font,
+			 (GIVEN(slant)
+			  ? scm_to_font_slant_t(slant)
+			  : CAIRO_FONT_SLANT_NORMAL),
+			 (GIVEN(weight)
+			  ? scm_to_font_weight_t(weight)
+			  : CAIRO_FONT_WEIGHT_BOLD));
+  free(font);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+set_font_size_x(SCM size) {
+  cairo_set_font_size(CURRENT_DRAWING_CONTEXT, scm_to_double(size));
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+show_text_x(SCM text) {
+  char *string = as_c_string(text);
+  cairo_show_text(CURRENT_DRAWING_CONTEXT, string);
+  free(string);
+  return SCM_UNSPECIFIED;
+}
 
 static void 
 export_symbols(void *unused) {
@@ -317,14 +522,29 @@ export_symbols(void *unused) {
   scm_c_define_gsubr(name, arity, 0, 0, (scm_t_subr)proc);	\
   scm_c_export(name, NULL)
 
+#define EXPORT_PROCEDURE_WITH_OPTIONALS(name, arity, opt, proc)	\
+  scm_c_define_gsubr(name, arity, opt, 0, (scm_t_subr)proc);	\
+  scm_c_export(name, NULL)
+
 #define EXPORT_GETTER_SETTER(c_property, s_property)		\
   EXPORT_PROCEDURE("set-" s_property "!", 1, set_##c_property);	\
   EXPORT_PROCEDURE(s_property, 0, get_##c_property)
 
-  EXPORT_PROCEDURE("with-output-to-surface", 2, with_output_to_surface);
+  EXPORT_PROCEDURE("with-drawing-output-to-surface", 2,
+		   with_drawing_output_to_surface);
 
+  EXPORT_PROCEDURE("measure-without-drawing", 1,
+		   measure_without_drawing);
+
+  EXPORT_PROCEDURE("path-extents", 0, path_extents);
+  EXPORT_PROCEDURE("text-extents", 1, text_extents);
+  
   EXPORT_PROCEDURE("move-to!", 2, move_to_x);
   EXPORT_PROCEDURE("line-to!", 2, line_to_x);
+
+  EXPORT_PROCEDURE_WITH_OPTIONALS("set-font-face!", 1, 2, set_font_face_x);
+  EXPORT_PROCEDURE("set-font-size!", 1, set_font_size_x);
+  EXPORT_PROCEDURE("show-text!", 1, show_text_x);
   
   EXPORT_PROCEDURE("set-source-rgb!", 3, set_source_rgb_x);
   EXPORT_PROCEDURE("set-source-rgba!", 4, set_source_rgba_x);
@@ -333,6 +553,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("stroke!", 0, stroke_x);
   EXPORT_PROCEDURE("fill!", 0, fill_x);
   EXPORT_PROCEDURE("paint!", 0, paint_x);
+  EXPORT_PROCEDURE("new-path!", 0, new_path_x);
+  EXPORT_PROCEDURE("close-path!", 0, close_path_x);
   
   EXPORT_GETTER_SETTER(line_width, "line-width");
   EXPORT_GETTER_SETTER(miter_limit, "miter-limit");
@@ -341,11 +563,14 @@ export_symbols(void *unused) {
   EXPORT_GETTER_SETTER(line_join, "line-join");
 
 #undef EXPORT_GETTER_SETTER
+#undef EXPORT_PROCEDURE_WITH_OPTIONALS
 #undef EXPORT_PROCEDURE
 }
 
 void 
 drawing_init() {
   reciprocals_init();
+  drawing_contexts = cons(create_drawing_context(screen), drawing_contexts);
   scm_c_define_module("slayer drawing", export_symbols, NULL);
+  scm_c_define_module("slayer", (PROC) cond_expand_provide, "vector-graphics");
 }
