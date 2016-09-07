@@ -244,7 +244,7 @@ evalf(const char *fmt, ...) {
 }
 
 static inline void
-cond_expand_provide(void *symbols) {
+cond_expand_provide(const char *symbols) {
   evalf("(cond-expand-provide (current-module) '(%s))", symbols);
 }
 

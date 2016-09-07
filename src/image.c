@@ -281,9 +281,9 @@ on_exit_video_context(SCM image) {
 #define BEGIN_VIDEO_CONTEXT(image)					\
   if(video_mode & SDL_OPENGL) {						\
     scm_dynwind_begin(SCM_F_DYNWIND_REWINDABLE);			\
-    scm_dynwind_unwind_handler((void(*)(void *)) on_exit_video_context,	\
+    scm_dynwind_unwind_handler((PROC) on_exit_video_context,		\
 			       image, SCM_F_WIND_EXPLICITLY);		\
-    scm_dynwind_rewind_handler((void(*)(void *)) on_enter_video_context, \
+    scm_dynwind_rewind_handler((PROC) on_enter_video_context,		\
 			       image, SCM_F_WIND_EXPLICITLY);		\
   }
 
@@ -847,5 +847,5 @@ image_init() {
 
   init_bytesPerPixel();
   scm_c_define_module("slayer image", export_symbols, NULL);
-  scm_c_define_module("slayer", cond_expand_provide, "slayer-image");
+  scm_c_define_module("slayer", (PROC) cond_expand_provide, "slayer-image");
 }

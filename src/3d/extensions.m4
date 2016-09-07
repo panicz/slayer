@@ -7,7 +7,7 @@ dnl Of course, the comment above regards the generated C code,
 dnl not this m4 file that you're looking at right now
 
 ifdef(`def',`
-DECLARE generic_function_pointer_t glGetProcAddress (const char *);
+DECLARE CODE glGetProcAddress (const char *);
 ')
 
 ifdef(`init',`

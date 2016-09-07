@@ -40,7 +40,8 @@ int asprintf(char **strp, const char *fmt, ...);
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif // !HAVE_VASPRINTF
 
-typedef void (*generic_function_pointer_t)();
+typedef void (*CODE)();
+typedef void (*PROC)(void *);
 
 typedef void *pointer;
 
