@@ -98,6 +98,11 @@ extern SCM s_fast;
 extern SCM s_good;
 extern SCM s_best;
 
+extern SCM s_normal;
+extern SCM s_italic;
+extern SCM s_oblique;
+extern SCM s_bold;
+
 extern void symbols_init();
 
 #endif /* SYMBOLS_H */

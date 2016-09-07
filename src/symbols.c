@@ -98,6 +98,11 @@ SCM s_fast;
 SCM s_good;
 SCM s_best;
 
+SCM s_normal;
+SCM s_italic;
+SCM s_oblique;
+SCM s_bold;
+
 void
 symbols_init() {
   noop = gc_protected(eval("noop"));
@@ -199,6 +204,11 @@ symbols_init() {
   INIT_SYMBOL(fast);
   INIT_SYMBOL(good);
   INIT_SYMBOL(best);
+
+  INIT_SYMBOL(normal);
+  INIT_SYMBOL(italic);
+  INIT_SYMBOL(oblique);
+  INIT_SYMBOL(bold);
   
 #undef INIT_SYMBOL
 }
