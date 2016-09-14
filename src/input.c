@@ -11,6 +11,8 @@ static SCM (*event_handler[SDL_NUMEVENTS])(SDL_Event *);
 static SCM *userevent_handlers = NULL;
 static int next_userevent = 0;
 
+static SCM reaction;
+
 // procedures that are triggered when appropreate keys are pressed
 static SCM keydown;
 static SCM keyup;
@@ -24,6 +26,53 @@ static SCM scancodes;
 static SCM key_names;
 // a map from modifier symbols to their values
 static SCM modifier_codes;
+
+
+static inline void
+react(SDL_Event *e) {
+  SCM message;
+  switch(e->type) {
+  case SDL_KEYDOWN: {
+    SCM key_name = scm_c_vector_ref(key_names, e->key.keysym.sym);
+    message = scm_list_2(s_key_down, key_name);
+    break;
+  }
+  case SDL_KEYUP: {
+    SCM key_name = scm_c_vector_ref(key_names, e->key.keysym.sym);
+    message = scm_list_2(s_key_up, key_name);
+    break;
+  }
+
+  case SDL_MOUSEBUTTONDOWN: {
+    SCM key_name = scm_c_vector_ref(key_names, SDLK_LAST + e->button.button);
+    message = scm_list_2(s_key_down, key_name);
+    break;
+  }
+
+  case SDL_MOUSEBUTTONUP: {
+    SCM key_name = scm_c_vector_ref(key_names, SDLK_LAST + e->button.button);
+    message = scm_list_2(s_key_up, key_name);
+    break;
+  }
+    
+  case SDL_MOUSEMOTION: {
+    message = scm_list_3(s_mouse_move,
+			 /* by */
+			 scm_list_2(scm_from_int(e->motion.xrel),
+				    scm_from_int(e->motion.yrel)),
+			 /* to */
+			 scm_list_2(scm_from_int(e->motion.x),
+				    scm_from_int(e->motion.y)));
+    break;
+  }
+  default:
+    // we do not support other types of events in reactive mode
+    return;
+  }
+  scm_call_1(reaction, message);
+  scm_remember_upto_here_1(message);
+}
+
 
 static inline void
 init_modifier_codes() {
@@ -122,29 +171,32 @@ static SCM
 keyup_handler(SDL_Event *e) {
   //SCM handler = keyup[e->key.keysym.sym];
   SCM handler = SCM_SIMPLE_VECTOR_REF(keyup, e->key.keysym.sym);
-  if(is_scm_procedure(handler))
+  if(is_scm_procedure(handler)) {
     return scm_call_0(handler);
+  }
   return SCM_UNSPECIFIED;
 }
 
 static SCM 
 mousemotion_handler(SDL_Event *e) {
-  if(is_scm_procedure(mousemove))
+  if(is_scm_procedure(mousemove)) {
     return scm_call_4(mousemove, 
 		      scm_from_uint16(e->motion.x),
 		      scm_from_uint16(e->motion.y),
 		      scm_from_int16(e->motion.xrel),
 		      scm_from_int16(e->motion.yrel));
+  }
   return SCM_UNSPECIFIED;
 }
 
 static SCM 
 mousepressed_handler(SDL_Event *e) {
   SCM handler = SCM_SIMPLE_VECTOR_REF(keydown, SDLK_LAST + e->button.button);
-  if(is_scm_procedure(handler))
+  if(is_scm_procedure(handler)) {
     return scm_call_2(handler, 		      
 		      scm_from_uint16(e->button.x),
 		      scm_from_uint16(e->button.y));
+  }
   return SCM_UNSPECIFIED;
 }
 
@@ -152,10 +204,11 @@ static SCM
 mousereleased_handler(SDL_Event *e) {
   //SCM handler = keyup[SDLK_LAST + e->button.button];
   SCM handler = SCM_SIMPLE_VECTOR_REF(keyup, SDLK_LAST + e->button.button);
-  if(is_scm_procedure(handler))
+  if(is_scm_procedure(handler)) {
     return scm_call_2(handler, 		      
 		      scm_from_uint16(e->button.x),
 		      scm_from_uint16(e->button.y));
+  }
   return SCM_UNSPECIFIED;
 }
 
@@ -197,12 +250,14 @@ generate_userevent(SCM code, SCM data1, SCM data2) {
 static SCM 
 userevent_handler(SDL_Event *e) {
   if (-1 < e->user.code && e->user.code < next_userevent) {
-    if (e->user.data2)
+    if (e->user.data2) {
       return scm_call_2(userevent_handlers[e->user.code],
 			e->user.data1, e->user.data2);
-    if (e->user.data1)
+    }
+    if (e->user.data1) {
       return scm_call_1(userevent_handlers[e->user.code],
 			e->user.data1);
+    }
     return scm_call_0(userevent_handlers[e->user.code]);
   }
   WARN_UPTO(10, "unregistered callback: %d", e->user.code);
@@ -235,10 +290,11 @@ build_keymap() {
     
   for(i = 0; i < NELEMS(keymap); ++i) { 
     scm_hash_set_x(scancodes, 
-		   scm_from_locale_string(keymap[i].keyname), 
+		   symbol(keymap[i].keyname),
 		   scm_from_int((int) keymap[i].value));
-    if(keymap[i].value > max)
+    if(keymap[i].value > max) {
       max = keymap[i].value;
+    }
   }
 
   key_names = scm_c_make_vector(max+1, SCM_BOOL_F);
@@ -247,26 +303,30 @@ build_keymap() {
   
   for(i = 0; i < NELEMS(keymap); ++i) {
     scm_c_vector_set_x(key_names, keymap[i].value, 
-		       scm_from_locale_string(keymap[i].keyname));
+		       symbol(keymap[i].keyname));
   }
 
 }
 
 static inline int 
 get_scancode(SCM key) {
-  if(!(scm_is_string(key) 
-       || scm_is_symbol(key) 
+  if(!(scm_is_symbol(key) 
+       || scm_is_string(key) 
        || scm_is_integer(key))) {
+    char *name = as_c_string(key);
+    WARN("Invalid key name: `%s'", name);
+    free(name);
     return -1;
   }
 
-  SCM keycode = scm_hash_ref(scancodes, 
-			     (scm_is_symbol(key)
-			      ? scm_symbol_to_string(key)
-			      : (scm_is_integer(key) 
-				 ? scm_number_to_string(key, scm_from_int(10))
-				 : key)),
-			     SCM_UNSPECIFIED);
+  if(scm_is_integer(key)) {
+    key = scm_number_to_string(key, scm_from_int(10));
+  }
+  if(scm_is_string(key)) {
+    key = scm_string_to_symbol(key);
+  }
+  
+  SCM keycode = scm_hash_ref(scancodes, key, SCM_UNSPECIFIED);
 
   if(!scm_is_integer(keycode)) {
     return -1;
@@ -276,12 +336,13 @@ get_scancode(SCM key) {
 
 static inline int
 get_modifier_code(SCM name) {
-  if(!(scm_is_symbol(name)))
+  if(!(scm_is_symbol(name))) {
     return -1;
-
+  }
   SCM code = scm_hash_ref(modifier_codes, name, SCM_UNSPECIFIED);
-  if(!scm_is_integer(code))
+  if(!scm_is_integer(code)) {
     return -1;
+  }
   return scm_to_int(code);
 }
 
@@ -289,8 +350,9 @@ static inline SCM
 modifier_pressed_p(SCM name) {
   SDLMod state = SDL_GetModState();
   int code = get_modifier_code(name);
-  if(state & code)
+  if(state & code) {
     return SCM_BOOL_T;
+  }
   return SCM_BOOL_F;
 }
 
@@ -398,8 +460,9 @@ bind_keydown(SCM key, SCM function) {
     ? SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_DOWN)
     : keydown;
 
-  if(scancode > -1)
+  if(scancode > -1) {
     return bind_key(tab, scancode, function);
+  }
   return SCM_UNSPECIFIED;
 }
 
@@ -411,8 +474,9 @@ bind_keyup(SCM key, SCM function) {
     ? SCM_SIMPLE_VECTOR_REF(bindings, KEY_BINDINGS_UP)
     : keyup;
 
-  if(scancode > -1)
+  if(scancode > -1) {
     return bind_key(tab, scancode, function);
+  }
   return SCM_UNSPECIFIED;
 }
 
@@ -590,20 +654,12 @@ compress_mouse_moves(SDL_Event *e) {
 
 int (*getting_events)(SDL_Event *e) = compress_mouse_moves; //SDL_PollEvent;
 
-void 
-input_init() {
+static void
+init_event_handler() {
   int i;
-
-  keydown = gc_protected(scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop));
-  
-  keyup = gc_protected(scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop));
-
-  mousemove = noop;
-
-  key_bindings = gc_protected(scm_make_fluid());
-
-  for(i = 0; i < SDL_NUMEVENTS; ++i) 
+  for(i = 0; i < SDL_NUMEVENTS; ++i) {
     event_handler[i] = unsupported_event;
+  }
   event_handler[SDL_ACTIVEEVENT] = activeevent_handler;
   event_handler[SDL_VIDEORESIZE] = videoresize_handler;
   event_handler[SDL_KEYDOWN] = keydown_handler;
@@ -613,6 +669,20 @@ input_init() {
   event_handler[SDL_MOUSEMOTION] = mousemotion_handler;
   event_handler[SDL_QUIT] = quit_handler;
   event_handler[SDL_USEREVENT] = userevent_handler;
+
+}
+
+void 
+input_init() {
+  keydown = gc_protected(scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop));
+  
+  keyup = gc_protected(scm_c_make_vector(SDLK_LAST + SDL_NBUTTONS, noop));
+
+  mousemove = noop;
+
+  key_bindings = gc_protected(scm_make_fluid());
+
+  init_event_handler();
 
   resize_procedure = noop;
 
@@ -658,12 +728,16 @@ input_handle_events() {
 
   if(SDL_WaitEvent(NULL)) {
     while(getting_events(&event)) {
-      if(input_mode == DIRECT_MODE) {
+      switch(input_mode) {
+      case DIRECT_MODE:
 	(*event_handler[event.type])(&event);
-      } else if(input_mode == TYPING_MODE) {
+	break;
+      case TYPING_MODE:
 	handle_typing_mode(&event);
-      } else {
-	assert(!"NAH, THAT'S IMPOSSIBLE...");
+	break;
+      case REACTIVE_MODE:
+	react(&event);
+	break;
       }
       if(SDL_GetTicks() - starting_time > MAX_PROCESS_HANDLING_TIME) {
 	break;

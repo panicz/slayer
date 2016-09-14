@@ -34,6 +34,10 @@ extern SCM s_left;
 extern SCM s_right;
 extern SCM s_middle;
 
+extern SCM s_key_down;
+extern SCM s_key_up;
+extern SCM s_mouse_move;
+
 extern SCM s_copy;
 extern SCM s_view;
 extern SCM s_proxy;

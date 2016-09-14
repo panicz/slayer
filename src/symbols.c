@@ -34,6 +34,10 @@ SCM s_left;
 SCM s_right;
 SCM s_middle;
 
+SCM s_key_down;
+SCM s_key_up;
+SCM s_mouse_move;
+
 SCM s_copy;
 SCM s_view;
 SCM s_proxy;
@@ -141,6 +145,10 @@ symbols_init() {
   INIT_SYMBOL(right);
   INIT_SYMBOL(middle);
 
+  s_key_down = gc_protected(symbol("key-down"));
+  s_key_up = gc_protected(symbol("key-up"));
+  s_mouse_move = gc_protected(symbol("mouse-move"));
+  
   INIT_SYMBOL(copy);
   INIT_SYMBOL(view);
   INIT_SYMBOL(proxy);

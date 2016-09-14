@@ -9,7 +9,8 @@
 
 enum input_modes {
   DIRECT_MODE = 0,
-  TYPING_MODE = 1
+  TYPING_MODE = 1,
+  REACTIVE_MODE = 2
 };
 
 enum key_bindings_indices {
