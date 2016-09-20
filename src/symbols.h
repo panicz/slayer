@@ -19,6 +19,7 @@ extern SCM s_out_of_range;
 extern SCM s_quit;
 extern SCM s_typing;
 extern SCM s_direct;
+extern SCM s_reactive;
 extern SCM s_unknown;
 extern SCM s_mouse;
 extern SCM s_input;

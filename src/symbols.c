@@ -19,6 +19,7 @@ SCM s_f64;
 SCM s_quit;
 SCM s_typing;
 SCM s_direct;
+SCM s_reactive;
 SCM s_unknown;
 SCM s_mouse;
 SCM s_input;
@@ -130,6 +131,7 @@ symbols_init() {
   INIT_SYMBOL(quit);
   INIT_SYMBOL(typing);
   INIT_SYMBOL(direct);
+  INIT_SYMBOL(reactive);
   INIT_SYMBOL(unknown);
   INIT_SYMBOL(mouse);
   INIT_SYMBOL(input);

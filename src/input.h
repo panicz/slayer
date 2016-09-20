@@ -8,6 +8,7 @@
 #define MAX_PROCESS_HANDLING_TIME 1000
 
 enum input_modes {
+  UNKNOWN_MODE = -1,
   DIRECT_MODE = 0,
   TYPING_MODE = 1,
   REACTIVE_MODE = 2

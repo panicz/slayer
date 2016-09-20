@@ -197,7 +197,7 @@
 (define-method (leave-typing-mode! (t <text-area>))
   (%flush-cache! t)
   (set-current-output-port *stdout*)
-  (set-direct-input-mode!))
+  (set-input-mode! 'direct))
 
 (define-method (move-cursor-back! (t <text-area>))
   (%flush-cache! t)
@@ -303,7 +303,7 @@
   (set-typing-special-procedure! 
    (lambda(scancode)
      (#[t : 'special-keys : scancode])))
-  (set-typing-input-mode!))
+  (set-input-mode! 'typing))
 
 (define-method (initialize (t <text-area>) args)
   (next-method)

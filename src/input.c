@@ -27,53 +27,6 @@ static SCM key_names;
 // a map from modifier symbols to their values
 static SCM modifier_codes;
 
-
-static inline void
-react(SDL_Event *e) {
-  SCM message;
-  switch(e->type) {
-  case SDL_KEYDOWN: {
-    SCM key_name = scm_c_vector_ref(key_names, e->key.keysym.sym);
-    message = scm_list_2(s_key_down, key_name);
-    break;
-  }
-  case SDL_KEYUP: {
-    SCM key_name = scm_c_vector_ref(key_names, e->key.keysym.sym);
-    message = scm_list_2(s_key_up, key_name);
-    break;
-  }
-
-  case SDL_MOUSEBUTTONDOWN: {
-    SCM key_name = scm_c_vector_ref(key_names, SDLK_LAST + e->button.button);
-    message = scm_list_2(s_key_down, key_name);
-    break;
-  }
-
-  case SDL_MOUSEBUTTONUP: {
-    SCM key_name = scm_c_vector_ref(key_names, SDLK_LAST + e->button.button);
-    message = scm_list_2(s_key_up, key_name);
-    break;
-  }
-    
-  case SDL_MOUSEMOTION: {
-    message = scm_list_3(s_mouse_move,
-			 /* by */
-			 scm_list_2(scm_from_int(e->motion.xrel),
-				    scm_from_int(e->motion.yrel)),
-			 /* to */
-			 scm_list_2(scm_from_int(e->motion.x),
-				    scm_from_int(e->motion.y)));
-    break;
-  }
-  default:
-    // we do not support other types of events in reactive mode
-    return;
-  }
-  scm_call_1(reaction, message);
-  scm_remember_upto_here_1(message);
-}
-
-
 static inline void
 init_modifier_codes() {
   modifier_codes = gc_protected(scm_c_make_hash_table(16));
@@ -97,25 +50,70 @@ init_modifier_codes() {
 #undef INIT_MOD
 }
 
-static SCM 
-set_direct_input_mode_x() {
-  DisableUNICODE();
-  DisableKeyRepeat();
-  input_mode = DIRECT_MODE;
+static enum input_modes
+input_mode_from_scm_symbol(SCM symbol) {
+  if (equal(symbol, s_direct)) {
+    return DIRECT_MODE;
+  }
+  if (equal(symbol, s_typing)) {
+    return TYPING_MODE;
+  }
+  if (equal(symbol, s_reactive)) {
+    return REACTIVE_MODE;
+  }
+  return UNKNOWN_MODE;
+}
+
+static SCM
+set_reaction_x(SCM procedure) {
+  if(is_scm_procedure(procedure)) {
+    reaction = procedure;
+  }
+  else {
+    WARN("trying to set a non-procedure as the reaction handler!");
+  }
   return SCM_UNSPECIFIED;
 }
 
 static SCM
-set_typing_input_mode_x() {
-  EnableUNICODE();
-  EnableDefaultKeyRepeat();
-  input_mode = TYPING_MODE;
+set_input_mode_x(SCM s_mode) {
+  enum input_modes mode = input_mode_from_scm_symbol(s_mode);
+  switch(mode) {
+  case DIRECT_MODE:
+  case REACTIVE_MODE:
+    DisableUNICODE();
+    DisableKeyRepeat();
+    break;
+  case TYPING_MODE:
+    EnableUNICODE();
+    EnableDefaultKeyRepeat();
+    break;
+  case UNKNOWN_MODE:
+  default: {
+    char *s = as_c_string(s_mode);
+    WARN("unsupported input mode: %s", s);
+    free(s);
+    return SCM_UNSPECIFIED;
+  }
+  }
+  input_mode = mode;
   return SCM_UNSPECIFIED;
 }
 
 static SCM 
-get_input_mode(SCM mode) {
-  return input_mode == TYPING_MODE ? s_typing : s_direct;
+get_input_mode() {
+  switch(input_mode) {
+  case TYPING_MODE:
+    return s_typing;
+  case DIRECT_MODE:
+    return s_direct;
+  case REACTIVE_MODE:
+    return s_reactive;
+  case UNKNOWN_MODE:
+  default:
+    WARN("the current input mode (%i) is unknown", input_mode);
+    return s_unknown;
+  }
 }
 
 static SCM 
@@ -268,6 +266,58 @@ static SCM
 quit_handler(SDL_Event *e) {
   exit(0);
   return SCM_UNSPECIFIED;
+}
+
+static inline void
+react(SDL_Event *e) {
+  SCM message;
+  switch(e->type) {
+  case SDL_KEYDOWN: {
+    SCM key_name = scm_c_vector_ref(key_names, e->key.keysym.sym);
+    message = scm_list_2(s_key_down, key_name);
+    break;
+  }
+    
+  case SDL_KEYUP: {
+    SCM key_name = scm_c_vector_ref(key_names, e->key.keysym.sym);
+    message = scm_list_2(s_key_up, key_name);
+    break;
+  }
+
+  case SDL_MOUSEBUTTONDOWN: {
+    SCM key_name = scm_c_vector_ref(key_names, SDLK_LAST + e->button.button);
+    message = scm_list_2(s_key_down, key_name);
+    break;
+  }
+
+  case SDL_MOUSEBUTTONUP: {
+    SCM key_name = scm_c_vector_ref(key_names, SDLK_LAST + e->button.button);
+    message = scm_list_2(s_key_up, key_name);
+    break;
+  }
+    
+  case SDL_MOUSEMOTION: {
+    message = scm_list_3(s_mouse_move,
+			 /* by */
+			 scm_list_2(scm_from_int(e->motion.xrel),
+				    scm_from_int(e->motion.yrel)),
+			 /* to */
+			 scm_list_2(scm_from_int(e->motion.x),
+				    scm_from_int(e->motion.y)));
+    break;
+  }
+    
+  case SDL_QUIT:
+    quit_handler(e);
+    break;
+    
+  default:
+    // we do not support other types of events in reactive mode (yet?)
+    return;
+  }
+  
+  scm_call_1(reaction, message);
+  scm_remember_upto_here_1(message);
 }
 
 struct scancode_t {
@@ -566,8 +616,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-mouse-position!", 2, 0, 0, set_mouse_position_x);
 
   EXPORT_PROCEDURE("input-mode", 0, 0, 0, get_input_mode);
-  EXPORT_PROCEDURE("set-typing-input-mode!", 0, 0, 0, set_typing_input_mode_x);
-  EXPORT_PROCEDURE("set-direct-input-mode!", 0, 0, 0, set_direct_input_mode_x);
+  EXPORT_PROCEDURE("set-input-mode!", 1, 0, 0, set_input_mode_x);
   EXPORT_PROCEDURE("current-key-bindings", 0, 0, 0, current_key_bindings);
   EXPORT_PROCEDURE("fresh-key-bindings", 0, 0, 0, fresh_key_bindings);
 
@@ -585,6 +634,7 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("set-resize-procedure!", 1, 0, 0, set_resize_procedure_x);
   EXPORT_PROCEDURE("set-typing-special-procedure!", 1, 0, 0, 
 		   set_typing_special_procedure_x);
+  EXPORT_PROCEDURE("set-reaction!", 1, 0, 0, set_reaction_x);
 
   EXPORT_PROCEDURE("modifier-pressed?", 1, 0, 0, modifier_pressed_p);
 
@@ -680,6 +730,8 @@ input_init() {
 
   mousemove = noop;
 
+  reaction = noop;
+  
   key_bindings = gc_protected(scm_make_fluid());
 
   init_event_handler();
@@ -692,7 +744,7 @@ input_init() {
   
   scm_c_define_module("slayer", export_symbols, NULL);
 
-  set_direct_input_mode_x();
+  set_input_mode_x(s_direct);
 }
 
 static inline void
@@ -737,6 +789,11 @@ input_handle_events() {
 	break;
       case REACTIVE_MODE:
 	react(&event);
+	break;
+      case UNKNOWN_MODE:
+      default:
+	WARN("SLAYER operates in unknown input mode. "
+	     "Something's seriously wrong!");
 	break;
       }
       if(SDL_GetTicks() - starting_time > MAX_PROCESS_HANDLING_TIME) {

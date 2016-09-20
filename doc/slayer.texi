@@ -358,24 +358,35 @@ can be either @code{shift}, @code{rshift}, @code{lshift}, @code{alt},
 
 @deffn {Procedure} input-mode
 Return the symbol describing current input mode, which can either be 
-@code{'typing} or @code{'direct}. Direct mode is the default for SLAYER.
+@code{'typing}, @code{'direct} or @code{reactive}. Direct mode is the
+default for SLAYER.
 @end deffn
 
-@deffn {Procedure} set-direct-input-mode!
-Sets the input mode to ``direct'', which means that events are generated only
-when keys are actually pressed, which is the desired behaviour for most games,
-and the default behaviour of SLAYER.
-@end deffn
+@deffn {Procedure} set-input-mode! mode
+Mode is one of the symbols: @code{'direct}, @code{'typing} or
+@code{'reactive}
+.
+In the direct mode, events are generated only when keys are actually
+pressed, which is the desired behaviour for most games, and the default
+behaviour of SLAYER.
 
-@deffn {Procedure} set-typing-input-mode!
-Sets the input mode to ``typing'', which means that the keyboard input behaves
-like when typing in an editor -- once a key is pressed, after a certain time
-it gets repeated at a certain frequency. In typing mode, pressing printable
-characters do not cause the procedures specified with @code{keydn} and 
-@code{keyup} to be called; instead, it causes the typed character to be written
-to current output port, or it invokes a procedure specified with
-@code{set-typing-special-procedure!} to be called with the pressed special key
-name as argument.
+In the typing mode, the keyboard input behaves like when typing
+in an editor – once a key is pressed, after a certain time it gets
+repeated at a certain frequency.  In this mode, pressing printable
+characters do not cause the procedures specified with @code{keydn} and
+@code{keyup} to be called; instead, it causes the typed character to be
+written to current output port, or it invokes a procedure specified with
+@code{set-typing-special-procedure!} to be called with the pressed
+special key name as argument.
+
+In the reactive mode, keyboard and mouse events cause a reaction
+function to be invoked with an appropriate value, for example, if
+the key @code{'a} is pressed, the reaction function is called with the list
+@code{'(key-down a)} as argument, and similarly, when a mouse is moved,
+it is called with @code{`(mouse-move (,dx ,dy) (,x ,y))} object passed,
+where @code{dx} and @code{dy} are the relative changes, and @code{x}
+and @code{y} are the new mouse cursor positions. The reaction procedure
+is specified using the @code{set-reaction!} procedure.
 @end deffn
 
 @deffn {Procedure} set-typing-special-procedure! proc
@@ -383,6 +394,12 @@ When in typing mode, @var{proc} will be called whenever a special (i.e.
 non-printable, e.g. return, escape of F1) key is pressed or repeated.
 @var{proc} will receive one argument: the name of the special key that
 was pressed (as a string).
+@end deffn
+
+@deffn {Procedure} set-reaction! proc
+When in reactive mode, @var{proc} will be called with an object describing
+the event that occured, for example @code{'(key-down a)}, @code{'(key-up a)}
+or @code{'(mouse-move (3 -2) (10 12)}.
 @end deffn
 
 @deffn {Procedure} grab-input! state
@@ -425,10 +442,12 @@ Returns @code{#t} on success and @code{#f} on failure.
 
 @node Key names
 @subsection Key names
-The names of the keys are usually rather intuitive: 'a names the key A, 
-"1" names the key 1, and so on. Note that, although usually the names can be
-given as symbols, in some cases the string representation is required, like
-in the case of digits, punctuation marks or brackets.
+The names of the keys are usually rather intuitive: ’a names the key A,
+1 names the key 1, and so on.  The key names can also be given as strings.
+This refers particularly to the glyphs that do not have a straightforward
+glyph representations -- for example, 'comma can be typed in as ``.'', 
+'semicolon -- as ``;'', and 'left-parenthesis as ``(''.
+
 Note also, that not all these characters will be accessible through the
 event subsystem in direct mode (it should depend on the keyboard layout):
 for instance, if exclamation mark is obtained by pressing shift and '1'
@@ -452,18 +471,18 @@ be generated (in direct mode).
 @item "esc"                  @tab '^['                @tab escape
 @item "space"                @tab ' '                 @tab space
 @item "!"                    @tab '!'                 @tab exclaim
-@item "\""                   @tab '"'                 @tab quotedbl
-@item "#"                    @tab '#'                 @tab hash
+@item "double-quote"         @tab '"'                 @tab quotedbl
+@item "hash"                 @tab '#'                 @tab hash
 @item "$"                    @tab '$'                 @tab dollar
 @item "&"                    @tab '&'                 @tab ampersand
-@item "'"                    @tab '''                 @tab quote
-@item "("                    @tab '('                 @tab left parenthesis
-@item ")"                    @tab ')'                 @tab right parenthesis
+@item "apostrophe"           @tab '''                 @tab quote
+@item "left-parenthesis"     @tab '('                 @tab left parenthesis
+@item "right-parenthesis"    @tab ')'                 @tab right parenthesis
 @item "*"                    @tab '*'                 @tab asterisk
 @item "+"                    @tab '+'                 @tab plus sign
 @item "-"                    @tab '-'                 @tab minus sign
-@item ","                    @tab ','                 @tab comma
-@item "."                    @tab '.'                 @tab period
+@item "comma"                @tab ','                 @tab comma
+@item "period"               @tab '.'                 @tab period
 @item "/"                    @tab '/'                 @tab forward slash
 @item "0"                    @tab '0'                 @tab 0
 @item "1"                    @tab '1'                 @tab 1
@@ -475,19 +494,19 @@ be generated (in direct mode).
 @item "7"                    @tab '7'                 @tab 7
 @item "8"                    @tab '8'                 @tab 8
 @item "9"                    @tab '9'                 @tab 9
-@item ":"                    @tab ':'                 @tab colon
-@item ";"                    @tab ';'                 @tab semicolon
+@item "colon"                @tab ':'                 @tab colon
+@item "semicolon"            @tab ';'                 @tab semicolon
 @item "<"                    @tab '<'                 @tab less-than sign
 @item "="                    @tab '='                 @tab equals sign
 @item ">"                    @tab '>'                 @tab greater-than sign
 @item "?"                    @tab '?'                 @tab question mark
 @item "@@"                   @tab '@@'                @tab at
-@item "["                    @tab '['                 @tab left bracket
+@item "left-bracket"         @tab '['                 @tab left bracket
 @item "\\"                   @tab '\'                 @tab slash
-@item "]"                    @tab ']'                 @tab right bracket
+@item "right-bracket"        @tab ']'                 @tab right bracket
 @item "^"                    @tab '^'                 @tab caret
 @item "_"                    @tab '_'                 @tab underscore
-@item "`"                    @tab '`'                 @tab grave
+@item "grave"                @tab '`'                 @tab grave
 @item "a"                    @tab 'a'                 @tab a
 @item "b"                    @tab 'b'                 @tab b
 @item "c"                    @tab 'c'                 @tab c
@@ -559,16 +578,16 @@ be generated (in direct mode).
 @item "numlock"              @tab                     @tab numlock
 @item "caps"                 @tab                     @tab capslock
 @item "scroll"               @tab                     @tab scrollock
-@item "lshift"               @tab                     @tab left shift
-@item "rshift"               @tab                     @tab right shift
-@item "lctrl"                @tab                     @tab left ctrl
-@item "rctrl"                @tab                     @tab right ctrl
-@item "lalt"                 @tab                     @tab left alt
-@item "ralt"                 @tab                     @tab right alt
-@item "lmeta"                @tab                     @tab left meta
-@item "rmeta"                @tab                     @tab right meta
-@item "lsuper"               @tab                     @tab left windows key
-@item "rsuper"               @tab                     @tab right windows key
+@item "left-shift"           @tab                     @tab left shift
+@item "right-shift"          @tab                     @tab right shift
+@item "left-ctrl"            @tab                     @tab left ctrl
+@item "right-ctrl"           @tab                     @tab right ctrl
+@item "left-alt"             @tab                     @tab left alt
+@item "right-alt"            @tab                     @tab right alt
+@item "left-meta"            @tab                     @tab left meta
+@item "right-meta"           @tab                     @tab right meta
+@item "left-super"           @tab                     @tab left windows key
+@item "right-super"          @tab                     @tab right windows key
 @item "mode"                 @tab                     @tab mode shift
 @item "help"                 @tab                     @tab help
 @item "print"                @tab                     @tab print screen
