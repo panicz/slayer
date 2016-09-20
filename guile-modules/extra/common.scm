@@ -1603,15 +1603,16 @@
  (map/values values '(1 2 3) '(a b c))
  ===> (1 2 3) (a b c))
 
+
 (define (map-n n fn . lists)
   (define (map-n* lists)
     (if (any (lambda (l) (< (length l) n)) lists)
 	(values '() lists)
 	(let* ((heads tails (map/values (lambda (l) (split-at l n)) lists))
-	       (mapped (apply fn (concatenate heads)))
+	       (mapped (list<-values (apply fn (concatenate heads))))
 	       (result rest (map-n* tails)))
 	  (values
-	   `(,mapped . ,result)
+	   `(,@mapped . ,result)
 	   rest))))
   (let ((result rest (map-n* lists)))
     (apply values result rest)))
