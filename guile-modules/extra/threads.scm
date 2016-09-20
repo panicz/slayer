@@ -1,34 +1,42 @@
 (define-module (extra threads)
-  #:use-module (ice-9 q)
+  #:use-module (ice-9 nice-9)
   #:use-module (ice-9 threads)
-  #:use-module (oop goops)
-  #:export (get! give! make-queue queue?))
+  #:use-module (ice-9 q)
+  #:use-module (srfi srfi-18)
+  #:export (make-channel channel? send! receive! channel-fold
+			 visible snapshot))
 
-(define-class <queue> ()
-  (mutex #:init-thunk make-mutex)
-  (q #:init-thunk make-q)
-  (condition-variable #:init-thunk make-condition-variable))
+(define (make-channel)
+  `(,(make-q) ,(make-mutex) ,(make-condition-variable)))
 
-(define-method (get! #;from (medium <queue>))
-  (let ((condition-variable (slot-ref medium 'condition-variable))
-	(mutex (slot-ref medium 'mutex))
-	(q (slot-ref medium 'q)))
+(define (channel? c)
+  (and-let* (((queue mutex signal) c)
+	     ((q? queue))
+	     ((mutex? mutex))
+	     ((condition-variable? signal)))))
+
+(define (send! data #;through channel)
+  (let (((queue mutex signal) channel))
     (with-mutex mutex
-		(let again ()
-		  (if (q-empty? q)
-		      (if (wait-condition-variable 
-			   condition-variable mutex)
-			  (deq! q)
-			  #;else
-			  (again))
-		      #;else
-		      (deq! q))))))
+      (enq! queue data))
+    (signal-condition-variable signal))) 
 
-(define-method (give! item #;through (medium <queue>))
-  (with-mutex (slot-ref medium 'mutex)
-	      (enq! (slot-ref medium 'q) item))
-  (signal-condition-variable (slot-ref medium 'condition-variable)))
+(define (receive! #;from channel)
+  (let (((queue mutex signal) channel))
+    (with-mutex mutex
+      (while (q-empty? queue)
+	(wait-condition-variable signal mutex))
+      (deq! queue))))
 
-(define (make-queue) (make <queue>))
+(define (channel-fold update state channel)
+  (let ((message (receive! #;from channel)))
+    (channel-fold update (update state message) channel)))
 
-(define (queue? object) (is-a? object <queue>))
+(define (visible . state)
+  (thread-specific-set! (current-thread) state)
+  (apply values state))
+
+(define (snapshot thread)
+  (and-let* (((items ...) (thread-specific thread)))
+    (apply values items)))
+
