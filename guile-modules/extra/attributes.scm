@@ -1,6 +1,6 @@
 (define-module (extra attributes)
   #:use-module (ice-9 nice-9)
-  #:export (from attributes? attributes+children children))
+  #:export (from attributes? attributes+children children remove-attributes))
 
 (define ((from attributes) attribute)
   (and-let* (((key value . rest) attributes))
@@ -29,3 +29,13 @@
      (children rest))
     (_
      attribute-list)))
+
+(define (remove-attributes attributes #;from attribute-list)
+  (match attribute-list
+    (((? keyword? key)  value . rest)
+     (if (member key attributes)
+	 (remove-attributes attributes rest)
+	 `(,key ,value . ,(remove-attributes attributes #;from rest))))
+    (_
+     attribute-list)))
+
