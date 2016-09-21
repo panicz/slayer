@@ -295,7 +295,7 @@ flush_drawing_context(cairo_t *cairo) {
   }
 }
 
-inline void
+static inline void
 enter_drawing_context(SDL_Surface *surface) {
   drawing_contexts = cons(create_drawing_context(surface), drawing_contexts);
   if(SDL_MUSTLOCK(surface)) {
@@ -309,7 +309,7 @@ on_enter_drawing_context(SCM image) {
   scm_gc_protect_object(image);
 }
 
-inline void
+static inline void
 exit_drawing_context(SDL_Surface *surface)
 {
   if(SDL_MUSTLOCK(surface)) {
@@ -358,7 +358,6 @@ with_drawing_output_to_surface(SCM image, SCM thunk) {
 			     NULL, SCM_F_WIND_EXPLICITLY)
 
 #define END_MEASURE_CONTEXT() scm_dynwind_end()
-
 
 static inline cairo_t *
 create_measure_context() {
@@ -449,6 +448,19 @@ DEF_CAIRO_GETTER_SETTER(line_join, line_join_t);
       return SCM_UNSPECIFIED;			\
   }
 
+#define DEF_CAIRO_6DOUBLE(name)				\
+  static SCM						\
+  name##_x(SCM a, SCM b, SCM c, SCM d, SCM e, SCM f) {	\
+    cairo_##name(CURRENT_DRAWING_CONTEXT,		\
+		 scm_to_double(a),			\
+		 scm_to_double(b),			\
+		 scm_to_double(c),			\
+		 scm_to_double(d),			\
+		 scm_to_double(e),			\
+		 scm_to_double(f));			\
+    return SCM_UNSPECIFIED;				\
+  }
+
 DEF_CAIRO_0(stroke);
 DEF_CAIRO_0(fill);
 DEF_CAIRO_0(paint);
@@ -461,6 +473,9 @@ DEF_CAIRO_3DOUBLE(set_source_rgb);
 DEF_CAIRO_4DOUBLE(set_source_rgba);
 DEF_CAIRO_4DOUBLE(rectangle);
 
+DEF_CAIRO_6DOUBLE(curve_to);
+
+#undef DEF_CAIRO_6DOUBLE
 #undef DEF_CAIRO_4DOUBLE
 #undef DEF_CAIRO_3DOUBLE
 #undef DEF_CAIRO_2DOUBLE
@@ -541,6 +556,7 @@ export_symbols(void *unused) {
   
   EXPORT_PROCEDURE("move-to!", 2, move_to_x);
   EXPORT_PROCEDURE("line-to!", 2, line_to_x);
+  EXPORT_PROCEDURE("curve-to!", 6, curve_to_x);
 
   EXPORT_PROCEDURE_WITH_OPTIONALS("set-font-face!", 1, 2, set_font_face_x);
   EXPORT_PROCEDURE("set-font-size!", 1, set_font_size_x);
