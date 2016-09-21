@@ -4,7 +4,9 @@
   #:re-export (shape?
 	       bitmap?
 	       space?
+	       space
 	       caption?
+	       caption
 	       drawing?
 	       group?
 	       group

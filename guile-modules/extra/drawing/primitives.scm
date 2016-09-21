@@ -4,11 +4,15 @@
   #:use-module (slayer image)
   #:use-module (extra common)
   #:use-module (extra attributes)
+  #:use-module (extra drawing parameters)
+  #:use-module (extra define-keywords)
   #:use-module (ice-9 nice-9)
   #:export (shape?
 	    bitmap?
 	    space?
+	    space
 	    caption?
+	    caption
 	    drawing?
 	    group?
 	    group
@@ -31,8 +35,23 @@
 (define (space? x)
   (and-let* ((('space . attributes) x))))
 
+(define* (space #:at position #:= '(0 0)
+		#:width w #:= 0
+		#:height h #:= 0
+		#:size size #:= `(,w ,h) . rest)
+  `(space #:position ,position #:size ,size . ,rest))
+
 (define (caption? x)
   (and-let* ((('caption . attributes) x))))
+
+(define* (caption text #:at position #:= '(0 0)
+		  #:color color #:= (current-text-color)
+		  #:size size #:= (current-font-size)
+		  #:font font #:= (current-font)
+		  #:background-color bg #:= (current-text-background-color)
+		  . rest)
+  `(caption #:position ,position #:text ,text #:color ,color #:size ,size
+	    #:font ,font #:background-color ,bg . ,rest))
 
 (define (drawing? x)
   (or (shape? x)
