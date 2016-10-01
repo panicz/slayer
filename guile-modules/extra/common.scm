@@ -77,10 +77,11 @@
 	    make-applicable-hash-table
 	    union intersection difference adjoin unique same-set?
 	    equivalent-set? equiv?
-	    map-n for-each-n unfold-n unzip chunk-list
+	    map-n for-each-n unfold-n unzip chunk-list chunks
 	    equivalence-classes min+max argmin argmax argmin+argmax clamp
 	    atom? symbol< natural?
 	    rest element head tail length+last-tail
+	    interlaces interweave intersperse
 	    tree-find tree-map map* depth copy scan map/values order
 	    array-map array-map/typed array-append array-copy array-pointer
 	    keyword-args->hash-map keyword-args->alist alist->keyword-args
@@ -1576,6 +1577,31 @@
 	    (not (any contains-duplicates? sequences)))
        (not (contains-duplicates? (apply interlaces sequences))))))
 
+(define (interweave . lists)
+  (let ((lists (remove null? lists)))
+    (if (null? lists)
+	'()
+	(let ((((heads . tails) ...) lists))
+	  `(,@heads ,@(apply interweave tails))))))
+
+(e.g.
+ (interweave '(a b c) '(1 2 3) '(X Y Z))
+ ===> (a 1 X b 2 Y c 3 Z))
+
+
+(define (intersperse item #;into list)
+  (match list
+    (()
+     '())
+    ((last)
+     list)
+    ((first . rest)
+     `(,first ,item . ,(intersperse item #;into rest)))))
+
+(e.g.
+ (intersperse '+ #;into '(1 2 3))
+ ===> (1 + 2 + 3))
+
 (define (?not pred)(lambda(x)(not (pred x))))
 
 ;; Note that (?and p? q? ...) is equivalent to 
@@ -1673,6 +1699,16 @@
 
 (e.g.
  (chunk-list '(1 2 3 4 5 6) 1 2 3) ===> ((1) (2 3) (4 5 6)))
+
+(define (chunks #;of l #;of-length n)
+  (if (null? l)
+      '()
+      (let ((prefix rest (split-at l n)))
+	`(,prefix . ,(chunks rest n)))))
+
+(e.g.
+ (chunks '(1 2 3 4 5 6) 3) ===> ((1 2 3) (4 5 6)))
+
 
 (define* (unfold-facade stop? transform generate seed 
 			#:optional (tail-gen (lambda(x)'())))
