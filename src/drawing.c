@@ -506,12 +506,12 @@ set_font_face_x(SCM name, SCM slant, SCM weight) {
   char *font = as_c_string(name);
   cairo_select_font_face(CURRENT_DRAWING_CONTEXT,
 			 font,
-			 (GIVEN(slant)
+			 ((GIVEN(slant) && indeed(slant))
 			  ? scm_to_font_slant_t(slant)
 			  : CAIRO_FONT_SLANT_NORMAL),
-			 (GIVEN(weight)
+			 ((GIVEN(weight) && indeed(weight))
 			  ? scm_to_font_weight_t(weight)
-			  : CAIRO_FONT_WEIGHT_BOLD));
+			  : CAIRO_FONT_WEIGHT_NORMAL));
   free(font);
   return SCM_UNSPECIFIED;
 }
