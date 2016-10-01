@@ -1,6 +1,12 @@
 (define-module (extra attributes)
+  #:use-module (extra common)
   #:use-module (ice-9 nice-9)
-  #:export (from attributes? attributes+children children remove-attributes))
+  #:export (from
+	    attributes?
+	    attributes+children
+	    children
+	    remove-attributes
+	    merge-attributes))
 
 (define ((from attributes) attribute)
   (and-let* (((key value . rest) attributes))
@@ -39,3 +45,16 @@
     (_
      attribute-list)))
 
+(define (merge-attributes original #;with delta)
+  (fold-left (lambda (original (attribute new-value))
+	       (let* ((front rest (break (lambda (x) (eq? x attribute))
+					 original)))
+		 (match rest
+		   ((attribute old-value . rest)
+		    `(,@front ,attribute ,new-value ,@rest))
+		   (_
+		    `(,attribute ,new-value ,@original)))))
+	     original
+	     (chunks delta 2)))
+
+(merge-attributes '(#:a 1 #:b 2 #:c 3) #;with '(#:b 4 #:d 4))
