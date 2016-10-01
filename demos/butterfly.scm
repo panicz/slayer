@@ -1,7 +1,6 @@
 #!../src/slayer -r -d3d
 !#
-(use-modules (ice-9 nice-9)
-	     (ice-9 q)
+(use-modules (ice-9 q)
 	     (slayer)
 	     (slayer image)
 	     (slayer drawing)
@@ -9,15 +8,12 @@
 	     (extra threads)
 	     (extra drawing)
 	     (extra attributes)
-	     (lib))
-
-#;(set-display-procedure!
- (lambda ()
-   (draw! '((shape #:contour-thickness 1.0 #:contour-color (1 0 0)
-		   (0 0) (0 1) (1 1) (1 0))
-	    (space #:position (5 5) #:size (2 2))
-	    (caption #:position (10 10) #:text "dupa" #:font "cairo:monospace"
-		     #:size 12)))))
+	     (butterfly render)
+	     (butterfly cursor)
+	     (butterfly selection)
+	     (butterfly categories)
+	     (butterfly parameters)
+	     (grand scheme))
 
 (define EVENT-QUEUE (make-channel))
 
@@ -29,15 +25,16 @@
 
 (set-window-title! "butterfly")
 
-;; chcilibyśmy powiedzieć raczej, że aktualizacja przebiega
-;; poprzez fold-leftowanie 
-
 (define initial-state
-  (list
-   #:document '((let ((x 5) (y 10)) (+ x y)))
-   #:cursor '()
-   #:selection '()
-   ))
+  (editor-state-category
+   #:document '((let ((x 5)
+		      (y 10))
+		  (+ x y z))
+		(let ((a 'x)
+		      (b 'y)
+		      (c (+ 2 2)))
+		  `(,x y))
+		)))
 
 (define evolution
   (call-with-new-thread
@@ -45,51 +42,52 @@
      (visible initial-state)
      (channel-fold
       (lambda (state action)
-	(let ((state* (or (update state #;with action)
-			  state)))
-	  (visible state*)))
+	(parameterize ((current-editor-state state))
+	  (let ((state* (or (update state #;with action)
+			    state)))
+	    (visible state*))))
       initial-state
       EVENT-QUEUE))))
 
+
 ;; state -> drawing
 (define (visualization state)
-  (or (and-let* ((cursor ((from state) #:cursor))
-		 (document ((from state) #:document)))
-	(map (lambda (expression . index)
-	       (edited expression #;under-cursor))
-	     document (iota (length document))))
-      '()))
+  (below
+   (space #:height 20)
+   (beside
+    (space #:width 20)
+    (or (and-let* ((cursor (current #:cursor))
+		   (document (current #:document))
+		   (selection (current #:selection)))
+	  (apply below 
+		 (map (lambda (expression . index)
+			(below
+			 (render expression #;at index)
+			 (space #:height 5)))
+		      document (iota (length document)))))
+	'()))))
 
 (set-display-procedure!
  (lambda ()
    (let ((current-state (snapshot evolution)))
-     (draw! (visualization current-state)))))
-
-(define+ (edited s-exp #;cursor)
-  (caption (->string s-exp) #:at '(10 10)))
-
-(define (indentation)
-  (space #:width 10))
-
-(define+ (edited ('let (bindings ...) body ...) #;cursor)
-  (below
-   (beside (caption "let" #:at '(10 10))
-	   (apply above (map edited bindings)))
-   (beside (indentation)
-	   (apply above (map edited body)))))
-
-(define+ (edited ('expt x y))
-  (beside x (superscript y)))
+     (parameterize ((current-editor-state current-state))
+       (draw! (visualization current-state))))))
 
 ;; update state action -> maybe state
-(define (update state #;with action)
+(define+ (update state #;with action)
   state)
 
-#|
 (define+ (update state #;with '(key-down right))
-aqg  ;; move the cursor right (at the current nesting level)
-  ...)
+  (let ((cursor* (cursor-next #;to (current #:cursor)
+				   #;in (current #:document))))
+    (merge-attributes state `(#:cursor ,cursor*))))
 
+(define+ (update state #;with '(key-down left))
+  (let ((cursor* (cursor-previous #;to (current #:cursor)
+				       #;in (current #:document))))
+    (merge-attributes state `(#:cursor ,cursor*))))
+
+#|
 (define+ (update state #;with '(key-down left))
   ;; move the cursor left (at the current nesting level)
   ...)
@@ -114,3 +112,4 @@ aqg  ;; move the cursor right (at the current nesting level)
     ...))
 
 |#
+		 
