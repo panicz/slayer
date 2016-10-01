@@ -44,14 +44,18 @@
 (define (caption? x)
   (and-let* ((('caption . attributes) x))))
 
-(define* (caption text #:at position #:= '(0 0)
+(define* (caption text #:at top-left #:= '(0 0)
+		  #:position position #:= top-left
 		  #:color color #:= (current-text-color)
 		  #:size size #:= (current-font-size)
 		  #:font font #:= (current-font)
 		  #:background-color bg #:= (current-text-background-color)
+		  #:slant slant #:= (current-font-slant)
+		  #:weight weight #:= (current-font-weight)
 		  . rest)
   `(caption #:position ,position #:text ,text #:color ,color #:size ,size
-	    #:font ,font #:background-color ,bg . ,rest))
+	    #:font ,font #:slant ,slant #:weight ,weight
+	    #:background-color ,bg . ,rest))
 
 (define (drawing? x)
   (or (shape? x)
@@ -76,9 +80,9 @@
   ;; there's something messed up with the color order!
   (match c
     ((r g b)
-     (set-source-rgb! b g r))
+     (set-source-rgb! r g b))
     ((r g b a)
-     (set-source-rgba! b g r a))
+     (set-source-rgba! r g b a))
     ))
 
 (define (extents? object)
@@ -127,9 +131,10 @@
   (let (((_ height) (dimensions drawing)))
     height))
 
-(define (optionally perform-action #;on argument)
-  (when argument
-    (perform-action #;on argument)))
+(define (optionally perform-action #;on . arguments)
+  (when (and (not (null? arguments))
+	     (first arguments))
+    (apply perform-action #;on arguments)))
 
 (define (draw! drawing)
   (match drawing
@@ -161,7 +166,8 @@
      (let ((attribute (from attributes)))
        (optionally set-color! #;to (attribute #:color))
        (optionally set-font-size! #;to (attribute #:size))
-       (optionally set-font-face! #;to (attribute #:font))
+       (optionally set-font-face! #;to (attribute #:font)
+		   (attribute #:slant) (attribute #:weight))
        (apply move-to! (attribute #:position))
        (show-text! (attribute #:text))))
 
