@@ -68,7 +68,8 @@
        (every drawing? x)))
 
 (define (group . drawings)
-  (append-map (lambda (drawing)
+  drawings
+  #;(append-map (lambda (drawing)
 		(match drawing
 		  (((children ...) ...)
 		   children)

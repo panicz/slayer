@@ -1,4 +1,4 @@
-;#| -*-Scheme-*-
+					;#| -*-Scheme-*-
 ;
 ;$Id: copyright.scm,v 1.4 2005/12/13 06:41:00 cph Exp $
 ;

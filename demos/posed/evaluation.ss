@@ -11,3 +11,6 @@
 ;(sim-set! 'contact-slip-1 0.0)
 ;(sim-set! 'contact-slip-2 0.0)
 ;(sim-set! 'contact-mu +200.0)
+
+;; to jest calkiem chujawy widget
+(hash-map->list cons *scancodes*)

@@ -58,13 +58,17 @@
     (space #:width 20)
     (or (and-let* ((cursor (current #:cursor))
 		   (document (current #:document))
-		   (selection (current #:selection)))
-	  (apply below 
+		   (selection (current #:selection))
+		   (document-with-cursor (insert-cursor #;into document
+							       #;at cursor)))
+	  (apply below
 		 (map (lambda (expression . index)
 			(below
-			 (render expression #;at index)
+			 (parameterize ((current-font "Courier New"))
+			   (render expression #;at index))
 			 (space #:height 5)))
-		      document (iota (length document)))))
+		      document-with-cursor
+		      (iota (length document-with-cursor)))))
 	'()))))
 
 (set-display-procedure!
@@ -80,12 +84,26 @@
 (define+ (update state #;with '(key-down right))
   (let ((cursor* (cursor-next #;to (current #:cursor)
 				   #;in (current #:document))))
+    (display cursor*)(display (focus (current #:document) cursor*))(newline)
     (merge-attributes state `(#:cursor ,cursor*))))
 
 (define+ (update state #;with '(key-down left))
   (let ((cursor* (cursor-previous #;to (current #:cursor)
 				       #;in (current #:document))))
+    (display cursor*)(display (focus (current #:document) cursor*))(newline)
     (merge-attributes state `(#:cursor ,cursor*))))
+
+(define+ (update state #;with '(key-down c))
+  (display (current #:cursor))
+  (display (cursor-next #;to (current #:cursor) #;in (current #:document)))
+  (display (focus (current #:document) #;on (current #:cursor) ))
+  (display (focus (current #:document) #;on (cursor-next
+					     #;to (current #:cursor)
+						  #;in (current #:document))))
+  (display (insert-cursor (current #:document) (current #:cursor)))
+  (newline)
+  
+  state)
 
 #|
 (define+ (update state #;with '(key-down left))
