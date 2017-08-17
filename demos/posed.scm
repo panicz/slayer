@@ -36,7 +36,16 @@ exit
 
 (define the-simulation (primitive-make-simulation))
 
+(define platonic-world (primitive-make-simulation))
+;; plationic world is a "simulation" that is never
+;; updated -- it only stores prototypes of objecs,
+;; that are intended to show idealistic moves
+
 (define physical-objects (make <physics-stage> #:simulation the-simulation))
+
+(define ideal-objects (make <physics-stage> #:simulation platonic-world))
+
+(define all-objects (make <multi-stage> physical-objects ideal-objects))
 
 (define-rig rob (with-input-from-file "art/rigs/rob.rig" read))
 
@@ -45,11 +54,17 @@ exit
 (define view (make <3d-editor>
 	       #:x  0 #:y  0 
 	       #:w 640 #:h 480
-	       #:stage physical-objects))
+	       #:stage all-objects))
 
 (add-child! view #;to *stage*)
 
 (define the-rig (make-rig #;in the-simulation 'rob))
+
+(define idol (make-rig #;in platonic-world 'rob))
+
+(set-idol! #;of the-rig #;to idol)
+
+(define edit idol)
 
 (define the-ground (make-rig #;in the-simulation 'ground))
 
@@ -59,9 +74,9 @@ exit
   (and (is-a? object <physical-object>)
        (not (in? #[object 'rig] restricted-rigs))))
 
-(set-pose! the-rig (pose #;of the-rig))
+;;(set-pose! the-rig (pose #;of the-rig))
 
-(define max-force 20.0)
+(define max-force 40.0)
 
 (define max-velocity 3.0)
 
@@ -108,16 +123,16 @@ exit
 (keydn 'c
   (lambda _
     (with-context-for-joint/body-relation
-     (save-rig-state! the-rig)
+     (save-rig-state! edit)
      (for body in (map #[_ 'body] #[view 'selected])
        (for joint in (joints-attached-to body)
-	 (set-pose! #;of the-rig #;to `(pose (,(joint-name joint) . 0.0))
+	 (set-pose! #;of edit #;to `(pose (,(joint-name joint) . 0.0))
 			 #:keeping (first (two-bodies-attached-by joint))))))))
 
 (keydn '(ctrl r)
   (lambda () 
-    (save-rig-state! #;of the-rig)
-    (reset-rig! the-rig)))
+    (save-rig-state! #;of edit)
+    (reset-rig! edit)))
 
 ;; making these available for evaluations (cf "posed/evaluation.ss")
 
@@ -128,7 +143,7 @@ exit
   (set-simulation-property! the-simulation property value)
   (simulation-property the-simulation property))
 
-(define editor (make <pose-editor-widget> #:rig the-rig
+(define editor (make <pose-editor-widget> #:rig edit
 		     #:3d-view view
 		     #:evaluations-file "posed/evaluation.ss"
 		     #:pivotal-body
@@ -137,19 +152,19 @@ exit
 			 ((body . _)
 			  body)
 			 (_
-			  (body-named 'chest #;from the-rig))))))
+			  (body-named 'chest #;from edit))))))
 
 (add-child! editor #;to *stage*)
 
 (keydn '(ctrl p)
   (lambda ()
-    (save-rig-state! #;of the-rig)
-    (apply-stops! #;to the-rig #:keeping (#[editor 'pivotal-body]))))
+    (save-rig-state! #;of edit)
+    (apply-stops! #;to edit #:keeping (#[editor 'pivotal-body]))))
 
 (keydn 'p 
   (lambda () 
     (if #[editor 'pause]
-	(save-rig-state! #;of the-rig))
+	(save-rig-state! #;of edit))
     (set! #[editor 'pause] (not #[editor 'pause]))
     (format #t "pause ~a\n" (if #[editor 'pause] 'on 'off))))
 
@@ -221,20 +236,37 @@ exit
 (key 'left (lambda () (relative-turn! #[view 'camera] 2 0)))
 (key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
+
+(keydn 'space
+       (lambda ()
+	 (let* ((chest/real (body-named 'chest the-rig))
+		(chest/ideal (body-named 'chest idol))
+		(quaternion (* (body-property chest/real 'quaternion)
+			       (~ (body-property chest/ideal 'quaternion))))
+		(pivot (body-property chest/ideal 'position))
+		(reference (body-property chest/real 'position))
+		(axis (quaternion-axis quaternion))
+		(angle (quaternion-angle quaternion)))
+	   (rotate-rig! idol #;by angle #;around axis #;at pivot)
+	   (move-rig! idol #;by (- (projection #:of reference
+					       #:onto #f32(0 0 1))
+				   (projection #:of pivot #:onto #f32(0 0 1))))
+	   (set-actual-pose! idol (pose the-rig) #:keeping chest/ideal))))
+
 (keydn 1
   (lambda _ 
     ((look (if (shift?) back ahead) 
-	   #;relative-to the-rig #;using #[view 'camera]))))
+	   #;relative-to edit #;using #[view 'camera]))))
 
 (keydn 2
   (lambda _ 
     ((look (if (shift?) right left)
-	   #;relative-to the-rig #;using #[view 'camera]))))
+	   #;relative-to edit #;using #[view 'camera]))))
 
 (keydn 3
   (lambda _ 
     ((look (if (shift?) up down)
-	   #;relative-to the-rig #;using #[view 'camera]))))
+	   #;relative-to edit #;using #[view 'camera]))))
 
 (keydn 0 (lambda _ (<< #[view : 'camera : 'orientation])))
 (keydn 9 (lambda _ (<< #[view : 'camera : 'position])))
@@ -269,7 +301,7 @@ exit
 
 (keydn 'l
   (lambda ()
-    (save-rig-state! the-rig)
+    (save-rig-state! edit)
     (for body in (map #[_ 'body] #[view 'selected])
       (and-let* ((name (body-name body))
 		 ((side) (symbol-match "^(.*)-foot$" name))
@@ -281,7 +313,7 @@ exit
 		 (joint (joint-named /side/-ankle-bend #;from rig))
 		 (tigh (body-named (symbol-append side '-tigh) #;from rig))
 		 (angle (joint-property joint 'angle)))
-	(set-pose! the-rig `(pose (,/side/-ankle-bend . ,(- angle beta)))
+	(set-pose! edit `(pose (,/side/-ankle-bend . ,(- angle beta)))
 		   #:keeping tigh)
 	(let* ((q' (body-property body 'quaternion))
 	       (x'' (rotate x-axis #;by q'))
@@ -289,7 +321,7 @@ exit
 	       (/side/-ankle-twist (symbol-append side '-ankle-twist))
 	       (joint (joint-named /side/-ankle-twist #;from rig))
 	       (angle (joint-property joint 'angle)))
-	  (set-pose! the-rig `(pose (,/side/-ankle-twist . ,(- angle alpha)))
+	  (set-pose! edit `(pose (,/side/-ankle-twist . ,(- angle alpha)))
 		     #:keeping tigh))))))
 
 (define-class <mass-center> (<3d-object>)

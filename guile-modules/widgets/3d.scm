@@ -13,6 +13,7 @@
   #:use-module (slayer 3d)
   #:export (<3d-view>
 	    <3d-stage>
+	    <multi-stage>
 	    <3d-editor>
 	    <3d-view-drag-behavior>
 	    <camera-pan>
@@ -38,6 +39,17 @@
 (define-class <3d-stage> ()
   (objects #:init-value '()))
 
+
+(define-class <multi-stage> (<3d-stage>)
+  (stages #:init-value '())
+  (objects #:allocation #:virtual
+	   #:slot-ref (lambda (self)
+			(append-map #[_ 'objects] #[self 'stages]))
+	   #:slot-set! noop))
+
+(define-method (initialize (self <multi-stage>) args)
+  (next-method)
+  (set! #[self 'stages] args))
 
 (define-method (add-object! (object <3d>) #;to (stage <3d-stage>))
   (push! #[stage 'objects] object))

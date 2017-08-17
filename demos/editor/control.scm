@@ -12,7 +12,7 @@
 	    reset-behaviors!
 	    initiate-sequence!
 	    rig-poses
-	    specify-pose!
+	    set-desired-pose!
 	    freeze!
 
 	    attach-muscles-to-rig!
@@ -77,7 +77,7 @@
 						     max-force max-velocity)
   (attach-muscles-to-rig! rig (fake-velocity-muscle max-force max-velocity)))
 							  
-(define (specify-pose! #;of rig #;to pose)
+(define (set-desired-pose! #;of rig #;to pose)
   (let ((('pose . pose) pose))
     (set! #[rig-poses rig]
 	  (replace-alist-bindings (or #[rig-poses rig] (tail (null-pose rig)))
@@ -106,14 +106,14 @@
 				(match* rest
 				  ((next . _)
 				   (register-behavior! rig next next-pose!)
-				   (specify-pose! #;of rig #;to next))))))))
+				   (set-desired-pose! #;of rig #;to next))))))))
 	(register-behavior! rig (first #;in sequence) next-pose!)
-	(specify-pose! #;of rig #;to (first #;in sequence)))))
+	(set-desired-pose! #;of rig #;to (first #;in sequence)))))
 
 (define (freeze! rig)
   (let ((pose (pose #;of rig)))
     (reset-behaviors! #;of rig)
-    (specify-pose! #;of rig #;to pose)))
+    (set-desired-pose! #;of rig #;to pose)))
 
 (define ((pd-drive kp kd) joint desired-value)
   (let ((angle (joint-property joint 'angle))
@@ -283,7 +283,7 @@ or the one provided, if the old one is not available"
     (let ((muscles #[rig-muscles rig])
 	  (stabilized-pose (stabilize rig-pose rig)))
             ;;(<< (pose-distance `(pose ,@rig-pose) (pose #;of rig)))
-      (specify-pose! #;of rig #;to `(pose . ,stabilized-pose))
+      (set-desired-pose! #;of rig #;to `(pose . ,stabilized-pose))
       (for (joint-name . value) in stabilized-pose
 	(let* ((joint (joint-named joint-name #;from rig))
 	       (muscle-joint! #[muscles joint]))

@@ -15,18 +15,28 @@
   #:use-module (oop goops)
   #:use-module (widgets physics)
   #:export (
-	     global-positions
-	     set-pose!
-	     apply-stops!
+	    set-idol!
+	    global-positions
+	    set-pose!
+	    set-actual-pose!
+	    apply-stops!
 
-	     apply-inverse-kinematics!
-	     rotate-around-joint-mode
-	     ik-mode
+	    rotate-rig!
+	    move-rig!
+
+	    apply-inverse-kinematics!
+	    rotate-around-joint-mode
+	    ik-mode
 	    )
   #:export-syntax (
 		   with-context-for-joint/body-relation
 		   ))
 
+(define followers #[])
+
+(define (set-idol! #;of follower #;to idol)
+  (set! #[followers idol]
+	(union `(,follower) (or #[followers idol] '()))))  
 
 (define-syntax (with-context-for-joint/body-relation action . *)
   (specify ((joint-property-getter joint-property)
@@ -35,7 +45,8 @@
     action . *))
 
 (define (rotate-body! body #;by angle #;around axis #;at pivot)
-  (let ((position (body-property body 'position))
+  (let ((angle (real-part angle))
+	(position (body-property body 'position))
 	(orientation (body-property body 'quaternion)))
     (set-body-property! body 'position
 			(rotate position #;by angle #;around axis
@@ -44,11 +55,22 @@
 			(* (rotation-quaternion #;around axis #;by angle)
 			   orientation))))
 
-(define* (set-pose! #;of rig #;to pose #:key (keeping #f))
-  (setup-pose! #;of rig #;to pose #:keeping keeping)
-  (specify-pose! #;of rig #;to pose))
+(define (rotate-rig! rig #;by angle #;around axis #;at pivot)
+  (for body in (rig-bodies rig)
+    (rotate-body! body #;by angle #;around axis #;at pivot)))
 
-(define* (setup-pose! #;of rig #;to pose #:key (keeping #f))
+(define (move-rig! rig #;by vector)
+  (for body in (rig-bodies rig)
+    (set-body-property! body 'position
+			(+ (body-property body 'position)
+			   vector))))
+
+(define* (set-pose! #;of rig #;to pose #:key (keeping #f))
+  (set-actual-pose! #;of rig #;to pose #:keeping keeping)
+  (for follower in (or #[followers rig] '())
+    (set-desired-pose! #;of follower #;to pose)))
+
+(define* (set-actual-pose! #;of rig #;to pose #:key (keeping #f))
   (assert (and (pose? pose)
 	       (if keeping (body? keeping))))
   (with-context-for-joint/body-relation
