@@ -63,7 +63,7 @@
   (next-method)
   (let* ((owner #[self 'owner])
 	 (pose #[owner 'pose])
-	 (rig #[owner 'rig]))
+	 (rig (#[owner 'rig])))
     (assert (is-a? owner <pose-editor-widget>))
     (set! #[self 'selected?]
       (lambda (self)
@@ -163,7 +163,7 @@
   (let ((sequence (map (lambda (name)
 			 `(pose ,@(pose-configuration name #;in editor)))
 		       pose-names)))
-    (initiate-sequence! sequence #[editor 'rig])))
+    (initiate-sequence! sequence (#[editor 'rig]))))
 
 (define-method (shift-pose! #;by k #;in (editor <pose-editor-widget>))
   (let ((the-rig #[editor 'rig])
@@ -180,7 +180,7 @@
 	     (pose-name #[poses i'])
 	     (configuration (pose-configuration pose-name #;in editor)))
     (set! #[the-pose 'name] pose-name)
-    (set-pose! #;of the-rig #;to `(pose ,@configuration)
+    (set-pose! #;of (the-rig) #;to `(pose ,@configuration)
 		    #:keeping (#[editor 'pivotal-body])))))
 
 (define (abbreviate name)
@@ -206,7 +206,7 @@
   ;; be easier). hs-minor-mode definitely recommended!
   (next-method)
   (let* ((the-pose #[self 'pose])
-	 (('pose . configuration) (pose #;of #[self 'rig])))
+	 (('pose . configuration) (pose #;of (#[self 'rig]))))
     (set! #[the-pose 'configuration] configuration))
   (let ((poses-widget (make <widget-distributor> #:min-w 120 #:min-h 150))
 	(sequence-widget (make <sortable-container> #:min-w 120 #:min-h 150))
@@ -259,27 +259,27 @@
 	    (label "       --- camera settings ---       ")
 	    ((layout #:lay-out lay-out-horizontally)
 	     (button #:text " [ ahead (1) ] " #:action
-		     (look ahead #;at the-rig #;using 
+		     (look ahead #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera]))
 	     (label " ")
 	     (button #:text " [ back (shift+1) ] " #:action 
-		     (look back #;at the-rig #;using 
+		     (look back #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera])))
 	    ((layout #:lay-out lay-out-horizontally)
 	     (button #:text " [ left (2) ] " #:action
-		     (look left #;at the-rig #;using 
+		     (look left #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera]))
 	     (label "  ")
 	     (button #:text " [ right (shift+2) ]" #:action
-		     (look right #;at the-rig #;using 
+		     (look right #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera])))
 	    ((layout #:lay-out lay-out-horizontally)
 	     (button #:text " [ up (3) ] " #:action
-		     (look up #;at the-rig #;using 
+		     (look up #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera]))
 	     (label "    ")
 	     (button #:text " [ down (shift+3) ] " #:action
-		     (look down #;at the-rig #;using 
+		     (look down #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera])))
 	    
 	    (label "         --- quick help ---          ")))
@@ -297,7 +297,7 @@
 	      #:text " [ save ] "
 	      #:action
 	      (lambda (x y)
-		(let ((('pose . configuration) (pose #;of the-rig)))
+		(let ((('pose . configuration) (pose #;of (the-rig))))
 		  (add/overwrite! (make <pose-entry> 
 				    #:name #[the-pose 'name]
 				    #:configuration configuration
@@ -316,18 +316,18 @@
 	      #:text "  [ mirror ]  "
 	      #:action 
 	      (lambda (x y)
-		(save-rig-state! the-rig)
-		(set-pose! #;of the-rig
-				#;to (mirror-pose (pose #;of the-rig))
+		(save-rig-state! (the-rig))
+		(set-pose! #;of (the-rig)
+				#;to (mirror-pose (pose #;of (the-rig)))
 				     #:keeping (#[self 'pivotal-body]))))
 	     (label " ")
 	     (button 
 	      #:text " [ left->right ] "
 	      #:action
 	      (lambda (x y)
-		(save-rig-state! the-rig)
-		(set-pose! #;of the-rig
-				#;to (left->right-pose (pose #;of the-rig))
+		(save-rig-state! (the-rig))
+		(set-pose! #;of (the-rig)
+				#;to (left->right-pose (pose #;of (the-rig)))
 				     #:keeping (#[self 'pivotal-body])))))
 	    ((layout #:lay-out lay-out-horizontally)
 	     (label "       ")
@@ -335,8 +335,8 @@
 	      #:text "  [ apply-stops ]  "
 	      #:action 
 	      (lambda (x y)
-		(save-rig-state! the-rig)
-		(apply-stops! #;to the-rig 
+		(save-rig-state! (the-rig))
+		(apply-stops! #;to (the-rig )
 				   #:keeping (#[self 'pivotal-body]))))
 	     (label "       "))))
 	  (sequence-editor
@@ -384,11 +384,11 @@
 	       #:target the-pose
 	       #:accessor 
 	       (make-procedure-with-setter
-		(lambda (a-pose) (assoc-ref (pose #;of the-rig) name))
+		(lambda (a-pose) (assoc-ref (pose #;of (the-rig)) name))
 		(lambda (a-pose value)
-		  (let ((('pose . configuration) (pose #;of the-rig)))
+		  (let ((('pose . configuration) (pose #;of (the-rig))))
 		    (set-pose! 
-		     #;of the-rig
+		     #;of (the-rig)
 			  #;to `(pose ,@(map (lambda ((joint . angle))
 					       (if (eq? joint name)
 						   `(,joint . ,value)
@@ -403,7 +403,7 @@
 	 #:text "  [ delete pose ]  "
 	 #:action 
 	 (lambda (x y)
-	   (save-rig-state! the-rig)
+	   (save-rig-state! (the-rig))
 	   (let ((name #[the-pose 'name]))
 	     (set! #[poses-widget 'children]
 	       (remove (lambda (proxy)

@@ -1,4 +1,4 @@
-#!../src/slayer -e3d
+#!../src/slayer -f -e3d
 exit
 !#
 
@@ -66,6 +66,11 @@ exit
 
 (define edit idol)
 
+(define (select-edited-object! object #;from view)
+  (select-object! object #;from view)
+  (when (is-a? object <physical-object>)
+    (set! edit #[object 'rig])))
+
 (define the-ground (make-rig #;in the-simulation 'ground))
 
 (define restricted-rigs `(,the-ground))
@@ -106,19 +111,19 @@ exit
 	(unselect-all! #;in view))
       (if (in? object #[view 'selected])
 	  (unselect-object! view object)
-	  (select-object! object #;from view)))))
+	  (select-edited-object! object #;from view)))))
 
 (keydn '(ctrl a)
   (lambda ()
     (unselect-all! #;in view)
     (for object in #[view : 'stage : 'objects]
       (if (selectable? object)
-	  (select-object! object #;from view)))))
+	  (select-edited-object! object #;from view)))))
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
 (keydn '(ctrl z)
-  (lambda () (restore-previous-rig-state! the-rig)))
+  (lambda () (restore-previous-rig-state! edit)))
 
 (keydn 'c
   (lambda _
@@ -143,7 +148,8 @@ exit
   (set-simulation-property! the-simulation property value)
   (simulation-property the-simulation property))
 
-(define editor (make <pose-editor-widget> #:rig edit
+
+(define editor (make <pose-editor-widget> #:rig (lambda () edit)
 		     #:3d-view view
 		     #:evaluations-file "posed/evaluation.ss"
 		     #:pivotal-body
@@ -155,6 +161,8 @@ exit
 			  (body-named 'chest #;from edit))))))
 
 (add-child! editor #;to *stage*)
+
+(keydn '(ctrl q) quit)
 
 (keydn '(ctrl p)
   (lambda ()
