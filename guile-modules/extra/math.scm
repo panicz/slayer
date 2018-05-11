@@ -23,6 +23,7 @@
 	   <generalized-vector>
 	   <quaternion> 
 	   quaternion quaternion-real quaternion-imag re im ~ ^
+	   real+imag
 	   quaternion-angle quaternion-axis rotation-quaternion rotate
 	   neutral-quaternion
 	   TOLERANCE near-zero?
@@ -32,7 +33,7 @@
 	   inside-hull?/complex
 	   box-center/complex
 	   hull-intersection/complex
-	   complex->list
+	   complex->list list->complex
 	   ))
 
 (define (tensor-dimensions tensor)
@@ -60,6 +61,12 @@
 
 (define (quaternion-imag (real . imag))
   imag)
+
+(define (real+imag complex)
+  (values (real-part complex) (imag-part complex)))
+
+(e.g.
+ (real+imag 1+2i) ===> 1.0 2.0)
 
 (define-generic re)
 
@@ -622,6 +629,9 @@
 
 (define (complex->list c)
   `(,(real-part c) ,(imag-part c)))
+
+(define (list->complex `(,x ,y))
+  (make-rectangular x y))
 
 ;; convex-hull/complex: (complex ...) -> (complex ...)
 (publish
