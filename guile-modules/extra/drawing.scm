@@ -15,11 +15,15 @@
 	       displaced
 	       extents
 	       dimensions
+	       center
 	       width
 	       height
+	       diameter
+	       radius
 	       overlay
-	       beside
-	       below
+	       beside right-up
+	       below down-left
+	       box
 	       above
 	       current-background-color
 	       current-font-size
