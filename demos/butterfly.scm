@@ -1,6 +1,7 @@
 #!../src/slayer -r -d3d
 !#
 (use-modules (ice-9 q)
+	     (ice-9 pretty-print)
 	     (slayer)
 	     (slayer image)
 	     (slayer drawing)
@@ -43,33 +44,47 @@
      (channel-fold
       (lambda (state action)
 	(parameterize ((current-editor-state state))
-	  (let ((state* (or (update state #;with action)
+	  (let ((state* (or (update+ state #;with action)
 			    state)))
 	    (visible state*))))
       initial-state
       EVENT-QUEUE))))
 
 
+(define (b size)
+  (box
+   (space #:size `(,size ,size))
+   #:contour-thickness 2.0
+   #:contour-color '(1.0 1.0 1.0)))
+
+
+(define (agency+ expression selector)
+  expression)
+
+(define (render reagent)
+  (render-s-expression reagent))
+
 ;; state -> drawing
 (define (visualization state)
   (below
-   (space #:height 20)
+   (space #:height 100)
    (beside
-    (space #:width 20)
+    (space #:width 50)
     (or (and-let* ((cursor (current #:cursor))
-		   (document (current #:document))
-		   (selection (current #:selection))
-		   (document-with-cursor (insert-cursor #;into document
-							       #;at cursor)))
+		   (document (with-cursor cursor (current #:document)))
+		   (reagent (agency+ document '())))
+	  
 	  (apply below
-		 (map (lambda (expression . index)
+		 (map (lambda (expression . prefix)
 			(below
-			 (parameterize ((current-font "Courier New"))
-			   (render expression #;at index))
+			 (parameterize ((current-font "Courier New")
+					(current-font-size 26)
+					(current-font-slant 'normal))
+			   (render (agency+ expression prefix)))
 			 (space #:height 5)))
-		      document-with-cursor
-		      (iota (length document-with-cursor)))))
-	'()))))
+		      document
+		      (iota (length document)))))
+	(space)))))
 
 (set-display-procedure!
  (lambda ()
@@ -77,57 +92,92 @@
      (parameterize ((current-editor-state current-state))
        (draw! (visualization current-state))))))
 
-;; update state action -> maybe state
-(define+ (update state #;with action)
+(define+ (update+ state #;with `(mouse-move . ,_))
   state)
 
-(define+ (update state #;with '(key-down right))
-  (let ((cursor* (cursor-next #;to (current #:cursor)
-				   #;in (current #:document))))
-    (display cursor*)(display (focus (current #:document) cursor*))(newline)
-    (merge-attributes state `(#:cursor ,cursor*))))
-
-(define+ (update state #;with '(key-down left))
-  (let ((cursor* (cursor-previous #;to (current #:cursor)
-				       #;in (current #:document))))
-    (display cursor*)(display (focus (current #:document) cursor*))(newline)
-    (merge-attributes state `(#:cursor ,cursor*))))
-
-(define+ (update state #;with '(key-down c))
-  (display (current #:cursor))
-  (display (cursor-next #;to (current #:cursor) #;in (current #:document)))
-  (display (focus (current #:document) #;on (current #:cursor) ))
-  (display (focus (current #:document) #;on (cursor-next
-					     #;to (current #:cursor)
-						  #;in (current #:document))))
-  (display (insert-cursor (current #:document) (current #:cursor)))
-  (newline)
-  
+;; update+ state action -> maybe state
+(define+ (update+ state #;with action)
+  (display action) (newline)
   state)
 
-#|
-(define+ (update state #;with '(key-down left))
-  ;; move the cursor left (at the current nesting level)
-  ...)
+(define+ (update+ state #;with `(window-resize ,width ,height))
+  (available-width width)
+  (update-attributes state #:window-size `(,width ,height)))
 
-(define+ (update state #;with ('key-down key))
+(define (display-expression-at cursor)
+  (display cursor)
+  (display (focus (current #:document) cursor))
+  (newline))
+
+(define+ (update+ state #;with '(key-down right))
+  (let* ((cursor (current #:cursor))
+	 (cursor* (cursor-next #;to cursor #;in (current #:document))))
+    (display-expression-at cursor*)
+    (update-attributes state #:cursor cursor*)))
+
+(define+ (update+ state #;with '(key-down left))
+  (let* ((cursor (current #:cursor))
+	 (cursor* (cursor-previous #;to cursor #;in (current #:document))))
+    (display-expression-at cursor*)
+    (update-attributes state #:cursor cursor*)))
+
+(define+ (update+ state #;with '(key-down up))
+  (let* ((cursor (current #:cursor))
+	 (cursor* (cursor-previous/same-level
+		   #;to cursor #;in (current #:document))))
+    (display-expression-at cursor*)
+    (update-attributes state #:cursor cursor*)))
+
+(define+ (update+ state #;with '(key-down down))
+  (let* ((cursor (current #:cursor))
+	 (cursor* (cursor-next/same-level
+		   #;to cursor #;in (current #:document))))
+    (display-expression-at cursor*)
+    (update-attributes state #:cursor cursor*)))
+
+(define-syntax (debug datum)
+  (begin
+    (display 'datum)
+    (display ":\t")
+    (display datum)
+    (newline)))
+
+(define+ (update+ state #;with '(key-down c))
+  (let ((cursor (current #:cursor))
+	(document (current #:document)))
+    (debug cursor)
+    (debug (cursor-next #;to cursor #;in document))
+    (debug (focus document #;on cursor))
+    (debug (focus document #;on (cursor-next #;to cursor #;in document)))
+    (debug (with-cursor cursor document))
+    state))
+
+
+
+
+(define+ (update+ state #;with '(key-down mouse-left mouse-position))
+  (or (and-let* ((selected (reagent-at position #;from state)))
+	(update-attributes state #:dragged selected))))
+
+
+ #|
+
+(define+ (update+ state #;with '(key-down left))
+  (or (and-let* ((document ((from state) #:document))
+		 (reagent (agency+ document '())))
+	)
+      state))
+
+(define+ (update+ state #;with ('key-down key))
   ;; move the cursor to the lower nesting level
   ...)
 
-(define+ (update state #;with '(key-down mouse-left))
-  ;; select the most specific s-expression under cursor
-  ;; (
-  (and-let* ((position (current-mouse-position))
-	     (selected (object-at position #;from state)))
-    (extend state #;with #:selected selected)))
-
-(define+ (update state #;with '(key-up mouse-left))
+(define+ (update+ state #;with '(key-up mouse-left))
   (remove #:selected #;from state))
 
-(define+ (update state #;with ('mouse-move dx dy))
-  (and-let* ((selected ((from state) #:selected)))
+(define+ (update+ state #;with ('mouse-move dx dy))
+  (and-let* ((dragged ((from state) #:selected)))
     ;; trzeba 
     ...))
 
-|#
-		 
+|#		 

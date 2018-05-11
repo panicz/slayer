@@ -11,17 +11,14 @@
 	    remove-subexpression
 	    cursor<
 	    cursor-contains?
-	    cursor-parent+location
 	    cursor-depth
 	    cursor-directly-precedes?
 
-	    cursor-tag
-	    embrace
-	    unbrace
-	    embraced?
-	    embracement-tag
-
-	    insert-cursor
+	    cursor-previous/same-level
+	    cursor-next/same-level
+	    
+	    cursor-previous/same-level
+	    cursor-next/same-level
 	    ))
 
 (define (cursor? x)
@@ -36,18 +33,6 @@
       (cursor? '())
       (cursor? '(0 1 0))
       (cursor? '(0 1 0 . 0))))
-
-(define (cursor-parent+location cursor)
-  (match cursor
-    ((prefix . rest)
-     (let ((expression location (cursor-parent+location rest)))
-       (values `(,prefix . ,expression) location)))
-    (_
-     (values '() cursor))
-    ))
-
-(e.g.
- (cursor-parent+location '(1 2 . 3)) ===> (1 2) 3)
 
 (define (focus expression #;on cursor)
   "Select a subexpression pointed to by a cursor."
@@ -106,7 +91,7 @@
       ((super ... n)
        `(,@super . ,n))
       (_
-       (let* ((parent location (cursor-parent+location cursor)))
+       (let* ((parent location (proper-list+dotted-tail cursor)))
 	 (if (= location 0)
 	     parent
 	     `(,@parent ,(- location 1)))))))
@@ -129,6 +114,34 @@
 		       #;starting-from 3))
  ===> (0 (0) 1 (1) (1 . 0) (1 0) (1 . 1) (1 1) (1 . 2) (1 2) (1 . 3)
 	 2 (2) (2 . 0) (2 0) (2 . 1) (2 1) (2 . 2) (2 2) (2 . 3) 3))
+
+(define (valid-cursor? cursor expression)
+  (match cursor
+    (()
+     #true)
+    ((n . rest)
+     (and-let* (((is (length. expression) >= n))
+		((target . _) (drop expression n))
+		((valid-cursor? rest target)))))
+    (n
+     (is (length. expression) >= n))))
+
+(define (cursor-next/same-level cursor expression)
+  (or (and-let* (((parent ... n) location (proper-list+dotted-tail
+					   cursor))
+		 (next `(,@parent ,(+ n 1) . ,location))
+		 ((valid-cursor? next expression)))
+	next)
+      cursor))
+
+(define (cursor-previous/same-level cursor expression)
+  (or (and-let* (((parent ... n) location (proper-list+dotted-tail
+					   cursor))
+		 ((is n > 0))
+		 (next `(,@parent ,(- n 1) . ,location))
+		 ((valid-cursor? next expression)))
+	next)
+      cursor))
 
 (define (cursor-points-to-location? cursor)
   ;;(assert (cursor? cursor))
@@ -254,30 +267,4 @@
      1)
     ))
 
-(define unique-object make-symbol)
 
-(define cursor-tag (unique-object "#<cursor-tag>"))
-
-(define embracement-tag (unique-object "#<embracement-tag>"))
-
-(define (embrace item)
-  `(,embracement-tag . ,item))
-
-(define (embraced? object)
-  (and-let* (((tag . item) object))
-    (eq? tag embracement-tag)))
-
-(define (unbrace object)
-  (let (((tag . item) object))
-    item))
-
-(define (insert-cursor #;into document #;at position)
-  (cond ((cursor-points-to-location? position)
-	 (splice-subexpression `(,cursor-tag)
-			       #;into document #;at position))
-	((cursor-points-to-expression? position)
-	 (replace-subexpression
-	  #;of document #;at position
-	       #;with (embrace (focus document #;on position))))
-	(else
-	 (throw 'invalid-cursor position document))))
