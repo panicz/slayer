@@ -2,17 +2,29 @@
   #:use-module (extra common)
   #:use-module (ice-9 nice-9)
   #:export (from
+	    default-attribute
 	    attributes?
 	    attributes+children
 	    children
 	    remove-attributes
-	    merge-attributes))
+	    merge-attributes
+	    update-attributes))
 
 (define ((from attributes) attribute)
   (and-let* (((key value . rest) attributes))
     (if (eq? attribute key)
 	value
 	((from rest) attribute))))
+
+(define ((default-attribute attributes) attribute default)
+  (match attributes
+    ((key value . rest)
+     (if (eq? key attribute)
+	 value
+	 ((default-attribute rest) attribute default)))
+    (_
+     default)))
+     
 
 (define (attributes? list)
   (or (null? list)
@@ -57,4 +69,13 @@
 	     original
 	     (chunks delta 2)))
 
-(merge-attributes '(#:a 1 #:b 2 #:c 3) #;with '(#:b 4 #:d 4))
+(e.g.
+ (merge-attributes '(#:a 1 #:b 2 #:c 3) #;with '(#:b 5 #:d 4))
+ ===> (#:d 4 #:a 1 #:b 5 #:c 3))
+
+(define (update-attributes original . attributes)
+  (merge-attributes original attributes))
+
+(e.g.
+ (update-attributes '(#:a 1 #:b 2 #:c 3) #:d 4 #:b 5)
+ ===> (#:d 4 #:a 1 #:b 5 #:c 3))
