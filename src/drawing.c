@@ -23,7 +23,7 @@
 
 DEF_MAP(Uint32)
 
-struct list *drawing_contexts = NULL;
+static struct list *drawing_contexts = NULL;
 
 #define CURRENT_DRAWING_CONTEXT	((cairo_t *)(drawing_contexts->data))
 
@@ -270,7 +270,6 @@ create_drawing_context(SDL_Surface *surface) {
 			      (PROC) SDL_FreeSurface);
 
   cairo = cairo_create(target);
-  cairo_surface_destroy(target);
   return cairo;
 }
 
@@ -312,12 +311,15 @@ on_enter_drawing_context(SCM image) {
 static inline void
 exit_drawing_context(SDL_Surface *surface)
 {
+  cairo_surface_t *target;
   if(SDL_MUSTLOCK(surface)) {
     SDL_UnlockSurface(surface);
   }
 
   flush_drawing_context(CURRENT_DRAWING_CONTEXT);
+  target = cairo_get_target(CURRENT_DRAWING_CONTEXT);
   cairo_destroy(CURRENT_DRAWING_CONTEXT);
+  cairo_surface_destroy(target); 
   drawing_contexts = decap(drawing_contexts);
 }
 
@@ -359,36 +361,34 @@ with_drawing_output_to_surface(SCM image, SCM thunk) {
 
 #define END_MEASURE_CONTEXT() scm_dynwind_end()
 
-static inline cairo_t *
-create_measure_context() {
-  cairo_surface_t *target
-    = cairo_recording_surface_create(CAIRO_CONTENT_COLOR, NULL);
-  cairo_t *cairo = cairo_create(target);
-  cairo_surface_destroy(target);
-  return cairo;
-}
 
 static void
 on_enter_measure_context() {
-  drawing_contexts = cons(create_measure_context(), drawing_contexts);  
+  cairo_surface_t *target
+    = cairo_recording_surface_create(CAIRO_CONTENT_COLOR, NULL);
+  drawing_contexts = cons(cairo_create(target), drawing_contexts);
 }
 
 static void
 on_exit_measure_context() {
+  cairo_surface_t *target = cairo_get_target(CURRENT_DRAWING_CONTEXT);
   cairo_destroy(CURRENT_DRAWING_CONTEXT);
+  cairo_surface_destroy(target); 
   drawing_contexts = decap(drawing_contexts);
 }
 
 static SCM
 measure_without_drawing(SCM thunk) {
   double x, y, w, h;
+  SCM result;
   BEGIN_MEASURE_CONTEXT();
   scm_call_0(thunk);
   cairo_recording_surface_ink_extents(cairo_get_target(CURRENT_DRAWING_CONTEXT),
 				      &x, &y, &w, &h);
+  result = scm_list_4(scm_from_double(x), scm_from_double(y),
+		      scm_from_double(x+w), scm_from_double(y+h));
   END_MEASURE_CONTEXT();
-  return scm_list_4(scm_from_double(x), scm_from_double(y),
-		    scm_from_double(x+w), scm_from_double(y+h));
+  return result;
 }
 
 #define DEF_CAIRO_GETTER_SETTER(property, type)				\
@@ -448,6 +448,18 @@ DEF_CAIRO_GETTER_SETTER(line_join, line_join_t);
       return SCM_UNSPECIFIED;			\
   }
 
+#define DEF_CAIRO_5DOUBLE(name)				\
+  static SCM						\
+  name##_x(SCM a, SCM b, SCM c, SCM d, SCM e) {		\
+    cairo_##name(CURRENT_DRAWING_CONTEXT,		\
+		 scm_to_double(a),			\
+		 scm_to_double(b),			\
+		 scm_to_double(c),			\
+		 scm_to_double(d),			\
+		 scm_to_double(e));			\
+    return SCM_UNSPECIFIED;				\
+  }
+
 #define DEF_CAIRO_6DOUBLE(name)				\
   static SCM						\
   name##_x(SCM a, SCM b, SCM c, SCM d, SCM e, SCM f) {	\
@@ -473,9 +485,12 @@ DEF_CAIRO_3DOUBLE(set_source_rgb);
 DEF_CAIRO_4DOUBLE(set_source_rgba);
 DEF_CAIRO_4DOUBLE(rectangle);
 
+DEF_CAIRO_5DOUBLE(arc);
+
 DEF_CAIRO_6DOUBLE(curve_to);
 
 #undef DEF_CAIRO_6DOUBLE
+#undef DEF_CAIRO_5DOUBLE
 #undef DEF_CAIRO_4DOUBLE
 #undef DEF_CAIRO_3DOUBLE
 #undef DEF_CAIRO_2DOUBLE
@@ -558,6 +573,8 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("line-to!", 2, line_to_x);
   EXPORT_PROCEDURE("curve-to!", 6, curve_to_x);
 
+  EXPORT_PROCEDURE("arc!", 5, arc_x);
+  
   EXPORT_PROCEDURE_WITH_OPTIONALS("set-font-face!", 1, 2, set_font_face_x);
   EXPORT_PROCEDURE("set-font-size!", 1, set_font_size_x);
   EXPORT_PROCEDURE("show-text!", 1, show_text_x);

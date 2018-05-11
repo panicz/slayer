@@ -34,6 +34,7 @@ SCM s_mousebutton;
 SCM s_left;
 SCM s_right;
 SCM s_middle;
+SCM s_window_resize;
 
 SCM s_key_down;
 SCM s_key_up;
@@ -108,6 +109,16 @@ SCM s_italic;
 SCM s_oblique;
 SCM s_bold;
 
+SCM kw_time;
+SCM kw_cursor_position;
+SCM kw_key;
+
+static inline
+SCM keyword(const char *kw)
+{
+  return scm_from_utf8_keyword(kw);
+}
+
 void
 symbols_init() {
   noop = gc_protected(eval("noop"));
@@ -150,6 +161,7 @@ symbols_init() {
   s_key_down = gc_protected(symbol("key-down"));
   s_key_up = gc_protected(symbol("key-up"));
   s_mouse_move = gc_protected(symbol("mouse-move"));
+  s_window_resize = gc_protected(symbol("window-resize"));
   
   INIT_SYMBOL(copy);
   INIT_SYMBOL(view);
@@ -201,7 +213,7 @@ symbols_init() {
   s_color_dodge = gc_protected(symbol("color-dodge"));
   s_color_burn = gc_protected(symbol("color-burn"));
   s_hard_light = gc_protected(symbol("hard-light"));
-  s_soft_light = gc_protected(symbol("soft-light"));;
+  s_soft_light = gc_protected(symbol("soft-light"));
   INIT_SYMBOL(difference);
   INIT_SYMBOL(exclusion);
   INIT_SYMBOL(hue);
@@ -219,6 +231,13 @@ symbols_init() {
   INIT_SYMBOL(italic);
   INIT_SYMBOL(oblique);
   INIT_SYMBOL(bold);
+
+#define INIT_KEYWORD(name)			\
+  kw_##name = gc_protected(keyword(# name));
+
+  kw_cursor_position = gc_protected(keyword("cursor-position"));
+  INIT_KEYWORD(time);
+  INIT_KEYWORD(key);
   
 #undef INIT_SYMBOL
 }

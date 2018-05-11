@@ -306,6 +306,13 @@ react(SDL_Event *e) {
 				    scm_from_int(e->motion.y)));
     break;
   }
+
+  case SDL_VIDEORESIZE: {
+    message = scm_list_3(s_window_resize,
+			 scm_from_int(e->resize.w),
+			 scm_from_int(e->resize.h));
+    break;
+  }
     
   case SDL_QUIT:
     quit_handler(e);
@@ -653,6 +660,7 @@ export_symbols(void *unused) {
   dest.motion.yrel += src.motion.yrel;		\
   src.type = SDL_USEREVENT;			\
   src.user.code = -1
+
 
 static int
 compress_mouse_moves(SDL_Event *e) {

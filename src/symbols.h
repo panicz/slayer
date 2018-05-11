@@ -34,6 +34,7 @@ extern SCM s_mousebutton;
 extern SCM s_left;
 extern SCM s_right;
 extern SCM s_middle;
+extern SCM s_window_resize;
 
 extern SCM s_key_down;
 extern SCM s_key_up;
@@ -107,6 +108,10 @@ extern SCM s_normal;
 extern SCM s_italic;
 extern SCM s_oblique;
 extern SCM s_bold;
+
+extern SCM kw_time;
+extern SCM kw_cursor_position;
+extern SCM kw_key;
 
 extern void symbols_init();
 

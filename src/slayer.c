@@ -230,8 +230,8 @@ io(arg_t *arg) {
   init(arg);
   unsigned int step = 0;
   while (1) {
-    input_handle_events();
     video_refresh_screen();
+    input_handle_events();
     if((step++ % 64) == 0) {
       scm_gc();
     }
