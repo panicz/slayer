@@ -108,7 +108,8 @@ learning as well as game development and unconventional or highly customizable
 GUI/multimedia applications. It uses SDL for portability and is built on top 
 of Guile Scheme for accessibility and extensibility.
 
-In a way SLAYER can resemble fluxus@footnote{@uref{www.pawfal.org/fluxus/}}.
+In a way SLAYER can resemble
+fluxus@footnote{@uref{http://www.pawfal.org/fluxus/}}.
 There are however some essential differences between those systems. Fluxus
 is intended to work mainly with 3D-graphics, while SLAYER works with 2D
 objects just as fine. Fluxus has a built-in editor, while SLAYER is kept
