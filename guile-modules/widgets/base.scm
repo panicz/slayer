@@ -30,6 +30,8 @@
 	    *active-widget*
 	    *nearby-widget*
 
+	    *reactions*
+
 	    *default-font*
 	    )
   #:export-syntax (default-slot-values with-slots)
@@ -75,6 +77,10 @@
 
 (define ((hook . args))
   (make-hook (length args)))
+
+(define *reactions* ((hook 'event)))
+
+(set-reaction! (lambda (event) (run-hook *reactions* event)))
 
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
