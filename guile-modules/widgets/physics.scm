@@ -20,21 +20,21 @@
 	       ))
 
 (define (new-mesh-for-body body)
-  (case (body-type body)
-    ((box)
+  (match (body-type body)
+    ('box
      (let ((dims (body-property body 'dimensions)))
        (generate-box #:x #[dims 0] 
 		     #:y #[dims 1] 
 		     #:z #[dims 2])))
-    ((sphere)
+    ('sphere
      (let ((radius (body-property body 'radius)))
        (generate-sphere #:radius radius)))
-    ((cylinder)
+    ('cylinder
      (let ((radius (body-property body 'radius))
 	   (height (body-property body 'height)))
        (generate-tube #:radius radius
 		      #:height height)))
-    ((capsule)
+    ('capsule
      (let ((radius (body-property body 'radius))
 	   (height (body-property body 'height)))
        (match (generate-capsule #:radius radius
@@ -50,13 +50,13 @@
 				    (else type))
 				 . ,data) ...))))))))))
 
-    ((plane)
+    ('plane
      (square-grid #:size 100.0 #:density 50))
-    ((trimesh)
+    ('trimesh
      (let (((vertices . indices) (body-property body 'mesh)))
-       (or #[*trimesh-cache* vertices]
+       (or #;[*trimesh-cache* vertices]
 	   `(mesh (vertices ,vertices)
-		  (color #f32(1 1 1 0.5))
+		  ;;(color #f32(0.8 0.8 1 0.5))
 		  (faces (triangles ,indices))))))
     (else (error "Unknown body type of " body))))
 
@@ -79,15 +79,19 @@
 					 #;by (~ #[self 'orientation])))
 			       positions))))
 		   (indices (list->uniform-array (iota (length positions)))))
-	       `(mesh ,@definition 
-		      ,@(if (null? positions)
-			    '()
-			    `((vertices ,contacts)
-			      (color #f32(1 1 0))
-			      (faces (points ,indices))))))))
+	       `(mesh
+		 (color ,(#[self 'color] self))
+		 ,@definition 
+		 ,@(if (null? positions)
+		       '()
+		       `((vertices ,contacts)
+			 (color #f32(1 1 0))
+			 (faces (points ,indices))))))))
 	#:slot-set!
 	(lambda (self value)
 	  (set! #[self '%%mesh] value)))
+  (color #:init-value (lambda (self) #f32(0.8 0.8 0.8 0.5)) #:init-keyword #:color)
+
   (rig #:init-keyword #:rig)
   (position
    #:allocation #:virtual
@@ -129,8 +133,8 @@
    #:allocation #:virtual
    #:slot-ref
    (lambda (self)
-     (case (joint-type #[self 'joint])
-       ((hinge slider)
+     (match (joint-type #[self 'joint])
+       ((or 'hinge 'slider)
 	(let ((axis (joint-property #[self 'joint] 'axis)))	  
 	  (rotation-quaternion #;from #f32(0 0 1) #;to axis)))
        (else
@@ -147,8 +151,8 @@
     body . *))
 
 (define (new-mesh-for-joint joint)
-  (case (joint-type joint)
-    ((hinge)
+  (match (joint-type joint)
+    ('hinge
      (access-joint-properties joint (anchor axis angle hi-stop lo-stop body-1)
        (let* ((target (body-property body-1 'position))
 	      (direction (normalized (- target anchor)))
@@ -172,8 +176,8 @@
 			 ,(uniform-vector->list direction)
 			 #;,(uniform-vector->list lo-stop-axis))))
 	   (faces (points #u8(0))
-		  #;(lines #u8(0 1 0 2)))))))
-    (else
+       	  #;(lines #u8(0 1 0 2)))))))
+    (_
      '(mesh (vertices #2f32((0 0 0)))
 	    (faces (points #u8(0)))))))
 
@@ -184,6 +188,8 @@
   (%objects-cache #:init-value '())
   (%last-synchronized-simulation-step #:init-value #f)
   (simulation #:init-value #f #:init-keyword #:simulation)
+  (default-color #:init-value (lambda (self) #f32(0.8 0.8 1 0.5))
+    #:init-keyword #:default-color)
   (objects
    #:allocation #:virtual
    #:slot-ref 
@@ -199,6 +205,7 @@
 			   (make <physical-object> 
 			     #:body body
 			     #:mesh (new-mesh-for-body body)
+			     #:color #[self 'default-color]
 			     #:rig rig)))
 		   (TODO check if the mesh hasn't changed and if it did,
 			 modify accordingly! -- or just tie the specific 

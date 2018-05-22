@@ -142,7 +142,7 @@
   (let ((original-viewport (current-viewport))
 	((x y w h) (area view))
 	(camera #[view 'camera]))
-    (draw-border! view)
+    ;;(draw-border! view)
     (set-viewport! (+ x 1) (+ y 1) (- w 2) (- h 2))
     (set-perspective-projection! #[camera 'fovy])
     (push-matrix!)

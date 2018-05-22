@@ -183,7 +183,7 @@
 			     'f32 2 (append
 				     vertices 
 				     '((0.0 0.0 1.0)))))
-		  (color #f32(1 1 1 0.5))
+		  ;;(color #f32(1 1 1 0.5))
 		  (faces
 		   (quad-strip ,(list->uniform-array faces))
 		   (triangle-fan
@@ -207,7 +207,7 @@
 	   (,-x  ,y ,-z)
 	   (,-x ,-y  ,z)
 	   (,-x ,-y ,-z))))
-      (color #f32(1 1 1 0.5))
+      ;;(color #f32(1 1 1 0.5))
       (faces
        (quads 
 	#2u8((0 1 3 2)
@@ -221,7 +221,7 @@
 			   (height 1.0) (radius 0.2))
   (match-let ((('mesh ('vertices vertices) 
 		      ('normals normals)
-		      ('color color) 
+		      ;;('color color) 
 		      ('faces ('quad-strip quad-strip)
 			      ('triangle-fan triangle-fan)))
 	      (generate-hemisphere #:radius radius #:slices points
@@ -245,7 +245,7 @@
 	     (normals ,(list->typed-array 
 			'f32 2 
 			(map normalized (array->list new-vertices))))
-	     (color #f32(1 1 1 0.5))
+	     ;;(color #f32(1 1 1 0.5))
 	     (faces (quad-strip ,quad-strip)
 		    (triangle-fan ,triangle-fan)
 		    (quad-strip 
