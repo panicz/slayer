@@ -15,6 +15,7 @@
 	    <numeric-parameter-editor>
 	    <numeric-input>
 	    set-target!
+	    clear-text!
 	    )
   #:re-export (make)
   #:export-syntax (parameter-editor property-editor)
@@ -84,6 +85,7 @@
    #:slot-set! noop)
   (special-keys #:init-thunk 
 		(lambda () (make-vector (vector-length *key-names*) noop)))
+  
   (lines #:init-value '#(""))
   (max-lines #:init-value +inf.0 #:init-keyword #:max-lines)
   (on-max-lines-reached 
@@ -151,6 +153,7 @@
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
+  (wrr "Moving cursor "right" "down)
   (%flush-cache! w)
   (set-port-line! #[ w 'port ] 
 		  (max 0 (min (+ (port-line #[w 'port]) down) 
@@ -193,6 +196,14 @@
 			 (drop lines (+ line-number 1)))))
 	  (move-cursor! t (- (port-column #[t 'port])) 
 			1)))))
+
+(define-method (clear-text! (t <text-area>))
+  (%flush-cache! t)
+  (set-port-line! #[t 'port] 0)
+  (set-port-column! #[t 'port] 0)
+  (set! #[t 'text] "")
+  (display #[t 'text] *stderr*))
+  
 
 (define-method (leave-typing-mode! (t <text-area>))
   (%flush-cache! t)
@@ -305,22 +316,55 @@
      (#[t : 'special-keys : scancode])))
   (set-input-mode! 'typing))
 
+(define (vector-insert v i x)
+  (let* ((n (vector-length v))
+	 (v* (make-vector (+ n 1))))
+    (for j in (iota i)
+      (vector-set! v* j (vector-ref v j)))
+    (vector-set! v* i x)
+    (for j in (iota (- n i) i)
+      (vector-set! v* (+ j 1) (vector-ref v j)))
+    v*))
+
+(define (wrr . xs)
+  (for x in xs
+    (write x *stderr*))
+  (newline *stderr*))
+
+
 (define-method (initialize (t <text-area>) args)
   (next-method)
   (let-keywords args #t ((type #:text-area))
-    (let ((put-string (lambda(s)
-			(set! #[t '%cropped-image] #f)
-			(set! #[t '%%image] #f)
-			(let ((p #[ t 'port ]))
-			  (let ((row (port-line p))
-				(col (port-column p)))
-			    (set! #[t : '%render-cache : row] #f)
+		(let* ((put-string
+			(lambda (s row col)
+			  (let ((p #[t 'port]))
+			    (set! #[t '%cropped-image] #f)
+			    (set! #[t '%%image] #f)
+			    (set! #[t '%render-cache] #f)
 			    (let ((line #[t : 'lines : row ]))
 			      (set! #[t : 'lines : row]
 				    (string-append
 				     (substring line 0 col)
 				     s
-				     (substring line col)))))))))
+				     (substring line col)))))))
+		       (put-lines (lambda (s)
+				    (let ((p #[t 'port]))
+				      (let loop ((lines (string-split
+							 s #\newline))
+						 (line (port-line p))
+						 (col (port-column p)))
+					(match lines
+					  (`(,last)
+					   (put-string last line col))
+					  
+					  (`(,first . ,rest)
+					   (put-string first line col)
+					   (set! #[t 'lines] (vector-insert
+							      #[t 'lines]
+							      (+ line 1)
+							      ""))
+					   (loop rest (+ line 1) 0))))))))
+
       (set! #[t '%cursor] (rectangle 2 #[t 'char-height]
 				     #x20eeaa22))
       (set! #[t '%space] (render-text "_" #[t 'font]))
@@ -328,8 +372,8 @@
       (set! #[t 'port] (make-soft-port
 			(vector
 			 (lambda(c) 
-			   (put-string (list->string (list c))))
-			 put-string
+			   (put-lines (list->string (list c))))
+			 put-lines
 			 noop
 			 #f
 			 #f) "w"))
