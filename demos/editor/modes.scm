@@ -241,7 +241,7 @@
 		      (abdomen pelvis)
 		      (pelvis left-hip right-hip)))))
 
-(define ((rotate-around-joint-mode view))
+(define (rotate-around-joint-mode view swap-moved-with-still?)
   (define ((restore! previously-selected) . _)
     (unselect-all! #;from view)
     (for object in (reverse previously-selected)
@@ -266,7 +266,11 @@
 				 (values left right)
 				 (values right left)))
 	       (move still (values (apply difference move+ held)
-				   (apply union still- held))))
+				   (apply union still- held)))
+	       (move still (if swap-moved-with-still?
+			       (values still move)
+			       (values move still)))
+	       )
 	  (unselect-all! #;from view)
 	  (for body in move
 	    (select-body! body #;from view))

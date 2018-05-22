@@ -130,6 +130,10 @@
   (poses-widget #:init-value #f)
   (sequence-widget #:init-value #f)
   (sequences-widget #:init-value #f)
+  (input-widget #:init-value #f)
+  (code-widget #:init-value #f)
+  (time-widget #:init-value #f)
+  
   (pose #:init-thunk (lambda () (make <pose> #:name 'unnamed-pose
 				 #:configuration #f)))
   (sequence #:init-thunk (lambda () (make <sequence> #:name 'unnamed-sequence)))
@@ -200,6 +204,150 @@
 	 (n (string-length name)))
     (string-append name (make-string (max 0 (- 12 n)) #\space))))
 
+(define ((unbound/bound unbound bound) self)
+  (if #[self 'unbound?]
+      #[self unbound]
+      #[self bound]))
+
+(define ((set-fields! . fields) self value)
+  (for field in fields
+    (set! #[self field] value)))
+
+(define-class <keyboard-button> (<button>)
+  (key #:init-keyword #:key)
+  (unbound? #:allocation #:virtual
+	    #:slot-ref (lambda (self)
+			 (and (eq? (keydn #[self 'key]) noop)
+			      (eq? (keyup #[self 'key]) noop)))
+	    #:slot-set! noop)
+  (pressed #:init-value #f)
+  (normal/bound #:init-value #f)
+  (normal/unbound #:init-value #f)
+  (clicked/bound #:init-value #f)
+  (clicked/unbound #:init-value #f)
+  (over/bound #:init-value #f)
+  (over/unbound #:init-value #f)
+
+  
+  (normal #:allocation #:virtual
+	  #:slot-ref (unbound/bound 'normal/unbound 'normal/bound)
+	  #:slot-set! (set-fields! 'normal/unbound 'normal/bound))
+  (clicked #:allocation #:virtual
+	   #:slot-ref (unbound/bound 'clicked/unbound 'clicked/bound)
+	   #:slot-set! (set-fields! 'clicked/unbound 'clicked/bound))
+  (over #:allocation #:virtual
+	#:slot-ref (unbound/bound 'over/unbound 'over/bound)
+	#:slot-set! (set-fields! 'over/unbound 'over/bound)))
+
+
+
+(define-method (initialize (self <keyboard-button>) args)
+  (next-method)
+  (set! #[self 'pressed] (render-text #[self 'text] *default-font*
+				      #xffffff #xf19f00))
+  (set! #[self 'normal/bound] (render-text #[self 'text] *default-font*
+				    #xffffff #x555555))
+  (set! #[self 'normal/unbound] (render-text #[self 'text] *default-font*
+					     #xffffff #x777777))
+  )
+
+
+(define (procedure-origin procedure)
+  (and (procedure? procedure)
+       (or (procedure-name procedure)
+	   (procedure-source procedure))))
+
+(define (origin key)
+  (let* ((keydn-origin (procedure-origin (keydn key)))
+	 (keyup-origin (procedure-origin (keyup key))))
+    (match `(,keydn-origin ,keyup-origin)
+      (`((lambda () (add-mode! ,key ,function))
+	 (lambda () (remove-mode! ,key)))
+       `((key ,key ,function)))
+      (_
+       `(,@(if (and keydn-origin
+		    (not (eq? keydn-origin 'noop)))
+	       `((keydn ',key ,keydn-origin))
+	       '())
+	 ,@(if (and keyup-origin
+		    (not (eq? keyup-origin 'noop)))
+	       `((keyup ',key ,keyup-origin))
+	       '()))))))
+
+
+(define (display-origin key target)
+  ;; (assert (is target instance? <text-area>))
+  (clear-text! target)
+  (with-output-to-port #[target 'port]
+    (lambda ()
+      (for definition in (origin key)
+	(pretty-print definition)))))
+
+(define (keyboard-widget rows target)
+  ;;(assert (is target instance? <text-area>))
+  (let ((key->button #[]))
+    (define (keyboard-button key)
+      (if (string? key)
+	  (label key)
+	  (let* ((skey (->string key))
+		 (key (if (number? key)
+			  (string->symbol (number->string key))
+			  key))
+		 (label (cond ((string= skey "numlock")
+			       skey)
+			      ((string-match "^num" skey)
+			       (string-drop skey 3))
+			      ((string= skey "space")
+			       "   space   ")
+			      ((string= skey "left-bracket")
+			       "[")
+			      ((string= skey "right-bracket")
+			       "]")
+			      ((string= skey "apostrophe")
+			       "'")
+			      ((string= skey "semicolon")
+			       ";")
+			      ((string= skey "backquote")
+			       "`")
+			      ((string= skey "period")
+			       ".")
+			      ((string= skey "comma")
+			       ",")
+			      (else
+			       skey)))
+		 (avatar (make <keyboard-button>
+			   #:text (string-append "  " label "  ")
+			   #:key key)))
+	    (set! #[avatar 'left-mouse-down]
+		  (lambda (x y)
+		    (key-down key)))
+	    (set! #[avatar 'left-mouse-up]
+		  (lambda (x y)
+		    (key-up key)))
+
+	    (set! #[key->button key] avatar)
+	    avatar)))
+    (add-hook! *reactions*
+	       (lambda (event)
+		 ;;(display event)
+		 (match* event
+		   (`(key-down ,key)
+		    (display-origin key target)
+		    (and-let* ((button #[key->button key]))
+		      (set! #[button 'state] 'pressed)
+		      (set! #[button 'image] #[button 'normal])))
+		   (`(key-up ,key)
+		    ;;(display-origin key target)
+		    (and-let* ((button #[key->button key]))
+		      (set! #[button 'state] 'normal)
+		      (set! #[button 'image] #[button 'normal]))))))
+    (apply (layout #:lay-out lay-out-vertically)
+	   (map (lambda (row)
+		  (apply (layout #:lay-out lay-out-horizontally)
+			 (map keyboard-button row)))
+		rows))))
+
+
 (define-method (initialize (self <pose-editor-widget>) args)
   ;; yes, functions shouldn't be written this way
   ;; (although if you imagine that this code is html-alike, it should
@@ -232,9 +380,10 @@
 	(poses-widget #[self 'poses-widget]))
     (let ((file-menu 
 	   ((layout)
-	    (label "         --- file options ---        ")
-	    (label " --- evaluations (f1 after sexp) --- ")
-	    (make <text-area> #:w 220 #:h 200 #:text-color #x000000
+	    (label
+	     "   --- press f1 after s-expression to evaluate (esc to exit) ---   "
+	     )
+	    (make <text-area> #:w 400 #:h 200 #:text-color #x000000
 		  #:background-color #xffffff
 		  #:text ""
 		  #:on-create 
@@ -256,33 +405,33 @@
 		  (lambda (self)
 		    (with-output-file evaluations-file
 		      (display #[self 'text]))))
-	    (label "       --- camera settings ---       ")
+	    (label
+	     "        --- camera settings ---        ")
 	    ((layout #:lay-out lay-out-horizontally)
 	     (button #:text " [ ahead (1) ] " #:action
 		     (look ahead #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera]))
-	     (label " ")
-	     (button #:text " [ back (shift+1) ] " #:action 
+	     (label "    ")
+	     (button #:text " [ back (!) ] " #:action 
 		     (look back #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera])))
 	    ((layout #:lay-out lay-out-horizontally)
 	     (button #:text " [ left (2) ] " #:action
 		     (look left #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera]))
-	     (label "  ")
-	     (button #:text " [ right (shift+2) ]" #:action
+	     (label "     ")
+	     (button #:text " [ right (@) ]" #:action
 		     (look right #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera])))
 	    ((layout #:lay-out lay-out-horizontally)
 	     (button #:text " [ up (3) ] " #:action
 		     (look up #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera]))
-	     (label "    ")
-	     (button #:text " [ down (shift+3) ] " #:action
+	     (label "       ")
+	     (button #:text " [ down (#) ] " #:action
 		     (look down #;at (the-rig) #;using 
 			   #[self : '3d-view : 'camera])))
-	    
-	    (label "         --- quick help ---          ")))
+	    ))
 	  (pose-editor
 	   ((layout)
 	    (property-editor 
@@ -336,7 +485,7 @@
 	      #:action 
 	      (lambda (x y)
 		(save-rig-state! (the-rig))
-		(apply-stops! #;to (the-rig )
+		(apply-stops! #;to (the-rig)
 				   #:keeping (#[self 'pivotal-body]))))
 	     (label "       "))))
 	  (sequence-editor
@@ -376,7 +525,8 @@
 	     (label "         "))
 	    
 	    (label "       --- sequences ---      ")
-	    sequences-widget)))
+	    sequences-widget))
+	  )
       (for (name . value) in #[the-pose 'configuration]
 	(add-child! 
 	 (make <numeric-input> #:w 200 #:h 12 
@@ -414,5 +564,50 @@
 
       (add-tab! file-menu #;under-name "[file]" #;to self)
       (add-tab! pose-editor #;under-name "[pose]" #;to self)
-      (add-tab! sequence-editor #;under-name "[sequence]" #;to self)
+      (add-tab! sequence-editor #;under-name "[acts]" #;to self)
+      (add-tab!
+       (let ((binding-area (make <text-area> #:w 200 #:h 70
+				 #:text-color #x000000
+				 #:background-color #xcccccc
+				 #:text "")))
+	 ((layout)
+	  (keyboard-widget
+	   '((esc "                           "
+		  numlock print scroll pause " " ins home pgup)
+	     (f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12 del end pgdn)
+	     (backquote 1 2 3 4 5 6 7 8 9 0 - = backspace " " num/ num* num-)
+	     (tab q w e r t y u i o p left-bracket right-bracket enter
+		  "   " num7 num8 num9)
+	     (caps a s d f g h j k l semicolon apostrophe \
+		   "           " num4 num5 num6)
+	     (lshift < z x c v b n m comma period / rshift
+		     "    " num1 num2 num3)
+	     (lctrl lsuper lalt space mode menu rctrl
+		    "       " up " " num0 num. numret)
+	     ("                                 "
+	      "                                  "
+	      left down right))
+	   binding-area
+	   )
+	  ((layout #:lay-out lay-out-horizontally)
+	   ((layout)
+	    (label " binding: ")
+	    binding-area)
+	   
+	   ((layout)
+	    (label " events: ")
+	    (make <text-area> #:w 200 #:h 70 #:text-color #x000000
+		  #:background-color #xdddddd
+		  #:text ""))
+	   
+	   ((layout)
+	    (label " actions: ")
+	    (make <text-area> #:w 200 #:h 70 #:text-color #x000000
+		  #:background-color #xeeeeee
+		  #:text ""))))
+	 ) "[input]" #;to self)
+      (set! #[self 'code-widget] ((layout)))
+      (set! #[self 'time-widget] ((layout)))
+      (add-tab! #[self 'code-widget] #;under-name "[code]" #;to self)
+      (add-tab! #[self 'time-widget] #;under-name "[time]" #;to self)
       (add-tab! ((layout)) #;under-name "[hide]" #;to self))))

@@ -1,4 +1,4 @@
-#!../src/slayer -f -e3d
+#!../src/slayer  -e3d
 exit
 !#
 
@@ -10,7 +10,7 @@ exit
  (slayer image)
  (slayer font)
  (slayer 3d)
- (extra common)
+ (grand scheme)
  (extra math)
  (extra slayer)
  (extra ref)
@@ -32,6 +32,9 @@ exit
  (extra scmutils)
  (scum physics))
 
+(define-syntax (push! list item)
+  (set! list `(,item . ,list)))
+
 (set-window-title! "POSED: The POSE Editor")
 
 (define the-simulation (primitive-make-simulation))
@@ -41,9 +44,22 @@ exit
 ;; updated -- it only stores prototypes of objecs,
 ;; that are intended to show idealistic moves
 
-(define physical-objects (make <physics-stage> #:simulation the-simulation))
+(define physical-objects
+  (make <physics-stage> #:simulation the-simulation
+	#:default-color
+	(lambda (self)
+	  (let ((body #[self 'body]))
+	    (match (body-type body)
+	      ('sphere
+	       (with-context-for-joint/body-relation
+		(let* ((joints (joints-attached-to body)))
+		  #f32(0 0 0 1))))
+	      (_
+	       #f32(1 1 1 0.5)))))))
 
-(define ideal-objects (make <physics-stage> #:simulation platonic-world))
+(define ideal-objects (make <physics-stage> #:simulation platonic-world
+			    #:default-color (lambda (self) #f32(1 0.76 0 0.5))))
+
 
 (define all-objects (make <multi-stage> physical-objects ideal-objects))
 
@@ -64,6 +80,24 @@ exit
 
 (set-idol! #;of the-rig #;to idol)
 
+(for body in (rig-bodies idol)
+  (set-body-property! body 'position
+		      (+ (body-property body 'position) #f32(4 2 1))))
+
+
+(define (green-to-red x)
+  ;;(assert (is 0 <= x <= 1))
+  (let* ((r (if (is x > 0.5)
+		1.0
+		(* x 2.0)))
+	 (g (if (is x < 0.5)
+		1.0
+		(- 1 (* (- x 0.5) 2.0))))
+	 (b 0))
+    (list->typed-array 'f32 1 `(,r ,g ,b))))
+
+
+
 (define edit idol)
 
 (define (select-edited-object! object #;from view)
@@ -77,13 +111,13 @@ exit
 
 (define (selectable? object)
   (and (is-a? object <physical-object>)
-       (not (in? #[object 'rig] restricted-rigs))))
+       (isnt #[object 'rig] member restricted-rigs)))
 
 ;;(set-pose! the-rig (pose #;of the-rig))
 
-(define max-force 40.0)
+(define max-force 100.0)
 
-(define max-velocity 3.0)
+(define max-velocity 10000.0)
 
 (keydn '=
   (lambda ()
@@ -103,22 +137,35 @@ exit
 					     (lambda () max-force)
 					     (lambda () max-velocity))
 
+;;(attach-pid-muscles-to-all-joints! #;in the-rig 10 0 0)
+					
+
+
 (set! #[view 'left-click]
   (lambda (x y)
     (and-let* ((object (object-at-position x y #;in view))
 	       ((selectable? object)))
       (unless (modifier-pressed? 'shift)
 	(unselect-all! #;in view))
-      (if (in? object #[view 'selected])
+      (if (is object member #[view 'selected])
 	  (unselect-object! view object)
 	  (select-edited-object! object #;from view)))))
 
 (keydn '(ctrl a)
-  (lambda ()
-    (unselect-all! #;in view)
-    (for object in #[view : 'stage : 'objects]
-      (if (selectable? object)
-	  (select-edited-object! object #;from view)))))
+       (lambda ()
+	 (cond ((null? #[view 'selected])		
+		(for object in #[view : 'stage : 'objects]
+		  (if (selectable? object)
+		      (select-edited-object! object #;from view))))
+	       (else
+		(let ((rigs (delete-duplicates (map (lambda (object)
+						      (body-rig #[object 'body]))
+						    #[view 'selected]))))
+		  (for rig in rigs
+		    (for body in (rig-bodies rig)
+		      (select-edited-object!
+		       (body-object body view) #;from view))))))))
+						     
 
 (keydn 'esc (lambda () (unselect-all! view)))
 
@@ -148,7 +195,6 @@ exit
   (set-simulation-property! the-simulation property value)
   (simulation-property the-simulation property))
 
-
 (define editor (make <pose-editor-widget> #:rig (lambda () edit)
 		     #:3d-view view
 		     #:evaluations-file "posed/evaluation.ss"
@@ -176,7 +222,8 @@ exit
     (set! #[editor 'pause] (not #[editor 'pause]))
     (format #t "pause ~a\n" (if #[editor 'pause] 'on 'off))))
 
-(keydn 'h (rotate-around-joint-mode view))
+(keydn 'h (lambda ()
+	    (rotate-around-joint-mode view (shift?))))
 
 ;; jak byśmy chcieli rysować te wszystkie dziadostwa pomocnicze
 ;; w idealnym przypadku? nie wiadomo!
@@ -244,7 +291,6 @@ exit
 (key 'left (lambda () (relative-turn! #[view 'camera] 2 0)))
 (key 'right (lambda () (relative-turn! #[view 'camera] -2 0)))
 
-
 (keydn 'space
        (lambda ()
 	 (let* ((chest/real (body-named 'chest the-rig))
@@ -276,8 +322,8 @@ exit
     ((look (if (shift?) up down)
 	   #;relative-to edit #;using #[view 'camera]))))
 
-(keydn 0 (lambda _ (<< #[view : 'camera : 'orientation])))
-(keydn 9 (lambda _ (<< #[view : 'camera : 'position])))
+(keydn 0 (lambda _ (print #[view : 'camera : 'orientation])))
+(keydn 9 (lambda _ (print #[view : 'camera : 'position])))
 
 
 (set! #[view 'left-mouse-down]
@@ -286,7 +332,7 @@ exit
 	 (set! #[view 'dragging-behavior]
 	       (let ((object (object-at-position x y #;in view)))
 		 (cond ((or (not object)
-			    (not (in? object #[view 'selected])))
+			    (not (is object member #[view 'selected])))
 			(make <camera-pan> #:in view))
 		       
 		       ((let ((body #[object 'body]))
@@ -354,7 +400,7 @@ exit
 (let ((center (make <mass-center> #:of the-rig)))
   (keydn 'm
     (lambda ()
-      (if (in? center #[physical-objects '%permanent-objects])
+      (if (is center member #[physical-objects '%permanent-objects])
 	  (set! #[physical-objects '%permanent-objects]
 	    (delete center #[physical-objects '%permanent-objects]))
 	  (push! #[physical-objects '%permanent-objects] center)))))
