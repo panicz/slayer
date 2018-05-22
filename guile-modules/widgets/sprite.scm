@@ -10,10 +10,11 @@
   #:export (<sprite>
 	    <label>
 	    <layout>
+	    <button>
 	    layout
 	    lay-out-horizontally
 	    lay-out-vertically
-	    make-button button
+	    button
 	    make-container
 	    make-sprite
 	    label)
@@ -47,33 +48,48 @@
 	  (y (apply + (map* #[_ 'y] i))))
       (draw-image! #[ i 'image ] x y))))
 
-(define* (make-button #:key (text "button") (x 0) (y 0) (w #f) (h #f))
-  (let ((normal (render-text text *default-font* #xffffff #x777777))
-	(over (render-text text *default-font* #xffffff #x999999))
-	(clicked (render-text text *default-font* #xffffff #xcccccc)))
-    (let ((button (make <sprite> #:image normal #:x x #:y y 
-			#:w (or w (image-width normal))
-			#:h (or h (image-height normal)))))
-      (set! #[ button 'mouse-move ] 
-	    (lambda _ (unless (eq? #[button 'image] clicked)
-		   (set! #[ button 'image ] over ))))
-      (set! #[ button 'mouse-out ] 
-	    (lambda _ (set! #[ button 'image ] normal )))
-      (set! #[ button 'left-mouse-down ] 
-	    (lambda _ (set! #[ button 'image ] clicked )))
-      (set! #[ button 'left-mouse-up ]
-	    (lambda _ (set! #[ button 'image ] over )))
-      (set! #[ button 'drag ] noop)
-      button)))
+
+(define-class <button> (<sprite>)
+  (state #:init-value 'normal)
+  (%image #:allocation #:virtual
+	  #:slot-ref (lambda (self)
+		       #[self #[self 'state]])
+	  #:slot-set! noop)
+  (text #:init-keyword #:text #:init-value "button")
+  (normal #:init-value #f)
+  (over #:init-value #f)
+  (clicked #:init-value #f))
+
+(define-method (initialize (button <button>) args)
+  (next-method)
+  (let ((normal (render-text #[button 'text] *default-font* #xffffff #x777777))
+	(over (render-text #[button 'text] *default-font* #xffffff #x999999))
+	(clicked (render-text #[button 'text] *default-font*
+			      #xffffff #xcccccc)))
+    (set! #[ button 'image ] normal)
+    (set! #[ button 'normal ] normal)
+    (set! #[ button 'over ] over)
+    (set! #[ button 'clicked ] clicked)
+    (set! #[ button 'mouse-move ]
+	  (lambda _ (unless (eq? #[button 'state] 'clicked)
+		 (set! #[ button 'state ] 'over))))
+    (set! #[ button 'mouse-out ] 
+	  (lambda _ (set! #[ button 'state ] 'normal)))
+    (set! #[ button 'left-mouse-down ] 
+	  (lambda _ (set! #[ button 'state ] 'clicked)))
+    (set! #[ button 'left-mouse-up ]
+	  (lambda _ (set! #[ button 'state ] 'over)))
+    (set! #[ button 'drag ] noop)
+    ))
 
 (define* (button #:key (text "button") (action (lambda (x y) (if #f #f))))
-  (let ((button (make-button #:text text)))
+  (let ((button (make <button> #:text text)))
     (set! #[button 'left-click] action)
     button))
   
 (define* (make-container #:key x y (name "menu") (content '()))
   (let ((container (make <widget>))
-	(label (make-button #:text name)))
+	(label (make <button> #:text name)))
     (set! #[label 'drag] (lambda (x y xrel yrel)		 
 			   (increase! #[ container 'x ] xrel)
 			   (increase! #[ container 'y ] yrel)))
@@ -145,3 +161,5 @@
 
 (define (label text)
   (make <sprite> #:image (render-text text *default-font* #xffffff #x555555)))
+
+
