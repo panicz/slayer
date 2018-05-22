@@ -268,6 +268,8 @@ quit_handler(SDL_Event *e) {
   return SCM_UNSPECIFIED;
 }
 
+
+
 static inline void
 react(SDL_Event *e) {
   SCM message;
@@ -404,8 +406,10 @@ get_modifier_code(SCM name) {
 }
 
 static inline SCM
-modifier_pressed_p(SCM name) {
-  SDLMod state = SDL_GetModState();
+modifier_pressed_p(SCM name, SCM context) {
+  SDLMod state = (context == SCM_UNDEFINED)
+    ? SDL_GetModState()
+    : (SDLMod) scm_to_int(context);
   int code = get_modifier_code(name);
   if(state & code) {
     return SCM_BOOL_T;
@@ -537,6 +541,40 @@ bind_keyup(SCM key, SCM function) {
   return SCM_UNSPECIFIED;
 }
 
+
+static SCM
+key_down(SCM key)
+{
+  SDL_Event e = {
+    .key = {
+      .type = SDL_KEYDOWN,
+      .state = SDL_PRESSED,
+      .keysym = {
+	.sym = get_scancode(key)
+      }
+    }
+  };
+  SDL_PushEvent(&e);
+  return SCM_UNSPECIFIED;
+}
+
+static SCM
+key_up(SCM key)
+{
+  SDL_Event e = {
+    .key = {
+      .type = SDL_KEYUP,
+      .state = SDL_RELEASED,
+      .keysym = {
+	.sym = get_scancode(key)
+      }
+    }
+  };
+  SDL_PushEvent(&e);
+  return SCM_UNSPECIFIED;
+}
+
+  
 static SCM 
 bind_mousemove(SCM function) {
   WARN_ONCE("function should check for arity of its argument");
@@ -622,6 +660,9 @@ export_symbols(void *unused) {
   EXPORT_PROCEDURE("mouse-position", 0, 0, 0, mouse_position);
   EXPORT_PROCEDURE("set-mouse-position!", 2, 0, 0, set_mouse_position_x);
 
+  EXPORT_PROCEDURE("key-up", 1, 0, 0, key_up);
+  EXPORT_PROCEDURE("key-down", 1, 0, 0, key_down);
+  
   EXPORT_PROCEDURE("input-mode", 0, 0, 0, get_input_mode);
   EXPORT_PROCEDURE("set-input-mode!", 1, 0, 0, set_input_mode_x);
   EXPORT_PROCEDURE("current-key-bindings", 0, 0, 0, current_key_bindings);
@@ -643,7 +684,7 @@ export_symbols(void *unused) {
 		   set_typing_special_procedure_x);
   EXPORT_PROCEDURE("set-reaction!", 1, 0, 0, set_reaction_x);
 
-  EXPORT_PROCEDURE("modifier-pressed?", 1, 0, 0, modifier_pressed_p);
+  EXPORT_PROCEDURE("modifier-pressed?", 1, 1, 0, modifier_pressed_p);
 
   EXPORT_OBJECT("KEY-BINDINGS", key_bindings);
   EXPORT_OBJECT("*scancodes*", scancodes);
@@ -769,7 +810,7 @@ handle_typing_mode(SDL_Event *event) {
       scm_force_output(scm_current_output_port());
     } 
     else {
-      scm_call_1(typing_special, 
+      scm_call_2(typing_special, 
 		 scm_from_uint16((Uint16) event->key.keysym.sym));
     }
     break;
@@ -790,6 +831,7 @@ input_handle_events() {
     while(getting_events(&event)) {
       switch(input_mode) {
       case DIRECT_MODE:
+	react(&event);
 	(*event_handler[event.type])(&event);
 	break;
       case TYPING_MODE:
