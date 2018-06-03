@@ -276,15 +276,17 @@ or the one provided, if the old one is not available"
   (for (rig => behaviors) in rig-behaviors
     (for (trigger-pose . reaction!) in behaviors
       (let ((d (pose-distance trigger-pose (pose #;of rig))))
-	(when (< d 0.2)
+	(pretty-print d)
+	(when (< d 0.6)
 	  (reaction! rig pose)))))
 
   (for (rig => rig-pose) in rig-poses
     (let ((muscles #[rig-muscles rig])
-	  (stabilized-pose (stabilize rig-pose rig)))
-            ;;(<< (pose-distance `(pose ,@rig-pose) (pose #;of rig)))
+	  (stabilized-pose rig-pose #;(stabilize rig-pose rig)))
+      ;;(<< (pose-distance `(pose ,@rig-pose) (pose #;of rig)))
+      
       (set-desired-pose! #;of rig #;to `(pose . ,stabilized-pose))
-      (for (joint-name . value) in stabilized-pose
+      (for `(,joint-name . ,value) in stabilized-pose
 	(let* ((joint (joint-named joint-name #;from rig))
 	       (muscle-joint! #[muscles joint]))
 	  (when value

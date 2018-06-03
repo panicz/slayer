@@ -4,6 +4,7 @@
   #:use-module (slayer font)
   #:use-module (extra common)
   #:use-module (extra ref)
+  #:use-module (extra slayer)
   #:use-module (widgets base)
   #:use-module (widgets tab)
   #:use-module (widgets sprite)
@@ -252,39 +253,16 @@
   )
 
 
-(define (procedure-origin procedure)
-  (and (procedure? procedure)
-       (or (procedure-name procedure)
-	   (procedure-source procedure))))
-
-(define (origin key)
-  (let* ((keydn-origin (procedure-origin (keydn key)))
-	 (keyup-origin (procedure-origin (keyup key))))
-    (match `(,keydn-origin ,keyup-origin)
-      (`((lambda () (add-mode! ,key ,function))
-	 (lambda () (remove-mode! ,key)))
-       `((key ,key ,function)))
-      (_
-       `(,@(if (and keydn-origin
-		    (not (eq? keydn-origin 'noop)))
-	       `((keydn ',key ,keydn-origin))
-	       '())
-	 ,@(if (and keyup-origin
-		    (not (eq? keyup-origin 'noop)))
-	       `((keyup ',key ,keyup-origin))
-	       '()))))))
-
-
-(define (display-origin key target)
+(define (display-origin key target-area)
   ;; (assert (is target instance? <text-area>))
-  (clear-text! target)
-  (with-output-to-port #[target 'port]
+  (clear-text! target-area)
+  (with-output-to-port #[target-area 'port]
     (lambda ()
-      (for definition in (origin key)
+      (for definition in (binding-origins key)
 	(pretty-print definition)))))
 
-(define (keyboard-widget rows target)
-  ;;(assert (is target instance? <text-area>))
+(define (keyboard-widget rows binding-area events-area actions-area)
+  ;;(assert (is binding-area instance? <text-area>))
   (let ((key->button #[]))
     (define (keyboard-button key)
       (if (string? key)
@@ -320,27 +298,35 @@
 			   #:key key)))
 	    (set! #[avatar 'left-mouse-down]
 		  (lambda (x y)
+		    (display-origin key binding-area)
 		    (key-down key)))
+	    (set! #[avatar 'right-mouse-down]
+		  (lambda (x y)
+		    (display-origin key binding-area)))
 	    (set! #[avatar 'left-mouse-up]
 		  (lambda (x y)
 		    (key-up key)))
 
 	    (set! #[key->button key] avatar)
 	    avatar)))
-    (add-hook! *reactions*
+    (add-hook! event-triggered-hook
 	       (lambda (event)
-		 ;;(display event)
-		 (match* event
-		   (`(key-down ,key)
-		    (display-origin key target)
-		    (and-let* ((button #[key->button key]))
-		      (set! #[button 'state] 'pressed)
-		      (set! #[button 'image] #[button 'normal])))
-		   (`(key-up ,key)
-		    ;;(display-origin key target)
-		    (and-let* ((button #[key->button key]))
-		      (set! #[button 'state] 'normal)
-		      (set! #[button 'image] #[button 'normal]))))))
+		 (and-let* ((`(,event-type . ,args) event))
+		   (unless (member event-type '(timer mouse-move))
+		     (pretty-print event #[events-area 'port]))
+		   (match* event
+			   (`(key-down ,key)
+			    (and-let* ((button #[key->button key]))
+			      (set! #[button 'state] 'pressed)
+			      (set! #[button 'image] #[button 'normal])))
+			   (`(key-up ,key)
+			    (and-let* ((button #[key->button key]))
+			      (set! #[button 'state] 'normal)
+			      (set! #[button 'image] #[button 'normal])))))))
+    
+    (add-hook! event-handling-log-hook
+	       (lambda (message)
+		 (pretty-print message #[actions-area 'port])))
     (apply (layout #:lay-out lay-out-vertically)
 	   (map (lambda (row)
 		  (apply (layout #:lay-out lay-out-horizontally)
@@ -566,9 +552,17 @@
       (add-tab! pose-editor #;under-name "[pose]" #;to self)
       (add-tab! sequence-editor #;under-name "[acts]" #;to self)
       (add-tab!
-       (let ((binding-area (make <text-area> #:w 200 #:h 70
+       (let ((binding-area (make <text-area> #:w 200 #:h 320
 				 #:text-color #x000000
 				 #:background-color #xcccccc
+				 #:text ""))
+	     (events-area (make <text-area> #:w 200 #:h 320
+				#:text-color #x000000
+				#:background-color #xdddddd
+				#:text ""))
+	     (actions-area (make <text-area> #:w 200 #:h 320
+				 #:text-color #x000000
+				 #:background-color #xeeeeee
 				 #:text "")))
 	 ((layout)
 	  (keyboard-widget
@@ -588,6 +582,8 @@
 	      "                                  "
 	      left down right))
 	   binding-area
+	   events-area
+	   actions-area
 	   )
 	  ((layout #:lay-out lay-out-horizontally)
 	   ((layout)
@@ -596,16 +592,12 @@
 	   
 	   ((layout)
 	    (label " events: ")
-	    (make <text-area> #:w 200 #:h 70 #:text-color #x000000
-		  #:background-color #xdddddd
-		  #:text ""))
+	    events-area)
 	   
 	   ((layout)
 	    (label " actions: ")
-	    (make <text-area> #:w 200 #:h 70 #:text-color #x000000
-		  #:background-color #xeeeeee
-		  #:text ""))))
-	 ) "[input]" #;to self)
+	    actions-area))))
+       "[input]" #;to self)
       (set! #[self 'code-widget] ((layout)))
       (set! #[self 'time-widget] ((layout)))
       (add-tab! #[self 'code-widget] #;under-name "[code]" #;to self)

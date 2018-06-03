@@ -153,7 +153,6 @@
 (define-method (move-cursor! (w <text-area>)
 			     (right <integer>)
 			     (down <integer>))
-  (wrr "Moving cursor "right" "down)
   (%flush-cache! w)
   (set-port-line! #[ w 'port ] 
 		  (max 0 (min (+ (port-line #[w 'port]) down) 

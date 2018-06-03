@@ -831,7 +831,6 @@ input_handle_events() {
     while(getting_events(&event)) {
       switch(input_mode) {
       case DIRECT_MODE:
-	react(&event);
 	(*event_handler[event.type])(&event);
 	break;
       case TYPING_MODE:

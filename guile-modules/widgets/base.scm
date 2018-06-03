@@ -2,6 +2,7 @@
   #:use-module (oop goops)
   #:use-module (extra ref)
   #:use-module (extra common)
+  #:use-module (extra slayer)
   #:use-module (slayer)
   #:use-module (slayer font)
   #:export (
@@ -13,7 +14,8 @@
 	    remove-child!
 	    ancestors
 	    exit
-
+	    map/ancestors
+	    
 	    left-click-widget
 
 	    <widget>
@@ -30,12 +32,15 @@
 	    *active-widget*
 	    *nearby-widget*
 
-	    *reactions*
-
 	    *default-font*
 	    )
   #:export-syntax (default-slot-values with-slots)
   )
+
+(define (map/ancestors method widget)
+  (if (not #[widget 'parent])
+      '()
+      `(,(method widget) . ,(map/ancestors method #[widget 'parent]))))
 
 (define-syntax-rule (default-slot-values object args (name value) ...)
   (let-keywords args #t ((name value) ...)
@@ -75,12 +80,6 @@
 (define (((hook-caller hook-name) self) . args)
   (apply run-hook (slot-ref self hook-name) args))
 
-(define ((hook . args))
-  (make-hook (length args)))
-
-(define *reactions* ((hook 'event)))
-
-(set-reaction! (lambda (event) (run-hook *reactions* event)))
 
 (define-class <widget> ()
   (parent #:init-value #f #:init-keyword #:parent)
@@ -324,11 +323,11 @@
 	  (when *nearby-widget*
 	    (#[ *nearby-widget* 'mouse-out ] x y xrel yrel))
 	  (set! *nearby-widget* dragover-widget)
-	  (#[ *nearby-widget* 'drag-over ] x y xrel yrel))))
+	  (call-event-handler #[ *nearby-widget* 'drag-over ] x y xrel yrel))))
     (unless (null? widgets-below)
       (let ((mousemove-widget (apply argmax widget-depth widgets-below)))
-	(#[mousemove-widget 'mouse-move] x y xrel yrel)))
-    (#[ *active-widget* 'drag ] x y xrel yrel)))
+	(call-event-handler #[mousemove-widget 'mouse-move] x y xrel yrel)))
+    (call-event-handler #[ *active-widget* 'drag ] x y xrel yrel)))
 
 (keydn 'mouse-left left-mouse-down)
 (keyup 'mouse-left left-mouse-up)

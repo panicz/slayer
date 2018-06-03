@@ -10,15 +10,36 @@
 	    list->uniform-array
 	    list->uniform-vector))
 
-(define* (random-array #:key (range 1.0)(type #t)(mean 0) #:rest dims)
+(define (flatten l)
+  (if (list? l)
+    (append-map flatten l)
+    (list l)))
+
+(define (depth x)
+  (if (and (list? x) (not (null? x)))
+      (1+ (apply max (map depth x)))
+      0))
+
+(define (remove-keyword-args list)
+  (match list
+    (((? keyword?) (? (isnt _ keyword?)) . rest)
+     (remove-keyword-args rest))
+    (((? (isnt _ keyword?) x) . rest)
+     (cons x (remove-keyword-args rest)))
+    (((? keyword?) . rest)
+     (remove-keyword-args rest))
+    (() '())))
+
+(define* (random-array #:range range #:= 1.0 #:type type #:= #t
+		       #:mean mean #:= 0 . dims)
   (let ((dims (remove-keyword-args dims)))
     (array-map (lambda (mean) (+ mean (- (random (* 2 range)) range)))
 		(apply make-typed-array type mean dims))))
 
 (define (array-size a)
-  (fold * 1.0 (map (lambda (`(,lower ,upper))
-		     (1+ (abs (- upper lower))))
-		   (array-shape a))))
+  (fold-left * 1.0 (map (lambda (`(,lower ,upper))
+			  (1+ (abs (- upper lower))))
+			(array-shape a))))
 
 (define (array-map/typed type proc arg1 . args)
   (let ((result (apply make-typed-array type (if #f #f) 
@@ -60,7 +81,7 @@
 
 (define (array-pointer array . address)
   (let ((shape (array-shape array)))
-    (assert (every (lambda (index (lower upper))
+    #;(assert (every (lambda (index (lower upper))
 		     (<= lower index upper))
 		   address shape))
     (cond ((= (length address) (length shape))
@@ -77,7 +98,7 @@
 	  (else
 	   (error "Invalid array address")))))
 
-(e.g.
+#;(e.g.
  (let* ((A #2f32((0 1 2)
 		 (3 4 5)))
 	(*A/1/1 (array-pointer A 1 1))
@@ -87,7 +108,7 @@
  ===> 4.0 8.0 #2f32((0 1 2)
 		    (3 8 5)))
 
-(e.g.
+#;(e.g.
  (let* ((A #2f32((0 1 2)
 		 (3 4 5)))
 	(*A/1 (array-pointer A 1))

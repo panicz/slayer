@@ -1,7 +1,8 @@
 (define-module (widgets sprite)
   #:use-module (oop goops)
   #:use-module (extra ref)
-  #:use-module (extra common)
+  #:use-module (ice-9 optargs)
+  #:use-module (grand scheme)
   #:use-module (extra slayer)
   #:use-module (slayer)
   #:use-module (slayer image)
@@ -27,7 +28,7 @@
 		      #[self '%image])
 	 #:slot-set! (lambda (self image)
 		       (set! #[self '%image] image)
-		       (match-let (((w h) (image-size image)))
+		       (let ((`(,w ,h) (image-size image)))
 			 (set! #[self 'w] w)
 			 (set! #[self 'h] h)))
 	 #:init-keyword #:image))
@@ -41,13 +42,9 @@
 	   (set! #[sprite 'image] image)))))
 
 (define-method (draw (i <sprite>))
-  (specify ((first identity)
-	    (rest #[_ 'parent])
-	    (empty? (?not #[_ 'parent])))
-    (let ((x (apply + (map* #[_ 'x] i)))
-	  (y (apply + (map* #[_ 'y] i))))
-      (draw-image! #[ i 'image ] x y))))
-
+  (let ((x (apply + (map/ancestors #[_ 'x] i)))
+	(y (apply + (map/ancestors #[_ 'y] i))))
+    (draw-image! #[ i 'image ] x y)))
 
 (define-class <button> (<sprite>)
   (state #:init-value 'normal)
@@ -82,17 +79,19 @@
     (set! #[ button 'drag ] noop)
     ))
 
-(define* (button #:key (text "button") (action (lambda (x y) (if #f #f))))
+(define* (button #:text text #:= "button"
+		 #:action action #:= (lambda (x y) (if #f #f)))
   (let ((button (make <button> #:text text)))
     (set! #[button 'left-click] action)
     button))
   
-(define* (make-container #:key x y (name "menu") (content '()))
+(define* (make-container #:x x #:y y #:name name #:= "menu"
+			 #:content content #:= '())
   (let ((container (make <widget>))
 	(label (make <button> #:text name)))
     (set! #[label 'drag] (lambda (x y xrel yrel)		 
-			   (increase! #[ container 'x ] xrel)
-			   (increase! #[ container 'y ] yrel)))
+			   (set! #[ container 'x ] (+ xrel #[ container 'x ]))
+			   (set! #[ container 'y ] (+ yrel #[ container 'y ]))))
     (for child in (append content `(,label))
 	 (add-child! container child))
     (let ((top 0))
@@ -109,8 +108,8 @@
 		     #:h (image-height image))))
     (set! #[ image 'drag ]
 	  (lambda (x y xrel yrel)
-	    (increase! #[ image 'x ] xrel)
-	    (increase! #[ image 'y ] yrel)))
+	    (set! #[ image 'x ] (+ #[ image 'x ] xrel))
+	    (set! #[ image 'y ] (+ #[ image 'y ] yrel))))
     image))
 
 (define-class <label> (<sprite>)
