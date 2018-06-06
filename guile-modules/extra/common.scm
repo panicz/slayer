@@ -116,7 +116,6 @@
 	    make-locked-mutex
 	    last-index indexed
 	    demand SPECIFIC-CONTEXT
-	    now
 	    iterations
 	    RUN-TESTS TEST-RESULTS
 	    WARN
@@ -2197,9 +2196,6 @@
  ((iterations 3 1+) 0)
  ===> 3)
 
-(define (now)
-  (get-internal-real-time))
-
 ;; (expand '(define-accessors (a (b c 2))))
 
 ;; do dalszej rozkminki
@@ -2222,9 +2218,10 @@
 ;;        (if condition (loop))))))
 
 (define-syntax (measured expression)
-  (let ((starting-time (now)))
+  (let ((starting-time (get-internal-real-time)))
     (let ((result (list<-values expression)))
-      (format #t "~s: ~s ns\n" 'expression (- (now) starting-time))
+      (format #t "~s: ~s ns\n" 'expression (- (get-internal-real-time)
+					      starting-time))
       (apply values result))))
 
 ;; the "!#" macro is used for debugging, and its name is intentionally

@@ -5,13 +5,13 @@
   #:use-module (grand scheme)
   #:use-module (extra array)
   #:use-module (extra ref)
-  #:export (rgba highlighted subtract-image force-redisplay! key
-		 shift? ctrl? alt? add-mode! remove-mode!
-		 event-triggered-hook
-		 event-handling-log-hook
-		 procedure-origin binding-origins
-		 call-event-handler hook
-		 current-event-source)
+  #:export (now rgba highlighted subtract-image force-redisplay! key
+		shift? ctrl? alt? add-mode! remove-mode!
+		event-triggered-hook
+		event-handling-log-hook
+		procedure-origin binding-origins
+		call-event-handler hook
+		current-event-source)
   #:export-syntax (with-video-output-to key-bindings event define-event)
   #:replace (
 	     (keydn-replacement . keydn)
@@ -20,6 +20,10 @@
 
 (define ((hook . args))
   (make-hook (length args)))
+
+(define (now)
+  (let ((`(,seconds . ,microseconds) (gettimeofday)))
+    (+ (* seconds 1000000) microseconds)))
 
 (define event-triggered-hook ((hook 'event)))
 
@@ -56,7 +60,8 @@
   "A designated handler is a procedure which should not \
 be reported to the logging system, because it contains some \
 explicit logging code in its definition."
-  (procedure-property procedure 'designated-handler))
+  (or (eq? procedure noop)
+      (procedure-property procedure 'designated-handler)))
 
 (define-syntax (define-event (name . args) . body)
   (define name (event args . body)))

@@ -309,20 +309,26 @@
 
 	    (set! #[key->button key] avatar)
 	    avatar)))
+
     (add-hook! event-triggered-hook
-	       (lambda (event)
-		 (and-let* ((`(,event-type . ,args) event))
-		   (unless (member event-type '(timer mouse-move))
-		     (pretty-print event #[events-area 'port]))
-		   (match* event
-			   (`(key-down ,key)
-			    (and-let* ((button #[key->button key]))
-			      (set! #[button 'state] 'pressed)
-			      (set! #[button 'image] #[button 'normal])))
-			   (`(key-up ,key)
-			    (and-let* ((button #[key->button key]))
-			      (set! #[button 'state] 'normal)
-			      (set! #[button 'image] #[button 'normal])))))))
+	       (let ((previous-event-time (current-time)))
+		 (lambda (event)
+		   (and-let* ((`(,event-type . ,args) event)
+			      (current-event-time (now)))
+		     (pretty-print `(usleep ,(- current-event-time
+						previous-event-time))
+				   #[events-area 'port])
+		     (set! previous-event-time current-event-time)
+		     (pretty-print event #[events-area 'port])
+		     (match* event
+			     (`(key-down ,key)
+			      (and-let* ((button #[key->button key]))
+				(set! #[button 'state] 'pressed)
+				(set! #[button 'image] #[button 'normal])))
+			     (`(key-up ,key)
+			      (and-let* ((button #[key->button key]))
+				(set! #[button 'state] 'normal)
+				(set! #[button 'image] #[button 'normal]))))))))
     
     (add-hook! event-handling-log-hook
 	       (lambda (message)

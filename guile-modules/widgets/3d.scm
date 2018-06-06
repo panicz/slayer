@@ -1,8 +1,10 @@
 (define-module (widgets 3d)
   #:use-module (oop goops)
-  #:use-module (ice-9 nice-9)
+  ;;  #:use-module (ice-9 nice-9)
   #:use-module (widgets base)
-  #:use-module (extra common)
+  #:use-module ((extra common) #:select (supply demand push!))
+  #:use-module (extra array)
+  #:use-module (grand scheme)
   #:use-module (extra math)
   #:use-module (extra shape)
   #:use-module (extra ref)
@@ -154,8 +156,8 @@
     (pop-matrix!)
     (apply set-viewport! original-viewport)))
 
-(define-fluid X-SENSITIVITY 0.01)
-(define-fluid Y-SENSITIVITY 0.01)
+(define X-SENSITIVITY (make-fluid 0.01))
+(define Y-SENSITIVITY (make-fluid 0.01))
 
 (define-method (relative-turn! (object <3d>) (x <number>) (y <number>))
   (set! #[object 'orientation]
@@ -179,11 +181,11 @@
 	       #[object 'orientation])))))
 
 (define-method (relative-move! (object <3d>) direction)
-  (increase! #[object 'position]
-	     (rotate direction #[object 'orientation])))
+  (set! #[object 'position] (+ #[object 'position]
+			       (rotate direction #[object 'orientation]))))
 
-(define* (screen->3d view x y #:optional (z #f))
-  (assert (let ((result (screen->3d view position)))
+(define* (screen->3d view x y z #:= #f)
+  #;(assert (let ((result (screen->3d view position)))
 	    (if result 
 		(and (uniform-vector? result)
 		     (eq? (array-type result) 'f64)))))
@@ -196,7 +198,7 @@
     (screen->world/coordinates x y z matrix projection (area view))))
 
 (define-method (3d->screen (view <3d-view>) (position <point>))
-  (assert (let ((result (3d->screen view position)))
+  #;(assert (let ((result (3d->screen view position)))
 	    (if result
 		(matches? ((? real?) (? real?) (? real?)) result))))
   (let* ((camera #[view 'camera])
@@ -219,7 +221,7 @@
        (for object in #[view : 'stage : 'objects]
 	    (set-display-index! index)
 	    (draw-object! object)
-	    (when (in? object #[view 'selected])
+	    (when (is object member #[view 'selected])
 	      (draw-contour! object))
 	    (push! #[view : 'object-groups : index] object)
 	    (set! index (modulo (+ index 1) (max-display-index))))))
@@ -240,7 +242,7 @@
        (format #t "ambiguous display-index candidates\n")))))
 
 (define-method (select-object! (object <3d>) #;from (view <3d-editor>))
-  (unless (in? object #[view 'selected])
+  (unless (is object member #[view 'selected])
     (push! #[view 'selected] object)))
 
 (define-method (unselect-object! (view <3d-editor>) (object <3d>))
@@ -303,14 +305,17 @@
 		     #;on axis-mapping))))))
 	)))))
 
-(define* (rotate-mode view #:key 
-		       (axis #f)
-		       (always-rotate-around-center #f)
-		       (rotate-around-center always-rotate-around-center)
-		       (center (lambda(selected)
-				 (apply mean (map #[_ 'position] selected))))
-		       (rotation-direction 1)
-		       (on-exit noop))
+(define* (rotate-mode view 
+		      #:axis axis #:= #f
+		      #:always-rotate-around-center
+		      always-rotate-around-center #:= #f
+		      #:rotate-around-center
+		      rotate-around-center #:= always-rotate-around-center
+		      #:center center #:= (lambda(selected)
+					    (apply mean (map #[_ 'position]
+							     selected)))
+		      #:rotation-direction rotation-direction #:= 1
+		      #:on-exit on-exit #:= noop)
   (lambda ()
     (unless (null? #[view 'selected])
       (let ((old-bindings (current-key-bindings))
